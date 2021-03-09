@@ -60,4 +60,8 @@ subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
   integer(ip) ::
   real(rp)    ::
 !
+! figure how what to compute
+!
+  if ()...
+    call multipoles_potential(scr,v)
 end subroutine electrostatics

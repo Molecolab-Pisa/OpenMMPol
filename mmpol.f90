@@ -214,6 +214,10 @@ module mmpol
   integer(ip), allocatable :: n_ws(:), list_ws(:)
   real(rp),    allocatable :: block_ws(:,:)
 !
+!     array to store the thole factors for computing damping functions
+!
+  real(rp),    allocatable :: thole(:)
+!
 ! -------------------------------------------------------------------------------------------------------
 !
 !   internal variables for memory allocation and definition of the interface for
