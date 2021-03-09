@@ -87,9 +87,12 @@ module mmpol
   integer(ip)              :: pol_atoms
 !
 !     size of the cartesian multipolar distribution (i.e., (l+1)*(l+2)*(l+3)/6)
-!     this is 1 for AMBER (charges only), 10 for AMOEBA (up to quadrupoles)
+!     this is 1 for AMBER (charges only), 10 for AMOEBA (up to quadrupoles). 
+!     this is also the size of the array that contains the electrostatic properties
+!     of the sources at the sources. ld_cder is the leading size of the derivative of
+!     such a distribution, which is 3 for AMBER and 19 for AMOEBA.
 !
-  integer(ip)              :: ld_cart
+  integer(ip)              :: ld_cart, ld_cder
 !
 !     number of induced point dipoles distributions
 !     this is 1 for AMBER, 2 for AMOEBA. 
