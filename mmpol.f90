@@ -162,7 +162,7 @@ module mmpol
 !
 !     connectivity (number of neighbors and list of neighbors):
 !
-  integer(ip), allocatable :: n12(:), i12(:,:), n13(:), i13(:,:), n14(:), i14(:), n15(:), i15(:)
+  integer(ip), allocatable :: n12(:), i12(:,:), n13(:), i13(:,:), n14(:), i14(:,:), n15(:), i15(:,:)
 !
 !     polarization group or fragment
 !
@@ -170,7 +170,7 @@ module mmpol
 !
 !     polarization group "connectivity":
 !
-  integer(ip), allocatable :: np11(:), ip11(:), np12(:), ip12(:), np13(:), ip13(:), np14(:), ip14(:)
+  integer(ip), allocatable :: np11(:), ip11(:,:), np12(:), ip12(:,:), np13(:), ip13(:,:), np14(:), ip14(:,:)
 !
 !   parameters for the definition of the rotation matrices for the multipoles:
 !   ==========================================================================
