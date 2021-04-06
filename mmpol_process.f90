@@ -29,6 +29,10 @@ subroutine mmpol_process(polar)
   real(rp),   parameter   :: toang = 0.52917721092_rp
   real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
 !
+! set the exclusion rules:
+!
+  call set_screening_parameters
+!
   third   = one/three
   tobohr  = one/toang
   tobohr3 = tobohr**3

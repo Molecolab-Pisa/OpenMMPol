@@ -458,6 +458,76 @@ module mmpol
       stop '   error termination for open_mmpol.'
       return
     end subroutine fatal_error
-
+!
+    subroutine set_screening_parameters
+      implicit none
+      real(rp), parameter :: pt4 = 0.40_rp, pt8 = 0.80_rp
+      if (ff_type.eq.0 .and. ff_rules.eq.0) then
+!
+!       exclusion rules for WangAL
+!
+        mscale(1) = zero
+        mscale(2) = zero
+        mscale(3) = one
+        mscale(4) = one
+        pscale(1) = zero
+        pscale(2) = zero
+        pscale(3) = one
+        pscale(4) = one
+        pscale(5) = one
+        dscale(1) = zero
+        dscale(2) = zero
+        dscale(3) = one
+        dscale(4) = one
+        uscale(1) = zero
+        uscale(2) = zero
+        uscale(3) = one
+        uscale(4) = one
+      else if (ff_type.eq.0 .and. ff_rules.eq.1) then
+!
+!       exclusion rules for WangDL
+!
+        mscale(1) = one
+        mscale(2) = one
+        mscale(3) = one
+        mscale(4) = one
+        pscale(1) = one
+        pscale(2) = one
+        pscale(3) = one
+        pscale(4) = one
+        pscale(5) = one
+        dscale(1) = one
+        dscale(2) = one
+        dscale(3) = one
+        dscale(4) = one
+        uscale(1) = one
+        uscale(2) = one
+        uscale(3) = one
+        uscale(4) = one
+      else if (ff_type.eq.1) then
+!
+!       exclusion rules for AMOEBA
+!
+        mscale(1) = zero
+        mscale(2) = zero
+        mscale(3) = pt4
+        mscale(4) = pt8
+        pscale(1) = zero
+        pscale(2) = zero
+        pscale(3) = one
+        pscale(4) = one
+        pscale(5) = pt5
+        dscale(1) = zero
+        dscale(2) = one
+        dscale(3) = one
+        dscale(4) = one
+        uscale(1) = one
+        uscale(2) = one
+        uscale(3) = one
+        uscale(4) = one
+      else
+        call fatal_error('the required force field is not implemented.')
+      end if
+    end subroutine set_screening_parameters
 
 end module mmpol
