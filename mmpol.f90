@@ -32,6 +32,10 @@ module mmpol
 !
   integer(ip), parameter   :: revision = 1
 !
+!     units used for i/o:
+!
+  integer(ip), parameter   :: mmpinp = 100, mmpfile = 101, mmpout=6
+!
 !     maximum allowed number of 1-2, ..., 1-5 neighbors.
 !
   integer(ip), parameter   :: maxn12 = 8, maxn13 = 24, maxn14 = 72, maxn15 = 216
@@ -47,11 +51,14 @@ module mmpol
 !     maximum number of integer and real parameters (for i/o purposes)
 !
   integer(ip), parameter   :: nipars = 32, nrpars = 32
-!     
-!     diagonal shift parameter for the Wang-Skeel preconditioner.
-!     default: one for AMBER, two for AMOEBA
 !
-  real(rp)                 :: ws_shift
+!     maximum amount of memory (in gb) and number of cores that can be used by mmpol:
+!
+  integer(ip)              :: maxcor, nproc
+!
+!     verbosity flag:
+!
+  integer(ip)              :: verbose
 !
 !     force field selection. ff_type is 0 for AMBER and 1 for AMOEBA. for AMBER
 !     ff_rules is 0 for Wang AL and 1 for Wang DL exclusion rules, respectively.
@@ -74,6 +81,22 @@ module mmpol
 !     convergence:       convergence threshold (rms norm of the residual/increment) for iterative solvers
 !
   real(rp)                 :: convergence
+!
+!
+!
+  logical                  :: gradient
+!     
+!     diagonal shift parameter for the Wang-Skeel preconditioner.
+!     default: one for AMBER, two for AMOEBA
+!
+  real(rp)                 :: ws_shift
+!
+!     name of the input and scratch files and associated lenght
+!
+  integer(ip)             :: len_inname, len_scname
+  character(len=120)      :: input_file, scratch_file
+!
+  logical                 :: amoeba
 !
 !   variables that control the size of various arrays:  
 !   ==================================================
@@ -189,8 +212,8 @@ module mmpol
 !
   integer(ip), allocatable :: ix(:), iy(:), iz(:)
 !
-!   scalars and arrays for various useful intermediates and results
-!   =======================================
+!   scalars and arrays for various useful intermediates and results:
+!   ================================================================
 !
 !     electrostatic and polarization energies, including their breakdown into contributoins:
 !
@@ -218,12 +241,19 @@ module mmpol
 !
   real(rp),    allocatable :: thole(:)
 !
+!   constants:
+!   ==========
+!
+  real(rp),    parameter   :: thres = 1.0e-8_rp
+  real(rp),    parameter   :: zero = 0.0_rp, pt5 = 0.5_rp, one = 1.0_rp, two = 2.0_rp, three = 3.0_rp, &
+                              six = 6.0_rp, ten = 10.0_rp
+!
 ! -------------------------------------------------------------------------------------------------------
 !
 !   internal variables for memory allocation and definition of the interface for
 !   the wrappers:
 !
-  integer(ip)              :: maxcor, maxmem
+  integer(ip)              :: maxmem
   integer(ip), parameter   :: memout = 6
   integer(ip), private     :: istat, ltot
 !
@@ -420,4 +450,20 @@ module mmpol
       return
     end subroutine chk_free
 !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                  !
+!   silly routine to abort the calculation with an error message:                  !
+!                                                                                  !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+    subroutine fatal_error(message)
+      implicit none
+      character (len=*) message
+   1000 format(t3,a)
+      write(memout,1000) message
+      stop '   error termination for open_mmpol.'
+      return
+    end subroutine fatal_error
+
+
 end module mmpol
