@@ -1,4 +1,5 @@
 module mmpol
+  use precision
 !
 ! mmpol - an opensource library for polarizable molecular mechanics based embedding
 !
@@ -16,13 +17,6 @@ module mmpol
 !   amount used.                                                                   !
 !                                                                                  !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  implicit none
-  integer(kind=4), parameter :: rp = 8
-#ifdef USE_I8
-  integer(kind=4), parameter :: ip = 4
-#else
-  integer(kind=4), parameter :: rp = 8
-#endif
 !
 !   scalar control variables:
 !   =========================
