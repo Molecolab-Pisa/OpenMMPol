@@ -54,8 +54,7 @@ subroutine coulomb_kernel(damp,maxder,x,y,z,thole_i,thole_j,rm1,rm3,rm5,rm7,rm9,
   logical  :: w_damp, exp_damp
   real(rp) :: r, r2, rm2, fl3, fl5, fl7, fl9, s, u, v3, v4, fexp, eexp, um3, um5, um7, um9
   
-  real(rp), parameter :: one = 1.0_rp, three = 3.0_rp, five = 5.0_rp, seven = 7.0_rp, pt2 = 0.2_rp, &
-                         pt39 = 0.39_rp, pt6 = 0.6_rp, four = 4.0_rp, nine = 9.0_rp, f18 = 18.0_rp, &
+  real(rp), parameter :: pt2 = 0.2_rp, pt39 = 0.39_rp, pt6 = 0.6_rp, f18 = 18.0_rp, &
                          f35  = 35.0_rp, f50 = 50.0_rp
 
 !
@@ -129,7 +128,7 @@ subroutine coulomb_kernel(damp,maxder,x,y,z,thole_i,thole_j,rm1,rm3,rm5,rm7,rm9,
 !
     um9 = um7*rm2
     if(exp_damp) then
-      fl9  = one - (one - fexp + f18*fexp*fexp/f35 + f9*fexp*fexp*fexp/35)*eexp
+      fl9  = one - (one - fexp + f18*fexp*fexp/f35 + nine*fexp*fexp*fexp/f35)*eexp
     end if
     rm9 = fl9*um9
   end if
