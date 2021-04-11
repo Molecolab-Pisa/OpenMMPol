@@ -23,7 +23,7 @@ subroutine multipoles_potential(scr,v)
     ! - For AMOEBA force-field potential, electric field and field gradients
     !   are computed. The output is given in following order:
     !
-    !       v, ex, ey, ez, Gxx, Gxy, Gxz, Gyy, Gyz, Gzz 
+    !       v, ex, ey, ez, Gxx, Gxy, Gyy, Gxz, Gyz, Gzz 
     !
     
     real(rp), dimension(ld_cart,mm_atoms), intent(inout) :: v
@@ -148,7 +148,7 @@ subroutine multipoles_potential_deriv(scr,dv)
     !   field and field gradients are computed. The output is given in
     !   following order:
     !   
-    !       ex, ey, ez, gxx, gxy, gxz, gyy, gyz, gzz, hxxx, hxxy, hxxz,  
+    !       ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz, hxxx, hxxy, hxxz,  
     !       hxyy, hxyz, hxzz, hyyy, hyyz, hyzz, hzzz
     !
     
@@ -203,13 +203,13 @@ subroutine multipoles_field_deriv(scr,de)
     ! - For AMBER force-field electric field gradients at polarizable
     !   site are computed. The output is given in following order:
     !
-    !       gxx, gxy, gxz, gyy, gyz, gzz
+    !       gxx, gxy, gyy, gxz, gyz, gzz
     !
     ! - For AMOEBA force-field electric field gradients for the direct
     !   and polarization field are computed. The output is given in 
     !   following order:
     !
-    !       gxx, gxy, gxz, gyy, gyz, gzz
+    !       gxx, gxy, gyy, gxz, gyz, gzz
     !
     !   the direct field gradients (for d dipoles) are in de(:,:,1)
     !   the polarization field gradients (for p dipoles) are in de(:,:,2)
@@ -317,8 +317,8 @@ subroutine potential_M2M(scalef,I,J,v)
         pz  = q( 4,J)
         qxx = q( 5,J)
         qxy = q( 6,J)
-        qxz = q( 7,J)
-        qyy = q( 8,J)
+        qyy = q( 7,J)
+        qxz = q( 8,J)
         qyz = q( 9,J)
         qzz = q(10,J)
 
@@ -330,7 +330,7 @@ subroutine potential_M2M(scalef,I,J,v)
         QRR  = QRx*dx + QRy*dy + QRz*dz
 
         ! Potential
-        v(1,I) = v(1,I) + (qq*rm1 + DdR*rm3 + QRR*rm5)
+        v(1,I) = v(1,I) + (qq*rm1 + DdR*rm3 + QRR*rm5)     ! q
 
         ! Field
         fac    = qq*rm3 + DdR*rm5 + QRR*rm7
@@ -342,8 +342,8 @@ subroutine potential_M2M(scalef,I,J,v)
         fac  = qq*rm5 + DdR*rm7 + QRR*rm9
         v(5,I)  = v(5,I)  + (fac*dx*dx - qq*rm3 + (- DdR - Two*px*dx + Two*qxx)*rm5 - (QRR + Four*QRx*dx)*rm7)  ! Gxx
         v(6,I)  = v(6,I)  + (fac*dx*dy + (- px*dy - py*dx + Two*qxy)*rm5 - Two*(QRx*dy + QRy*dx)*rm7)           ! Gxy
-        v(7,I)  = v(7,I)  + (fac*dx*dz + (- px*dz - pz*dx + Two*qxz)*rm5 - Two*(QRx*dz + QRz*dx)*rm7)           ! Gxz
-        v(8,I)  = v(8,I)  + (fac*dy*dy - qq*rm3 + (- DdR - Two*py*dy + Two*qyy)*rm5 - (QRR + Four*QRy*dy)*rm7)  ! Gyy
+        v(7,I)  = v(7,I)  + (fac*dy*dy - qq*rm3 + (- DdR - Two*py*dy + Two*qyy)*rm5 - (QRR + Four*QRy*dy)*rm7)  ! Gyy
+        v(8,I)  = v(8,I)  + (fac*dx*dz + (- px*dz - pz*dx + Two*qxz)*rm5 - Two*(QRx*dz + QRz*dx)*rm7)           ! Gxz
         v(9,I)  = v(9,I)  + (fac*dy*dz + (- py*dz - pz*dy + Two*qyz)*rm5 - Two*(QRy*dz + QRz*dy)*rm7)           ! Gyz
         v(10,I) = v(10,I) + (fac*dz*dz - qq*rm3 + (- DdR - Two*pz*dz + Two*qzz)*rm5 - (QRR + Four*QRz*dz)*rm7)  ! Gzz
     end if
@@ -415,8 +415,8 @@ subroutine field_M2D(scalefd,scalefp,I,J,e)
         pz  = q( 4,J)
         qxx = q( 5,J)
         qxy = q( 6,J)
-        qxz = q( 7,J)
-        qyy = q( 8,J)
+        qyy = q( 7,J)
+        qxz = q( 8,J)
         qyz = q( 9,J)
         qzz = q(10,J)
 
@@ -512,8 +512,8 @@ subroutine potential_deriv_M2M(scalef,I,J,dv)
         pz  = q( 4,J)
         qxx = q( 5,J)
         qxy = q( 6,J)
-        qxz = q( 7,J)
-        qyy = q( 8,J)
+        qyy = q( 7,J)
+        qxz = q( 8,J)
         qyz = q( 9,J)
         qzz = q(10,J)
         
@@ -534,8 +534,8 @@ subroutine potential_deriv_M2M(scalef,I,J,dv)
         fac     = qq*rm5 + DdR*rm7 + QRR*rm9
         dv(4,I) = dv(4,I) + fac*dx*dx - qq*rm3 + (- DdR - Two*px*dx + Two*qxx)*rm5 - (QRR + Four*QRx*dx)*rm7  ! gxx
         dv(5,I) = dv(5,I) + fac*dx*dy + (- px*dy - py*dx + Two*qxy)*rm5 - Two*(QRx*dy + QRy*dx)*rm7           ! gxy
-        dv(6,I) = dv(6,I) + fac*dx*dz + (- px*dz - pz*dx + Two*qxz)*rm5 - Two*(QRx*dz + QRz*dx)*rm7           ! gxz
-        dv(7,I) = dv(7,I) + fac*dy*dy - qq*rm3 + (- DdR - Two*py*dy + Two*qyy)*rm5 - (QRR + Four*QRy*dy)*rm7  ! gyy
+        dv(6,I) = dv(6,I) + fac*dy*dy - qq*rm3 + (- DdR - Two*py*dy + Two*qyy)*rm5 - (QRR + Four*QRy*dy)*rm7  ! gyy
+        dv(7,I) = dv(7,I) + fac*dx*dz + (- px*dz - pz*dx + Two*qxz)*rm5 - Two*(QRx*dz + QRz*dx)*rm7           ! gxz
         dv(8,I) = dv(8,I) + fac*dy*dz + (- py*dz - pz*dy + Two*qyz)*rm5 - Two*(QRy*dz + QRz*dy)*rm7           ! gyz
         dv(9,I) = dv(9,I) + fac*dz*dz - qq*rm3 + (- DdR - Two*pz*dz + Two*qzz)*rm5 - (QRR + Four*QRz*dz)*rm7  ! gzz
         
@@ -619,8 +619,8 @@ subroutine field_deriv_M2D(scalefd,scalefp,I,J,de)
         fac2 = scalefp*Three*q(1,J)/rm5
         de(1,I,1) = de(1,I,1) - fac1 + fac2*dx*dx  ! gxx
         de(2,I,1) = de(2,I,1)  + fac2*dx*dy        ! gxy
-        de(3,I,1) = de(3,I,1) + fac2*dx*dz         ! gxz
-        de(4,I,1) = de(4,I,1) - fac1 + fac2*dy*dy  ! gyy
+        de(3,I,1) = de(3,I,1) - fac1 + fac2*dy*dy  ! gyy
+        de(4,I,1) = de(4,I,1) + fac2*dx*dz         ! gxz
         de(5,I,1) = de(5,I,1) + fac2*dy*dz         ! gyz
         de(6,I,1) = de(6,I,1) - fac1 + fac2*dz*dz  ! gzz
         
@@ -635,8 +635,8 @@ subroutine field_deriv_M2D(scalefd,scalefp,I,J,de)
         pz  = q( 4,J)
         qxx = q( 5,J)
         qxy = q( 6,J)
-        qxz = q( 7,J)
-        qyy = q( 8,J)
+        qyy = q( 7,J)
+        qxz = q( 8,J)
         qyz = q( 9,J)
         qzz = q(10,J)
 
@@ -651,24 +651,24 @@ subroutine field_deriv_M2D(scalefd,scalefp,I,J,de)
         fac  = qq*rm5 + DdR*rm7 + QRR*rm9
         fGxx = fac*dx*dx - qq*rm3  + (- DdR - Two*px*dx + Two*qxx)*rm5 - (QRR + Four*QRx*dx)*rm7
         fGxy = fac*dx*dy + (- px*dy - py*dx + Two*qxy)*rm5 - Two*(QRx*dy + QRy*dx)*rm7
-        fGxz  = fac*dx*dz + (- px*dz - pz*dx + Two*qxz)*rm5 - Two*(QRx*dz + QRz*dx)*rm7
         fGyy  = fac*dy*dy - qq*rm3 + (- DdR - Two*py*dy + Two*qyy)*rm5 - (QRR + Four*QRy*dy)*rm7
+        fGxz  = fac*dx*dz + (- px*dz - pz*dx + Two*qxz)*rm5 - Two*(QRx*dz + QRz*dx)*rm7
         fGyz  = fac*dy*dz+ (- py*dz - pz*dy + Two*qyz)*rm5 - Two*(QRy*dz + QRz*dy)*rm7
         fGzz  = fac*dz*dz - qq*rm3 + (- DdR - Two*pz*dz + Two*qzz)*rm5 - (QRR + Four*QRz*dz)*rm7
         
         ! d dipoles
         de(1,I,1) = de(1,I,1) + scalefd*fGxx  ! gxx
         de(2,I,1) = de(2,I,1) + scalefd*fGxy  ! gxy
-        de(3,I,1) = de(3,I,1) + scalefd*fGxz  ! gxz
-        de(4,I,1) = de(4,I,1) + scalefd*fGyy  ! gyy
+        de(3,I,1) = de(3,I,1) + scalefd*fGyy  ! gyy
+        de(4,I,1) = de(4,I,1) + scalefd*fGxz  ! gxz
         de(5,I,1) = de(5,I,1) + scalefd*fGyz  ! gyz
         de(6,I,1) = de(6,I,1) + scalefd*fGzz  ! gzz
         
         ! p dipoles
         de(1,I,2) = de(1,I,2) + scalefp*fGxx  ! gxx
         de(2,I,2) = de(2,I,2) + scalefp*fGxy  ! gxy
-        de(3,I,2) = de(3,I,2) + scalefp*fGxz  ! gxz
-        de(4,I,2) = de(4,I,2) + scalefp*fGyy  ! gyy
+        de(3,I,2) = de(3,I,2) + scalefp*fGyy  ! gyy
+        de(4,I,2) = de(4,I,2) + scalefp*fGxz  ! gxz
         de(5,I,2) = de(5,I,2) + scalefp*fGyz  ! gyz
         de(6,I,2) = de(6,I,2) + scalefp*fGzz  ! gzz        
     end if
@@ -774,15 +774,15 @@ subroutine potential_D2M(scalefd,scalefp,I,J,v)
         facp  = DpdR*rm7
         v(5,I)  = v(5,I)  + (facd*dx*dx + (- DddR - Two*dpx*dx)*rm5)  ! Gxx from d dipoles
         v(6,I)  = v(6,I)  + (facd*dx*dy + (- dpx*dy - dpy*dx)*rm5)    ! Gxy from d dipoles
-        v(7,I)  = v(7,I)  + (facd*dx*dz + (- dpx*dz - dpz*dx)*rm5)    ! Gxz from d dipoles
-        v(8,I)  = v(8,I)  + (facd*dy*dy + (- DddR - Two*dpy*dy)*rm5)  ! Gyy from d dipoles
+        v(7,I)  = v(7,I)  + (facd*dy*dy + (- DddR - Two*dpy*dy)*rm5)  ! Gyy from d dipoles
+        v(8,I)  = v(8,I)  + (facd*dx*dz + (- dpx*dz - dpz*dx)*rm5)    ! Gxz from d dipoles
         v(9,I)  = v(9,I)  + (facd*dy*dz + (- dpy*dz - dpz*dy)*rm5)    ! Gyz from d dipoles
         v(10,I) = v(10,I) + (facd*dz*dz + (- DddR - Two*dpz*dz)*rm5)  ! Gzz from d dipoles
         
         v(5,I)  = v(5,I)  + (facp*dx*dx + (- DpdR - Two*ppx*dx)*rm5)  ! Gxx from p dipoles
         v(6,I)  = v(6,I)  + (facp*dx*dy + (- ppx*dy - ppy*dx)*rm5)    ! Gxy from p dipoles
-        v(7,I)  = v(7,I)  + (facp*dx*dz + (- ppx*dz - ppz*dx)*rm5)    ! Gxz from p dipoles
-        v(8,I)  = v(8,I)  + (facp*dy*dy + (- DpdR - Two*ppy*dy)*rm5)  ! Gyy from p dipoles
+        v(7,I)  = v(7,I)  + (facp*dy*dy + (- DpdR - Two*ppy*dy)*rm5)  ! Gyy from p dipoles
+        v(8,I)  = v(8,I)  + (facp*dx*dz + (- ppx*dz - ppz*dx)*rm5)    ! Gxz from p dipoles
         v(9,I)  = v(9,I)  + (facp*dy*dz + (- ppy*dz - ppz*dy)*rm5)    ! Gyz from p dipoles
         v(10,I) = v(10,I) + (facp*dz*dz + (- DpdR - Two*ppz*dz)*rm5)  ! Gzz from p dipoles
         
@@ -980,15 +980,15 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
         facp = DpdR*rm7
         dv(4,I) = dv(4,I) + facp*dx*dx-(DpdR+Two*ppx*dx)*rm5    ! gxx from p dipoles
         dv(5,I) = dv(5,I) + facp*dx*dy-(ppx*dy+ppy*dx)*rm5      ! gxy from p dipoles
-        dv(6,I) = dv(6,I) + facp*dx*dz-(ppx*dz+ppz*dx)*rm5      ! gxz from p dipoles
-        dv(7,I) = dv(7,I) + facp*dy*dy-(DpdR+Two*ppy*dy)*rm5    ! gyy from p dipoles
+        dv(6,I) = dv(6,I) + facp*dy*dy-(DpdR+Two*ppy*dy)*rm5    ! gyy from p dipoles
+        dv(7,I) = dv(7,I) + facp*dx*dz-(ppx*dz+ppz*dx)*rm5      ! gxz from p dipoles
         dv(8,I) = dv(8,I) + facp*dy*dz-(ppy*dz+ppz*dy)*rm5      ! gyz from p dipoles
         dv(9,I) = dv(9,I) + facp*dz*dz-(DpdR+two*ppz*dz)*rm5    ! gzz from p dipoles
 
         dv(4,I) = dv(4,I) + facd*dx*dx-(DddR+Two*dpx*dx)*rm5    ! gxx from d dipoles
         dv(5,I) = dv(5,I) + facd*dx*dy-(dpx*dy+dpy*dx)*rm5      ! gxy from d dipoles
-        dv(6,I) = dv(6,I) + facd*dx*dz-(dpx*dz+dpz*dx)*rm5      ! gxz from d dipoles
-        dv(7,I) = dv(7,I) + facd*dy*dy-(DddR+Two*dpy*dy)*rm5    ! gyy from d dipoles
+        dv(6,I) = dv(6,I) + facd*dy*dy-(DddR+Two*dpy*dy)*rm5    ! gyy from d dipoles
+        dv(7,I) = dv(7,I) + facd*dx*dz-(dpx*dz+dpz*dx)*rm5      ! gxz from d dipoles
         dv(8,I) = dv(8,I) + facd*dy*dz-(dpy*dz+dpz*dy)*rm5      ! gyz from d dipoles
         dv(9,I) = dv(9,I) + facd*dz*dz-(DddR+two*dpz*dz)*rm5    ! gzz from d dipoles
 
@@ -1118,8 +1118,8 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
         ! Field derivatives
         de(1,I,1) = de(1,I,1) - scalefp*(rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
         de(2,I,1) = de(2,I,1) - scalefp*(rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
-        de(3,I,1) = de(3,I,1) - scalefp*(rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
-        de(4,I,1) = de(4,I,1) - scalefp*(rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(3,I,1) = de(3,I,1) - scalefp*(rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(4,I,1) = de(4,I,1) - scalefp*(rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
         de(5,I,1) = de(5,I,1) - scalefp*(rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
         de(6,I,1) = de(6,I,1) - scalefp*(rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz
         
@@ -1137,8 +1137,8 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
         ! Field derivatives
         de(1,I,2) = de(1,I,2) - scalefp*(rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
         de(2,I,2) = de(2,I,2) - scalefp*(rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
-        de(3,I,2) = de(3,I,2) - scalefp*(rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
-        de(4,I,2) = de(4,I,2) - scalefp*(rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(3,I,2) = de(3,I,2) - scalefp*(rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(4,I,2) = de(4,I,2) - scalefp*(rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
         de(5,I,2) = de(5,I,2) - scalefp*(rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
         de(6,I,2) = de(6,I,2) - scalefp*(rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz       
     end if
