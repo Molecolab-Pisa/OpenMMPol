@@ -160,6 +160,10 @@ module mmpol
 !     distribution rotated to the lab frame and one for the force field 
 !     parameters. this is only relevant for AMOEBA.
 !
+!     the multipoles are stored in the following order:
+!
+!     q, px, py, pz, Qxx, Qxy, Qyy, Qxz, Qyx, Qzz.
+!
   real(rp),    allocatable :: q(:,:), q0(:,:)
 !
 !     induced point dipoles. note the third dimension to account for more than
@@ -218,7 +222,7 @@ module mmpol
 !
   real(rp),    allocatable :: v_qq(:,:), dv_qq(:,:)
 !
-!     field of the charges (multipoles) at the ipd and its derivatives
+!     field at the ipd and its derivatives
 !
   real(rp),    allocatable :: ef_qd(:,:,:), def_qd(:,:,:)
 !

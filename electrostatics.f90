@@ -20,7 +20,7 @@ subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
 !                 the quadrupole (AMOEBA). 
 !                 the output is given in v in the following order:
 !
-!                    v, ex, ey, ez, gxx, gxy, gxz, gyy, gyz, gzz
+!                    v, ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz
 !
 !               - if itrg is 0, compute the electric field of the source at the 
 !                 polarizable sites. note that for AMOEBA, this requires computing
@@ -38,12 +38,12 @@ subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
 !
 !               - if itrg is 0, the output is given in dv in the following order:
 !
-!                   ex, ey, ez, gxx, gxy, gxz, gyy, gyz, gzz, hxxx, hxxy, hxxz, hxyy, hxyz,
+!                   ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz, hxxx, hxxy, hxxz, hxyy, hxyz,
 !                   hxzz, hyyy, hyyz, hyzz, hzzz.
 !               
 !               - if itrg is 1, the output is given in de in the following order:
 !
-!                   gxx, gxy, gxz, gyy, gyz, gzz
+!                   gxx, gxy, gyy, gxz, gyz, gzz
 !
 !                 note again that for AMOEBA, de has dimensions (6,pol_atoms,2).
 !                 the direct field gradient is in de(:,:,1) and the polarization field
