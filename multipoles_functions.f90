@@ -483,12 +483,12 @@ subroutine potential_deriv_M2M(scalef,I,J,dv)
     ! If multipoles q are only charges calculate only potential
     if (.not. Amoeba) then
         call coulomb_kernel(.false.,1,dx,dy,dz,0.0_rp,0.0_rp,rm1,rm3,rm5,rm7,rm9,rm11)
-        
+
         ! Scaling of the interactions
         rm3 = scalef*rm3
         
         ! Field
-        fac = q( 1,J)/rm3
+        fac = q( 1,J)*rm3
         dv(1,I) = dv(1,I) + fac*dx  ! ex
         dv(2,I) = dv(2,I) + fac*dy  ! ey
         dv(3,I) = dv(3,I) + fac*dz  ! ez
