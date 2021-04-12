@@ -66,6 +66,8 @@ subroutine coulomb_kernel(damp,maxder,x,y,z,thole_i,thole_j,rm1,rm3,rm5,rm7,rm9,
   fl5  = one
   fl7  = one
   fl9  = one
+  w_damp   = .false.
+  exp_damp = .false.
 !
   if (damp) then
 !
