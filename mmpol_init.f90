@@ -5,7 +5,6 @@ subroutine mmpol_init
 ! read the input for the mmpol calculation and process it.
 !
   integer(ip)              :: input_revision, iconv, i
-! real(rp)                 ::
 !
 ! integer(ip), allocatable :: 
   real(rp),    allocatable :: polar(:)
@@ -146,5 +145,22 @@ subroutine mmpol_init
 !
   call mmpol_process(polar)
   call mfree('mmpol_init [pol]',polar)
+!
+!
+! allocate memory for the electrostatic properties of static multipoles
+!
+  call mallocate('mmpol_init [v_qq]',ld_cart,mm_atoms,v_qq)
+  call mallocate('mmpol_init [ef_qd]',3,pol_atoms,n_ipd,ef_qd)
+  call mallocate('mmpol_init [dv_qq]',ld_cder,mm_atoms,dv_qq)
+  call mallocate('mmpol_init [def_qd]',6,pol_atoms,n_ipd,def_qd)
+  v_qq   = Zero
+  ef_qd  = Zero
+  dv_qq  = Zero
+  def_qd = Zero
+!
+! allocate memory for the induced point dipoles
+!
+  call mallocate('mmpol_init [idp]',3,pol_atoms,n_ipd,ipd) 
+  ipd    = Zero
 !
 end subroutine mmpol_init
