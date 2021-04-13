@@ -72,6 +72,10 @@ module mmpol
 !
   integer(ip)              :: matrix_vector
 !
+!     nmax:              maximum number of steps for iterative solvers
+!
+  integer(ip)                 :: nmax
+!
 !     convergence:       convergence threshold (rms norm of the residual/increment) for iterative solvers
 !
   real(rp)                 :: convergence
@@ -159,6 +163,10 @@ module mmpol
 !     mutlipolar distribution. note that there are two arrays, one for the
 !     distribution rotated to the lab frame and one for the force field 
 !     parameters. this is only relevant for AMOEBA.
+!
+!     the multipoles are stored in the following order:
+!
+!     q, px, py, pz, Qxx, Qxy, Qyy, Qxz, Qyx, Qzz.
 !
   real(rp),    allocatable :: q(:,:), q0(:,:)
 !
