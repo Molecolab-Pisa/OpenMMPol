@@ -615,8 +615,8 @@ subroutine field_deriv_M2D(scalefd,scalefp,I,J,de)
         call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
 
         ! Field derivatives
-        fac1 = scalefp*q(1,J)/rm3
-        fac2 = scalefp*Three*q(1,J)/rm5
+        fac1 = scalefp*q(1,J)*rm3
+        fac2 = scalefp*Three*q(1,J)*rm5
         de(1,I,1) = de(1,I,1) - fac1 + fac2*dx*dx  ! gxx
         de(2,I,1) = de(2,I,1)  + fac2*dx*dy        ! gxy
         de(3,I,1) = de(3,I,1) - fac1 + fac2*dy*dy  ! gyy
