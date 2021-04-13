@@ -1,5 +1,7 @@
 subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
-  use mmpol, only : ...
+  use mmpol
+  use elstat
+  use precision
   implicit none
 !
 ! main driver for the calculation of electrostatic properties.
@@ -20,7 +22,7 @@ subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
 !                 the quadrupole (AMOEBA). 
 !                 the output is given in v in the following order:
 !
-!                    v, ex, ey, ez, gxx, gxy, gxz, gyy, gyz, gzz
+!                    v, ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz
 !
 !               - if itrg is 0, compute the electric field of the source at the 
 !                 polarizable sites. note that for AMOEBA, this requires computing
@@ -38,30 +40,47 @@ subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
 !
 !               - if itrg is 0, the output is given in dv in the following order:
 !
-!                   ex, ey, ez, gxx, gxy, gxz, gyy, gyz, gzz, hxxx, hxxy, hxxz, hxyy, hxyz,
+!                   ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz, hxxx, hxxy, hxxz, hxyy, hxyz,
 !                   hxzz, hyyy, hyyz, hyzz, hzzz.
 !               
 !               - if itrg is 1, the output is given in de in the following order:
 !
-!                   gxx, gxy, gxz, gyy, gyz, gzz
+!                   gxx, gxy, gyy, gxz, gyz, gzz
 !
 !                 note again that for AMOEBA, de has dimensions (6,pol_atoms,2).
 !                 the direct field gradient is in de(:,:,1) and the polarization field
 !                 gradient in de(6,pol_atoms,2). 
 !
-  integer(ip)
+  integer(ip) :: isrc,itrg,ider
   real(rp),   dimension(ld_cart,mm_atoms),   intent(inout) :: v
   real(rp),   dimension(ld_cder,mm_atoms),   intent(inout) :: dv
-  real(rp),   dimension((3,pol_atoms,n_ipd), intent(inout) :: e
-  real(rp),   dimension((6,pol_atoms,n_ipd), intent(inout) :: de
+  real(rp),   dimension(3,pol_atoms,n_ipd), intent(inout) :: e
+  real(rp),   dimension(6,pol_atoms,n_ipd), intent(inout) :: de
 !
 ! internal variables:
 !
-  integer(ip) ::
-  real(rp)    ::
+
 !
 ! figure how what to compute
 !
-  if ()...
-    call multipoles_potential(scr,v)
+  if (ider.eq.0) then         ! Do not differentiate
+    if (itrg.eq.0) then       ! Calculate potential at MM sites
+      call multipoles_potential(isrc,v)
+    elseif (itrg.eq.1) then   ! Calculate electric field at MMpol sites
+      call multipoles_field(isrc,e)
+    else
+      write(*,*) "Unknown value of itrg in electrostatics."
+    end if 
+  elseif (ider.eq.1) then     ! Calculate derivatives
+    if (itrg.eq.0) then       ! Calculate derivative of the potential at MM sites
+      call multipoles_potential_deriv(isrc,dv)
+    elseif (itrg.eq.1) then   ! Calculate electric field derivatives at MMpol sites\
+      call multipoles_field_deriv(isrc,de)
+    else
+      write(*,*) "Unknown value of itrg in electrostatics."
+    end if
+  else
+    write(*,*) "Unknown value of ider in electrostatics."
+  end if
+
 end subroutine electrostatics
