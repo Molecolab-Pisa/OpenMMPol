@@ -1,6 +1,178 @@
-subroutine rotate_multipoles
+subroutine rotate_multipoles(doder,def,fx)
   use mmpol
   implicit none
+!
+! this routine rotates the atomic multipoles from the molecular frame
+! where they are defined as force field parameters to the lab frame.
+! if required, it also computes the contribution to the forces that
+! stems from the derivatives of the rotation matrices, sometimes 
+! referred to as "torques".
+! for the latter task, it uses the field and field gradient from 
+! at the multipoles, which is passed in def. 
+! for consistency reasons, def is dimensioned (ld_cder,mm_atoms). 
+!  
+  logical,                                  intent(in)    :: doder
+  real(rp),    dimension(ld_cder,mm_atoms), intent(in)    :: def
+  real(rp),    dimension(3,mm_atoms),       intent(inout) :: fx
+!
+  integer(ip)                   :: i, j, jx, jy, jz, k, l, m
+  real(rp)                      :: efx, efy, efz, gxx, gxy, gyy, gxz, gyz, gzz
+  real(rp),    dimension(3)     :: dip
+  real(rp),    dimension(3,3)   :: r, rt, qua, rqua, tmp, ddip
+  real(rp),    dimension(3,3,3) :: dri, driz, drix, driy, dqua, dtmp
+  if (doder) then
+!
+! loop over the mm sites and build the derivatives of the rotation
+! matrices with respect to the positions of all the relevant atoms.
+!
+    do j = 1, mm_atoms
+      jz = iz(j)
+      jx = ix(j)
+      jy = iy(j)
+!
+      call rotation_matrix(.true.,j,jz,jx,jy,r,dri,driz,drix,driy)
+      rt = transpose(r)
+!
+!     (very verbose) debug printing:
+!
+      if (verbose.ge.8) then
+        do i = 1, 3
+          call print_matrix(.false.,'dri:',3,3,3,3,dri(:,:,i))
+        end do
+        do i = 1, 3
+          call print_matrix(.false.,'driz:',3,3,3,3,driz(:,:,i))
+        end do
+        do i = 1, 3
+          call print_matrix(.false.,'drix:',3,3,3,3,drix(:,:,i))
+        end do
+        do i = 1, 3
+          call print_matrix(.false.,'driy:',3,3,3,3,driy(:,:,i))
+        end do
+      end if
+!
+!     extract the field and field gradient:
+!
+      efx = dv_qq(1,j)
+      efy = dv_qq(2,j)
+      efz = dv_qq(3,j)
+      gxx = dv_qq(4,j)
+      gxy = dv_qq(5,j)
+      gyy = dv_qq(6,j)
+      gxz = dv_qq(7,j)
+      gyz = dv_qq(8,j)
+      gzz = dv_qq(9,j)
+!
+!     get the multipoles. we also need the rotated quadrupoles:
+!
+      dip(1)    = q0(2,j)
+      dip(2)    = q0(3,j)
+      dip(3)    = q0(4,j)
+      qua(1,1)  = q0( 5,j)
+      qua(2,1)  = q0( 6,j)
+      qua(1,2)  = q0( 6,j)
+      qua(3,1)  = q0( 7,j)
+      qua(1,3)  = q0( 7,j)
+      qua(2,2)  = q0( 8,j)
+      qua(3,2)  = q0( 9,j)
+      qua(2,3)  = q0( 9,j)
+      qua(3,3)  = q0(10,j)
+      rqua(1,1) =  q( 5,j)
+      rqua(2,1) =  q( 6,j)
+      rqua(1,2) =  q( 6,j)
+      rqua(3,1) =  q( 7,j)
+      rqua(1,3) =  q( 7,j)
+      rqua(2,2) =  q( 8,j)
+      rqua(3,2) =  q( 9,j)
+      rqua(2,3) =  q( 9,j)
+      rqua(3,3) =  q(10,j)
+!
+!     contributions to the forces on the j-th atoms:
+!
+      ddip = zero
+      dqua = zero
+      dtmp = zero
+!
+!     compute the differentiated multipoles:
+! 
+      do k = 1, 3
+        do l = 1, 3
+          ddip(:,k) = ddip(:,k) + dri(:,k,l)*dip(l)
+        end do
+      end do
+      do k = 1, 3
+        do l = 1, 3
+          do m = 1, 3
+            dtmp(:,l,k) = dtmp(:,l,k) + dri(:,l,m)*qua(m,k) - rqua(l,m)*dri(:,m,k)
+          end do
+        end do
+      end do
+      do k = 1, 3
+        do l = 1, 3
+          do m = 1, 3
+            dqua(:,l,k) = dtmp(:,l,m)*rt(m,k)
+          end do
+        end do
+      end do
+!
+!     increment the forces for the dipoles...
+!
+      fx(:,j) = fx(:,j) - ddip(:,1)*efx - ddip(:,2)*efy - ddip(:,3)*efz
+!     fx(2,j) = fx(2,j) - ddip(2,1)*efx - ddip(2,2)*efy - ddip(2,3)*efz
+!     fx(3,j) = fx(3,j) - ddip(3,1)*efx - ddip(3,2)*efy - ddip(3,3)*efz
+!
+!     ... and for the quadrupoles:
+!
+      fx(:,j) = fx(:,j) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
+                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+    end do  
+  else
+!
+! loop over the mm sites and build the rotation matrices.
+!
+    do j = 1, mm_atoms
+      jz = iz(j)
+      jx = ix(j)
+      jy = iy(j)
+!
+!     call rotation_matrix(.true.,j,jz,jx,jy,r,dri,driz,drix,driy)
+      call rotation_matrix(.false.,j,jz,jx,jy,r,dri,driz,drix,driy)
+!
+!     (very verbose) output:
+!
+      if (verbose.gt.8) call print_matrix(.false.,'ri:',3,3,3,3,r)
+      rt = transpose(r)
+!
+!     copy the monopole:
+!
+      q(1,j) = q0(1,j)
+!
+!     rotate the dipole 
+!
+      q(2:4,j) = matmul(r,q0(2:4,j))
+!
+!     exctract, rotate and put back the quadrupole:
+!
+      qua(1,1) = q0( 5,j)
+      qua(2,1) = q0( 6,j)
+      qua(1,2) = q0( 6,j)
+      qua(3,1) = q0( 8,j)
+      qua(1,3) = q0( 8,j)
+      qua(2,2) = q0( 7,j)
+      qua(3,2) = q0( 9,j)
+      qua(2,3) = q0( 9,j)
+      qua(3,3) = q0(10,j)
+      tmp  = matmul(r,qua)
+      rqua = matmul(tmp,rt)
+      q( 5,j)  = rqua(1,1)
+      q( 6,j)  = rqua(2,1)
+      q( 7,j)  = rqua(2,2)
+      q( 8,j)  = rqua(1,3)
+      q( 9,j)  = rqua(2,3)
+      q(10,j)  = rqua(3,3)
+    end do
+  end if
+!
+  return 
 end subroutine rotate_multipoles
 !
 subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
@@ -35,6 +207,15 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 ! ez = u/|u|
 ! ex = gram-schmidt (v,ez)
 ! ey = ez x ex
+!
+! output:
+! =======
+!
+! r(i,j) is the rotation matrix, whose columns are (ex,ey,ez)
+!
+! dri(i,j,k) contains the derivative of the i-th component of e_k with respect to
+!            ri_j
+!
 !
   logical,                       intent(in)    :: doder
   integer(ip),                   intent(in)    :: j, jz, jx, jy
@@ -191,7 +372,7 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   do k = 1, 3
     ez_u(:,k)  = ez_u(:,k)  - u(:)*u(k)/u_cube
     ex_v(:,k)  = ex_v(:,k)  - ez(:)*ez(k)/ex_nrm - ex(:)*ex(k)/ex_nrm
-    ex_ez(:,k) = ex_ez(:,k) - ex(:)*vez*v(k)/ex_sq - ez(:)*v(k)/ex_nrm
+    ex_ez(:,k) = ex_ez(:,k) + ex(:)*vez*v(k)/ex_sq - ez(:)*v(k)/ex_nrm
   end do
 !
   ey_ez(1,1) =   zero
@@ -204,15 +385,15 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   ey_ez(3,2) = - ex(1)
   ey_ez(3,3) =   zero
 !
-  ey_ez(1,1) =   zero
-  ey_ez(1,2) = - ez(3)
-  ey_ez(1,3) =   ez(2)
-  ey_ez(2,1) =   ez(3)
-  ey_ez(2,2) =   zero
-  ey_ez(2,3) = - ez(1)
-  ey_ez(3,1) = - ez(2)
-  ey_ez(3,2) =   ez(1)
-  ey_ez(3,3) =   zero
+  ey_ex(1,1) =   zero
+  ey_ex(1,2) = - ez(3)
+  ey_ex(1,3) =   ez(2)
+  ey_ex(2,1) =   ez(3)
+  ey_ex(2,2) =   zero
+  ey_ex(2,3) = - ez(1)
+  ey_ex(3,1) = - ez(2)
+  ey_ex(3,2) =   ez(1)
+  ey_ex(3,3) =   zero
 !
 ! now compute the convention-specific terms:
 !
@@ -317,22 +498,56 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   ey_ri  = matmul(ey_ex,ex_ri)  + matmul(ey_ez,ez_ri)
   ey_riz = matmul(ey_ex,ex_riz) + matmul(ey_ez,ez_riz)
   ey_rix = matmul(ey_ex,ex_rix) + matmul(ey_ez,ez_rix)
-  ey_riz = matmul(ey_ex,ex_riy) + matmul(ey_ez,ez_riy)
+  ey_riy = matmul(ey_ex,ex_riy) + matmul(ey_ez,ez_riy)
 !
 ! finally, assemble the derivatives of the rotation matrices:
 !
-  dri(:,:,1)  = ex_ri
-  dri(:,:,2)  = ey_ri
-  dri(:,:,3)  = ez_ri
-  driz(:,:,1) = ex_riz
-  driz(:,:,2) = ey_riz
-  driz(:,:,3) = ez_riz
-  drix(:,:,1) = ex_rix
-  drix(:,:,2) = ey_rix
-  drix(:,:,3) = ez_rix
-  driy(:,:,1) = ex_riy
-  driy(:,:,2) = ey_riy
-  driy(:,:,3) = ez_riy
+  dri(:,:,1)  = transpose(ex_ri)
+  dri(:,:,2)  = transpose(ey_ri)
+  dri(:,:,3)  = transpose(ez_ri)
+  driz(:,:,1) = transpose(ex_riz)
+  driz(:,:,2) = transpose(ey_riz)
+  driz(:,:,3) = transpose(ez_riz)
+  drix(:,:,1) = transpose(ex_rix)
+  drix(:,:,2) = transpose(ey_rix)
+  drix(:,:,3) = transpose(ez_rix)
+  driy(:,:,1) = transpose(ex_riy)
+  driy(:,:,2) = transpose(ey_riy)
+  driy(:,:,3) = transpose(ez_riy)
+!
+! (very verbose) debug printing:
+!
+  if (verbose.gt.10) then
+    call print_matrix(.false.,'ez_u',3,3,3,3,ez_u)
+    call print_matrix(.false.,'u_ri',3,3,3,3,u_ri)
+    call print_matrix(.false.,'u_riz',3,3,3,3,u_riz)
+    call print_matrix(.false.,'u_rix',3,3,3,3,u_rix)
+    call print_matrix(.false.,'u_riy',3,3,3,3,u_riy)
+!
+    call print_matrix(.false.,'ex_v',3,3,3,3,ex_v)
+    call print_matrix(.false.,'ex_ez',3,3,3,3,ex_ez)
+    call print_matrix(.false.,'v_ri',3,3,3,3,v_ri)
+    call print_matrix(.false.,'v_rix',3,3,3,3,v_rix)
+    call print_matrix(.false.,'v_riy',3,3,3,3,v_riy)
+!
+    call print_matrix(.false.,'ez_ri',3,3,3,3,ez_ri)
+    call print_matrix(.false.,'ez_riz',3,3,3,3,ez_riz)
+    call print_matrix(.false.,'ez_rix',3,3,3,3,ez_rix)
+    call print_matrix(.false.,'ez_riy',3,3,3,3,ez_riy)
+!
+    call print_matrix(.false.,'ex_ri',3,3,3,3,ex_ri)
+    call print_matrix(.false.,'ex_riz',3,3,3,3,ex_riz)
+    call print_matrix(.false.,'ex_rix',3,3,3,3,ex_rix)
+    call print_matrix(.false.,'ex_riy',3,3,3,3,ex_riy)
+!
+    call print_matrix(.false.,'ey_ex',3,3,3,3,ey_ex)
+    call print_matrix(.false.,'ey_ez',3,3,3,3,ey_ez)
+!
+    call print_matrix(.false.,'ey_ri',3,3,3,3,ey_ri)
+    call print_matrix(.false.,'ey_riz',3,3,3,3,ey_riz)
+    call print_matrix(.false.,'ey_rix',3,3,3,3,ey_rix)
+    call print_matrix(.false.,'ey_riy',3,3,3,3,ey_riy)
+  end if
 !
   return
 end subroutine rotation_matrix

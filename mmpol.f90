@@ -226,7 +226,7 @@ module mmpol
 !
   real(rp),    allocatable :: v_qq(:,:), dv_qq(:,:)
 !
-!     field of the charges (multipoles) at the ipd and its derivatives
+!     field at the ipd and its derivatives
 !
   real(rp),    allocatable :: ef_qd(:,:,:), def_qd(:,:,:)
 !

@@ -24,7 +24,7 @@ subroutine mmpol_process(polar)
   logical                 :: bad_neigh
   integer(ip)             :: i, ii, ij, j, k, l, neigh
   integer(ip)             :: nkeep, nlist
-  real(rp)                :: third, tobohr, tobohr3, fa, fexp
+  real(rp)                :: third, tobohr, tobohr3, fa, fexp, xx(3)
   integer,    allocatable :: mask(:), keep(:), list(:)
   real(rp),   parameter   :: toang = 0.52917721092_rp
   real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
@@ -394,10 +394,17 @@ subroutine mmpol_process(polar)
     end if
   end do
 !
+! if required, rotate the multipoles:
+!
+  if (amoeba) then
+    call rotate_multipoles(.false.,xx,xx)
+  end if
+!
 ! if required, print all the relevant information:
 !
   if (verbose.ge.4) then
     call print_matrix(.true.,'coordinates:',3,mm_atoms,3,mm_atoms,cmm)
+    if (amoeba) call print_matrix(.true.,'multipoles - non rotated:',ld_cart,mm_atoms,ld_cart,mm_atoms,q0)
     call print_matrix(.true.,'multipoles :',ld_cart,mm_atoms,ld_cart,mm_atoms,q)
     call print_matrix(.true.,'coordinates of polarizable atoms:',3,pol_atoms,3,pol_atoms,cpol)
     call print_matrix(.false.,'polarizabilities:',mm_atoms,1,mm_atoms,1,polar)
