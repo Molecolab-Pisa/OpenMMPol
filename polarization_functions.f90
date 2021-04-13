@@ -1,12 +1,11 @@
-!-----------------------------------------------------------
-!   Not finished
-!-----------------------------------------------------------
 module polar
+use precision
+real(rp),    allocatable :: TMat(:,:)
+real(rp),    allocatable :: TMatI(:,:)
 
 contains
 
 subroutine dipole_T(scalef,I,J,TTens)
-    use precision
     use mmpol, only : thole, cpol, pol_atoms, pol
     implicit none
     !                      
@@ -67,10 +66,10 @@ end subroutine dipole_T
     
 
 subroutine create_TMat(TMat)
-    use precision
     use mmpol, only : pol_atoms, cpol, uscale, np11, np12, np13, np14, &
                            ip11, ip12, ip13, ip14, n12, n13, n14, n15, &
-                           i12, i13, i14, i15, pol, mm_polar, Amoeba
+                           i12, i13, i14, i15, pol, mm_polar, Amoeba,  &
+                           verbose
     implicit none
     !                      
     ! Construct polarization tensor for matrix inversion solution
@@ -221,61 +220,133 @@ subroutine create_TMat(TMat)
     ! Convert polarization tensor to the matrix
     TMat = RESHAPE(TTens, (/3*pol_atoms, 3*pol_atoms/))  
     
+    ! Print the matrix if verbose output is requested
+    if (verbose.ge.1) then
+        call print_matrix(.true.,'K:',3*pol_atoms,3*pol_atoms,3*pol_atoms,3*pol_atoms,TMat)
+    end if
+    
 end subroutine create_TMat
 
-!subroutine inverse_TMat(TMat)
-!    use precision
-!    use mmpol, only : pol_atoms
-!    
-!    implicit none
-!    !
-!    real(rp), dimension(3*pol_atoms,3*pol_atoms), intent(inout) :: TMat
-!    !
-!    integer(ip) :: LDT
-!    integer(ip) :: Info
-!    integer(ip),dimension(3*pol_atoms) :: Piv
-!    real(rp),dimension(3*pol_atoms) :: Work
-!    !
-!
-!    !  Compute the LU decomposition of T
-!    LDT   = 3*pol_atoms
-!    call DGETRF(LDT,LDT,TMat,LDT,Piv,Info)
-!
-!    !Compute the inverse of T
-!    call DGETRI(LDT,TMat,LDT,Piv,Work,LDT,Info)
-!    
-!end subroutine inverse_TMat
+subroutine TMatVec(n,x,y)
+    use mmpol, only : One, Zero
+    implicit none
+    ! Perform matrix vector multiplication y = TMat*x,
+    ! where TMat is polarization matrix and x,y are 
+    ! vectors
+    !
+    !   variables:
+    !  
+    !     n        : integer, input, size of the matrix
+    ! 
+    !     x        : real, vector which is multiplied by the matrix
+    !
+    !     y        : real, solution vector
+    !
+    integer(ip), intent(in) :: n
+    real(rp),dimension(n),intent(in)   :: x
+    real(rp),dimension(n), intent(out) :: y
+    !
+    ! initialize solution vector
+    !
+    y = 0
+    !
+    ! Compute the matrix vector product
+    !
+    call DGEMM('N','N',n,1,n,One,TMat,n,x,n,Zero,y,n) !XGEMM
+    !
+end subroutine TMatVec
+    
+subroutine TMatVec_offdiag(n,x,y)
+    use mmpol, only : One, Zero
+    implicit none
+    ! Perform matrix vector multiplication y = [TMat-diag(TMat)]*x,
+    ! where TMat is polarization matrix and x,y are 
+    ! vectors
+    !
+    !   variables:
+    !  
+    !     n        : integer, input, size of the matrix
+    ! 
+    !     x        : real, vector which is multiplied by the matrix
+    !
+    !     y        : real, solution vector
+    !
+    integer(ip), intent(in) :: n
+    real(rp),dimension(n),intent(in)   :: x
+    real(rp),dimension(n), intent(out) :: y
+    !
+    real(rp),dimension(n,n) :: O
+    integer(ip) :: I
+    !
+    ! initialize solution vector and matrix
+    !
+    y = 0
+    O = TMat
+    !
+    ! Subtract the diagonal from the O matrix
+    !
+    do I = 1, n
+        O(I,I) = Zero
+    enddo
+    !
+    ! Compute the matrix vector product
+    !
+    call DGEMM('N','N',n,1,n,One,O,n,x,n,Zero,y,n) !XGEMM
+    !
+end subroutine TMatVec_offdiag
 
-subroutine induce_dipoles(e,ipd) !,ipd)
-    use precision
-    use mmpol, only : pol_atoms, n_ipd, Amoeba, pol
+subroutine PolVec(n,x,y)
+    use mmpol, only : pol
+    implicit none
+    ! Perform matrix vector multiplication y = pol*x,
+    ! where pol polarizability vector and x,y are 
+    ! vectors
+    !
+    !   variables:
+    !  
+    !     n        : integer, input, size of the matrix
+    ! 
+    !     x        : real, vector which is multiplied by the 
+    !                inverse diagonal matrix
+    !
+    !     y        : real, solution vector
+    !
+    integer(ip), intent(in) :: n
+    real(rp),dimension(n),intent(in)   :: x
+    real(rp),dimension(n), intent(out) :: y
+    !
+    integer(ip) :: I,indx
+    !
+    ! initialize solution vector
+    !
+    y = 0
+    !
+    ! Compute the matrix vector product
+    !
+    do I = 1, n
+        indx = (I+2)/3
+        y(I) = pol(indx)*x(I)   
+    enddo
+    !
+end subroutine PolVec
+
+subroutine induce_dipoles_MatInv(elf,dip) !,ipd)
+    use mmpol, only : pol_atoms, n_ipd, Amoeba, pol, r_alloc2
     !
     ! Induce dipoles on the polarizable atoms. The dipoles are induced
     ! by the electric field of the static multipoles (Later change to 
     ! the total electric field including the QM system). For the Amoeba
     ! force-field only polarization field and p-dipoles are considered.
     !
-    ! - For AMBER force-field the induced dipoles will be stored in:
-    !
-    !       ipd(:,:,1)
-    !
-    ! - For Amoeba force-field the direct and polarization dipoles are
-    !
-    !       ipd(:,:,1)      ! d dipoles induced by direct field
-    !       ipd(:,:,2)      ! p dipoles induced by polarization field 
-    !                         and other p dipoles.
-    !
     
     implicit none
     !
-    real(rp), dimension(3,pol_atoms,n_ipd), intent(in) :: e
-    real(rp), dimension(3,pol_atoms,n_ipd), intent(out) :: ipd
+    real(rp), dimension(3*pol_atoms), intent(in) :: elf
+    real(rp), dimension(3*pol_atoms), intent(out) :: dip
     !
     integer(ip) :: LDT,I
     integer(ip) :: Info
-    real(rp), dimension(3*pol_atoms,3*pol_atoms) :: TMat
-    real(rp),dimension(3*pol_atoms) :: d_vec
-    real(rp),dimension(3*pol_atoms) :: e_vec
+    !real(rp), dimension(3*pol_atoms,3*pol_atoms) :: TMat
     integer(ip),dimension(3*pol_atoms) :: iPiv
     real(rp),dimension(3*pol_atoms) :: Work
     !
@@ -288,43 +359,20 @@ subroutine induce_dipoles(e,ipd) !,ipd)
     ! Create dipole polarization matrix
     call create_TMat(TMat)
     
+    call r_alloc2('polar [TMatI]',3*pol_atoms,3*pol_atoms,TMatI)
+    
+    ! Initialize inverse polarization matrix
+    TMatI = TMat
     
     !Compute the inverse of TMat
-    call DGETRF(LDT,LDT,TMat,LDT,iPiv,Info)
-    call DGETRI(LDT,TMat,LDT,iPiv,Work,LDT,Info)
-    
-    
-    ! Reshape electric field matrix into a vector
-    if (Amoeba) then
-        e_vec = RESHAPE(e(:,:,2), (/3*pol_atoms/))    ! the polarization field for Amoeba FF
-    else
-        e_vec = RESHAPE(e(:,:,1), (/3*pol_atoms/))
-    end if 
+    call DGETRF(LDT,LDT,TMatI,LDT,iPiv,Info)
+    call DGETRI(LDT,TMatI,LDT,iPiv,Work,LDT,Info)
     
     
     ! Calculate dipoles with matrix inversion (for Amoeba only p dipoles)
-    call DGEMM('N','N',LDT,1,LDT,One,TMat,LDT,e_vec,LDT,Zero,d_vec,LDT) !XGEMM
-    
-    ! For Amoeba FF compute induced dipoles by the direct field
-    if (Amoeba) then
-        do I=1,pol_atoms
-            ipd( 1, I, 1) = pol(I)*e(1,I,1)
-            ipd( 2, I, 1) = pol(I)*e(2,I,1)
-            ipd( 3, I, 1) = pol(I)*e(3,I,1)
-        enddo
-    end if
-    
-    
-    ! Reshape dipole vector into the matrix 
-    if (Amoeba) then
-        ipd( :, :, 2) = RESHAPE(d_vec, (/3,pol_atoms/)) 
-    else
-        ipd( :, :, 1) = RESHAPE(d_vec, (/3,pol_atoms/)) 
-    end if
-    
-end subroutine induce_dipoles
-    
+    call DGEMM('N','N',LDT,1,LDT,One,TMatI,LDT,elf,LDT,Zero,dip,LDT) !XGEMM
+    !call TMatVec(LDT,elf,dip)
+   
+end subroutine induce_dipoles_MatInv
+
 end module polar
-
-
-! Initialize everything by zeros
