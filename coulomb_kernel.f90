@@ -130,7 +130,7 @@ subroutine coulomb_kernel(damp,maxder,x,y,z,thole_i,thole_j,rm1,rm3,rm5,rm7,rm9,
 !
     um9 = um7*rm2
     if(exp_damp) then
-      fl9  = one - (one - fexp + f18*fexp*fexp/f35 + nine*fexp*fexp*fexp/f35)*eexp
+      fl9  = one - (one - fexp + f18*fexp*fexp/f35 - nine*fexp*fexp*fexp/f35)*eexp
     end if
     rm9 = fl9*um9
   end if
