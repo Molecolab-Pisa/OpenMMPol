@@ -359,7 +359,9 @@ subroutine induce_dipoles_MatInv(elf,dip) !,ipd)
     ! Create dipole polarization matrix
     call create_TMat(TMat)
     
-    call r_alloc2('polar [TMatI]',3*pol_atoms,3*pol_atoms,TMatI)
+    if (.not.ALLOCATED(TMatI)) then
+        call r_alloc2('polar [TMatI]',3*pol_atoms,3*pol_atoms,TMatI)
+    end if
     
     ! Initialize inverse polarization matrix
     TMatI = TMat
