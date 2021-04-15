@@ -139,7 +139,7 @@ subroutine coulomb_kernel(damp,maxder,x,y,z,thole_i,thole_j,rm1,rm3,rm5,rm7,rm9,
 !
 ! compute rm11. no damping currently used.
 !
-    rm9 = um9*rm2
+    rm11 = um9*rm2
   end if
 !
   
