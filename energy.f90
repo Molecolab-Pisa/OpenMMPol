@@ -1,4 +1,4 @@
-subroutine multipoles_energy(scr,EMM)
+subroutine energy(scr,EMM)
     use mmpol
     implicit none
     !
