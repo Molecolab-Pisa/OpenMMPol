@@ -153,10 +153,18 @@ subroutine mmpol_init
   call mallocate('mmpol_init [ef_qd]',3,pol_atoms,n_ipd,ef_qd)
   call mallocate('mmpol_init [dv_qq]',ld_cder,mm_atoms,dv_qq)
   call mallocate('mmpol_init [def_qd]',6,pol_atoms,n_ipd,def_qd)
+  call mallocate('mmpol_init [v_dq]',ld_cart,mm_atoms,v_dq)
+  call mallocate('mmpol_init [ef_dd]',3,pol_atoms,n_ipd,ef_dd)
+  call mallocate('mmpol_init [dv_dq]',ld_cder,mm_atoms,dv_dq)
+  call mallocate('mmpol_init [def_dd]',6,pol_atoms,n_ipd,def_dd)
   v_qq   = Zero
   ef_qd  = Zero
   dv_qq  = Zero
   def_qd = Zero
+  v_dq   = Zero
+  ef_dd  = Zero
+  dv_dq  = Zero
+  def_dd = Zero
 !
 ! allocate memory for the induced point dipoles
 !

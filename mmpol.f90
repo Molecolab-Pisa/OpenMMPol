@@ -221,14 +221,23 @@ module mmpol
 !
   real(rp)                 :: e_ele, e_pol, e_qd, e_dd
 !
-!     potential (and higher order terms) at the charges (multipoles)
-!     and its derivatives
+!     potential (and higher order terms) of the multipoles 
+!      at the charges (multipoles) and its derivatives 
 !
   real(rp),    allocatable :: v_qq(:,:), dv_qq(:,:)
 !
 !     field of the charges (multipoles) at the ipd and its derivatives
 !
   real(rp),    allocatable :: ef_qd(:,:,:), def_qd(:,:,:)
+!
+!     potential (and higher order terms) of the induced point dipoles
+!      at the charges (multipoles) and its derivatives 
+!
+  real(rp),    allocatable :: v_dq(:,:), dv_dq(:,:)
+!
+!     field of the ipd at the ipd and its derivatives
+!
+  real(rp),    allocatable :: ef_dd(:,:,:), def_dd(:,:,:)
 !
 !     polarization matrix (only allocated if explicitly requested)
 !
