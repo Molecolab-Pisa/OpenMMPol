@@ -15,7 +15,7 @@ subroutine rotate_multipoles(doder,def,fx)
   real(rp),    dimension(ld_cder,mm_atoms), intent(in)    :: def
   real(rp),    dimension(3,mm_atoms),       intent(inout) :: fx
 !
-  integer(ip)                   :: i, j, jx, jy, jz, k, l, m
+  integer(ip)                   :: i, j, jx, jy, jz, k, l, m, n
   real(rp)                      :: efx, efy, efz, gxx, gxy, gyy, gxz, gyz, gzz
   real(rp),    dimension(3)     :: dip
   real(rp),    dimension(3,3)   :: r, rt, qua, rqua, tmp, ddip
@@ -52,39 +52,40 @@ subroutine rotate_multipoles(doder,def,fx)
 !
 !     extract the field and field gradient:
 !
-      efx = dv_qq(1,j)
-      efy = dv_qq(2,j)
-      efz = dv_qq(3,j)
-      gxx = dv_qq(4,j)
-      gxy = dv_qq(5,j)
-      gyy = dv_qq(6,j)
-      gxz = dv_qq(7,j)
-      gyz = dv_qq(8,j)
-      gzz = dv_qq(9,j)
+      efx = def(1,j)
+      efy = def(2,j)
+      efz = def(3,j)
+      gxx = def(4,j)
+      gxy = def(5,j)
+      gyy = def(6,j)
+      gxz = def(7,j)
+      gyz = def(8,j)
+      gzz = def(9,j)
 !
 !     get the multipoles. we also need the rotated quadrupoles:
 !
       dip(1)    = q0(2,j)
       dip(2)    = q0(3,j)
       dip(3)    = q0(4,j)
-      qua(1,1)  = q0( 5,j)
-      qua(2,1)  = q0( 6,j)
-      qua(1,2)  = q0( 6,j)
-      qua(3,1)  = q0( 7,j)
-      qua(1,3)  = q0( 7,j)
-      qua(2,2)  = q0( 8,j)
-      qua(3,2)  = q0( 9,j)
-      qua(2,3)  = q0( 9,j)
-      qua(3,3)  = q0(10,j)
-      rqua(1,1) =  q( 5,j)
-      rqua(2,1) =  q( 6,j)
-      rqua(1,2) =  q( 6,j)
-      rqua(3,1) =  q( 7,j)
-      rqua(1,3) =  q( 7,j)
-      rqua(2,2) =  q( 8,j)
-      rqua(3,2) =  q( 9,j)
-      rqua(2,3) =  q( 9,j)
-      rqua(3,3) =  q(10,j)
+      qua(1,1)  = q0( 5,j)  ! qxx
+      qua(2,1)  = q0( 6,j)  ! qxy
+      qua(1,2)  = q0( 6,j)  ! qxy
+      qua(2,2)  = q0( 7,j)  ! qyy
+      qua(3,1)  = q0( 8,j)  ! qxz
+      qua(1,3)  = q0( 8,j)  ! qxz
+      qua(3,2)  = q0( 9,j)  ! qyz
+      qua(2,3)  = q0( 9,j)  ! qyz
+      qua(3,3)  = q0(10,j)  ! qzz
+      !
+      rqua(1,1) =  q( 5,j)  ! qxx
+      rqua(2,1) =  q( 6,j)  ! qxy
+      rqua(1,2) =  q( 6,j)  ! qxy
+      rqua(2,2) =  q( 7,j)  ! qyy
+      rqua(3,1) =  q( 8,j)  ! qxz
+      rqua(1,3) =  q( 8,j)  ! qxz
+      rqua(3,2) =  q( 9,j)  ! qyz
+      rqua(2,3) =  q( 9,j)  ! qyz
+      rqua(3,3) =  q(10,j)  ! qzz
 !
 !     contributions to the forces on the j-th atoms:
 !
@@ -99,17 +100,27 @@ subroutine rotate_multipoles(doder,def,fx)
           ddip(:,k) = ddip(:,k) + dri(:,k,l)*dip(l)
         end do
       end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dtmp(:,l,k) = dtmp(:,l,k) + dri(:,l,m)*qua(m,k) - rqua(l,m)*dri(:,m,k)
+!          end do
+!        end do
+!      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dqua(:,l,k) = dtmp(:,l,m)*rt(m,k)
+!          end do
+!        end do
+!      end do
+      
       do k = 1, 3
         do l = 1, 3
           do m = 1, 3
-            dtmp(:,l,k) = dtmp(:,l,k) + dri(:,l,m)*qua(m,k) - rqua(l,m)*dri(:,m,k)
-          end do
-        end do
-      end do
-      do k = 1, 3
-        do l = 1, 3
-          do m = 1, 3
-            dqua(:,l,k) = dtmp(:,l,m)*rt(m,k)
+            do n = 1, 3
+              dqua(:,k,l) = dqua(:,k,l) + (dri(:,k,m)*qua(m,n) - rqua(k,m)*dri(:,m,n))*rt(n,l)  !dtmp(:,l,m)*rt(m,k)
+            end do
           end do
         end do
       end do
@@ -117,13 +128,142 @@ subroutine rotate_multipoles(doder,def,fx)
 !     increment the forces for the dipoles...
 !
       fx(:,j) = fx(:,j) - ddip(:,1)*efx - ddip(:,2)*efy - ddip(:,3)*efz
-!     fx(2,j) = fx(2,j) - ddip(2,1)*efx - ddip(2,2)*efy - ddip(2,3)*efz
-!     fx(3,j) = fx(3,j) - ddip(3,1)*efx - ddip(3,2)*efy - ddip(3,3)*efz
 !
 !     ... and for the quadrupoles:
 !
       fx(:,j) = fx(:,j) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
                         + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+      !                  
+      ! do jx
+      ddip = zero
+      dqua = zero
+      dtmp = zero
+      do k = 1, 3
+        do l = 1, 3
+          ddip(:,k) = ddip(:,k) + drix(:,k,l)*dip(l)
+        end do
+      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dtmp(:,l,k) = dtmp(:,l,k) + drix(:,l,m)*qua(m,k) - rqua(l,m)*drix(:,m,k)
+!          end do
+!        end do
+!      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dqua(:,l,k) = dtmp(:,l,m)*rt(m,k)
+!          end do
+!        end do
+!      end do
+      do k = 1, 3
+        do l = 1, 3
+          do m = 1, 3
+            do n = 1, 3
+              dqua(:,k,l) = dqua(:,k,l) + (drix(:,k,m)*qua(m,n) - rqua(k,m)*drix(:,m,n))*rt(n,l)  !dtmp(:,l,m)*rt(m,k)
+            end do
+          end do
+        end do
+      end do
+      !
+!     increment the forces for the dipoles...
+!
+      fx(:,jx) = fx(:,jx) - ddip(:,1)*efx - ddip(:,2)*efy - ddip(:,3)*efz
+!
+!     ... and for the quadrupoles:
+!
+      fx(:,jx) = fx(:,jx) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
+                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+      !                  
+      ! do jy
+      ddip = zero
+      dqua = zero
+      dtmp = zero
+      do k = 1, 3
+        do l = 1, 3
+          ddip(:,k) = ddip(:,k) + driy(:,k,l)*dip(l)
+        end do
+      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dtmp(:,l,k) = dtmp(:,l,k) + driy(:,l,m)*qua(m,k) - rqua(l,m)*driy(:,m,k)
+!          end do
+!        end do
+!      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dqua(:,l,k) = dtmp(:,l,m)*rt(m,k)
+!          end do
+!        end do
+!      end do
+      
+      do k = 1, 3
+        do l = 1, 3
+          do m = 1, 3
+            do n = 1, 3
+              dqua(:,k,l) = dqua(:,k,l) + (driy(:,k,m)*qua(m,n) - rqua(k,m)*driy(:,m,n))*rt(n,l)  !dtmp(:,l,m)*rt(m,k)
+            end do
+          end do
+        end do
+      end do
+      !
+!     increment the forces for the dipoles...
+!
+      fx(:,jy) = fx(:,jy) - ddip(:,1)*efx - ddip(:,2)*efy - ddip(:,3)*efz
+!
+!     ... and for the quadrupoles:
+!
+      fx(:,jy) = fx(:,jy) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
+                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+      !           
+      ! Do jz
+      ddip = zero
+      dqua = zero
+      dtmp = zero
+      do k = 1, 3
+        do l = 1, 3
+          ddip(:,k) = ddip(:,k) + driz(:,k,l)*dip(l)
+        end do
+      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dtmp(:,l,k) = dtmp(:,l,k) + driz(:,l,m)*qua(m,k) - rqua(l,m)*driz(:,m,k)
+!          end do
+!        end do
+!      end do
+!      do k = 1, 3
+!        do l = 1, 3
+!          do m = 1, 3
+!            dqua(:,l,k) = dtmp(:,l,m)*rt(m,k)
+!          end do
+!        end do
+!      end do
+      
+      do k = 1, 3
+        do l = 1, 3
+          do m = 1, 3
+            do n = 1, 3
+              dqua(:,k,l) = dqua(:,k,l) + (driz(:,k,m)*qua(m,n) - rqua(k,m)*driz(:,m,n))*rt(n,l)  !dtmp(:,l,m)*rt(m,k)
+            end do
+          end do
+        end do
+      end do
+      !
+!     increment the forces for the dipoles...
+!
+      fx(:,jz) = fx(:,jz) - ddip(:,1)*efx - ddip(:,2)*efy - ddip(:,3)*efz
+!
+!     ... and for the quadrupoles:
+!
+      fx(:,jz) = fx(:,jz) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
+                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+                        
+                        
+    
     end do  
   else
 !
