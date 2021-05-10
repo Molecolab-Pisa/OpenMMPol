@@ -51,6 +51,11 @@ subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
 !                 the direct field gradient is in de(:,:,1) and the polarization field
 !                 gradient in de(6,pol_atoms,2). 
 !
+! - For AMOEBA force-field, the scaling of the nearest neighbor 
+!   interactions for p and d dipoles is reversed dscale is used for 
+!   scaling potential of p dipoles and pscale is used for scaling 
+!   potential of d dipoles.
+!
   integer(ip) :: isrc,itrg,ider
   real(rp),   dimension(ld_cart,mm_atoms),   intent(inout) :: v
   real(rp),   dimension(ld_cder,mm_atoms),   intent(inout) :: dv

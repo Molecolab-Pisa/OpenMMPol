@@ -51,7 +51,7 @@ subroutine multipoles_potential(scr,v)
             do J = 1,pol_atoms
                 if (polar_mm(J).eq.I) cycle
 
-                call potential_D2M(One,One,I,J,v) 
+                call potential_D2M(Zero,One,I,J,v) 
 
             enddo
         enddo
@@ -151,6 +151,11 @@ subroutine multipoles_potential_deriv(scr,dv)
     !       ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz, hxxx, hxxy, hxxz,  
     !       hxyy, hxyz, hxzz, hyyy, hyyz, hyzz, hzzz
     !
+    ! - For AMOEBA force-field, the scaling of the nearest neighbor 
+    !   interactions for p and d dipoles is reversed dscale is used for 
+    !   scaling potential of p dipoles and pscale is used for scaling 
+    !   potential of d dipoles.
+    !
     
     real(rp), dimension(ld_cder,mm_atoms), intent(inout) :: dv
     integer(ip), intent(in) :: scr
@@ -178,7 +183,7 @@ subroutine multipoles_potential_deriv(scr,dv)
                 if (polar_mm(J).eq.I) cycle
 
                 call potential_deriv_D2M(One,One,I,J,dv) 
-
+                
             enddo
         enddo
     end if
@@ -759,6 +764,13 @@ subroutine potential_D2M(scalefd,scalefp,I,J,v)
     elseif (Amoeba) then
         call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
         
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
+        rm7 = f15*rm7
+        rm9 = f105*rm9
+        
+        
         ! Intermediates p and d dipoles
         dpx  = scalefd*ipd( 1, J, 1)
         dpy  = scalefd*ipd( 2, J, 1)
@@ -796,6 +808,8 @@ subroutine potential_D2M(scalefd,scalefp,I,J,v)
         v(9,I)  = v(9,I)  + (facd*dy*dz + (- dpy*dz - dpz*dy)*rm5)    ! Gyz from d dipoles
         v(10,I) = v(10,I) + (facd*dz*dz + (- DddR - Two*dpz*dz)*rm5)  ! Gzz from d dipoles
         
+        !write(*,*) I,J,v(8,I),rm5,dpz,dpx,dz,dx,facd
+        
         v(5,I)  = v(5,I)  + (facp*dx*dx + (- DpdR - Two*ppx*dx)*rm5)  ! Gxx from p dipoles
         v(6,I)  = v(6,I)  + (facp*dx*dy + (- ppx*dy - ppy*dx)*rm5)    ! Gxy from p dipoles
         v(7,I)  = v(7,I)  + (facp*dy*dy + (- DpdR - Two*ppy*dy)*rm5)  ! Gyy from p dipoles
@@ -803,6 +817,7 @@ subroutine potential_D2M(scalefd,scalefp,I,J,v)
         v(9,I)  = v(9,I)  + (facp*dy*dz + (- ppy*dz - ppz*dy)*rm5)    ! Gyz from p dipoles
         v(10,I) = v(10,I) + (facp*dz*dz + (- DpdR - Two*ppz*dz)*rm5)  ! Gzz from p dipoles
         
+        !write(*,*) I,J,v(8,I),rm5,ppz,ppx,dz,dx,facp
         
 !        ! Alternative formulation (more compact and efficient)
 !        
@@ -880,6 +895,9 @@ subroutine field_D2D(scalefd,scalefp,I,J,e)
     if (.not. Amoeba) then
 
         call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
         
         ! Intermediates
         px  = ipd( 1, J, 1)
@@ -894,17 +912,39 @@ subroutine field_D2D(scalefd,scalefp,I,J,e)
         
     elseif (Amoeba) then
         call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
         
         ! Intermediates p dipoles
-        px  = scalefp*ipd( 1, J, 2)
-        py  = scalefp*ipd( 2, J, 2)
-        pz  = scalefp*ipd( 3, J, 2)
+        px  = ipd( 1, J, 2)
+        py  = ipd( 2, J, 2)
+        pz  = ipd( 3, J, 2)
         
         ! Field from the induced p dipoles
         DdR = px*dx + py*dy + pz*dz
         e(1,I,2) = e(1,I,2) + scalefp*(DdR*rm5*dx - px*rm3)
         e(2,I,2) = e(2,I,2) + scalefp*(DdR*rm5*dy - py*rm3)
         e(3,I,2) = e(3,I,2) + scalefp*(DdR*rm5*dz - pz*rm3)
+        
+        ! Intermediates d dipoles
+        px  = ipd( 1, J, 1)
+        py  = ipd( 2, J, 1)
+        pz  = ipd( 3, J, 1)
+        
+        ! Field from the induced d dipoles
+        DdR = px*dx + py*dy + pz*dz
+        e(1,I,1) = e(1,I,1) + scalefd*(DdR*rm5*dx - px*rm3)
+        e(2,I,1) = e(2,I,1) + scalefd*(DdR*rm5*dy - py*rm3)
+        e(3,I,1) = e(3,I,1) + scalefd*(DdR*rm5*dz - pz*rm3)
+        
+!          DdRD = DD(1,J)*dx + DD(2,J)*dy + DD(3,J)*dz
+!          rm3  = fl3/r3
+!          rm5  = Three*fl5/r5
+!          fEDx = fEDx + Scr(J)*(DdRD*rm5*dx - DD(1,J)*rm3)
+!          fEDy = fEDy + Scr(J)*(DdRD*rm5*dy - DD(2,J)*rm3)
+!          fEDz = fEDz + Scr(J)*(DdRD*rm5*dz - DD(3,J)*rm3)
+        
     end if
 end subroutine field_D2D
 
@@ -937,7 +977,7 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
     real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
     real(rp)    :: px, py,pz, DdR, dpx, dpy, dpz, ppx, ppy, ppz, DpdR, DddR, facd, facp !,fac,DdR
     !
-    !real(rp), parameter :: Two = 2.0_rp, Three = 3.0_rp, Four = 4.0_rp
+    real(rp), parameter :: f945 = 945.0_rp
     
     dx   = cmm(1,I) - cpol(1,J)
     dy   = cmm(2,I) - cpol(2,J)
@@ -953,6 +993,10 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
     if (.not. Amoeba) then
         call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
         
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
+        
         ! Intermediates
         px  = ipd( 1, J, 1)
         py  = ipd( 2, J, 1)
@@ -966,7 +1010,15 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
             
     ! Else the potential electric field and field gradients are calculated
     elseif (Amoeba) then
-        call coulomb_kernel(.true.,5,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,4,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
+        rm7 = f15*rm7
+        rm9 = f105*rm9
+        !rm11 = scalef*f945*rm11
+        !write(*,*) I,J,rm1, rm3, rm5, rm7, rm9
+        
         
         ! Intermediates p and d dipoles
         dpx  = scalefd*ipd( 1, J, 1)
@@ -979,61 +1031,61 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
         ! All the quantities are linear in the dipole, therefore we can just sum the p and d dipoles and then use these
         ! dipoles for calculation of the potential derivatives (we dont need to do it separately for the p and d dipoles)
         
-        DpdR = ppx*dx + ppy*dy + ppz*dz
         DddR = dpx*dx + dpy*dy + dpz*dz
+        DpdR = ppx*dx + ppy*dy + ppz*dz
         facd = DddR*rm5
         facp = DpdR*rm5
         
         ! Field
-        dv(1,I) = dv(1,I) + facp*dx - ppx*rm3   ! ex from p dipoles
-        dv(2,I) = dv(2,I) + facp*dy - ppy*rm3   ! ey from p dipoles
-        dv(3,I) = dv(3,I) + facp*dz - ppz*rm3   ! ez from p dipoles
-        dv(1,I) = dv(1,I) + facd*dx - dpx*rm3   ! ex from d dipoles
-        dv(2,I) = dv(2,I) + facd*dy - dpy*rm3   ! ey from d dipoles
-        dv(3,I) = dv(3,I) + facd*dz - dpz*rm3   ! ez from d dipoles
+        dv(1,I) = dv(1,I) + pt5*(facp*dx - ppx*rm3)   ! ex from p dipoles
+        dv(2,I) = dv(2,I) + pt5*(facp*dy - ppy*rm3)   ! ey from p dipoles
+        dv(3,I) = dv(3,I) + pt5*(facp*dz - ppz*rm3)   ! ez from p dipoles
+        dv(1,I) = dv(1,I) + pt5*(facd*dx - dpx*rm3)   ! ex from d dipoles
+        dv(2,I) = dv(2,I) + pt5*(facd*dy - dpy*rm3)   ! ey from d dipoles
+        dv(3,I) = dv(3,I) + pt5*(facd*dz - dpz*rm3)   ! ez from d dipoles
         
         ! Field gradients
         facd = DddR*rm7
         facp = DpdR*rm7
-        dv(4,I) = dv(4,I) + facp*dx*dx-(DpdR+Two*ppx*dx)*rm5    ! gxx from p dipoles
-        dv(5,I) = dv(5,I) + facp*dx*dy-(ppx*dy+ppy*dx)*rm5      ! gxy from p dipoles
-        dv(6,I) = dv(6,I) + facp*dy*dy-(DpdR+Two*ppy*dy)*rm5    ! gyy from p dipoles
-        dv(7,I) = dv(7,I) + facp*dx*dz-(ppx*dz+ppz*dx)*rm5      ! gxz from p dipoles
-        dv(8,I) = dv(8,I) + facp*dy*dz-(ppy*dz+ppz*dy)*rm5      ! gyz from p dipoles
-        dv(9,I) = dv(9,I) + facp*dz*dz-(DpdR+two*ppz*dz)*rm5    ! gzz from p dipoles
+        dv(4,I) = dv(4,I) + pt5*(facp*dx*dx-(DpdR+Two*ppx*dx)*rm5)    ! gxx from p dipoles
+        dv(5,I) = dv(5,I) + pt5*(facp*dx*dy-(ppx*dy+ppy*dx)*rm5)      ! gxy from p dipoles
+        dv(6,I) = dv(6,I) + pt5*(facp*dy*dy-(DpdR+Two*ppy*dy)*rm5)    ! gyy from p dipoles
+        dv(7,I) = dv(7,I) + pt5*(facp*dx*dz-(ppx*dz+ppz*dx)*rm5)      ! gxz from p dipoles
+        dv(8,I) = dv(8,I) + pt5*(facp*dy*dz-(ppy*dz+ppz*dy)*rm5)      ! gyz from p dipoles
+        dv(9,I) = dv(9,I) + pt5*(facp*dz*dz-(DpdR+two*ppz*dz)*rm5)    ! gzz from p dipoles
 
-        dv(4,I) = dv(4,I) + facd*dx*dx-(DddR+Two*dpx*dx)*rm5    ! gxx from d dipoles
-        dv(5,I) = dv(5,I) + facd*dx*dy-(dpx*dy+dpy*dx)*rm5      ! gxy from d dipoles
-        dv(6,I) = dv(6,I) + facd*dy*dy-(DddR+Two*dpy*dy)*rm5    ! gyy from d dipoles
-        dv(7,I) = dv(7,I) + facd*dx*dz-(dpx*dz+dpz*dx)*rm5      ! gxz from d dipoles
-        dv(8,I) = dv(8,I) + facd*dy*dz-(dpy*dz+dpz*dy)*rm5      ! gyz from d dipoles
-        dv(9,I) = dv(9,I) + facd*dz*dz-(DddR+two*dpz*dz)*rm5    ! gzz from d dipoles
+        dv(4,I) = dv(4,I) + pt5*(facd*dx*dx-(DddR+Two*dpx*dx)*rm5)    ! gxx from d dipoles
+        dv(5,I) = dv(5,I) + pt5*(facd*dx*dy-(dpx*dy+dpy*dx)*rm5)      ! gxy from d dipoles
+        dv(6,I) = dv(6,I) + pt5*(facd*dy*dy-(DddR+Two*dpy*dy)*rm5)    ! gyy from d dipoles
+        dv(7,I) = dv(7,I) + pt5*(facd*dx*dz-(dpx*dz+dpz*dx)*rm5)      ! gxz from d dipoles
+        dv(8,I) = dv(8,I) + pt5*(facd*dy*dz-(dpy*dz+dpz*dy)*rm5)      ! gyz from d dipoles
+        dv(9,I) = dv(9,I) + pt5*(facd*dz*dz-(DddR+two*dpz*dz)*rm5)    ! gzz from d dipoles
 
         
         ! Field hessians
         facd = DddR*rm9
         facp = DpdR*rm9
-        dv(10,I) = dv(10,I) + facp*dx*dx*dx + rm5*Three*ppx - rm7*Three*(ppx*dx*dx + DpdR*dx)       ! hxxx from p dipoles
-        dv(11,I) = dv(11,I) + facp*dx*dx*dy + rm5*ppy - rm7*(Two*dx*dy*ppx + ppy*dx*dx + DpdR*dy)   ! hxxy from p dipoles
-        dv(11,I) = dv(11,I) + facp*dx*dx*dz + rm5*ppz - rm7*(Two*dx*dz*ppx + ppz*dx*dx + DpdR*dz)   ! hxxz from p dipoles
-        dv(13,I) = dv(13,I) + facp*dx*dy*dy + rm5*ppx - rm7*(Two*dx*dy*ppy + ppx*dy*dy + DpdR*dx)   ! hxyy from p dipoles
-        dv(14,I) = dv(14,I) + facp*dx*dy*dz - rm7*(dx*dy*ppz + dy*dz*ppx + dz*dx*ppy)               ! hxyz from p dipoles
-        dv(15,I) = dv(15,I) + facp*dx*dz*dz + rm5*ppx - rm7*(Two*dx*dz*ppz + ppx*dz*dz + DpdR*dx)   ! hxzz from p dipoles
-        dv(16,I) = dv(16,I) + facp*dy*dy*dy + rm5*Three*ppy - rm7*Three*(ppy*dy*dy + DpdR*dy)       ! hyyy from p dipoles
-        dv(17,I) = dv(17,I) + facp*dy*dy*dz + rm5*ppz - rm7*(Two*dy*dz*ppy + ppz*dy*dy + DpdR*dz)   ! hyyz from p dipoles
-        dv(18,I) = dv(18,I) + facp*dy*dz*dz + rm5*ppy - rm7*(Two*dy*dz*ppz + ppy*dz*dz + DpdR*dy)   ! hyzz from p dipoles
-        dv(19,I) = dv(19,I) + facp*dz*dz*dz + rm5*Three*ppz - rm7*Three*(ppz*dz*dz + DpdR*dz)       ! hzzz from p dipoles
+        dv(10,I) = dv(10,I) + pt5*(facp*dx*dx*dx + rm5*Three*ppx - rm7*Three*(ppx*dx*dx + DpdR*dx))       ! hxxx from p dipoles
+        dv(11,I) = dv(11,I) + pt5*(facp*dx*dx*dy + rm5*ppy - rm7*(Two*dx*dy*ppx + ppy*dx*dx + DpdR*dy))   ! hxxy from p dipoles
+        dv(12,I) = dv(12,I) + pt5*(facp*dx*dx*dz + rm5*ppz - rm7*(Two*dx*dz*ppx + ppz*dx*dx + DpdR*dz))   ! hxxz from p dipoles
+        dv(13,I) = dv(13,I) + pt5*(facp*dx*dy*dy + rm5*ppx - rm7*(Two*dx*dy*ppy + ppx*dy*dy + DpdR*dx))   ! hxyy from p dipoles
+        dv(14,I) = dv(14,I) + pt5*(facp*dx*dy*dz - rm7*(dx*dy*ppz + dy*dz*ppx + dz*dx*ppy))               ! hxyz from p dipoles
+        dv(15,I) = dv(15,I) + pt5*(facp*dx*dz*dz + rm5*ppx - rm7*(Two*dx*dz*ppz + ppx*dz*dz + DpdR*dx))   ! hxzz from p dipoles
+        dv(16,I) = dv(16,I) + pt5*(facp*dy*dy*dy + rm5*Three*ppy - rm7*Three*(ppy*dy*dy + DpdR*dy))       ! hyyy from p dipoles
+        dv(17,I) = dv(17,I) + pt5*(facp*dy*dy*dz + rm5*ppz - rm7*(Two*dy*dz*ppy + ppz*dy*dy + DpdR*dz))   ! hyyz from p dipoles
+        dv(18,I) = dv(18,I) + pt5*(facp*dy*dz*dz + rm5*ppy - rm7*(Two*dy*dz*ppz + ppy*dz*dz + DpdR*dy))   ! hyzz from p dipoles
+        dv(19,I) = dv(19,I) + pt5*(facp*dz*dz*dz + rm5*Three*ppz - rm7*Three*(ppz*dz*dz + DpdR*dz))       ! hzzz from p dipoles
         
-        dv(10,I) = dv(10,I) + facd*dx*dx*dx + rm5*Three*dpx - rm7*Three*(dpx*dx*dx + DddR*dx)       ! hxxx from d dipoles
-        dv(11,I) = dv(11,I) + facd*dx*dx*dy + rm5*dpy - rm7*(Two*dx*dy*dpx + dpy*dx*dx + DddR*dy)   ! hxxy from d dipoles
-        dv(11,I) = dv(11,I) + facd*dx*dx*dz + rm5*dpz - rm7*(Two*dx*dz*dpx + dpz*dx*dx + DddR*dz)   ! hxxz from d dipoles
-        dv(13,I) = dv(13,I) + facd*dx*dy*dy + rm5*dpx - rm7*(Two*dx*dy*dpy + dpx*dy*dy + DddR*dx)   ! hxyy from d dipoles
-        dv(14,I) = dv(14,I) + facd*dx*dy*dz - rm7*(dx*dy*dpz + dy*dz*dpx + dz*dx*dpy)               ! hxyz from d dipoles
-        dv(15,I) = dv(15,I) + facd*dx*dz*dz + rm5*dpx - rm7*(Two*dx*dz*dpz + dpx*dz*dz + DddR*dx)   ! hxzz from d dipoles
-        dv(16,I) = dv(16,I) + facd*dy*dy*dy + rm5*Three*dpy - rm7*Three*(dpy*dy*dy + DddR*dy)       ! hyyy from d dipoles
-        dv(17,I) = dv(17,I) + facd*dy*dy*dz + rm5*dpz - rm7*(Two*dy*dz*dpy + dpz*dy*dy + DddR*dz)   ! hyyz from d dipoles
-        dv(18,I) = dv(18,I) + facd*dy*dz*dz + rm5*dpy - rm7*(Two*dy*dz*dpz + dpy*dz*dz + DddR*dy)   ! hyzz from d dipoles
-        dv(19,I) = dv(19,I) + facd*dz*dz*dz + rm5*Three*dpz - rm7*Three*(dpz*dz*dz + DddR*dz)       ! hzzz from d dipoles
+        dv(10,I) = dv(10,I) + pt5*(facd*dx*dx*dx + rm5*Three*dpx - rm7*Three*(dpx*dx*dx + DddR*dx))       ! hxxx from d dipoles
+        dv(11,I) = dv(11,I) + pt5*(facd*dx*dx*dy + rm5*dpy - rm7*(Two*dx*dy*dpx + dpy*dx*dx + DddR*dy))   ! hxxy from d dipoles
+        dv(12,I) = dv(12,I) + pt5*(facd*dx*dx*dz + rm5*dpz - rm7*(Two*dx*dz*dpx + dpz*dx*dx + DddR*dz))   ! hxxz from d dipoles
+        dv(13,I) = dv(13,I) + pt5*(facd*dx*dy*dy + rm5*dpx - rm7*(Two*dx*dy*dpy + dpx*dy*dy + DddR*dx))   ! hxyy from d dipoles
+        dv(14,I) = dv(14,I) + pt5*(facd*dx*dy*dz - rm7*(dx*dy*dpz + dy*dz*dpx + dz*dx*dpy))               ! hxyz from d dipoles
+        dv(15,I) = dv(15,I) + pt5*(facd*dx*dz*dz + rm5*dpx - rm7*(Two*dx*dz*dpz + dpx*dz*dz + DddR*dx))   ! hxzz from d dipoles
+        dv(16,I) = dv(16,I) + pt5*(facd*dy*dy*dy + rm5*Three*dpy - rm7*Three*(dpy*dy*dy + DddR*dy))       ! hyyy from d dipoles
+        dv(17,I) = dv(17,I) + pt5*(facd*dy*dy*dz + rm5*dpz - rm7*(Two*dy*dz*dpy + dpz*dy*dy + DddR*dz))   ! hyyz from d dipoles
+        dv(18,I) = dv(18,I) + pt5*(facd*dy*dz*dz + rm5*dpy - rm7*(Two*dy*dz*dpz + dpy*dz*dz + DddR*dy))   ! hyzz from d dipoles
+        dv(19,I) = dv(19,I) + pt5*(facd*dz*dz*dz + rm5*Three*dpz - rm7*Three*(dpz*dz*dz + DddR*dz))       ! hzzz from d dipoles
         
         
         ! An alternative formulation:
@@ -1125,7 +1177,22 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
     if (.not. Amoeba) then        ! AMBER
 
         call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
-
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
+        rm7 = f15*rm7
+        
+        
+!        rm5 = Three*Scr(IndJ)*fl5/r5
+!        rm7 = F15*Scr(IndJ)*DdR*fl7/r7
+!        fGxx = fGxx - rm5*(DdR + Two*dx*Dip(1,J))     + dx*dx*rm7
+!        fGxy = fGxy - rm5*(dx*Dip(2,J) + dy*Dip(1,J)) + dx*dy*rm7
+!        fGyy = fGyy - rm5*(DdR + Two*dy*Dip(2,J))     + dy*dy*rm7
+!        fGxz = fGxz - rm5*(dx*Dip(3,J) + dz*Dip(1,J)) + dx*dz*rm7
+!        fGyz = fGyz - rm5*(dy*Dip(3,J) + dz*Dip(2,J)) + dy*dz*rm7
+!        fGzz = fGzz - rm5*(DdR + Two*dz*Dip(3,J))     + dz*dz*rm7
+        
+        
         ! intermediates
         px  = ipd( 1, J, 1)
         py  = ipd( 2, J, 1)
@@ -1133,31 +1200,50 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
         DdR = px*dx + py*dy + pz*dz
           
         ! Field derivatives
-        de(1,I,1) = de(1,I,1) - scalefp*(rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
-        de(2,I,1) = de(2,I,1) - scalefp*(rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
-        de(3,I,1) = de(3,I,1) - scalefp*(rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
-        de(4,I,1) = de(4,I,1) - scalefp*(rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
-        de(5,I,1) = de(5,I,1) - scalefp*(rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
-        de(6,I,1) = de(6,I,1) - scalefp*(rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz
+        de(1,I,1) = de(1,I,1) + scalefp*(-rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
+        de(2,I,1) = de(2,I,1) + scalefp*(-rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
+        de(3,I,1) = de(3,I,1) + scalefp*(-rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(4,I,1) = de(4,I,1) + scalefp*(-rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
+        de(5,I,1) = de(5,I,1) + scalefp*(-rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
+        de(6,I,1) = de(6,I,1) + scalefp*(-rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz
         
     elseif (Amoeba) then   ! AMOEBA
 
-        call coulomb_kernel(.true.,4,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
-    
+        call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        rm1 = rm1
+        rm3 = rm3
+        rm5 = Three*rm5
+        rm7 = f15*rm7
         
         ! intermediates only p dipoles
         px  = ipd( 1, J, 2)
         py  = ipd( 2, J, 2)
         pz  = ipd( 3, J, 2)
         DdR = px*dx + py*dy + pz*dz
+        
+        ! Field derivatives p dipoles
+        de(1,I,2) = de(1,I,2) + scalefp*(-rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
+        de(2,I,2) = de(2,I,2) + scalefp*(-rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
+        de(3,I,2) = de(3,I,2) + scalefp*(-rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(4,I,2) = de(4,I,2) + scalefp*(-rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
+        de(5,I,2) = de(5,I,2) + scalefp*(-rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
+        de(6,I,2) = de(6,I,2) + scalefp*(-rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz       
+        
+        ! intermediates only d dipoles
+        px  = ipd( 1, J, 1)
+        py  = ipd( 2, J, 1)
+        pz  = ipd( 3, J, 1)
+        DdR = px*dx + py*dy + pz*dz
 
-        ! Field derivatives
-        de(1,I,2) = de(1,I,2) - scalefp*(rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
-        de(2,I,2) = de(2,I,2) - scalefp*(rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
-        de(3,I,2) = de(3,I,2) - scalefp*(rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
-        de(4,I,2) = de(4,I,2) - scalefp*(rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
-        de(5,I,2) = de(5,I,2) - scalefp*(rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
-        de(6,I,2) = de(6,I,2) - scalefp*(rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz       
+        ! Field derivatives d dipoles
+        de(1,I,1) = de(1,I,1) + scalefd*(-rm5*(DdR + Two*dx*px) + dx*dx*DdR*rm7)   ! gxx
+        de(2,I,1) = de(2,I,1) + scalefd*(-rm5*(dx*py + dy*px) + dx*dy*DdR*rm7)     ! gxy
+        de(3,I,1) = de(3,I,1) + scalefd*(-rm5*(DdR + Two*dy*py) + dy*dy*DdR*rm7)   ! gyy
+        de(4,I,1) = de(4,I,1) + scalefd*(-rm5*(dx*pz + dz*px) + dx*dz*DdR*rm7)     ! gxz
+        de(5,I,1) = de(5,I,1) + scalefd*(-rm5*(dy*pz + dz*py) + dy*dz*DdR*rm7)     ! gyz
+        de(6,I,1) = de(6,I,1) + scalefd*(-rm5*(DdR + Two*dz*pz) + dz*dz*DdR*rm7)   ! gzz
+        
+        
     end if
 end subroutine field_deriv_D2D
 
@@ -1184,7 +1270,8 @@ subroutine multipoles_potential_remove(scr,v)
     integer(ip), intent(in) :: scr
     !
     !logical     :: Amoeba
-    integer(ip) :: I, J, IJ
+    integer(ip) :: I, J, K, IJ
+    real(rp)    :: scale
     !
     !real(rp), parameter :: Zero = 0.0_rp, One = 1.0_rp
     
@@ -1227,61 +1314,75 @@ subroutine multipoles_potential_remove(scr,v)
         
         ! For AMOEBA different scaling for the p and d dipoles
         do J = 1,pol_atoms
-            ! For every pol atom subtract interaction with it's neighbors for polarization field (p dipoles) 
-            if(pscale(1).ne.one) then
-                do IJ = 1, n12(J)
-                    I = i12(IJ,J)
-                    call potential_D2M(Zero,pscale(1)-One,I,J,v)
-                enddo
-            endif 
-            
-            if(pscale(2).ne.one) then
-                do IJ = 1, n13(J)
-                    I = i13(IJ,J)
-                    call potential_D2M(Zero,pscale(2)-One,I,J,v)
-                enddo
-            endif 
-            
-            if(pscale(3).ne.one) then
-                do IJ = 1, n14(J)
-                    I = i14(IJ,J)
-                    call potential_D2M(Zero,pscale(3)-One,I,J,v)
-                enddo
-            endif 
-            
-            if(pscale(4).ne.one) then
-                do IJ = 1, n15(J)
-                    I = i15(IJ,J)
-                    call potential_D2M(Zero,pscale(4)-One,I,J,v)
-                enddo
-            endif 
+!            ! For every pol atom subtract interaction with it's neighbors for polarization field (p dipoles) 
+!            if(pscale(1).ne.one) then
+!                do IJ = 1, n12(polar_mm(J))
+!                    I = i12(IJ,polar_mm(J))
+!                    call potential_D2M(Zero,pscale(1)-One,I,J,v)
+!                enddo
+!            endif 
+!            
+!            if(pscale(2).ne.one) then
+!                do IJ = 1, n13(polar_mm(J))
+!                    I = i13(IJ,polar_mm(J))
+!                    call potential_D2M(Zero,pscale(2)-One,I,J,v)
+!                enddo
+!            endif 
+!            
+!            if(pscale(3).ne.one) then
+!                do IJ = 1, n14(polar_mm(J))
+!                    I = i14(IJ,polar_mm(J))
+!                    
+!                    scale = pscale(3)
+!                    do K = 1,np11(J)
+!                        if (I.eq.ip11(K,J)) scale = pscale(3)*pscale(5)
+!                    enddo
+!                    
+!                    call potential_D2M(Zero,scale-One,I,J,v)
+!                enddo
+!            endif 
+!            
+!            if(pscale(4).ne.one) then
+!                do IJ = 1, n15(polar_mm(J))
+!                    I = i15(IJ,polar_mm(J))
+!                    call potential_D2M(Zero,pscale(4)-One,I,J,v)
+!                enddo
+!            endif 
             
             ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
             if(dscale(1).ne.one) then
                 do IJ = 1, np11(J)
                     I = ip11(IJ,J)
-                    call potential_D2M(dscale(1)-One,Zero,I,J,v)
+                    if (I.eq.J) cycle
+                    !call potential_D2M(dscale(1)-One,Zero,I,J,v)
+                    call potential_D2M(Zero,dscale(1)-One,I,J,v)
                 enddo
             endif 
             
             if(dscale(2).ne.one) then
                 do IJ = 1, np12(J)
                     I = ip12(IJ,J)
-                    call potential_D2M(dscale(2)-One,Zero,I,J,v)
+                    if (I.eq.J) cycle
+                    !call potential_D2M(dscale(2)-One,Zero,I,J,v)
+                    call potential_D2M(Zero,dscale(2)-One,I,J,v)
                 enddo
             endif 
             
             if(dscale(3).ne.one) then
                 do IJ = 1, np13(J)
                     I = ip13(IJ,J)
-                    call potential_D2M(dscale(3)-One,Zero,I,J,v)
+                    if (I.eq.J) cycle
+                    !call potential_D2M(dscale(3)-One,Zero,I,J,v)
+                    call potential_D2M(Zero,dscale(3)-One,I,J,v)
                 enddo
             endif 
             
             if(dscale(4).ne.one) then
                 do IJ = 1, np14(J)
                     I = ip14(IJ,J)
-                    call potential_D2M(dscale(4)-One,Zero,I,J,v)
+                    if (I.eq.J) cycle
+                    !call potential_D2M(dscale(4)-One,Zero,I,J,v)
+                    call potential_D2M(Zero,dscale(4)-One,I,J,v)
                 enddo
             endif 
         enddo
@@ -1290,29 +1391,29 @@ subroutine multipoles_potential_remove(scr,v)
         ! For AMBER the potential from the dipoles is scaled by pscale (so far)
         do J = 1,pol_atoms
             if(pscale(1).ne.one) then
-                do IJ = 1, n12(J)
-                    I = i12(IJ,J)
+                do IJ = 1, n12(polar_mm(J))
+                    I = i12(IJ,polar_mm(J))
                     call potential_D2M(Zero,pscale(1)-One,I,J,v)
                 enddo
             endif 
             
             if(pscale(2).ne.one) then
-                do IJ = 1, n13(J)
-                    I = i13(IJ,J)
+                do IJ = 1, n13(polar_mm(J))
+                    I = i13(IJ,polar_mm(J))
                     call potential_D2M(Zero,pscale(2)-One,I,J,v)
                 enddo
             endif 
             
             if(pscale(3).ne.one) then
-                do IJ = 1, n14(J)
-                    I = i14(IJ,J)
+                do IJ = 1, n14(polar_mm(J))
+                    I = i14(IJ,polar_mm(J))
                     call potential_D2M(Zero,pscale(3)-One,I,J,v)
                 enddo
             endif 
             
             if(pscale(4).ne.one) then
-                do IJ = 1, n15(J)
-                    I = i15(IJ,J)
+                do IJ = 1, n15(polar_mm(J))
+                    I = i15(IJ,polar_mm(J))
                     call potential_D2M(Zero,pscale(4)-One,I,J,v)
                 enddo
             endif 
@@ -1364,22 +1465,22 @@ subroutine multipoles_field_remove(scr,e)
 
             ! p field dipoles
             if (pscale(1).ne.one) then
-                do IJ = 1, n12(I)
-                    J = i12(IJ,I)
+                do IJ = 1, n12(polar_mm(I))
+                    J = i12(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(1)-One,I,J,e)
                 enddo
             end if
 
             if (pscale(2).ne.one) then
-                do IJ = 1, n13(I)
-                    J = i13(IJ,I)
+                do IJ = 1, n13(polar_mm(I))
+                    J = i13(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(2)-One,I,J,e)
                 enddo
             end if
 
             ! Strange way of rescaling 1-4 interactions - if 1-4 atom also in ip11 then scale by pscale(3)*pscale(5) else pscale(3)
-            do IJ = 1, n14(I)
-                J = i14(IJ,I)
+            do IJ = 1, n14(polar_mm(I))
+                J = i14(IJ,polar_mm(I))
                 scale = pscale(3)
                 do K = 1,np11(I)
                     if (J.eq.ip11(K,I)) scale = pscale(3)*pscale(5)
@@ -1391,8 +1492,8 @@ subroutine multipoles_field_remove(scr,e)
             
 
             if (pscale(4).ne.one) then
-                do IJ = 1, n15(I)
-                    J = i15(IJ,I)
+                do IJ = 1, n15(polar_mm(I))
+                    J = i15(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(4)-One,I,J,e)
                 enddo
             end if
@@ -1436,29 +1537,29 @@ subroutine multipoles_field_remove(scr,e)
 
             ! Field from dipoles is scaled by pscale
             if (pscale(1).ne.one) then
-                do IJ = 1, n12(I)
-                    J = i12(IJ,I)
+                do IJ = 1, n12(polar_mm(I))
+                    J = i12(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(1)-One,I,J,e)
                 enddo
             end if
 
             if (pscale(2).ne.one) then
-                do IJ = 1, n13(I)
-                    J = i13(IJ,I)
+                do IJ = 1, n13(polar_mm(I))
+                    J = i13(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(2)-One,I,J,e)
                 enddo
             end if
 
             if (pscale(3).ne.one) then
-                do IJ = 1, n14(I)
-                    J = i14(IJ,I)
+                do IJ = 1, n14(polar_mm(I))
+                    J = i14(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(3)-One,I,J,e)
                 enddo
             end if
 
             if (pscale(4).ne.one) then
-                do IJ = 1, n15(I)
-                    J = i15(IJ,I)
+                do IJ = 1, n15(polar_mm(I))
+                    J = i15(IJ,polar_mm(I))
                     call field_M2D(Zero,pscale(4)-One,I,J,e)
                 enddo
             end if
@@ -1470,9 +1571,9 @@ subroutine multipoles_field_remove(scr,e)
                 do IJ = 1, np11(I)
                     J = ip11(IJ,I)
 
-                    if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
+                    if ((mm_polar(J).eq.0).or.(I.eq.J)) cycle ! if J is not polarizable atom, skip J
 
-                    call field_D2D(Zero,uscale(1)-One,I,J,e)
+                    call field_D2D(uscale(1)-One,uscale(1)-One,I,J,e)
                 enddo
             end if 
 
@@ -1482,7 +1583,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(2)-One,I,J,e)
+                    call field_D2D(uscale(2)-One,uscale(2)-One,I,J,e)
                 enddo
             end if 
 
@@ -1492,7 +1593,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(3)-One,I,J,e)
+                    call field_D2D(uscale(3)-One,uscale(3)-One,I,J,e)
                 enddo
             end if 
 
@@ -1502,7 +1603,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(4)-One,I,J,e)
+                    call field_D2D(uscale(4)-One,uscale(4)-One,I,J,e)
                 enddo
             end if 
         enddo
@@ -1512,8 +1613,8 @@ subroutine multipoles_field_remove(scr,e)
 
             ! Field from dipoles is scaled by uscale
             if (uscale(1).ne.one) then
-                do IJ = 1, n12(I)
-                    J = i12(IJ,I)
+                do IJ = 1, n12(polar_mm(I))
+                    J = i12(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1522,8 +1623,8 @@ subroutine multipoles_field_remove(scr,e)
             end if
 
             if (uscale(2).ne.one) then
-                do IJ = 1, n13(I)
-                    J = i13(IJ,I)
+                do IJ = 1, n13(polar_mm(I))
+                    J = i13(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1532,8 +1633,8 @@ subroutine multipoles_field_remove(scr,e)
             end if
 
             if (uscale(3).ne.one) then
-                do IJ = 1, n14(I)
-                    J = i14(IJ,I)
+                do IJ = 1, n14(polar_mm(I))
+                    J = i14(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1542,8 +1643,8 @@ subroutine multipoles_field_remove(scr,e)
             end if
 
             if (uscale(4).ne.one) then
-                do IJ = 1, n15(I)
-                    J = i15(IJ,I)
+                do IJ = 1, n15(polar_mm(I))
+                    J = i15(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1625,28 +1726,34 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
         do J = 1,pol_atoms
             ! For every pol atom subtract interaction with it's neighbors for polarization field (p dipoles) 
             if(pscale(1).ne.one) then
-                do IJ = 1, n12(J)
-                    I = i12(IJ,J)
-                    call potential_deriv_D2M(Zero,pscale(1)-One,I,J,dv)
+                do IJ = 1, n12(polar_mm(J))
+                    I = i12(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(Zero,pscale(1)-One,I,J,dv)
+                    call potential_deriv_D2M(pscale(1)-One,Zero,I,J,dv)
                 enddo
             endif 
             
             if(pscale(2).ne.one) then
-                do IJ = 1, n13(J)
-                    I = i13(IJ,J)
-                    call potential_deriv_D2M(Zero,pscale(2)-One,I,J,dv)
+                do IJ = 1, n13(polar_mm(J))
+                    I = i13(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(Zero,pscale(2)-One,I,J,dv)
+                    call potential_deriv_D2M(pscale(2)-One,Zero,I,J,dv)
                 enddo
             endif 
             
             ! Strange way of rescaling 1-4 interactions - if 1-4 atom also in ip11 then scale by pscale(3)*pscale(5) else pscale(3)
-            do IJ = 1, n14(J)
-                I = i14(IJ,J)
+            do IJ = 1, n14(polar_mm(J))
+                I = i14(IJ,polar_mm(J))
+                if (I.eq.polar_mm(J)) cycle
                 scale = pscale(3)
                 do K = 1,np11(J)
                     if (I.eq.ip11(K,J)) scale = pscale(3)*pscale(5)
                 enddo
                 if (scale.ne.one) then
-                    call potential_deriv_D2M(Zero,scale-One,I,J,dv)
+                    !call potential_deriv_D2M(Zero,scale-One,I,J,dv)
+                    call potential_deriv_D2M(scale-One,Zero,I,J,dv)
                 end if
             enddo
 !            if(pscale(3).ne.one) then
@@ -1657,9 +1764,11 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
 !            endif 
             
             if(pscale(4).ne.one) then
-                do IJ = 1, n15(J)
-                    I = i15(IJ,J)
-                    call potential_deriv_D2M(Zero,pscale(4)-One,I,J,dv)
+                do IJ = 1, n15(polar_mm(J))
+                    I = i15(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(Zero,pscale(4)-One,I,J,dv
+                    call potential_deriv_D2M(pscale(4)-One,Zero,I,J,dv)
                 enddo
             endif 
             
@@ -1667,28 +1776,38 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
             if(dscale(1).ne.one) then
                 do IJ = 1, np11(J)
                     I = ip11(IJ,J)
-                    call potential_deriv_D2M(dscale(1)-One,Zero,I,J,dv)
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(dscale(1)-One,Zero,I,J,dv)
+                    call potential_deriv_D2M(Zero,dscale(1)-One,I,J,dv)
+                    
+                    
                 enddo
             endif 
             
             if(dscale(2).ne.one) then
                 do IJ = 1, np12(J)
                     I = ip12(IJ,J)
-                    call potential_deriv_D2M(dscale(2)-One,Zero,I,J,dv)
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(dscale(2)-One,Zero,I,J,dv)
+                    call potential_deriv_D2M(Zero,dscale(2)-One,I,J,dv)
                 enddo
             endif 
             
             if(dscale(3).ne.one) then
                 do IJ = 1, np13(J)
                     I = ip13(IJ,J)
-                    call potential_deriv_D2M(dscale(3)-One,Zero,I,J,dv)
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(dscale(3)-One,Zero,I,J,dv)
+                    call potential_deriv_D2M(Zero,dscale(3)-One,I,J,dv)
                 enddo
             endif 
             
             if(dscale(4).ne.one) then
                 do IJ = 1, np14(J)
                     I = ip14(IJ,J)
-                    call potential_deriv_D2M(dscale(4)-One,Zero,I,J,dv)
+                    if (I.eq.polar_mm(J)) cycle
+                    !call potential_deriv_D2M(dscale(4)-One,Zero,I,J,dv)
+                    call potential_deriv_D2M(Zero,dscale(4)-One,I,J,dv)
                 enddo
             endif 
         enddo
@@ -1697,29 +1816,29 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
         ! For AMBER the potential from the dipoles is scaled by pscale (so far)
         do J = 1,pol_atoms
             if(pscale(1).ne.one) then
-                do IJ = 1, n12(J)
-                    I = i12(IJ,J)
+                do IJ = 1, n12(polar_mm(J))
+                    I = i12(IJ,polar_mm(J))
                     call potential_deriv_D2M(Zero,pscale(1)-One,I,J,dv)
                 enddo
             endif 
             
             if(pscale(2).ne.one) then
-                do IJ = 1, n13(J)
-                    I = i13(IJ,J)
+                do IJ = 1, n13(polar_mm(J))
+                    I = i13(IJ,polar_mm(J))
                     call potential_deriv_D2M(Zero,pscale(2)-One,I,J,dv)
                 enddo
             endif 
             
             if(pscale(3).ne.one) then
-                do IJ = 1, n14(J)
-                    I = i14(IJ,J)
+                do IJ = 1, n14(polar_mm(J))
+                    I = i14(IJ,polar_mm(J))
                     call potential_deriv_D2M(Zero,pscale(3)-One,I,J,dv)
                 enddo
             endif 
             
             if(pscale(4).ne.one) then
-                do IJ = 1, n15(J)
-                    I = i15(IJ,J)
+                do IJ = 1, n15(polar_mm(J))
+                    I = i15(IJ,polar_mm(J))
                     call potential_deriv_D2M(Zero,pscale(4)-One,I,J,dv)
                 enddo
             endif 
@@ -1752,6 +1871,10 @@ subroutine multipoles_field_deriv_remove(scr,de)
     !
     ! The function can be simplified by adding p scaling for both amoeba
     ! and AMBER dipoles and d scaling only to the AMOEBA (shorter form)
+    !
+    ! Scaling of the nearest neighbor interactions for p and d dipoles is
+    ! reversed dscale is used for scaling potential of p dipoles and pscale
+    ! is used for scaling potential of d dipoles
     !
     
     real(rp), dimension(6,pol_atoms,n_ipd), intent(inout) :: de
@@ -1883,7 +2006,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
 
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
 
-                    call field_deriv_D2D(Zero,uscale(1)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(1)-One,uscale(1)-One,I,J,de) !Amoeba,
                 enddo
             end if 
 
@@ -1893,7 +2016,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(2)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(2)-One,uscale(2)-One,I,J,de) !Amoeba,
                 enddo
             end if 
 
@@ -1903,7 +2026,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(3)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(3)-One,uscale(3)-One,I,J,de) !Amoeba,
                 enddo
             end if 
 
@@ -1913,7 +2036,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(4)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(4)-One,uscale(4)-One,I,J,de) !Amoeba,
                 enddo
             end if 
         enddo
@@ -1923,8 +2046,8 @@ subroutine multipoles_field_deriv_remove(scr,de)
 
             ! Field from dipoles is scaled by uscale
             if (uscale(1).ne.one) then
-                do IJ = 1, n12(I)
-                    J = i12(IJ,I)
+                do IJ = 1, n12(polar_mm(I))
+                    J = i12(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1933,8 +2056,8 @@ subroutine multipoles_field_deriv_remove(scr,de)
             end if
 
             if (uscale(2).ne.one) then
-                do IJ = 1, n13(I)
-                    J = i13(IJ,I)
+                do IJ = 1, n13(polar_mm(I))
+                    J = i13(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1943,8 +2066,8 @@ subroutine multipoles_field_deriv_remove(scr,de)
             end if
 
             if (uscale(3).ne.one) then
-                do IJ = 1, n14(I)
-                    J = i14(IJ,I)
+                do IJ = 1, n14(polar_mm(I))
+                    J = i14(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1953,8 +2076,8 @@ subroutine multipoles_field_deriv_remove(scr,de)
             end if
 
             if (uscale(4).ne.one) then
-                do IJ = 1, n15(I)
-                    J = i15(IJ,I)
+                do IJ = 1, n15(polar_mm(I))
+                    J = i15(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
@@ -1966,10 +2089,33 @@ subroutine multipoles_field_deriv_remove(scr,de)
     end if
 
 end subroutine multipoles_field_deriv_remove
-
+    
 
 subroutine multipoles_potential_FMM(scr,v)
-    
+!
 end subroutine multipoles_potential_FMM
     
 end module elstat
+
+
+! TODO:
+! Check if np11, np12,... is defined with polarizable atom indexes or with mm atom indexes
+! check for _D2D quatities that we always include porazizable atom indexes and not mm atom ones 
+!
+! QUESTIONS:
+! What should be outut of potential calculation from induced dipoles? 
+!    - for interaction energy it should be potential of p dipoles ipd(:,:,2) with scaling scaled
+!      and exclusion neighbors np1..
+!
+! Scaling of the nearest neighbor interactions for p and d dipoles is
+! reversed dscale is used for scaling potential of p dipoles and pscale
+! is used for scaling potential of d dipoles
+!   - Why?
+!
+! For dE D@D both d and p dipoles are scaled by uscale and excluded parameters are both in np1..
+!
+    !
+    ! Scaling of the nearest neighbor interactions for p and d dipoles is
+    ! reversed dscale is used for scaling potential of p dipoles and pscale
+    ! is used for scaling potential of d dipoles
+    !
