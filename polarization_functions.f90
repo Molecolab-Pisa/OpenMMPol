@@ -6,13 +6,16 @@ real(rp),    allocatable :: TMatI(:,:)
 contains
 
 subroutine dipole_T(scalef,I,J,TTens)
-    use mmpol, only : thole, cpol, pol_atoms, pol
+    use mmpol, only : thole, cpol, pol_atoms, pol, polar_mm
     implicit none
     !                      
     ! Compute element of the polarization tensor TTens between
     ! polarizable cpol atom I and polarizable cpol atom J. On the
     ! TTens diagonal (I=J) are inverse polarizabilities and on the 
     ! off-diagonal dipole field.
+    !
+    ! Polarizabilities pol are defined for polarizable atoms only while 
+    ! Thole factors are defined for all of them
     !
     real(rp), dimension(3,pol_atoms,3,pol_atoms), intent(inout) :: TTens
     real(rp), intent(in) :: scalef
@@ -42,7 +45,7 @@ subroutine dipole_T(scalef,I,J,TTens)
         dy = cpol(2,J) - cpol(2,I)
         dz = cpol(3,J) - cpol(3,I)
 
-        call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,2,dx,dy,dz,thole(polar_mm(I)),thole(polar_mm(J)),rm1,rm3,rm5,rm7,rm9,rm11)
 
         ! Apply scaling
         rm3 = rm3*scalef
@@ -69,7 +72,7 @@ subroutine create_TMat(TMat)
     use mmpol, only : pol_atoms, cpol, uscale, np11, np12, np13, np14, &
                            ip11, ip12, ip13, ip14, n12, n13, n14, n15, &
                            i12, i13, i14, i15, pol, mm_polar, Amoeba,  &
-                           verbose
+                           verbose, polar_mm
     implicit none
     !                      
     ! Construct polarization tensor for matrix inversion solution
@@ -81,6 +84,9 @@ subroutine create_TMat(TMat)
     ! then we subtract the excluded interaction and reshape the tensor
     ! into matrix with dimension (3*pol_atoms,3*pol_atoms) which is 
     ! the one on the output.
+    !
+    ! Polarizabilities pol are defined for polarizable atoms only while 
+    ! n12, i12... factors are defined for all of them (even mm atoms)
     !
     real(rp), dimension(3*pol_atoms,3*pol_atoms), intent(out) :: TMat
     !
@@ -124,44 +130,44 @@ subroutine create_TMat(TMat)
     if  (Amoeba) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
         do I = 1,pol_atoms
             if (uscale(1).ne.One) then
-                do IJ = 1, np11(I)
-                    J = ip11(IJ,I)
+                do IJ = 1, np11( polar_mm(I) )
+                    J = ip11(IJ, polar_mm(I) )
 
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
 
-                    call dipole_T(uscale(1)-One,I,J,TTens)
+                    call dipole_T(uscale(1)-One,I, mm_polar(J) ,TTens)
 
                 enddo
             end if 
 
             if (uscale(2).ne.one) then
-                do IJ = 1, np12(I)
-                    J = ip12(IJ,I)
+                do IJ = 1, np12( polar_mm(I) )
+                    J = ip12(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call dipole_T(uscale(2)-One,I,J,TTens)
+                    call dipole_T(uscale(2)-One,I, mm_polar(J) ,TTens)
                 enddo
             end if 
 
             if (uscale(3).ne.one) then
-                do IJ = 1, np13(I)
-                    J = ip13(IJ,I)
+                do IJ = 1, np13( polar_mm(I) )
+                    J = ip13(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call dipole_T(uscale(3)-One,I,J,TTens)
+                    call dipole_T(uscale(3)-One,I, mm_polar(J) ,TTens)
                     
                 enddo
             end if 
 
             if (uscale(4).ne.one) then
-                do IJ = 1, np14(I)
-                    J = ip14(IJ,I)
+                do IJ = 1, np14( polar_mm(I) )
+                    J = ip14(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call dipole_T(uscale(4)-One,I,J,TTens)
+                    call dipole_T(uscale(4)-One,I, mm_polar(J) ,TTens)
 
                 enddo
             end if 
@@ -172,45 +178,49 @@ subroutine create_TMat(TMat)
 
             ! Field from dipoles is scaled by uscale
             if (uscale(1).ne.one) then
-                do IJ = 1, n12(I)
-                    J = i12(IJ,I)
+                do IJ = 1, n12( polar_mm(I) )   ! polar_mm changes pol index into mm index
+                    J = i12(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
+                                                ! mm_polar changes mm index index into pol index
                     
-                    call dipole_T(uscale(1)-One,I,J,TTens)
+                    call dipole_T(uscale(1)-One,I,mm_polar(J),TTens)
 
                 enddo
             end if
 
             if (uscale(2).ne.one) then
-                do IJ = 1, n13(I)
-                    J = i13(IJ,I)
+                do IJ = 1, n13( polar_mm(I) )   ! polar_mm changes pol index into mm index
+                    J = i13(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
+                                                ! mm_polar changes mm index index into pol index
                     
-                    call dipole_T(uscale(2)-One,I,J,TTens)
+                    call dipole_T(uscale(2)-One,I,mm_polar(J),TTens)
                     
                 enddo
             end if
 
             if (uscale(3).ne.one) then
-                do IJ = 1, n14(I)
-                    J = i14(IJ,I)
+                do IJ = 1, n14( polar_mm(I) )   ! polar_mm changes pol index into mm index
+                    J = i14(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
+                                                ! mm_polar changes mm index index into pol index
                     
-                    call dipole_T(uscale(3)-One,I,J,TTens)
+                    call dipole_T(uscale(3)-One,I,mm_polar(J),TTens)
 
                 enddo
             end if
 
             if (uscale(4).ne.one) then
-                do IJ = 1, n15(I)
-                    J = i15(IJ,I)
+                do IJ = 1, n15( polar_mm(I) )   ! polar_mm changes pol index into mm index
+                    J = i15(IJ, polar_mm(I) )
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                    
-                    call dipole_T(uscale(4)-One,I,J,TTens)
+                                                ! mm_polar changes mm index index into pol index
+
+                    call dipole_T(uscale(4)-One,I,mm_polar(J),TTens)
                     
                 enddo
             end if

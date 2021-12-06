@@ -119,7 +119,7 @@ subroutine forces_DD(def,ff_dd)
     real(rp), dimension(3,pol_atoms), intent(inout) :: ff_dd
     real(rp), dimension(6,pol_atoms,n_ipd), intent(in) :: def
     !
-    integer(ip) :: I, J
+    integer(ip) :: I
     real(rp)    :: pdx, pdy, pdz, ppx, ppy, ppz
     real(rp)    :: gdxx, gdxy, gdyy, gdxz, gdyz, gdzz, &
                    gpxx, gpxy, gpyy, gpxz, gpyz, gpzz

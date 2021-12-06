@@ -407,7 +407,7 @@ subroutine field_M2D(scalefd,scalefp,I,J,e)
     ! Check if AMBER or AMOEBA polarizable force-field is used
     if (.not. Amoeba) then        ! AMBER
 
-        call coulomb_kernel(.true.,1,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,1,dx,dy,dz,thole( polar_mm(I) ),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
 
         ! Field
         fac  = q( 1,J)*rm3
@@ -417,7 +417,7 @@ subroutine field_M2D(scalefd,scalefp,I,J,e)
 
     elseif (Amoeba) then   ! AMOEBA
 
-        call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,3,dx,dy,dz,thole( polar_mm(I) ),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
         !
         ! Scale distances
         !
@@ -629,7 +629,7 @@ subroutine field_deriv_M2D(scalefd,scalefp,I,J,de)
     ! Check if AMBER or AMOEBA polarizable force-field is used
     if (.not. Amoeba) then        ! AMBER
 
-        call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,2,dx,dy,dz,thole( polar_mm(I) ),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
 
         ! Field derivatives
         fac1 = scalefp*q(1,J)*rm3
@@ -643,7 +643,7 @@ subroutine field_deriv_M2D(scalefd,scalefp,I,J,de)
         
     elseif (Amoeba) then   ! AMOEBA
 
-        call coulomb_kernel(.true.,4,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,4,dx,dy,dz,thole( polar_mm(I) ),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
         
         ! Scaling of the distances
         rm5  = Three*rm5
@@ -746,7 +746,7 @@ subroutine potential_D2M(scalefd,scalefp,I,J,v)
     ! If multipoles q are only charges calculate only potential
     if (.not. Amoeba) then
 
-        call coulomb_kernel(.true.,1,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,1,dx,dy,dz,thole(I),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         
         ! Scaling of the interaction
         rm3 = scalefp*rm3
@@ -762,7 +762,7 @@ subroutine potential_D2M(scalefd,scalefp,I,J,v)
         
     ! Else the potential electric field and field gradients are calculated
     elseif (Amoeba) then
-        call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         
         rm1 = rm1
         rm3 = rm3
@@ -894,7 +894,7 @@ subroutine field_D2D(scalefd,scalefp,I,J,e)
     ! If multipoles q are only charges calculate only potential
     if (.not. Amoeba) then
 
-        call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,2,dx,dy,dz,thole( polar_mm(I) ),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         rm1 = rm1
         rm3 = rm3
         rm5 = Three*rm5
@@ -911,7 +911,7 @@ subroutine field_D2D(scalefd,scalefp,I,J,e)
         e(3,I,1) = e(3,I,1) + scalefp*(DdR*rm5*dz - pz*rm3)
         
     elseif (Amoeba) then
-        call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,2,dx,dy,dz,thole( polar_mm(I) ),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         rm1 = rm1
         rm3 = rm3
         rm5 = Three*rm5
@@ -991,7 +991,7 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
 
     ! If multipoles q are only charges calculate only potential
     if (.not. Amoeba) then
-        call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,2,dx,dy,dz,thole(I),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         
         rm1 = rm1
         rm3 = rm3
@@ -1010,7 +1010,7 @@ subroutine potential_deriv_D2M(scalefd,scalefp,I,J,dv)
             
     ! Else the potential electric field and field gradients are calculated
     elseif (Amoeba) then
-        call coulomb_kernel(.true.,4,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,4,dx,dy,dz,thole(I),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         rm1 = rm1
         rm3 = rm3
         rm5 = Three*rm5
@@ -1176,7 +1176,7 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
     ! Check if AMBER or AMOEBA polarizable force-field is used
     if (.not. Amoeba) then        ! AMBER
 
-        call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,3,dx,dy,dz,thole( polar_mm(I) ),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         rm1 = rm1
         rm3 = rm3
         rm5 = Three*rm5
@@ -1209,7 +1209,7 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
         
     elseif (Amoeba) then   ! AMOEBA
 
-        call coulomb_kernel(.true.,3,dx,dy,dz,thole(I),thole(J),rm1,rm3,rm5,rm7,rm9,rm11)
+        call coulomb_kernel(.true.,3,dx,dy,dz,thole( polar_mm(I) ),thole( polar_mm(J) ),rm1,rm3,rm5,rm7,rm9,rm11)
         rm1 = rm1
         rm3 = rm3
         rm5 = Three*rm5
@@ -1351,36 +1351,36 @@ subroutine multipoles_potential_remove(scr,v)
             
             ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
             if(dscale(1).ne.one) then
-                do IJ = 1, np11(J)
-                    I = ip11(IJ,J)
-                    if (I.eq.J) cycle
+                do IJ = 1, np11(polar_mm(J))
+                    I = ip11(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
                     !call potential_D2M(dscale(1)-One,Zero,I,J,v)
                     call potential_D2M(Zero,dscale(1)-One,I,J,v)
                 enddo
             endif 
             
             if(dscale(2).ne.one) then
-                do IJ = 1, np12(J)
-                    I = ip12(IJ,J)
-                    if (I.eq.J) cycle
+                do IJ = 1, np12(polar_mm(J))
+                    I = ip12(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
                     !call potential_D2M(dscale(2)-One,Zero,I,J,v)
                     call potential_D2M(Zero,dscale(2)-One,I,J,v)
                 enddo
             endif 
             
             if(dscale(3).ne.one) then
-                do IJ = 1, np13(J)
-                    I = ip13(IJ,J)
-                    if (I.eq.J) cycle
+                do IJ = 1, np13(polar_mm(J))
+                    I = ip13(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
                     !call potential_D2M(dscale(3)-One,Zero,I,J,v)
                     call potential_D2M(Zero,dscale(3)-One,I,J,v)
                 enddo
             endif 
             
             if(dscale(4).ne.one) then
-                do IJ = 1, np14(J)
-                    I = ip14(IJ,J)
-                    if (I.eq.J) cycle
+                do IJ = 1, np14(polar_mm(J))
+                    I = ip14(IJ,polar_mm(J))
+                    if (I.eq.polar_mm(J)) cycle
                     !call potential_D2M(dscale(4)-One,Zero,I,J,v)
                     call potential_D2M(Zero,dscale(4)-One,I,J,v)
                 enddo
@@ -1500,33 +1500,33 @@ subroutine multipoles_field_remove(scr,e)
 
             ! d field dipoles
             if (dscale(1).ne.One) then
-                do IJ = 1, np11(I)
-                    J = ip11(IJ,I)
-                    if (I.eq.J) cycle
+                do IJ = 1, np11(polar_mm(I))
+                    J = ip11(IJ,polar_mm(I))
+                    if (polar_mm(I).eq.J) cycle
                     call field_M2D(dscale(1)-One,Zero,I,J,e)
                 enddo
             end if 
 
             if (dscale(2).ne.one) then
-                do IJ = 1, np12(I)
-                    J = ip12(IJ,I)
-                    if (I.eq.J) cycle
+                do IJ = 1, np12(polar_mm(I))
+                    J = ip12(IJ,polar_mm(I))
+                    if (polar_mm(I).eq.J) cycle
                     call field_M2D(dscale(2)-One,Zero,I,J,e)
                 enddo
             end if 
 
             if (dscale(3).ne.one) then
-                do IJ = 1, np13(I)
-                    J = ip13(IJ,I)
-                    if (I.eq.J) cycle
+                do IJ = 1, np13(polar_mm(I))
+                    J = ip13(IJ,polar_mm(I))
+                    if (polar_mm(I).eq.J) cycle
                     call field_M2D(dscale(3)-One,Zero,I,J,e)
                 enddo
             end if 
 
             if (dscale(4).ne.one) then
-                do IJ = 1, np14(I)
-                    J = ip14(IJ,I)
-                    if (I.eq.J) cycle
+                do IJ = 1, np14(polar_mm(I))
+                    J = ip14(IJ,polar_mm(I))
+                    if (polar_mm(I).eq.J) cycle
                     call field_M2D(dscale(4)-One,Zero,I,J,e)
                 enddo
             end if 
@@ -1568,42 +1568,42 @@ subroutine multipoles_field_remove(scr,e)
     elseif ((scr.eq.1).and.(Amoeba)) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
         do I = 1,pol_atoms
             if (uscale(1).ne.One) then
-                do IJ = 1, np11(I)
-                    J = ip11(IJ,I)
+                do IJ = 1, np11( polar_mm(I) )
+                    J = ip11(IJ, polar_mm(I) )
 
-                    if ((mm_polar(J).eq.0).or.(I.eq.J)) cycle ! if J is not polarizable atom, skip J
+                    if ((mm_polar(J).eq.0).or.(polar_mm(I).eq.J)) cycle ! if J is not polarizable atom, skip J
 
-                    call field_D2D(uscale(1)-One,uscale(1)-One,I,J,e)
+                    call field_D2D(uscale(1)-One,uscale(1)-One,I,mm_polar(J),e)
                 enddo
             end if 
 
             if (uscale(2).ne.one) then
-                do IJ = 1, np12(I)
-                    J = ip12(IJ,I)
+                do IJ = 1, np12(polar_mm(I))
+                    J = ip12(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(uscale(2)-One,uscale(2)-One,I,J,e)
+                    call field_D2D(uscale(2)-One,uscale(2)-One,I,mm_polar(J),e)
                 enddo
             end if 
 
             if (uscale(3).ne.one) then
-                do IJ = 1, np13(I)
-                    J = ip13(IJ,I)
+                do IJ = 1, np13(polar_mm(I))
+                    J = ip13(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(uscale(3)-One,uscale(3)-One,I,J,e)
+                    call field_D2D(uscale(3)-One,uscale(3)-One,I,mm_polar(J),e)
                 enddo
             end if 
 
             if (uscale(4).ne.one) then
-                do IJ = 1, np14(I)
-                    J = ip14(IJ,I)
+                do IJ = 1, np14(polar_mm(I))
+                    J = ip14(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(uscale(4)-One,uscale(4)-One,I,J,e)
+                    call field_D2D(uscale(4)-One,uscale(4)-One,I,mm_polar(J),e)
                 enddo
             end if 
         enddo
@@ -1618,7 +1618,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(1)-One,I,J,e)
+                    call field_D2D(Zero,uscale(1)-One,I, mm_polar(J) ,e)
                 enddo
             end if
 
@@ -1628,7 +1628,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(2)-One,I,J,e)
+                    call field_D2D(Zero,uscale(2)-One,I, mm_polar(J) ,e)
                 enddo
             end if
 
@@ -1638,7 +1638,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(3)-One,I,J,e)
+                    call field_D2D(Zero,uscale(3)-One,I, mm_polar(J) ,e)
                 enddo
             end if
 
@@ -1648,7 +1648,7 @@ subroutine multipoles_field_remove(scr,e)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_D2D(Zero,uscale(4)-One,I,J,e)
+                    call field_D2D(Zero,uscale(4)-One,I, mm_polar(J) ,e)
                 enddo
             end if
         enddo 
@@ -1748,8 +1748,8 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
                 I = i14(IJ,polar_mm(J))
                 if (I.eq.polar_mm(J)) cycle
                 scale = pscale(3)
-                do K = 1,np11(J)
-                    if (I.eq.ip11(K,J)) scale = pscale(3)*pscale(5)
+                do K = 1,np11(polar_mm(J))
+                    if (I.eq.ip11(K,polar_mm(J))) scale = pscale(3)*pscale(5)
                 enddo
                 if (scale.ne.one) then
                     !call potential_deriv_D2M(Zero,scale-One,I,J,dv)
@@ -1757,8 +1757,9 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
                 end if
             enddo
 !            if(pscale(3).ne.one) then
-!                do IJ = 1, n14(J)
-!                    I = i14(IJ,J)
+!                do IJ = 1, n14(polar_mm(J))
+!                    I = i14(IJ,polar_mm(J))
+!                    if (I.eq.polar_mm(J)) cycle
 !                    call potential_deriv_D2M(Zero,pscale(3)-One,I,J,dv)
 !                enddo
 !            endif 
@@ -1774,8 +1775,8 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
             
             ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
             if(dscale(1).ne.one) then
-                do IJ = 1, np11(J)
-                    I = ip11(IJ,J)
+                do IJ = 1, np11(polar_mm(J))
+                    I = ip11(IJ,polar_mm(J))
                     if (I.eq.polar_mm(J)) cycle
                     !call potential_deriv_D2M(dscale(1)-One,Zero,I,J,dv)
                     call potential_deriv_D2M(Zero,dscale(1)-One,I,J,dv)
@@ -1785,8 +1786,8 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
             endif 
             
             if(dscale(2).ne.one) then
-                do IJ = 1, np12(J)
-                    I = ip12(IJ,J)
+                do IJ = 1, np12(polar_mm(J))
+                    I = ip12(IJ,polar_mm(J))
                     if (I.eq.polar_mm(J)) cycle
                     !call potential_deriv_D2M(dscale(2)-One,Zero,I,J,dv)
                     call potential_deriv_D2M(Zero,dscale(2)-One,I,J,dv)
@@ -1794,8 +1795,8 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
             endif 
             
             if(dscale(3).ne.one) then
-                do IJ = 1, np13(J)
-                    I = ip13(IJ,J)
+                do IJ = 1, np13(polar_mm(J))
+                    I = ip13(IJ,polar_mm(J))
                     if (I.eq.polar_mm(J)) cycle
                     !call potential_deriv_D2M(dscale(3)-One,Zero,I,J,dv)
                     call potential_deriv_D2M(Zero,dscale(3)-One,I,J,dv)
@@ -1803,8 +1804,8 @@ subroutine multipoles_potential_deriv_remove(scr,dv)
             endif 
             
             if(dscale(4).ne.one) then
-                do IJ = 1, np14(J)
-                    I = ip14(IJ,J)
+                do IJ = 1, np14(polar_mm(J))
+                    I = ip14(IJ,polar_mm(J))
                     if (I.eq.polar_mm(J)) cycle
                     !call potential_deriv_D2M(dscale(4)-One,Zero,I,J,dv)
                     call potential_deriv_D2M(Zero,dscale(4)-One,I,J,dv)
@@ -1917,8 +1918,8 @@ subroutine multipoles_field_deriv_remove(scr,de)
                 end if
             enddo
 !            if (pscale(3).ne.one) then
-!                do IJ = 1, n14(I)
-!                    J = i14(IJ,I)
+!                do IJ = 1, n14(polar_mm(I))
+!                    J = i14(IJ,polar_mm(I))
 !                    call field_deriv_M2D(Zero,pscale(3)-One,I,J,de)
 !                enddo
 !            end if
@@ -1935,7 +1936,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
             if (dscale(1).ne.One) then
                 do IJ = 1, np11(polar_mm(I))
                     J = ip11(IJ,polar_mm(I))
-                    if (I.eq.J) cycle
+                    if (polar_mm(I).eq.J) cycle
                     call field_deriv_M2D(dscale(1)-One,Zero,I,J,de)
                 enddo
             end if 
@@ -1943,7 +1944,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
             if (dscale(2).ne.one) then
                 do IJ = 1, np12(polar_mm(I))
                     J = ip12(IJ,polar_mm(I))
-                    if (I.eq.J) cycle
+                    if (polar_mm(I).eq.J) cycle
                     call field_deriv_M2D(dscale(2)-One,Zero,I,J,de)
                 enddo
             end if 
@@ -1951,7 +1952,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
             if (dscale(3).ne.one) then
                 do IJ = 1, np13(polar_mm(I))
                     J = ip13(IJ,polar_mm(I))
-                    if (I.eq.J) cycle
+                    if (polar_mm(I).eq.J) cycle
                     call field_deriv_M2D(dscale(3)-One,Zero,I,J,de)
                 enddo
             end if 
@@ -1959,7 +1960,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
             if (dscale(4).ne.one) then
                 do IJ = 1, np14(polar_mm(I))
                     J = ip14(IJ,polar_mm(I))
-                    if (I.eq.J) cycle
+                    if (polar_mm(I).eq.J) cycle
                     call field_deriv_M2D(dscale(4)-One,Zero,I,J,de)
                 enddo
             end if 
@@ -2001,42 +2002,42 @@ subroutine multipoles_field_deriv_remove(scr,de)
     elseif ((scr.eq.1).and.(Amoeba)) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
         do I = 1,pol_atoms
             if (uscale(1).ne.One) then
-                do IJ = 1, np11(I)
-                    J = ip11(IJ,I)
+                do IJ = 1, np11(polar_mm(I))
+                    J = ip11(IJ,polar_mm(I))
 
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
 
-                    call field_deriv_D2D(uscale(1)-One,uscale(1)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(1)-One,uscale(1)-One,I,mm_polar(J),de) !Amoeba,
                 enddo
             end if 
 
             if (uscale(2).ne.one) then
-                do IJ = 1, np12(I)
-                    J = ip12(IJ,I)
+                do IJ = 1, np12(polar_mm(I))
+                    J = ip12(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(uscale(2)-One,uscale(2)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(2)-One,uscale(2)-One,I,mm_polar(J),de) !Amoeba,
                 enddo
             end if 
 
             if (uscale(3).ne.one) then
-                do IJ = 1, np13(I)
-                    J = ip13(IJ,I)
+                do IJ = 1, np13(polar_mm(I))
+                    J = ip13(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(uscale(3)-One,uscale(3)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(3)-One,uscale(3)-One,I,mm_polar(J),de) !Amoeba,
                 enddo
             end if 
 
             if (uscale(4).ne.one) then
-                do IJ = 1, np14(I)
-                    J = ip14(IJ,I)
+                do IJ = 1, np14(polar_mm(I))
+                    J = ip14(IJ,polar_mm(I))
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(uscale(4)-One,uscale(4)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(uscale(4)-One,uscale(4)-One,I,mm_polar(J),de) !Amoeba,
                 enddo
             end if 
         enddo
@@ -2051,7 +2052,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(1)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(Zero,uscale(1)-One,I,mm_polar(J),de) !Amoeba,
                 enddo
             end if
 
@@ -2061,7 +2062,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(2)-One,I,J,de) !Amoeba,
+                    call field_deriv_D2D(Zero,uscale(2)-One,I,mm_polar(J),de) !Amoeba,
                 enddo
             end if
 
@@ -2071,7 +2072,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(3)-One,I,J,de)
+                    call field_deriv_D2D(Zero,uscale(3)-One,I,mm_polar(J),de)
                 enddo
             end if
 
@@ -2081,7 +2082,7 @@ subroutine multipoles_field_deriv_remove(scr,de)
                     
                     if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                     
-                    call field_deriv_D2D(Zero,uscale(4)-One,I,J,de)
+                    call field_deriv_D2D(Zero,uscale(4)-One,I,mm_polar(J),de)
                 enddo
             end if
         enddo 
