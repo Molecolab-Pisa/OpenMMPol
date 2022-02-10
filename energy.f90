@@ -98,13 +98,14 @@ subroutine energy(scr,EMM)
         
         if (Amoeba) then        ! For Amoeba interaction energy is d-ipd*ep
             do I=1,3
-                EMM = EMM - ddot(mm_atoms,ef_qd(I,:,1),1,ipd(I,:,2),1)*pt5   ! factor 1/2 because we have interaction with
-                                                                             ! induced dipoles
-                !EMM = EMM - ddot(mm_atoms,ef_qd(I,:,2),1,ipd(I,:,1),1)*pt5
+                !EMM = EMM - ddot(pol_atoms,ef_qd(I,:,1),1,ipd(I,:,2),1)*pt5   ! factor 1/2 because we have interaction with
+                                                                               ! induced dipoles
+                EMM = EMM - ddot(pol_atoms,ef_qd(I,:,2),1,ipd(I,:,1),1)*pt5    ! factor 1/2 because we have interaction with
+                                                                               ! induced dipoles
             enddo
         else                    ! AMBER polarizable forcefield
             do I=1,3
-                EMM = EMM - ddot(mm_atoms,ef_qd(I,:,1),1,ipd(I,:,1),1)*pt5   ! factor 1/2 because we have interaction with
+                EMM = EMM - ddot(pol_atoms,ef_qd(I,:,1),1,ipd(I,:,1),1)*pt5   ! factor 1/2 because we have interaction with
                                                                              ! induced dipoles
             enddo
         end if

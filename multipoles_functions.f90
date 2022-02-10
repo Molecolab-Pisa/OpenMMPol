@@ -1467,6 +1467,9 @@ subroutine multipoles_field_remove(scr,e)
             if (pscale(1).ne.one) then
                 do IJ = 1, n12(polar_mm(I))
                     J = i12(IJ,polar_mm(I))
+                    
+                    if (polar_mm(I).eq.J) cycle
+
                     call field_M2D(Zero,pscale(1)-One,I,J,e)
                 enddo
             end if
@@ -1474,6 +1477,9 @@ subroutine multipoles_field_remove(scr,e)
             if (pscale(2).ne.one) then
                 do IJ = 1, n13(polar_mm(I))
                     J = i13(IJ,polar_mm(I))
+                    
+                    if (polar_mm(I).eq.J) cycle
+
                     call field_M2D(Zero,pscale(2)-One,I,J,e)
                 enddo
             end if
@@ -1481,9 +1487,12 @@ subroutine multipoles_field_remove(scr,e)
             ! Strange way of rescaling 1-4 interactions - if 1-4 atom also in ip11 then scale by pscale(3)*pscale(5) else pscale(3)
             do IJ = 1, n14(polar_mm(I))
                 J = i14(IJ,polar_mm(I))
+
+                if (polar_mm(I).eq.J) cycle
+
                 scale = pscale(3)
-                do K = 1,np11(I)
-                    if (J.eq.ip11(K,I)) scale = pscale(3)*pscale(5)
+                do K = 1,np11(polar_mm(I))
+                    if (J.eq.ip11(K,polar_mm(I))) scale = pscale(3)*pscale(5)
                 enddo
                 if (scale.ne.one) then
                     call field_M2D(Zero,scale-One,I,J,e)
@@ -1494,6 +1503,9 @@ subroutine multipoles_field_remove(scr,e)
             if (pscale(4).ne.one) then
                 do IJ = 1, n15(polar_mm(I))
                     J = i15(IJ,polar_mm(I))
+                    
+                    if (polar_mm(I).eq.J) cycle
+
                     call field_M2D(Zero,pscale(4)-One,I,J,e)
                 enddo
             end if

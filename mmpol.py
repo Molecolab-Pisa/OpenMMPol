@@ -62,6 +62,10 @@ class MMPol(object):
   def do_mm(self):
     pymmpol.do_mm()
 
+    
+  def restart(self):
+    pymmpol.restart()
+    
 
   def do_qmmm(self,VQM,EQM):
 
