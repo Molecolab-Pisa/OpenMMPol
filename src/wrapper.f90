@@ -38,7 +38,7 @@ subroutine do_mm
 end subroutine 
 
 
-subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4)
+subroutine do_qmmm(v_qmm_,ef_qmd_,n1,n2,n3,n4)
   use precision
   use mmpol
   ! Compute polarization and QM-MM energy
@@ -46,7 +46,7 @@ subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4)
   implicit none
   ! real(kind=rp), intent(in) :: v_qmm(ld_cart,mm_atoms), ef_qmd(3,pol_atoms,n_ipd)
   integer(kind=ip), intent(in) :: n1,n2,n3,n4
-  real(kind=rp), intent(in) :: v_qmm(n1,n2), ef_qmd(3,n3,n4)
+  real(kind=rp), intent(in) :: v_qmm_(n1,n2), ef_qmd_(3,n3,n4)
 
   !call print_matrix(.true.,'VQM:',mm_atoms,ld_cart,mm_atoms,ld_cart,transpose(v_qmm))
   !call print_matrix(.true.,'EQM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,1))) 
@@ -58,7 +58,7 @@ subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4)
   ! Compute polarization
   nmax = 200
   !convergence = 5.0E-10
-  call polarization(solver,ef_qd+ef_qmd,ipd)                   ! - jacobi interation solver
+  call polarization(solver,ef_qd+ef_qmd_,ipd)                   ! - jacobi interation solver
   !call polarization(1,ef_qd+ef_qmd,ipd) 
 
 end subroutine
