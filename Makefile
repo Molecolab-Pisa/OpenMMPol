@@ -7,7 +7,7 @@ BIN_DIR = ./bin
 LIB_DIR = ./lib
 MOD_DIR = ./mod
 SRC_DIR = ./src
-PYT_DIR = ./pylib
+PYT_DIR = ./python/pyopenmmp/pyopenmmp
 
 FC = gfortran
 
@@ -27,6 +27,8 @@ OBJS   = coulomb_kernel.o \
 	 mmpol_init.o \
 	 mmpol_process.o \
 	 elstat.o \
+	 energy.o \
+	 polarization.o \
          polarization_functions.o \
 	 precision.o \
 	 rotate_multipoles.o \
@@ -39,7 +41,7 @@ PY_SUFFIX = $(shell python3-config --extension-suffix)
 
 all: $(OBJS) $(BIN_DIR)/main.exe $(LIB_DIR)/mmpolmodules.a $(PYT_DIR)/pymmpol.so
 
-python: $(PYT_DIR)/pymmpol$(PY_SUFFIX).so
+python: $(PYT_DIR)/pymmpol.so
 
 libraries: $(LIB_DIR)/mmpolmodules.a
 
@@ -49,27 +51,26 @@ $(BIN_DIR)/main.exe: $(OBJS) $(BIN_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -I$(MOD_DIR) -o $@ $(OBJS)
 
 $(LIB_DIR)/mmpolmodules.a: $(OBJS) $(LIB_DIR)
-	ar crs $@ $<
+	ar crs $@ $(OBJS)
 
 $(PYT_DIR)/pymmpol.so: $(PYT_DIR)/pymmpol$(PY_SUFFIX)
 	ln -s $(shell realpath $<) $@
 
-$(PYT_DIR)/pymmpol$(PY_SUFFIX): $(PYT_DIR) $(OBJS) $(LIB_DIR)/mmpolmodules.a
-	echo "{'real': {'rp': 'double'}, 'integer': {'ip': 'long'}}" > $(PYT_DIR)/.f2py_f2cmap
-	cd $(PYT_DIR); \
-	f2py3 -c -lblas -llapack -m pymmpol ../src/precision.f90 \
-					    ../src/wrapper.f90 \
-		                            ../src/mmpol.f90 \
-					    ../src/mmpol_init.f90 \
-					    ../lib/mmpolmodules.a \
+$(PYT_DIR)/pymmpol$(PY_SUFFIX): $(OBJS) $(LIB_DIR)/mmpolmodules.a
+	echo "{'real': {'rp': 'double'}, 'integer': {'ip': 'long'}}" > .f2py_f2cmap
+	f2py3 -c -lblas -llapack -m pymmpol src/precision.f90 \
+					    src/wrapper.f90 \
+		                            src/mmpol.f90 \
+					    src/mmpol_init.f90 \
+					    lib/mmpolmodules.a \
 					    skip: r_alloc1 r_alloc2 r_alloc3 \
 					          i_alloc1 i_alloc2 i_alloc3 \
 						  r_free1 r_free2 r_free3 \
 						  i_free1 i_free2 i_free3 : \
 					    --fcompiler=gnu95 \
-					    --f90flags="$(FFLAGS)"\
-
-
+					    --f90flags="$(FFLAGS)"
+	mv pymmpol$(PY_SUFFIX) $(PYT_DIR)
+	rm .f2py_f2cmap
 
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
@@ -79,23 +80,25 @@ $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 $(LIB_DIR):
 	@mkdir -p $(LIB_DIR)
-$(PYT_DIR):
-	@mkdir -p $(PYT_DIR)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.f90 $(OBJ_DIR) $(MOD_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) -I$(MOD_DIR) -J$(MOD_DIR) -c $< -o $@
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(PYT_DIR) $(LIB_DIR)
+	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(LIB_DIR)
+	rm -rf $(PYT_DIR)/*.so
 
 # Explicit dependencies
 $(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mmpol.o
+$(OBJ_DIR)/elstat.o:
 $(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/precision.o
+$(OBJ_DIR)/energy.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/main_amoeba.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/polarization_functions.o
 $(OBJ_DIR)/mmpol.o: $(OBJ_DIR)/precision.o
 $(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
+$(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o
 $(OBJ_DIR)/polarization_functions.o: $(OBJ_DIR)/precision.o
 $(OBJ_DIR)/precision.o:
 $(OBJ_DIR)/rotate_multipoles.o: $(OBJ_DIR)/mmpol.o 
