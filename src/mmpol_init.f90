@@ -182,9 +182,9 @@ subroutine mmpol_init
 !
 ! Initialize quantities for QM/MMpol calculation
 !
-call mallocate('mmpol_init [cqm]',3,qm_atoms,cqm)
+call mallocate('mmpol_init [cqm]',int(3,ip),qm_atoms,cqm)
 call mallocate('mmpol_init [v_qmm]',ld_cart,mm_atoms,v_qmm)
-call mallocate('mmpol_init [ef_qmd]',3,pol_atoms,n_ipd,ef_qmd)  
+call mallocate('mmpol_init [ef_qmd]',int(3,ip),pol_atoms,n_ipd,ef_qmd)  
 !
 ! Read coordiantes of the QM atoms cqm
 !
