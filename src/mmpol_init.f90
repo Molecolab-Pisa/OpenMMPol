@@ -48,7 +48,7 @@ subroutine mmpol_init
 !
 ! allocate memory for the mmpol parameters:
 !
-  call mallocate('mmpol_init [cmm]',3,mm_atoms,cmm)
+  call mallocate('mmpol_init [cmm]',int(3,ip),mm_atoms,cmm)
   call mallocate('mmpol_init [q]',ld_cart,mm_atoms,q)
   call mallocate('mmpol_init [polar]',mm_atoms,polar)
   call mallocate('mmpol_init [n12]',mm_atoms,n12)
@@ -113,7 +113,7 @@ subroutine mmpol_init
 ! allocate memory for the polarizabilities array and lists
 !
   call mallocate('mmpol_init [pol]',pol_atoms,pol)
-  call mallocate('mmpol_init [cpol]',3,pol_atoms,cpol)
+  call mallocate('mmpol_init [cpol]',int(3,ip),pol_atoms,cpol)
   call mallocate('mmpol_init [polar_mm]',pol_atoms,polar_mm)
   call mallocate('mmpol_init [mm_polar]',mm_atoms,mm_polar)
 !
@@ -152,13 +152,13 @@ subroutine mmpol_init
 ! allocate memory for the electrostatic properties of static multipoles
 !
   call mallocate('mmpol_init [v_qq]',ld_cart,mm_atoms,v_qq)
-  call mallocate('mmpol_init [ef_qd]',3,pol_atoms,n_ipd,ef_qd)
+  call mallocate('mmpol_init [ef_qd]',int(3,ip),pol_atoms,n_ipd,ef_qd)
   call mallocate('mmpol_init [dv_qq]',ld_cder,mm_atoms,dv_qq)
-  call mallocate('mmpol_init [def_qd]',6,pol_atoms,n_ipd,def_qd)
+  call mallocate('mmpol_init [def_qd]',int(6,ip),pol_atoms,n_ipd,def_qd)
   call mallocate('mmpol_init [v_dq]',ld_cart,mm_atoms,v_dq)
-  call mallocate('mmpol_init [ef_dd]',3,pol_atoms,n_ipd,ef_dd)
+  call mallocate('mmpol_init [ef_dd]',int(3,ip),pol_atoms,n_ipd,ef_dd)
   call mallocate('mmpol_init [dv_dq]',ld_cder,mm_atoms,dv_dq)
-  call mallocate('mmpol_init [def_dd]',6,pol_atoms,n_ipd,def_dd)
+  call mallocate('mmpol_init [def_dd]',int(6,ip),pol_atoms,n_ipd,def_dd)
   v_qq   = Zero
   ef_qd  = Zero
   dv_qq  = Zero
@@ -170,7 +170,7 @@ subroutine mmpol_init
 !
 ! allocate memory for the induced point dipoles
 !
-  call mallocate('mmpol_init [idp]',3,pol_atoms,n_ipd,ipd) 
+  call mallocate('mmpol_init [idp]',int(3,ip),pol_atoms,n_ipd,ipd) 
   ipd    = Zero
 !
 ! start reading the integer QM parameters:

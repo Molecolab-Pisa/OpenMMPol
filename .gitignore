@@ -1,0 +1,5 @@
+# Exclude binary files
+*.o
+*.so
+*.a
+*.exe
