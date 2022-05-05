@@ -2,4 +2,6 @@
 *.o
 *.so
 *.a
+*.mod
 *.exe
+**/__pycache__
