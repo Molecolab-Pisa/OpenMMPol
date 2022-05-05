@@ -98,10 +98,10 @@ end if
 ! Reshape dipole vector into the matrix 
 !
 if (Amoeba) then
-    ipds( :, :, 2) = RESHAPE(ipd0_p, (/3,pol_atoms/)) 
-    ipds( :, :, 1) = RESHAPE(ipd0_d, (/3,pol_atoms/)) 
+    ipds( :, :, 2) = RESHAPE(ipd0_p, (/int(3,ip),pol_atoms/)) 
+    ipds( :, :, 1) = RESHAPE(ipd0_d, (/int(3,ip),pol_atoms/)) 
 else
-    ipds( :, :, 1) = RESHAPE(ipd0_d, (/3,pol_atoms/)) 
+    ipds( :, :, 1) = RESHAPE(ipd0_d, (/int(3,ip),pol_atoms/)) 
 end if
 
 !
