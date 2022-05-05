@@ -10,13 +10,13 @@ program main
 !
 !   no argument provided
 !
-  else if (iargc() .eq. 1) then
-    call getarg(1, args(1))
+  else if (command_argument_count() .eq. 1) then
+    call get_command_argument(1, args(1))
     input_file = trim(args(1))
     scratch_file = input_file(1:len_inname-4)//'.rwf' 
-  else if (iargc() .eq. 2) then
-    call getarg(1, args(1))
-    call getarg(2, args(2))
+  else if (command_argument_count() .eq. 2) then
+    call get_command_argument(1, args(1))
+    call get_command_argument(2, args(2))
     input_file = trim(args(1))
     scratch_file = trim(args(2))
   end if

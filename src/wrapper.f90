@@ -45,8 +45,8 @@ subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4)
 
   implicit none
   ! real(kind=rp), intent(in) :: v_qmm(ld_cart,mm_atoms), ef_qmd(3,pol_atoms,n_ipd)
-  real(kind=rp), intent(in) :: v_qmm(n1,n2), ef_qmd(3,n3,n4)
   integer(kind=ip), intent(in) :: n1,n2,n3,n4
+  real(kind=rp), intent(in) :: v_qmm(n1,n2), ef_qmd(3,n3,n4)
 
   !call print_matrix(.true.,'VQM:',mm_atoms,ld_cart,mm_atoms,ld_cart,transpose(v_qmm))
   !call print_matrix(.true.,'EQM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,1))) 

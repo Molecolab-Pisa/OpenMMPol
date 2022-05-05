@@ -25,7 +25,7 @@ subroutine mmpol_process(polar)
   integer(ip)             :: i, ii, ij, j, k, l, neigh
   integer(ip)             :: nkeep, nlist
   real(rp)                :: third, tobohr, tobohr3, fa, fexp, xx(3)
-  integer,    allocatable :: mask(:), keep(:), list(:)
+  integer(ip),    allocatable :: mask(:), keep(:), list(:)
   real(rp),   parameter   :: toang = 0.52917721092_rp
   real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
 !
@@ -152,8 +152,8 @@ subroutine mmpol_process(polar)
 !   get memory to build the group connectivity lists:
 !
     call mallocate('mmpol_process [mask]',mm_atoms,mask)
-    call mallocate('mmpol_process [keep]',120,keep)
-    call mallocate('mmpol_process [list]',1000,list)
+    call mallocate('mmpol_process [keep]',int(120,ip),keep)
+    call mallocate('mmpol_process [list]',int(1000,ip),list)
 !
 !   clear the relevant arrays:
 !

@@ -446,7 +446,7 @@ module mmpol
 !  
     subroutine chk_free(string,lfree,istat)
       implicit none
-      integer,           intent(in) :: lfree, istat
+      integer(ip),       intent(in) :: lfree, istat
       character (len=*), intent(in) :: string
 !  
 !     memory error format:
