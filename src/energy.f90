@@ -76,15 +76,15 @@ subroutine energy(scr,EMM)
                 EMM = EMM + qq*fv - (px*ex + py*ey + pz*ez) + qxx*gxx + qyy*gyy + qzz*gzz  + two*(qxy*gxy + qxz*gxz + qyz*gyz)
             enddo
         else                     ! ABMER force-field
-            do I = 1, mm_atoms
+            do I = int(1,ip), mm_atoms
                 !
                 ! initialize multipoles
                 !
-                qq  = q( 1,I)
+                qq  = q( int(1,ip),I)
                 !
                 ! Initialize potential, field and field gradients
                 !
-                fv  = v_qq(1,I)
+                fv  = v_qq(int(1,ip),I)
                 !
                 ! Compute interaction energy
                 !
