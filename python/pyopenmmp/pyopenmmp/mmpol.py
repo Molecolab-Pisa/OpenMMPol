@@ -119,35 +119,35 @@ class MMPol(object):
 
 
 #### For testing
-if __name__ == '__main__':
-
-  # Initialize mmpol
-  mmp = MMPol('test01.mmp') 
-
-
-  # Get coordinates of MM part
-  cmm  = mmp.cmm
-  cpol = mmp.cpol
-
-  # Do MM part
-  mmp.do_mm()
-
-  # Fake a potential and a field
-  # (they should be calculated from QM density ...)
-  V = -cmm[:,0]*10
-  E = np.zeros(cpol.shape)
-  E[:,0] = 1
-
-#  EQMMM = np.dot(V,mmp.q[:,0])
-#  print( EQMMM)
-
-  print (V[:,None].T.shape)
-
-  mmp.do_qmmm(V[:,None],E)
-
-  print( mmpol.ipd.T )
-
-  mmp.get_MM_energy()
-  mmp.get_QMMM_energy(V[:,None],E)
-  quit()
+# if __name__ == '__main__':
+# 
+#   # Initialize mmpol
+#   mmp = MMPol('test01.mmp') 
+# 
+# 
+#   # Get coordinates of MM part
+#   cmm  = mmp.cmm
+#   cpol = mmp.cpol
+# 
+#   # Do MM part
+#   mmp.do_mm()
+# 
+#   # Fake a potential and a field
+#   # (they should be calculated from QM density ...)
+#   V = -cmm[:,0]*10
+#   E = np.zeros(cpol.shape)
+#   E[:,0] = 1
+# 
+# #  EQMMM = np.dot(V,mmp.q[:,0])
+# #  print( EQMMM)
+# 
+#   print (V[:,None].T.shape)
+# 
+#   mmp.do_qmmm(V[:,None],E)
+# 
+#   print( mmpol.ipd.T )
+# 
+#   mmp.get_MM_energy()
+#   mmp.get_QMMM_energy(V[:,None],E)
+#   quit()
 
