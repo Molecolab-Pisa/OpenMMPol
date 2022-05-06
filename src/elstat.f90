@@ -259,238 +259,238 @@ subroutine multipoles_field_deriv(scr,de)
 end subroutine multipoles_field_deriv
 
 
-subroutine multipoles_potentialQM(scr,v)
-    use mmpol
-    implicit none
-    !
-    ! Computes potential, electric field and field gradients at position 
-    ! of MM atoms. The computed potential is added to the potential v.
-    !
-    ! scr  ...  0:  The sources are static multipoles of mm atoms  
-    !               contained in the array q and with coordinates cmm
-    !           1:  The sources are induced multipoles ipd, contained
-    !               in the array ipd with coordinates cpol
-    ! 
-    ! - The electrostatic potential at QM sites is computed.
-    !   The output is given in following order:
-    !
-    !       v
-    !
-    ! - For the AMOEBA forcefield only potential from the p dipoles is
-    !   computed
-    !
-    
-    real(rp), dimension(qm_atoms), intent(inout) :: v
-    integer(ip), intent(in) :: scr
-    !
-    integer(ip) :: I, J
-    !
-
-    if (scr.eq.0) then
-        do I = 1,qm_atoms
-            do J = 1,mm_atoms
-
-                call potential_M2Q(One,I,J,v) 
-
-            enddo
-        enddo
-    elseif (scr.eq.1) then
-        do I = 1,qm_atoms
-            do J = 1,pol_atoms
-
-                call potential_D2Q(Zero,One,I,J,v) 
-
-            enddo
-        enddo
-    end if
-
-end subroutine multipoles_potentialQM
-
-subroutine multipoles_fieldQM(scr,e)
-    use mmpol
-    implicit none
-    !
-    ! Computes electric field at polarizable sites cpol. The computed
-    ! field is added to the field e.
-    !
-    ! scr  ...  0:  The sources are static multipoles of mm atoms  
-    !               contained in the array q and with coordinates cmm
-    !           1:  The sources are induced multipoles ipd, contained
-    !               in the array ipd with coordinates cpol.
-    ! 
-    ! - For AMBER force-field only electric field at QM site
-    !   is computed. The output is given in following order:
-    !
-    !       ex, ey,ez
-    !
-    ! - For AMOEBA force-field electric fields only for  p dipole
-    !   is computed. The output is given in following order:
-    !
-    !       ex, ey,ez
-    !
-    ! - No damping of the coulomb potential is used
-    !
-
-    
-    real(rp), dimension(3,pol_atoms,n_ipd), intent(inout) :: e
-    integer(ip), intent(in) :: scr
-    !
-    integer(ip) :: I, J
-    
-    !Amoeba = n_ipd.eq.2
-    
-    if (scr.eq.0) then
-        do I = 1,qm_atoms
-            do J = 1,mm_atoms
-                if (polar_mm(I).eq.J) cycle
-
-                call field_M2Q(one,I,J,e)
-
-            enddo
-        enddo
-    elseif (scr.eq.1) then
-        do I = 1,qm_atoms
-            do J = 1,pol_atoms
-                if (I.eq.J) cycle
-                
-                call field_D2Q(Zero,One,I,J,e)
-            enddo
-        enddo
-    end if
-    
-end subroutine multipoles_fieldQM
-
-subroutine multipoles_potential_derivQM(scr,dv)
-    use mmpol
-    implicit none
-    !
-    ! Computes derivatives of the potential, electric field and field 
-    ! gradients at position of MM atoms. The computed derivatives of
-    ! the potential are added to the dv. 
-    !
-    ! scr  ...  0:  The sources are static multipoles of mm atoms  
-    !               contained in the array q and with coordinates cmm
-    !           1:  The sources are induced multipoles ipd, contained
-    !               in the array ipd with coordinates cpol
-    ! 
-    ! - For AMBER force-field only potential derivative at mm sites is 
-    !   computed. The output is given in following order:
-    !
-    !       ex, ey, ez
-    !
-    ! - For AMOEBA force-field derivatives of the potential, electric 
-    !   field and field gradients are computed. The output is given in
-    !   following order:
-    !   
-    !       ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz, hxxx, hxxy, hxxz,  
-    !       hxyy, hxyz, hxzz, hyyy, hyyz, hyzz, hzzz
-    !
-    ! - For AMOEBA force-field, the scaling of the nearest neighbor 
-    !   interactions for p and d dipoles is reversed dscale is used for 
-    !   scaling potential of p dipoles and pscale is used for scaling 
-    !   potential of d dipoles.
-    !
-    
-    real(rp), dimension(ld_cder,mm_atoms), intent(inout) :: dv
-    integer(ip), intent(in) :: scr
-    !
-    !logical     :: Amoeba
-    integer(ip) :: I, J
-    !
-    !real(rp), parameter :: One = 1.0_rp
-    
-    
-    !Amoeba = (ld_cder.gt.3)
-
-    if (scr.eq.0) then
-        do I = 1,mm_atoms
-            do J = 1,mm_atoms
-                if (I.eq.J) cycle
-
-                call potential_deriv_M2M(One,I,J,dv) 
-
-            enddo
-        enddo
-    elseif (scr.eq.1) then
-        do I = 1,mm_atoms
-            do J = 1,pol_atoms
-                if (polar_mm(J).eq.I) cycle
-
-                call potential_deriv_D2M(One,One,I,J,dv) 
-                
-            enddo
-        enddo
-    end if
-    
-    ! Remove unwanted contributions from the bonded atoms
-    call multipoles_potential_deriv_remove(scr,dv)
-    
-end subroutine multipoles_potential_derivQM
-
-subroutine multipoles_field_derivQM(scr,de)
-    use mmpol
-    implicit none
-    !
-    ! Computes derivatives of electric field at polarizable sites cpol.
-    !  The computed field derivatives are added to the de.
-    !
-    ! scr  ...  0:  The sources are static multipoles of mm atoms  
-    !               contained in the array q and with coordinates cmm
-    !           1:  The sources are induced multipoles ipd, contained
-    !               in the array ipd with coordinates cpol.
-    ! 
-    ! - For AMBER force-field electric field gradients at polarizable
-    !   site are computed. The output is given in following order:
-    !
-    !       gxx, gxy, gyy, gxz, gyz, gzz
-    !
-    ! - For AMOEBA force-field electric field gradients for the direct
-    !   and polarization field are computed. The output is given in 
-    !   following order:
-    !
-    !       gxx, gxy, gyy, gxz, gyz, gzz
-    !
-    !   the direct field gradients (for d dipoles) are in de(:,:,1)
-    !   the polarization field gradients (for p dipoles) are in de(:,:,2)
-    !
-    ! - Wang's polynomial damping for of the coulomb potential is used for
-    !   the electric field generated at polarizable site for both AMOEBA 
-    !   and AMBER polarizable force-fields 
-    !
-
-    
-    real(rp), dimension(6,pol_atoms,n_ipd), intent(inout) :: de
-    integer(ip), intent(in) :: scr
-    !
-    !logical     :: Amoeba
-    integer(ip) :: I, J
-    !real(rp), parameter :: one = 1.0_rp
-    
-    !Amoeba = n_ipd.eq.2
-    
-    if (scr.eq.0) then
-        do I = 1,pol_atoms
-            do J = 1,mm_atoms
-                if (polar_mm(I).eq.J) cycle
-
-                call field_deriv_M2D(one,one,I,J,de)
-
-            enddo
-        enddo
-    elseif (scr.eq.1) then
-        do I = 1,pol_atoms
-            do J = 1,pol_atoms
-                if (I.eq.J) cycle
-                
-                call field_deriv_D2D(one,one,I,J,de)
-            enddo
-        enddo
-    end if
-    
-    ! Remove unwanted contributions from the bonded atoms
-    call multipoles_field_deriv_remove(scr,de)
-    
-end subroutine multipoles_field_derivQM
+! subroutine multipoles_potentialQM(scr,v)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes potential, electric field and field gradients at position 
+!     ! of MM atoms. The computed potential is added to the potential v.
+!     !
+!     ! scr  ...  0:  The sources are static multipoles of mm atoms  
+!     !               contained in the array q and with coordinates cmm
+!     !           1:  The sources are induced multipoles ipd, contained
+!     !               in the array ipd with coordinates cpol
+!     ! 
+!     ! - The electrostatic potential at QM sites is computed.
+!     !   The output is given in following order:
+!     !
+!     !       v
+!     !
+!     ! - For the AMOEBA forcefield only potential from the p dipoles is
+!     !   computed
+!     !
+!     
+!     real(rp), dimension(qm_atoms), intent(inout) :: v
+!     integer(ip), intent(in) :: scr
+!     !
+!     integer(ip) :: I, J
+!     !
+! 
+!     if (scr.eq.0) then
+!         do I = 1,qm_atoms
+!             do J = 1,mm_atoms
+! 
+!                 call potential_M2Q(One,I,J,v) 
+! 
+!             enddo
+!         enddo
+!     elseif (scr.eq.1) then
+!         do I = 1,qm_atoms
+!             do J = 1,pol_atoms
+! 
+!                 call potential_D2Q(Zero,One,I,J,v) 
+! 
+!             enddo
+!         enddo
+!     end if
+! 
+! end subroutine multipoles_potentialQM
+! 
+! subroutine multipoles_fieldQM(scr,e)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes electric field at polarizable sites cpol. The computed
+!     ! field is added to the field e.
+!     !
+!     ! scr  ...  0:  The sources are static multipoles of mm atoms  
+!     !               contained in the array q and with coordinates cmm
+!     !           1:  The sources are induced multipoles ipd, contained
+!     !               in the array ipd with coordinates cpol.
+!     ! 
+!     ! - For AMBER force-field only electric field at QM site
+!     !   is computed. The output is given in following order:
+!     !
+!     !       ex, ey,ez
+!     !
+!     ! - For AMOEBA force-field electric fields only for  p dipole
+!     !   is computed. The output is given in following order:
+!     !
+!     !       ex, ey,ez
+!     !
+!     ! - No damping of the coulomb potential is used
+!     !
+! 
+!     
+!     real(rp), dimension(3,pol_atoms,n_ipd), intent(inout) :: e
+!     integer(ip), intent(in) :: scr
+!     !
+!     integer(ip) :: I, J
+!     
+!     !Amoeba = n_ipd.eq.2
+!     
+!     if (scr.eq.0) then
+!         do I = 1,qm_atoms
+!             do J = 1,mm_atoms
+!                 if (polar_mm(I).eq.J) cycle
+! 
+!                 call field_M2Q(one,I,J,e)
+! 
+!             enddo
+!         enddo
+!     elseif (scr.eq.1) then
+!         do I = 1,qm_atoms
+!             do J = 1,pol_atoms
+!                 if (I.eq.J) cycle
+!                 
+!                 call field_D2Q(Zero,One,I,J,e)
+!             enddo
+!         enddo
+!     end if
+!     
+! end subroutine multipoles_fieldQM
+! 
+! subroutine multipoles_potential_derivQM(scr,dv)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes derivatives of the potential, electric field and field 
+!     ! gradients at position of MM atoms. The computed derivatives of
+!     ! the potential are added to the dv. 
+!     !
+!     ! scr  ...  0:  The sources are static multipoles of mm atoms  
+!     !               contained in the array q and with coordinates cmm
+!     !           1:  The sources are induced multipoles ipd, contained
+!     !               in the array ipd with coordinates cpol
+!     ! 
+!     ! - For AMBER force-field only potential derivative at mm sites is 
+!     !   computed. The output is given in following order:
+!     !
+!     !       ex, ey, ez
+!     !
+!     ! - For AMOEBA force-field derivatives of the potential, electric 
+!     !   field and field gradients are computed. The output is given in
+!     !   following order:
+!     !   
+!     !       ex, ey, ez, gxx, gxy, gyy, gxz, gyz, gzz, hxxx, hxxy, hxxz,  
+!     !       hxyy, hxyz, hxzz, hyyy, hyyz, hyzz, hzzz
+!     !
+!     ! - For AMOEBA force-field, the scaling of the nearest neighbor 
+!     !   interactions for p and d dipoles is reversed dscale is used for 
+!     !   scaling potential of p dipoles and pscale is used for scaling 
+!     !   potential of d dipoles.
+!     !
+!     
+!     real(rp), dimension(ld_cder,mm_atoms), intent(inout) :: dv
+!     integer(ip), intent(in) :: scr
+!     !
+!     !logical     :: Amoeba
+!     integer(ip) :: I, J
+!     !
+!     !real(rp), parameter :: One = 1.0_rp
+!     
+!     
+!     !Amoeba = (ld_cder.gt.3)
+! 
+!     if (scr.eq.0) then
+!         do I = 1,mm_atoms
+!             do J = 1,mm_atoms
+!                 if (I.eq.J) cycle
+! 
+!                 call potential_deriv_M2M(One,I,J,dv) 
+! 
+!             enddo
+!         enddo
+!     elseif (scr.eq.1) then
+!         do I = 1,mm_atoms
+!             do J = 1,pol_atoms
+!                 if (polar_mm(J).eq.I) cycle
+! 
+!                 call potential_deriv_D2M(One,One,I,J,dv) 
+!                 
+!             enddo
+!         enddo
+!     end if
+!     
+!     ! Remove unwanted contributions from the bonded atoms
+!     call multipoles_potential_deriv_remove(scr,dv)
+!     
+! end subroutine multipoles_potential_derivQM
+! 
+! subroutine multipoles_field_derivQM(scr,de)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes derivatives of electric field at polarizable sites cpol.
+!     !  The computed field derivatives are added to the de.
+!     !
+!     ! scr  ...  0:  The sources are static multipoles of mm atoms  
+!     !               contained in the array q and with coordinates cmm
+!     !           1:  The sources are induced multipoles ipd, contained
+!     !               in the array ipd with coordinates cpol.
+!     ! 
+!     ! - For AMBER force-field electric field gradients at polarizable
+!     !   site are computed. The output is given in following order:
+!     !
+!     !       gxx, gxy, gyy, gxz, gyz, gzz
+!     !
+!     ! - For AMOEBA force-field electric field gradients for the direct
+!     !   and polarization field are computed. The output is given in 
+!     !   following order:
+!     !
+!     !       gxx, gxy, gyy, gxz, gyz, gzz
+!     !
+!     !   the direct field gradients (for d dipoles) are in de(:,:,1)
+!     !   the polarization field gradients (for p dipoles) are in de(:,:,2)
+!     !
+!     ! - Wang's polynomial damping for of the coulomb potential is used for
+!     !   the electric field generated at polarizable site for both AMOEBA 
+!     !   and AMBER polarizable force-fields 
+!     !
+! 
+!     
+!     real(rp), dimension(6,pol_atoms,n_ipd), intent(inout) :: de
+!     integer(ip), intent(in) :: scr
+!     !
+!     !logical     :: Amoeba
+!     integer(ip) :: I, J
+!     !real(rp), parameter :: one = 1.0_rp
+!     
+!     !Amoeba = n_ipd.eq.2
+!     
+!     if (scr.eq.0) then
+!         do I = 1,pol_atoms
+!             do J = 1,mm_atoms
+!                 if (polar_mm(I).eq.J) cycle
+! 
+!                 call field_deriv_M2D(one,one,I,J,de)
+! 
+!             enddo
+!         enddo
+!     elseif (scr.eq.1) then
+!         do I = 1,pol_atoms
+!             do J = 1,pol_atoms
+!                 if (I.eq.J) cycle
+!                 
+!                 call field_deriv_D2D(one,one,I,J,de)
+!             enddo
+!         enddo
+!     end if
+!     
+!     ! Remove unwanted contributions from the bonded atoms
+!     call multipoles_field_deriv_remove(scr,de)
+!     
+! end subroutine multipoles_field_derivQM
 
 
 subroutine potential_M2M(scalef,I,J,v)
@@ -1482,313 +1482,313 @@ subroutine field_deriv_D2D(scalefd,scalefp,I,J,de) !Amoeba,
 end subroutine field_deriv_D2D
 
 
-subroutine potential_M2Q(scalef,I,J,v)
-    use mmpol
-    implicit none
-    !
-    ! Computes potential, electric field and field gradients at position 
-    ! of qm atom I generated by multipoles of mm atom J. The computed
-    ! potential is added to the potential v
-    ! 
-
-    real(rp), dimension(qm_atoms), intent(inout) :: v
-    !logical,intent(in)      :: Amoeba
-    integer(ip), intent(in) :: I, J
-    real(rp), intent(in)    :: scalef
-    !
-    real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
-    real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
-    !
-    
-    dx   = cqm(1,I) - cmm(1,J)
-    dy   = cqm(2,I) - cmm(2,J)
-    dz   = cqm(3,I) - cmm(3,J)
-    rm1  = 0.0_rp
-    rm3  = 0.0_rp
-    rm5  = 0.0_rp
-    rm7  = 0.0_rp
-    rm9  = 0.0_rp
-    rm11 = 0.0_rp
-
-    ! If multipoles q are only charges calculate only potential
-    if (.not. Amoeba) then
-
-        call coulomb_kernel(.false.,0,dx,dy,dz,0.0_rp,0.0_rp,rm1,rm3,rm5,rm7,rm9,rm11)
-        rm1 = scalef*rm1
-        
-        v(I) = v(I) + q( 1,J)*rm1
-
-    ! Else the potential electric field and field gradients are calculated
-    elseif (Amoeba) then
-        call coulomb_kernel(.false.,4,dx,dy,dz,0.0_rp,0.0_rp,rm1,rm3,rm5,rm7,rm9,rm11)
-        !
-        ! Scale distances
-        !
-        rm1 = scalef*rm1
-        rm3 = scalef*rm3
-        rm5 = scalef*Three*rm5
-        !
-        ! Set multipole moments 
-        !
-        qq  = q( 1,J)
-        px  = q( 2,J)
-        py  = q( 3,J)
-        pz  = q( 4,J)
-        qxx = q( 5,J)
-        qxy = q( 6,J)
-        qyy = q( 7,J)
-        qxz = q( 8,J)
-        qyz = q( 9,J)
-        qzz = q(10,J)
-
-        ! intermediates
-        DdR  = px*dx  + py*dy  + pz*dz
-        QRx  = qxx*dx + qxy*dy + qxz*dz
-        QRy  = qxy*dx + qyy*dy + qyz*dz
-        QRz  = qxz*dx + qyz*dy + qzz*dz
-        QRR  = QRx*dx + QRy*dy + QRz*dz
-
-        ! Potential
-        v(I) = v(I) + (qq*rm1 + DdR*rm3 + QRR*rm5)     ! q
-
-    end if
-end subroutine potential_M2Q
-
-subroutine field_M2Q(scalef,I,J,e)
-    use mmpol
-    implicit none
-    !
-    ! Computes electric field at position of polarizable cqm atom I
-    ! generated by static multipoles of mm atom J. The computed 
-    ! field is added to the field e
-    !
-    
-    real(rp), dimension(3,qm_atoms), intent(inout) :: e
-    real(rp), intent(in)    :: scalef
-    !logical,intent(in)      :: Amoeba
-    integer(ip),intent(in)  :: I, J
-    !
-    real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
-    real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
-    !
-    !real(rp), parameter :: Two = 2.0_rp
-            
-    dx  = cqm(1,I) - cmm(1,J)
-    dy  = cqm(2,I) - cmm(2,J)
-    dz  = cqm(3,I) - cmm(3,J)
-    rm1  = 0.0_rp
-    rm3  = 0.0_rp
-    rm5  = 0.0_rp
-    rm7  = 0.0_rp
-    rm9  = 0.0_rp
-    rm11 = 0.0_rp
-
-    ! Check if AMBER or AMOEBA polarizable force-field is used
-    if (.not. Amoeba) then        ! AMBER
-
-        call coulomb_kernel(.false.,1,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
-
-        ! Field
-        fac  = q( 1,J)*rm3
-        e(1,I) = e(1,I) + scalef*fac*dx
-        e(2,I) = e(2,I) + scalef*fac*dy
-        e(3,I) = e(3,I) + scalef*fac*dz
-
-    elseif (Amoeba) then   ! AMOEBA
-
-        call coulomb_kernel(.false.,3,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
-        !
-        ! Scale distances
-        !
-        rm5 = Three*rm5
-        rm7 = f15*rm7
-        !
-        ! Set multipole moments 
-        !
-        qq  = q( 1,J)
-        px  = q( 2,J)
-        py  = q( 3,J)
-        pz  = q( 4,J)
-        qxx = q( 5,J)
-        qxy = q( 6,J)
-        qyy = q( 7,J)
-        qxz = q( 8,J)
-        qyz = q( 9,J)
-        qzz = q(10,J)
-
-        ! intermediates
-        DdR  = px*dx  + py*dy  + pz*dz
-        QRx  = qxx*dx + qxy*dy + qxz*dz
-        QRy  = qxy*dx + qyy*dy + qyz*dz
-        QRz  = qxz*dx + qyz*dy + qzz*dz
-        QRR  = QRx*dx + QRy*dy + QRz*dz
-
-        ! Field
-        fac  = qq*rm3 + DdR*rm5 + QRR*rm7
-        e(1,I) = e(1,I) + scalef*(fac*dx - px*rm3 - Two*QRx*rm5)
-        e(2,I) = e(2,I) + scalef*(fac*dy - py*rm3 - Two*QRy*rm5)
-        e(3,I) = e(3,I) + scalef*(fac*dz - pz*rm3 - Two*QRz*rm5)
-    end if
-end subroutine field_M2Q
-
-
-subroutine potential_D2Q(scalefd,scalefp,I,J,v)
-    use mmpol
-    implicit none
-    !
-    ! Computes potential at position of qm atom I generated by induced dipoles
-    ! of cpol atom J. The computed potential is added to the potential v.
-    ! 
-
-    
-    real(rp), dimension(qm_atoms), intent(inout) :: v
-    !logical,intent(in)      :: Amoeba
-    integer(ip), intent(in) :: I, J
-    real(rp), intent(in)    :: scalefd,scalefp
-    !
-    real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
-    real(rp)    :: dpx, dpy, dpz, ppx, ppy, ppz, px, py, pz, DdR, DpdR, DddR
-    real(rp)    :: facd, facp, fac
-    !
-    !real(rp), parameter :: Two = 2.0_rp, Four = 4.0_rp
-    
-    dx   = cqm(1,I) - cpol(1,J)
-    dy   = cqm(2,I) - cpol(2,J)
-    dz   = cqm(3,I) - cpol(3,J)
-    rm1  = 0.0_rp
-    rm3  = 0.0_rp
-    rm5  = 0.0_rp
-    rm7  = 0.0_rp
-    rm9  = 0.0_rp
-    rm11 = 0.0_rp
-
-    ! If multipoles q are only charges calculate only potential
-    if (.not. Amoeba) then
-
-        call coulomb_kernel(.false.,1,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
-        
-        ! Scaling of the interaction
-        rm3 = scalefp*rm3
-        
-        ! Intermediates
-        px  = ipd( 1, J, 1)
-        py  = ipd( 2, J, 1)
-        pz  = ipd( 3, J, 1)
-        DdR  = px*dx  + py*dy  + pz*dz
-        
-        ! Potential of the induced dipoles
-        v(I) = v(I) + DdR*rm3
-        
-    ! Else the potential electric field and field gradients are calculated
-    elseif (Amoeba) then
-        call coulomb_kernel(.false.,3,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
-        
-        rm1 = rm1
-        rm3 = rm3
-        rm5 = Three*rm5
-        rm7 = f15*rm7
-        rm9 = f105*rm9
-        
-        
-        ! Intermediates p and d dipoles
-        dpx  = scalefd*ipd( 1, J, 1)
-        dpy  = scalefd*ipd( 2, J, 1)
-        dpz  = scalefd*ipd( 3, J, 1)
-        ppx  = scalefp*ipd( 1, J, 2)
-        ppy  = scalefp*ipd( 2, J, 2)
-        ppz  = scalefp*ipd( 3, J, 2)
-        DddR = dpx*dx  + dpy*dy  + dpz*dz   ! DdR for d induced dipoles 
-        DpdR = ppx*dx  + ppy*dy  + ppz*dz   ! DdR for p induced dipoles 
-
-        ! Potential
-        v(I) = v(I) + DddR*rm3  ! Vd
-        v(I) = v(I) + DpdR*rm3  ! Vp
-
-        
-    end if
-end subroutine potential_D2Q
-
-
-subroutine field_D2Q(scalefd,scalefp,I,J,e)
-    use mmpol
-    implicit none
-    !
-    ! Computes electric field at position of polarizable cqm atom I
-    ! generated by polarizable cpol atom J. The computed field is added
-    ! to the field e
-    !
-    ! For the AMOEBA force-field the electric field of the p and d dipoles
-    ! is summed into single electric field
-    ! 
-
-    real(rp), dimension(3,pol_atoms), intent(inout) :: e
-    real(rp), intent(in)    :: scalefd, scalefp
-    !logical,intent(in)      :: Amoeba
-    integer(ip),intent(in)  :: I, J
-    !
-    real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
-    real(rp)    :: px, py, pz, DdR
-    
-    dx   = cqm(1,I) - cpol(1,J)
-    dy   = cqm(2,I) - cpol(2,J)
-    dz   = cqm(3,I) - cpol(3,J)
-    rm1  = 0.0_rp
-    rm3  = 0.0_rp
-    rm5  = 0.0_rp
-    rm7  = 0.0_rp
-    rm9  = 0.0_rp
-    rm11 = 0.0_rp
-
-    ! If multipoles q are only charges calculate only potential
-    if (.not. Amoeba) then
-
-        call coulomb_kernel(.false.,2,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
-        rm1 = rm1
-        rm3 = rm3
-        rm5 = Three*rm5
-        
-        ! Intermediates
-        px  = ipd( 1, J, 1)
-        py  = ipd( 2, J, 1)
-        pz  = ipd( 3, J, 1)
-        DdR  = px*dx  + py*dy  + pz*dz
-        
-        ! Field from the induced dipoles
-        e(1,I) = e(1,I) + scalefp*(DdR*rm5*dx - px*rm3)
-        e(2,I) = e(2,I) + scalefp*(DdR*rm5*dy - py*rm3)
-        e(3,I) = e(3,I) + scalefp*(DdR*rm5*dz - pz*rm3)
-        
-    elseif (Amoeba) then
-        call coulomb_kernel(.false.,2,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
-        rm1 = rm1
-        rm3 = rm3
-        rm5 = Three*rm5
-        
-        ! Intermediates p dipoles
-        px  = ipd( 1, J, 2)
-        py  = ipd( 2, J, 2)
-        pz  = ipd( 3, J, 2)
-        
-        ! Field from the induced p dipoles
-        DdR = px*dx + py*dy + pz*dz
-        e(1,I) = e(1,I) + scalefp*(DdR*rm5*dx - px*rm3)
-        e(2,I) = e(2,I) + scalefp*(DdR*rm5*dy - py*rm3)
-        e(3,I) = e(3,I) + scalefp*(DdR*rm5*dz - pz*rm3)
-        
-        ! Intermediates d dipoles
-        px  = ipd( 1, J, 1)
-        py  = ipd( 2, J, 1)
-        pz  = ipd( 3, J, 1)
-        
-        ! Field from the induced d dipoles
-        DdR = px*dx + py*dy + pz*dz
-        e(1,I) = e(1,I) + scalefd*(DdR*rm5*dx - px*rm3)
-        e(2,I) = e(2,I) + scalefd*(DdR*rm5*dy - py*rm3)
-        e(3,I) = e(3,I) + scalefd*(DdR*rm5*dz - pz*rm3)
-        
-        
-    end if
-end subroutine field_D2Q
+! subroutine potential_M2Q(scalef,I,J,v)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes potential, electric field and field gradients at position 
+!     ! of qm atom I generated by multipoles of mm atom J. The computed
+!     ! potential is added to the potential v
+!     ! 
+! 
+!     real(rp), dimension(qm_atoms), intent(inout) :: v
+!     !logical,intent(in)      :: Amoeba
+!     integer(ip), intent(in) :: I, J
+!     real(rp), intent(in)    :: scalef
+!     !
+!     real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+!     real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
+!     !
+!     
+!     dx   = cqm(1,I) - cmm(1,J)
+!     dy   = cqm(2,I) - cmm(2,J)
+!     dz   = cqm(3,I) - cmm(3,J)
+!     rm1  = 0.0_rp
+!     rm3  = 0.0_rp
+!     rm5  = 0.0_rp
+!     rm7  = 0.0_rp
+!     rm9  = 0.0_rp
+!     rm11 = 0.0_rp
+! 
+!     ! If multipoles q are only charges calculate only potential
+!     if (.not. Amoeba) then
+! 
+!         call coulomb_kernel(.false.,0,dx,dy,dz,0.0_rp,0.0_rp,rm1,rm3,rm5,rm7,rm9,rm11)
+!         rm1 = scalef*rm1
+!         
+!         v(I) = v(I) + q( 1,J)*rm1
+! 
+!     ! Else the potential electric field and field gradients are calculated
+!     elseif (Amoeba) then
+!         call coulomb_kernel(.false.,4,dx,dy,dz,0.0_rp,0.0_rp,rm1,rm3,rm5,rm7,rm9,rm11)
+!         !
+!         ! Scale distances
+!         !
+!         rm1 = scalef*rm1
+!         rm3 = scalef*rm3
+!         rm5 = scalef*Three*rm5
+!         !
+!         ! Set multipole moments 
+!         !
+!         qq  = q( 1,J)
+!         px  = q( 2,J)
+!         py  = q( 3,J)
+!         pz  = q( 4,J)
+!         qxx = q( 5,J)
+!         qxy = q( 6,J)
+!         qyy = q( 7,J)
+!         qxz = q( 8,J)
+!         qyz = q( 9,J)
+!         qzz = q(10,J)
+! 
+!         ! intermediates
+!         DdR  = px*dx  + py*dy  + pz*dz
+!         QRx  = qxx*dx + qxy*dy + qxz*dz
+!         QRy  = qxy*dx + qyy*dy + qyz*dz
+!         QRz  = qxz*dx + qyz*dy + qzz*dz
+!         QRR  = QRx*dx + QRy*dy + QRz*dz
+! 
+!         ! Potential
+!         v(I) = v(I) + (qq*rm1 + DdR*rm3 + QRR*rm5)     ! q
+! 
+!     end if
+! end subroutine potential_M2Q
+! 
+! subroutine field_M2Q(scalef,I,J,e)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes electric field at position of polarizable cqm atom I
+!     ! generated by static multipoles of mm atom J. The computed 
+!     ! field is added to the field e
+!     !
+!     
+!     real(rp), dimension(3,qm_atoms), intent(inout) :: e
+!     real(rp), intent(in)    :: scalef
+!     !logical,intent(in)      :: Amoeba
+!     integer(ip),intent(in)  :: I, J
+!     !
+!     real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+!     real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
+!     !
+!     !real(rp), parameter :: Two = 2.0_rp
+!             
+!     dx  = cqm(1,I) - cmm(1,J)
+!     dy  = cqm(2,I) - cmm(2,J)
+!     dz  = cqm(3,I) - cmm(3,J)
+!     rm1  = 0.0_rp
+!     rm3  = 0.0_rp
+!     rm5  = 0.0_rp
+!     rm7  = 0.0_rp
+!     rm9  = 0.0_rp
+!     rm11 = 0.0_rp
+! 
+!     ! Check if AMBER or AMOEBA polarizable force-field is used
+!     if (.not. Amoeba) then        ! AMBER
+! 
+!         call coulomb_kernel(.false.,1,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
+! 
+!         ! Field
+!         fac  = q( 1,J)*rm3
+!         e(1,I) = e(1,I) + scalef*fac*dx
+!         e(2,I) = e(2,I) + scalef*fac*dy
+!         e(3,I) = e(3,I) + scalef*fac*dz
+! 
+!     elseif (Amoeba) then   ! AMOEBA
+! 
+!         call coulomb_kernel(.false.,3,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
+!         !
+!         ! Scale distances
+!         !
+!         rm5 = Three*rm5
+!         rm7 = f15*rm7
+!         !
+!         ! Set multipole moments 
+!         !
+!         qq  = q( 1,J)
+!         px  = q( 2,J)
+!         py  = q( 3,J)
+!         pz  = q( 4,J)
+!         qxx = q( 5,J)
+!         qxy = q( 6,J)
+!         qyy = q( 7,J)
+!         qxz = q( 8,J)
+!         qyz = q( 9,J)
+!         qzz = q(10,J)
+! 
+!         ! intermediates
+!         DdR  = px*dx  + py*dy  + pz*dz
+!         QRx  = qxx*dx + qxy*dy + qxz*dz
+!         QRy  = qxy*dx + qyy*dy + qyz*dz
+!         QRz  = qxz*dx + qyz*dy + qzz*dz
+!         QRR  = QRx*dx + QRy*dy + QRz*dz
+! 
+!         ! Field
+!         fac  = qq*rm3 + DdR*rm5 + QRR*rm7
+!         e(1,I) = e(1,I) + scalef*(fac*dx - px*rm3 - Two*QRx*rm5)
+!         e(2,I) = e(2,I) + scalef*(fac*dy - py*rm3 - Two*QRy*rm5)
+!         e(3,I) = e(3,I) + scalef*(fac*dz - pz*rm3 - Two*QRz*rm5)
+!     end if
+! end subroutine field_M2Q
+! 
+! 
+! subroutine potential_D2Q(scalefd,scalefp,I,J,v)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes potential at position of qm atom I generated by induced dipoles
+!     ! of cpol atom J. The computed potential is added to the potential v.
+!     ! 
+! 
+!     
+!     real(rp), dimension(qm_atoms), intent(inout) :: v
+!     !logical,intent(in)      :: Amoeba
+!     integer(ip), intent(in) :: I, J
+!     real(rp), intent(in)    :: scalefd,scalefp
+!     !
+!     real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+!     real(rp)    :: dpx, dpy, dpz, ppx, ppy, ppz, px, py, pz, DdR, DpdR, DddR
+!     real(rp)    :: facd, facp, fac
+!     !
+!     !real(rp), parameter :: Two = 2.0_rp, Four = 4.0_rp
+!     
+!     dx   = cqm(1,I) - cpol(1,J)
+!     dy   = cqm(2,I) - cpol(2,J)
+!     dz   = cqm(3,I) - cpol(3,J)
+!     rm1  = 0.0_rp
+!     rm3  = 0.0_rp
+!     rm5  = 0.0_rp
+!     rm7  = 0.0_rp
+!     rm9  = 0.0_rp
+!     rm11 = 0.0_rp
+! 
+!     ! If multipoles q are only charges calculate only potential
+!     if (.not. Amoeba) then
+! 
+!         call coulomb_kernel(.false.,1,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
+!         
+!         ! Scaling of the interaction
+!         rm3 = scalefp*rm3
+!         
+!         ! Intermediates
+!         px  = ipd( 1, J, 1)
+!         py  = ipd( 2, J, 1)
+!         pz  = ipd( 3, J, 1)
+!         DdR  = px*dx  + py*dy  + pz*dz
+!         
+!         ! Potential of the induced dipoles
+!         v(I) = v(I) + DdR*rm3
+!         
+!     ! Else the potential electric field and field gradients are calculated
+!     elseif (Amoeba) then
+!         call coulomb_kernel(.false.,3,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
+!         
+!         rm1 = rm1
+!         rm3 = rm3
+!         rm5 = Three*rm5
+!         rm7 = f15*rm7
+!         rm9 = f105*rm9
+!         
+!         
+!         ! Intermediates p and d dipoles
+!         dpx  = scalefd*ipd( 1, J, 1)
+!         dpy  = scalefd*ipd( 2, J, 1)
+!         dpz  = scalefd*ipd( 3, J, 1)
+!         ppx  = scalefp*ipd( 1, J, 2)
+!         ppy  = scalefp*ipd( 2, J, 2)
+!         ppz  = scalefp*ipd( 3, J, 2)
+!         DddR = dpx*dx  + dpy*dy  + dpz*dz   ! DdR for d induced dipoles 
+!         DpdR = ppx*dx  + ppy*dy  + ppz*dz   ! DdR for p induced dipoles 
+! 
+!         ! Potential
+!         v(I) = v(I) + DddR*rm3  ! Vd
+!         v(I) = v(I) + DpdR*rm3  ! Vp
+! 
+!         
+!     end if
+! end subroutine potential_D2Q
+! 
+! 
+! subroutine field_D2Q(scalefd,scalefp,I,J,e)
+!     use mmpol
+!     implicit none
+!     !
+!     ! Computes electric field at position of polarizable cqm atom I
+!     ! generated by polarizable cpol atom J. The computed field is added
+!     ! to the field e
+!     !
+!     ! For the AMOEBA force-field the electric field of the p and d dipoles
+!     ! is summed into single electric field
+!     ! 
+! 
+!     real(rp), dimension(3,pol_atoms), intent(inout) :: e
+!     real(rp), intent(in)    :: scalefd, scalefp
+!     !logical,intent(in)      :: Amoeba
+!     integer(ip),intent(in)  :: I, J
+!     !
+!     real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+!     real(rp)    :: px, py, pz, DdR
+!     
+!     dx   = cqm(1,I) - cpol(1,J)
+!     dy   = cqm(2,I) - cpol(2,J)
+!     dz   = cqm(3,I) - cpol(3,J)
+!     rm1  = 0.0_rp
+!     rm3  = 0.0_rp
+!     rm5  = 0.0_rp
+!     rm7  = 0.0_rp
+!     rm9  = 0.0_rp
+!     rm11 = 0.0_rp
+! 
+!     ! If multipoles q are only charges calculate only potential
+!     if (.not. Amoeba) then
+! 
+!         call coulomb_kernel(.false.,2,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
+!         rm1 = rm1
+!         rm3 = rm3
+!         rm5 = Three*rm5
+!         
+!         ! Intermediates
+!         px  = ipd( 1, J, 1)
+!         py  = ipd( 2, J, 1)
+!         pz  = ipd( 3, J, 1)
+!         DdR  = px*dx  + py*dy  + pz*dz
+!         
+!         ! Field from the induced dipoles
+!         e(1,I) = e(1,I) + scalefp*(DdR*rm5*dx - px*rm3)
+!         e(2,I) = e(2,I) + scalefp*(DdR*rm5*dy - py*rm3)
+!         e(3,I) = e(3,I) + scalefp*(DdR*rm5*dz - pz*rm3)
+!         
+!     elseif (Amoeba) then
+!         call coulomb_kernel(.false.,2,dx,dy,dz,0.0,0.0,rm1,rm3,rm5,rm7,rm9,rm11)
+!         rm1 = rm1
+!         rm3 = rm3
+!         rm5 = Three*rm5
+!         
+!         ! Intermediates p dipoles
+!         px  = ipd( 1, J, 2)
+!         py  = ipd( 2, J, 2)
+!         pz  = ipd( 3, J, 2)
+!         
+!         ! Field from the induced p dipoles
+!         DdR = px*dx + py*dy + pz*dz
+!         e(1,I) = e(1,I) + scalefp*(DdR*rm5*dx - px*rm3)
+!         e(2,I) = e(2,I) + scalefp*(DdR*rm5*dy - py*rm3)
+!         e(3,I) = e(3,I) + scalefp*(DdR*rm5*dz - pz*rm3)
+!         
+!         ! Intermediates d dipoles
+!         px  = ipd( 1, J, 1)
+!         py  = ipd( 2, J, 1)
+!         pz  = ipd( 3, J, 1)
+!         
+!         ! Field from the induced d dipoles
+!         DdR = px*dx + py*dy + pz*dz
+!         e(1,I) = e(1,I) + scalefd*(DdR*rm5*dx - px*rm3)
+!         e(2,I) = e(2,I) + scalefd*(DdR*rm5*dy - py*rm3)
+!         e(3,I) = e(3,I) + scalefd*(DdR*rm5*dz - pz*rm3)
+!         
+!         
+!     end if
+! end subroutine field_D2Q
 
 
 subroutine multipoles_potential_remove(scr,v)

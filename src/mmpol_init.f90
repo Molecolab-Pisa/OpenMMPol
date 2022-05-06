@@ -15,8 +15,7 @@ subroutine mmpol_init
   len_inname = len(trim(input_file))
   open (unit=mmpinp, file=input_file(1:len_inname),form='formatted',access='sequential')
   len_scname = len(trim(scratch_file))
-  !open (unit=mmpfile, file=scratch_file(1:len_scname),form='unformatted')
-  open (unit=mmpfile, file=scratch_file(1:len_scname),form='formatted',access='sequential')
+  open (unit=mmpfile, file=scratch_file(1:len_scname),form='unformatted')
 !
 ! start reading the integer control parameters:
 !
@@ -177,33 +176,5 @@ subroutine mmpol_init
 !
 !  read(mmpfile,*) input_revision
 !  if (input_revision .ne. revision) call fatal_error('input and internal revision conflict.')
-  read(mmpfile,*) qm_atoms
-  print *,qm_atoms
-!
-! Initialize quantities for QM/MMpol calculation
-!
-call mallocate('mmpol_init [cqm]',int(3,ip),qm_atoms,cqm)
-call mallocate('mmpol_init [v_qmm]',ld_cart,mm_atoms,v_qmm)
-call mallocate('mmpol_init [ef_qmd]',int(3,ip),pol_atoms,n_ipd,ef_qmd)  
-!
-! Read coordiantes of the QM atoms cqm
-!
-  do i = 1, qm_atoms
-    read(mmpfile,*) cqm(1:3,i)
-  end do
-!
-! Read potential of the QM atoms at the MM sites
-!
-  do i = 1, mm_atoms
-    read(mmpfile,*) v_qmm(1:ld_cart,i)
-  end do
-!
-! Read electric field of the QM atoms at the poalrizable sites 
-!
-  do j = 1, n_ipd
-    do i = 1, pol_atoms
-      read(mmpfile,*) ef_qmd(1:3,i,j)
-    end do
-  end do
 
 end subroutine mmpol_init

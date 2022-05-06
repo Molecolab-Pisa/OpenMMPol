@@ -107,10 +107,6 @@ module mmpol
 !
   integer(ip)              :: pol_atoms
 !
-!     number of QM atoms:
-!
-  integer(ip)              :: qm_atoms
-!
 !     size of the cartesian multipolar distribution (i.e., (l+1)*(l+2)*(l+3)/6)
 !     this is 1 for AMBER (charges only), 10 for AMOEBA (up to quadrupoles). 
 !     this is also the size of the array that contains the electrostatic properties
@@ -163,10 +159,6 @@ module mmpol
 !     coordinates of the polarizable mm atoms:
 !
   real(rp),    allocatable :: cpol(:,:)
-!
-!     coordinates of the qm atoms:
-!
-  real(rp),    allocatable :: cqm(:,:)
 !
 !     mutlipolar distribution. note that there are two arrays, one for the
 !     distribution rotated to the lab frame and one for the force field 
@@ -250,11 +242,11 @@ module mmpol
 !     potential (and higher order terms) of the QM atoms 
 !      at the charges (multipoles) and its derivatives 
 !
-  real(rp),    allocatable :: v_qmm(:,:)
+!  real(rp),    allocatable :: v_qmm(:,:)
 !
 !     field of the QM atoms at the ipd
 !
-  real(rp),    allocatable :: ef_qmd(:,:,:)
+!  real(rp),    allocatable :: ef_qmd(:,:,:)
 !
 !     polarization matrix (only allocated if explicitly requested)
 !
