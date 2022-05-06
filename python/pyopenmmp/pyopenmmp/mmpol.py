@@ -5,8 +5,8 @@ High-level python interface to the FORTRAN/f2py code
 
 """
 
-import pymmpol
-from pymmpol import mmpol # fortran module
+from . import pymmpol
+from .pymmpol import mmpol # fortran module
 import numpy as np
 
 
