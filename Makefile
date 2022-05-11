@@ -22,14 +22,13 @@ LDLIBS = -lblas -llapack -lgfortran
 
 OBJS   = coulomb_kernel.o \
 	 electrostatics.o \
-	 main_amoeba.o \
 	 mmpol.o \
 	 mmpol_init.o \
 	 mmpol_process.o \
 	 elstat.o \
 	 energy.o \
+         polar.o \
 	 polarization.o \
-         polarization_functions.o \
 	 precision.o \
 	 rotate_multipoles.o \
 	 solvers.o \
@@ -39,19 +38,22 @@ OBJS := $(addprefix $(OBJ_DIR)/, $(OBJS))
 
 PY_SUFFIX = $(shell python3-config --extension-suffix)
 
-all: $(OBJS) $(BIN_DIR)/main.exe $(LIB_DIR)/mmpolmodules.a $(PYT_DIR)/pymmpol.so
+all: libraries binaries python
 
 python: $(PYT_DIR)/pymmpol.so
 
-libraries: $(LIB_DIR)/mmpolmodules.a
+libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
-binaries: $(BIN_DIR)/main.exe
+binaries: $(BIN_DIR)/main.exe $(BIN_DIR)/main_amoeba.exe
 
-$(BIN_DIR)/main.exe: $(OBJS) $(BIN_DIR)
-	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -I$(MOD_DIR) -o $@ $(OBJS)
+$(BIN_DIR)/%.exe: $(SRC_DIR)/%.F90 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
+	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
 
 $(LIB_DIR)/mmpolmodules.a: $(OBJS) $(LIB_DIR)
 	ar crs $@ $(OBJS)
+
+$(LIB_DIR)/libopenmmpol.so: $(OBJS) $(LIB_DIR)
+	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -shared -I$(MOD_DIR) -o $@ $(OBJS)
 
 $(PYT_DIR)/pymmpol.so: $(PYT_DIR)/pymmpol$(PY_SUFFIX)
 	ln -s $(shell realpath $<) $@
@@ -93,13 +95,12 @@ $(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/elstat.o:
 $(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/precision.o
 $(OBJ_DIR)/energy.o: $(OBJ_DIR)/mmpol.o
-$(OBJ_DIR)/main_amoeba.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/polarization_functions.o
 $(OBJ_DIR)/mmpol.o: $(OBJ_DIR)/precision.o
 $(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
+$(OBJ_DIR)/polar.o: $(OBJ_DIR)/precision.o
 $(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o
-$(OBJ_DIR)/polarization_functions.o: $(OBJ_DIR)/precision.o
 $(OBJ_DIR)/precision.o:
 $(OBJ_DIR)/rotate_multipoles.o: $(OBJ_DIR)/mmpol.o 
 $(OBJ_DIR)/solvers.o: $(OBJ_DIR)/precision.o
