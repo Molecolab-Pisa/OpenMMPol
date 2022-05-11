@@ -1,5 +1,5 @@
 module mmpol
-  use precision
+  use memory
 !
 ! mmpol - an opensource library for polarizable molecular mechanics based embedding
 !
@@ -44,10 +44,12 @@ module mmpol
 !
 !     maximum number of integer and real parameters (for i/o purposes)
 !
+! MB22: ??
   integer(ip), parameter   :: nipars = 32, nrpars = 32
 !
 !     maximum amount of memory (in gb) and number of cores that can be used by mmpol:
 !
+! MB22: ??
   integer(ip)              :: maxcor, nproc
 !
 !     verbosity flag:
@@ -274,202 +276,7 @@ module mmpol
 !   internal variables for memory allocation and definition of the interface for
 !   the wrappers:
 !
-  integer(ip)              :: maxmem
-  integer(ip), parameter   :: memout = 6
-  integer(ip), private     :: istat, ltot
 !
-  interface mallocate
-    module procedure r_alloc1
-    module procedure r_alloc2
-    module procedure r_alloc3
-    module procedure i_alloc1
-    module procedure i_alloc2
-    module procedure i_alloc3
-  end interface mallocate
-
-  interface mfree
-    module procedure r_free1
-    module procedure r_free2
-    module procedure r_free3
-    module procedure i_free1
-    module procedure i_free2
-    module procedure i_free3
-  end interface mfree
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                                  !
-!   set of memory allocation routines that keep track of how much memory is used   !
-!                                                                                  !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-  contains
-    subroutine r_alloc1(string,len1,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),                    intent(in)    :: len1
-      real(rp),          allocatable, intent(inout) :: v(:)
-!  
-      allocate (v(len1), stat=istat)
-      call chk_all(string,len1,istat)
-      return
-    end subroutine r_alloc1
-!  
-    subroutine r_alloc2(string,len1,len2,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),                    intent(in)    :: len1, len2
-      real(rp),          allocatable, intent(inout) :: v(:,:)
-!  
-      allocate (v(len1,len2), stat=istat)
-      call chk_all(string,len1*len2,istat)
-      return
-    end subroutine r_alloc2
-!  
-    subroutine r_alloc3(string,len1,len2,len3,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),                    intent(in)    :: len1, len2, len3
-      real(rp),          allocatable, intent(inout) :: v(:,:,:)
-!  
-      allocate (v(len1,len2,len3), stat=istat)
-      call chk_all(string,len1*len2*len3,istat)
-      return
-    end subroutine r_alloc3
-!  
-    subroutine i_alloc1(string,len1,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),                    intent(in)    :: len1
-      integer(ip),       allocatable, intent(inout) :: v(:)
-!  
-      allocate (v(len1), stat=istat)
-      call chk_all(string,len1,istat)
-      return
-    end subroutine i_alloc1
-!  
-    subroutine i_alloc2(string,len1,len2,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),                    intent(in)    :: len1, len2
-      integer(ip),       allocatable, intent(inout) :: v(:,:)
-!  
-      allocate (v(len1,len2), stat=istat)
-      call chk_all(string,len1*len2,istat)
-      return
-    end subroutine i_alloc2
-!  
-    subroutine i_alloc3(string,len1,len2,len3,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),                    intent(in)    :: len1, len2, len3
-      integer(ip),       allocatable, intent(inout) :: v(:,:,:)
-!  
-      allocate (v(len1,len2,len3), stat=istat)
-      call chk_all(string,len1*len2*len3,istat)
-      return
-    end subroutine i_alloc3
-!  
-    subroutine chk_all(string,lall,istat)
-      implicit none
-      integer(ip),       intent(in) :: lall, istat
-      character (len=*), intent(in) :: string
-!  
-!     memory error format:
-!  
-   9000 format(t3,'allocation error in subroutine ',a,'. stat= ',i5)
-   9010 format(t3,'allocation error in subroutine ',a,'.',/,    &
-               t3,'not enough memory. ',i8,' words required',/, &
-               t3,'                   ',i8,' words available.')
-!  
-      if (istat.ne.0) then
-        write(memout,9000) string, istat
-        stop
-      else if (lall.gt.maxmem) then
-        write(memout,9010) string, lall, maxmem
-        stop
-      else
-        maxmem = maxmem - lall
-      end if
-      return
-    end subroutine chk_all
-!  
-    subroutine r_free1(string,v)
-      character (len=*),              intent(in)    :: string
-      real(rp),          allocatable, intent(inout) :: v(:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
-    end subroutine r_free1
-!  
-    subroutine r_free2(string,v)
-      character (len=*),              intent(in)    :: string
-      real(rp),          allocatable, intent(inout) :: v(:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
-    end subroutine r_free2
-!  
-    subroutine r_free3(string,v)
-      character (len=*),              intent(in)    :: string
-      real(rp),          allocatable, intent(inout) :: v(:,:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
-    end subroutine r_free3
-!  
-    subroutine i_free1(string,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),       allocatable, intent(inout) :: v(:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
-    end subroutine i_free1
-!  
-    subroutine i_free2(string,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),       allocatable, intent(inout) :: v(:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
-    end subroutine i_free2
-!  
-    subroutine i_free3(string,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),       allocatable, intent(inout) :: v(:,:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
-    end subroutine i_free3
-!  
-    subroutine chk_free(string,lfree,istat)
-      implicit none
-      integer(ip),       intent(in) :: lfree, istat
-      character (len=*), intent(in) :: string
-!  
-!     memory error format:
-!  
-   9000 format(t3,'deallocation error in subroutine ',a,'. stat= ',i5)
-!  
-      if (istat.ne.0) then
-        write(memout,9000) string, istat
-        stop
-      else
-        maxmem = maxmem + lfree
-      end if
-      return
-    end subroutine chk_free
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                  !
@@ -477,11 +284,12 @@ module mmpol
 !                                                                                  !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
+contains
     subroutine fatal_error(message)
       implicit none
       character (len=*) message
    1000 format(t3,a)
-      write(memout,1000) message
+      write(6,1000) message
       stop '   error termination for open_mmpol.'
       return
     end subroutine fatal_error

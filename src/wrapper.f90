@@ -15,7 +15,7 @@ subroutine w_mmpol_init(filename)
 end subroutine 
 
 subroutine do_mm 
-  use precision
+  use memory, only: ip, rp
   use mmpol
   ! Perform the MM-only calculations of pot and field
   ! and return EMM
@@ -39,7 +39,7 @@ end subroutine
 
 
 subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4)
-  use precision
+  use memory, only: ip, rp
   use mmpol
   ! Compute polarization and QM-MM energy
 
@@ -64,7 +64,7 @@ subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4)
 end subroutine
 
 subroutine restart()
-  use precision
+  use memory, only: ip, rp
   use mmpol 
 
   implicit none
@@ -81,7 +81,7 @@ end subroutine
 
 
 subroutine get_energy(EMM,EPol)
-  use precision
+  use memory, only: ip, rp
   use mmpol
   ! Get the energy
 

@@ -1,5 +1,5 @@
 module solvers
-  use precision
+  use memory, only: ip, rp
   implicit none
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                  !

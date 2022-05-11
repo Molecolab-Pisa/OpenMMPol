@@ -2,6 +2,7 @@ subroutine polarization(iscr,e,ipds)
   use mmpol
   use polar
   use solvers
+  use memory, only: ip, rp, mallocate, mfree
   implicit none
 !
 ! main driver for the calculation of induced dipoles.
@@ -53,7 +54,7 @@ n = 3*pol_atoms
 !
 ! Allocate dipole polarization matrix (deallocated at the end of subroutine)
 !
-call r_alloc2('polarization [TMat]',n,n,TMat)
+call mallocate('polarization [TMat]',n,n,TMat)
     
 !
 ! Compute dipole polarization matrix
@@ -107,6 +108,6 @@ end if
 !
 !   Deallocate dipole polarization matrix when is not needed
 !
-call r_free2('polarization [TMat]',TMat)
+call mfree('polarization [TMat]',TMat)
 
 end subroutine polarization

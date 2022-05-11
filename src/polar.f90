@@ -1,5 +1,5 @@
 module polar
-use precision
+use memory, only: ip, rp
 real(rp),    allocatable :: TMat(:,:)
 real(rp),    allocatable :: TMatI(:,:)
 
@@ -341,7 +341,8 @@ subroutine PolVec(n,x,y)
 end subroutine PolVec
 
 subroutine induce_dipoles_MatInv(elf,dip) !,ipd)
-    use mmpol, only : pol_atoms, n_ipd, Amoeba, pol, r_alloc2
+    use mmpol, only : pol_atoms, n_ipd, Amoeba, pol
+    use memory, only: mallocate
     !
     ! Induce dipoles on the polarizable atoms. The dipoles are induced
     ! by the electric field of the static multipoles (Later change to 
@@ -370,7 +371,7 @@ subroutine induce_dipoles_MatInv(elf,dip) !,ipd)
     call create_TMat(TMat)
     
     if (.not.ALLOCATED(TMatI)) then
-        call r_alloc2('polar [TMatI]',3*pol_atoms,3*pol_atoms,TMatI)
+        call mallocate('polar [TMatI]',3*pol_atoms,3*pol_atoms,TMatI)
     end if
     
     ! Initialize inverse polarization matrix

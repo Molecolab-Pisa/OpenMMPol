@@ -1,5 +1,6 @@
 subroutine mmpol_init
   use mmpol
+  use memory, only: ip, rp
   implicit none
 !
 ! read the input for the mmpol calculation and process it.
@@ -22,7 +23,7 @@ subroutine mmpol_init
   read(mmpinp,*) input_revision
   if (input_revision .ne. revision) call fatal_error('input and internal revision conflict.')
   read(mmpinp,*) maxcor, nproc
-  maxmem = maxcor*1024*1024*1024/8
+  call memory_init(maxcor*1024*1024*1024/8)
   read(mmpinp,*) verbose
   read(mmpinp,*) ff_type
   read(mmpinp,*) ff_rules

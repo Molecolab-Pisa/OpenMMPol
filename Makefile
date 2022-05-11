@@ -12,7 +12,7 @@ PYT_DIR = ./python/pyopenmmp/pyopenmmp
 FC = gfortran
 
 ifeq ($(DEBUG), YES)
-	FFLAGS = -Wall -Wextra -pedantic -std=f2003 -fcheck=all -g -Og -fbacktrace -fPIC
+	FFLAGS = -Wall -Wextra -pedantic -std=f2003 -fcheck=all -fall-intrinsics -g -Og -fbacktrace -fPIC
 else
 	FFLAGS = -Wall -Wextra -pedantic -std=f2003 -O3 -fPIC
 endif
@@ -21,18 +21,18 @@ CPPFLAGS = -cpp
 LDLIBS = -lblas -llapack -lgfortran
 
 OBJS   = coulomb_kernel.o \
-	 electrostatics.o \
-	 mmpol.o \
-	 mmpol_init.o \
-	 mmpol_process.o \
-	 elstat.o \
-	 energy.o \
+	     electrostatics.o \
+	     mmpol.o \
+	     mmpol_init.o \
+	     mmpol_process.o \
+         mod_memory.o \
+	     elstat.o \
+	     energy.o \
          polar.o \
-	 polarization.o \
-	 precision.o \
-	 rotate_multipoles.o \
-	 solvers.o \
-	 utilities.o
+	     polarization.o \
+	     rotate_multipoles.o \
+	     solvers.o \
+	     utilities.o
 
 OBJS := $(addprefix $(OBJ_DIR)/, $(OBJS))
 
@@ -60,7 +60,7 @@ $(PYT_DIR)/pymmpol.so: $(PYT_DIR)/pymmpol$(PY_SUFFIX)
 
 $(PYT_DIR)/pymmpol$(PY_SUFFIX): $(OBJS) $(LIB_DIR)/mmpolmodules.a
 	echo "{'real': {'rp': 'double'}, 'integer': {'ip': 'long'}}" > .f2py_f2cmap
-	f2py3 -c -lblas -llapack -m pymmpol src/precision.f90 \
+	f2py3 -c -lblas -llapack -m pymmpol src/mod_memory.f90 \
 					    src/wrapper.f90 \
 		                            src/mmpol.f90 \
 					    src/mmpol_init.f90 \
@@ -93,15 +93,15 @@ clean:
 # Explicit dependencies
 $(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/elstat.o:
-$(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/precision.o
+$(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/energy.o: $(OBJ_DIR)/mmpol.o
-$(OBJ_DIR)/mmpol.o: $(OBJ_DIR)/precision.o
+$(OBJ_DIR)/mmpol.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mmpol.o
+$(OBJ_DIR)/mod_memory.o:
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
-$(OBJ_DIR)/polar.o: $(OBJ_DIR)/precision.o
-$(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o
-$(OBJ_DIR)/precision.o:
+$(OBJ_DIR)/polar.o: $(OBJ_DIR)/mod_memory.o
+$(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/rotate_multipoles.o: $(OBJ_DIR)/mmpol.o 
-$(OBJ_DIR)/solvers.o: $(OBJ_DIR)/precision.o
+$(OBJ_DIR)/solvers.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/utilities.o: $(OBJ_DIR)/mmpol.o

@@ -1,7 +1,7 @@
 subroutine forces(isrc,itrg,ff_qq,ff_qd,ff_dq,ff_dd)
   use mmpol
   use force
-  use precision
+  use memory, only: ip, rp
   implicit none
 !
 ! main driver for the calculation of electrostatic properties.
