@@ -1,17 +1,16 @@
-program main
+program test_amoeba
   use mmpol
   use elstat
   use polar
   implicit none
   character (len=120), dimension(2) :: args
-  ! functions declaration
-  integer :: iargc
-
 !
 ! the name of the mmpol input file and, optionally, the name of the
 ! mmpol binary file are provided in input as arguments to the program:
 !
   if (command_argument_count() .eq. 0) then
+     write(6, *) "Syntax expected "
+     write(6, *) "   $ test_amoeba.exe input_file.mmp [ scratch_file.rwf ]"
 !
 !   no argument provided
 !
@@ -19,14 +18,15 @@ program main
     call get_command_argument(1, args(1))
     input_file = trim(args(1))
     scratch_file = input_file(1:len_inname-4)//'.rwf' 
+    call mmpol_init()
   else if (command_argument_count() .eq. 2) then
     call get_command_argument(1, args(1))
     call get_command_argument(2, args(2))
     input_file = trim(args(1))
     scratch_file = trim(args(2))
+    call mmpol_init()
   end if
 !
-  call mmpol_init
   
   !
   ! Testing AMOEBA FF
@@ -43,4 +43,4 @@ program main
 ! call print_matrix(.true.,'dVMM@MM:',mm_atoms,ld_cder,mm_atoms,ld_cder,transpose(dv_qq))          ! OK 
   call print_matrix(.true.,'GMM@MM 1:',pol_atoms,6,pol_atoms,6,transpose(def_qd(:,:,1)))           ! 
   call print_matrix(.true.,'GMM@MM 2:',pol_atoms,6,pol_atoms,6,transpose(def_qd(:,:,2)))
-end program main
+end program test_amoeba

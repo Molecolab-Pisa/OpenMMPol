@@ -44,7 +44,7 @@ python: $(PYT_DIR)/pymmpol.so
 
 libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
-binaries: $(BIN_DIR)/main.exe $(BIN_DIR)/main_amoeba.exe
+binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe
 
 $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F90 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
