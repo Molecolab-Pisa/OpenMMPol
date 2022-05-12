@@ -25,6 +25,7 @@ OBJS   = coulomb_kernel.o \
 	     mmpol.o \
 	     mmpol_init.o \
 	     mmpol_process.o \
+         mod_io.o \
          mod_memory.o \
 	     elstat.o \
 	     energy.o \
@@ -98,7 +99,8 @@ $(OBJ_DIR)/energy.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/mmpol.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mmpol.o
 $(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mmpol.o
-$(OBJ_DIR)/mod_memory.o:
+$(OBJ_DIR)/mod_io.o:
+$(OBJ_DIR)/mod_memory.o: $(OBJ_DIR)/mod_io.o
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
 $(OBJ_DIR)/polar.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o $(OBJ_DIR)/mod_memory.o

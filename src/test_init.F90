@@ -1,6 +1,6 @@
 program test_init
   use mmpol
-  use memory, only: print_memory_info
+  use mod_memory, only: print_memory_info
 
   implicit none
   character (len=120), dimension(2) :: args

@@ -1,5 +1,5 @@
 module mmpol
-  use memory
+  use mod_memory
 !
 ! mmpol - an opensource library for polarizable molecular mechanics based embedding
 !

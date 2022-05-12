@@ -1,5 +1,5 @@
 module polar
-use memory, only: ip, rp
+use mod_memory, only: ip, rp
 real(rp),    allocatable :: TMat(:,:)
 real(rp),    allocatable :: TMatI(:,:)
 
@@ -342,7 +342,7 @@ end subroutine PolVec
 
 subroutine induce_dipoles_MatInv(elf,dip) !,ipd)
     use mmpol, only : pol_atoms, n_ipd, Amoeba, pol
-    use memory, only: mallocate
+    use mod_memory, only: mallocate
     !
     ! Induce dipoles on the polarizable atoms. The dipoles are induced
     ! by the electric field of the static multipoles (Later change to 

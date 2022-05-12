@@ -1,5 +1,6 @@
-module memory
+module mod_memory
     use iso_c_binding
+    use mod_io, only : iof_memory
 
     implicit none
     private 
@@ -19,9 +20,6 @@ module memory
     public :: mallocate, mfree, print_memory_info, \
               memory_init
     
-    integer(ip), parameter   :: memout = 6
-    integer(ip), private     :: istat, ltot
-
     interface mallocate
         module procedure r_alloc1
         module procedure r_alloc2
@@ -44,7 +42,7 @@ module memory
 
     subroutine print_memory_info()
         implicit none 
-
+! TODO MB22 Improve this function
         write(6, *) "Precision for integer numbers: ", ip
         write(6, *) "An integer occupies ", size_of_int, " bytes."
         write(6, *) "Precision for real numbers: ", rp
@@ -75,7 +73,7 @@ module memory
         integer(ip) :: istat
  
         allocate(v(len1), stat=istat)
-        call chk_all(string, len1*size_of_real, istat)
+        call chk_alloc(string, len1*size_of_real, istat)
     end subroutine r_alloc1
   
     subroutine r_alloc2(string, len1, len2, v)
@@ -88,7 +86,7 @@ module memory
         integer(ip) :: istat
 
         allocate(v(len1, len2), stat=istat)
-        call chk_all(string, len1*len2*size_of_real, istat)
+        call chk_alloc(string, len1*len2*size_of_real, istat)
     end subroutine r_alloc2
   
     subroutine r_alloc3(string, len1, len2, len3, v)
@@ -101,7 +99,7 @@ module memory
         integer(ip) :: istat
 
         allocate(v(len1, len2, len3), stat=istat)
-        call chk_all(string, len1*len2*len3*size_of_real, istat)
+        call chk_alloc(string, len1*len2*len3*size_of_real, istat)
     end subroutine r_alloc3
 
     subroutine i_alloc1(string, len1, v)
@@ -114,125 +112,129 @@ module memory
         integer(ip) :: istat 
 
         allocate(v(len1), stat=istat)
-        call chk_all(string, len1*size_of_int, istat)
+        call chk_alloc(string, len1*size_of_int, istat)
     end subroutine i_alloc1
 
     subroutine i_alloc2(string, len1, len2, v)
-      implicit none
+        implicit none
 
-      character (len=*), intent(in) :: string
-      integer(ip), intent(in) :: len1, len2
-      integer(ip), allocatable, intent(inout) :: v(:,:)
+        character (len=*), intent(in) :: string
+        integer(ip), intent(in) :: len1, len2
+        integer(ip), allocatable, intent(inout) :: v(:,:)
  
-      integer(ip) :: istat 
+        integer(ip) :: istat 
 
-      allocate(v(len1, len2), stat=istat)
-      call chk_all(string, len1*len2*size_of_int, istat)
+        allocate(v(len1, len2), stat=istat)
+        call chk_alloc(string, len1*len2*size_of_int, istat)
     end subroutine i_alloc2
  
     subroutine i_alloc3(string, len1, len2, len3, v)
-      implicit none
+        implicit none
 
-      character (len=*), intent(in) :: string
-      integer(ip), intent(in) :: len1, len2, len3
-      integer(ip), allocatable, intent(inout) :: v(:,:,:)
+        character (len=*), intent(in) :: string
+        integer(ip), intent(in) :: len1, len2, len3
+        integer(ip), allocatable, intent(inout) :: v(:,:,:)
 
-      integer(ip) :: istat
+        integer(ip) :: istat
 
-      allocate(v(len1, len2, len3), stat=istat)
-      call chk_all(string, len1*len2*len3*size_of_int, istat)
+        allocate(v(len1, len2, len3), stat=istat)
+        call chk_alloc(string, len1*len2*len3*size_of_int, istat)
     end subroutine i_alloc3
 
-    subroutine chk_all(string,lall,istat)
-      implicit none
-      integer(ip),       intent(in) :: lall, istat
-      character (len=*), intent(in) :: string
-!  
-!     memory error format:
-!  
+    subroutine chk_alloc(string, lall, istat)
+        implicit none
+
+        integer(ip), intent(in) :: lall, istat
+        character(len=*), intent(in) :: string
+
    9000 format(t3,'allocation error in subroutine ',a,'. stat= ',i5)
    9010 format(t3,'allocation error in subroutine ',a,'.',/,    &
                t3,'not enough memory. ',i8,' words required',/, &
                t3,'                   ',i8,' words available.')
-!  
-      if (istat.ne.0) then
-        write(memout,9000) string, istat
-        stop
-      else if (lall.gt.maxmem) then
-        write(memout,9010) string, lall, maxmem
-        stop
-      else
-        maxmem = maxmem - lall
-      end if
-      return
-    end subroutine chk_all
-!  
-    subroutine r_free1(string,v)
-      character (len=*),              intent(in)    :: string
-      real(rp),          allocatable, intent(inout) :: v(:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
+
+        if (istat .ne. 0) then
+            write(iof_memory, 9000) string, istat
+            stop
+        else if (lall .gt. maxmem) then
+            write(iof_memory,9010) string, lall, maxmem
+            stop
+        else
+            maxmem = maxmem - lall
+        end if
+    end subroutine chk_alloc
+
+    subroutine r_free1(string, v)
+        character(len=*), intent(in) :: string
+        real(rp), allocatable, intent(inout) :: v(:)
+        integer(ip) :: istat, ltot
+
+        if(allocated(v)) then
+            ltot = size(v) * size_of_real
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
     end subroutine r_free1
-!  
-    subroutine r_free2(string,v)
-      character (len=*),              intent(in)    :: string
-      real(rp),          allocatable, intent(inout) :: v(:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
+
+    subroutine r_free2(string, v)
+        character(len=*), intent(in) :: string
+        real(rp),  allocatable, intent(inout) :: v(:,:)
+        integer(ip) :: istat, ltot
+
+        if(allocated(v)) then
+            ltot = size(v) * size_of_real
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
     end subroutine r_free2
-!  
-    subroutine r_free3(string,v)
-      character (len=*),              intent(in)    :: string
-      real(rp),          allocatable, intent(inout) :: v(:,:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
+
+    subroutine r_free3(string, v)
+        character (len=*), intent(in) :: string
+        real(rp), allocatable, intent(inout) :: v(:,:,:)
+        integer(ip) :: istat, ltot
+
+        if(allocated(v)) then
+            ltot = size(v) * size_of_real
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
     end subroutine r_free3
-!  
-    subroutine i_free1(string,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),       allocatable, intent(inout) :: v(:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
+
+    subroutine i_free1(string, v)
+        character (len=*), intent(in) :: string
+        integer(ip), allocatable, intent(inout) :: v(:)
+        integer(ip) :: istat, ltot
+  
+        if(allocated(v)) then
+            ltot = size(v) * size_of_int
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
     end subroutine i_free1
-!  
-    subroutine i_free2(string,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),       allocatable, intent(inout) :: v(:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
+  
+    subroutine i_free2(string, v)
+        character (len=*), intent(in) :: string
+        integer(ip), allocatable, intent(inout) :: v(:,:)
+        integer(ip) :: istat, ltot
+  
+        if(allocated(v)) then
+            ltot = size(v) * size_of_int
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
     end subroutine i_free2
-!  
-    subroutine i_free3(string,v)
-      character (len=*),              intent(in)    :: string
-      integer(ip),       allocatable, intent(inout) :: v(:,:,:)
-!  
-      if (.not. allocated(v)) return
-      ltot = size(v)
-      deallocate (v, stat=istat)
-      call chk_free(string,ltot,istat)
-      return
+  
+    subroutine i_free3(string, v)
+        character (len=*), intent(in) :: string
+        integer(ip), allocatable, intent(inout) :: v(:,:,:)
+        integer(ip) :: istat, ltot
+
+        if(allocated(v)) then
+            ltot = size(v) * size_of_int
+            deallocate (v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
     end subroutine i_free3
-!  
+ 
     subroutine chk_free(string,lfree,istat)
       implicit none
       integer(ip),       intent(in) :: lfree, istat
@@ -243,7 +245,7 @@ module memory
    9000 format(t3,'deallocation error in subroutine ',a,'. stat= ',i5)
 !  
       if (istat.ne.0) then
-        write(memout,9000) string, istat
+        write(iof_memory,9000) string, istat
         stop
       else
         maxmem = maxmem + lfree
@@ -251,4 +253,4 @@ module memory
       return
     end subroutine chk_free
 
-end module memory
+end module mod_memory

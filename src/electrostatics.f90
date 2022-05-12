@@ -1,7 +1,7 @@
 subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
   use mmpol
   use elstat
-  use memory, only: ip, rp
+  use mod_memory, only: ip, rp
   implicit none
 !
 ! main driver for the calculation of electrostatic properties.

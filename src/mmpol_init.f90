@@ -1,6 +1,6 @@
 subroutine mmpol_init
   use mmpol
-  use memory, only: ip, rp
+  use mod_memory, only: ip, rp
   implicit none
 !
 ! read the input for the mmpol calculation and process it.

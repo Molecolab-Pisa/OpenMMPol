@@ -1,5 +1,5 @@
 module solvers
-  use memory, only: ip, rp
+  use mod_memory, only: ip, rp
   implicit none
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                  !

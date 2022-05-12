@@ -2,7 +2,7 @@ subroutine polarization(iscr,e,ipds)
   use mmpol
   use polar
   use solvers
-  use memory, only: ip, rp, mallocate, mfree
+  use mod_memory, only: ip, rp, mallocate, mfree
   implicit none
 !
 ! main driver for the calculation of induced dipoles.
