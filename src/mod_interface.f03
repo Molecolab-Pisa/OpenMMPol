@@ -8,10 +8,34 @@ module mod_interface
     private
 
     public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
-    public :: is_amoeba
+    public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
     public :: w_mmpol_init, do_mm, do_qmmm, restart, get_energy
 
     contains
+        
+        function get_cmm() bind(c, name='get_cmm')
+            type(c_ptr) :: get_cmm
+
+            get_cmm = c_loc(cmm)
+        end function get_cmm
+
+        function get_cpol() bind(c, name='get_cpol')
+            type(c_ptr) :: get_cpol
+
+            get_cpol = c_loc(cpol)
+        end function get_cpol
+
+        function get_q() bind(c, name='get_q')
+            type(c_ptr) :: get_q
+
+            get_q = c_loc(q)
+        end function get_q
+
+        function get_ipd() bind(c, name='get_ipd')
+            type(c_ptr) :: get_ipd
+
+            get_ipd = c_loc(ipd)
+        end function get_ipd
 
         function get_mm_atoms() bind(c, name='get_mm_atoms')
             implicit none

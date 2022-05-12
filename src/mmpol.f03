@@ -156,11 +156,11 @@ module mmpol
 !
 !     coordinates of the mm atoms:
 !
-  real(rp),    allocatable :: cmm(:,:)
+  real(rp),    allocatable, target :: cmm(:,:)
 !
 !     coordinates of the polarizable mm atoms:
 !
-  real(rp),    allocatable :: cpol(:,:)
+  real(rp),    allocatable, target :: cpol(:,:)
 !
 !     mutlipolar distribution. note that there are two arrays, one for the
 !     distribution rotated to the lab frame and one for the force field 
@@ -170,12 +170,12 @@ module mmpol
 !
 !     q, px, py, pz, Qxx, Qxy, Qyy, Qxz, Qyx, Qzz.
 !
-  real(rp),    allocatable :: q(:,:), q0(:,:)
+  real(rp),    allocatable, target :: q(:,:), q0(:,:)
 !
 !     induced point dipoles. note the third dimension to account for more than
 !     one ipd distribution in AMOEBA.
 !
-  real(rp),    allocatable :: ipd(:,:,:)
+  real(rp),    allocatable, target :: ipd(:,:,:)
 !
 !     polarizabilities:
 !

@@ -26,6 +26,19 @@ int main(int argc, char **argv){
     printf("RWF file: '%s'\n", infile_rwf);
 
     w_mmpol_init(infile_mmp);
+    
+    int mm_atoms = get_mm_atoms();
+    double *_cmm = (double *) get_cmm();
+    double **cmm = (double **) malloc(sizeof(double *) * mm_atoms);
+    for(int i=0; i < mm_atoms; i++){
+        cmm[i] = &(_cmm[3*i]);
+    }
+
+    for(int i=0; i<mm_atoms; i++){
+        for(int j=0; j<3; j++)
+            printf("%5.2f ", cmm[i][j]);
+        printf("\n");
+    }
 
     return 0;
 }
