@@ -8,8 +8,10 @@ LIB_DIR = ./lib
 MOD_DIR = ./mod
 SRC_DIR = ./src
 PYT_DIR = ./python/pyopenmmp/pyopenmmp
+INCLUDE_DIR = ./include
 
 FC = gfortran
+CC = gcc
 
 ifeq ($(DEBUG), YES)
 	FFLAGS = -Wall -Wextra -pedantic -std=f2003 -fcheck=all -fall-intrinsics -g -Og -fbacktrace -fPIC
@@ -18,6 +20,8 @@ else
 endif
 
 CPPFLAGS = -cpp
+CFLAGS = -Wall -pedantic -g -Og
+
 LDLIBS = -lblas -llapack -lgfortran
 
 OBJS   = coulomb_kernel.o \
@@ -46,10 +50,13 @@ python: $(PYT_DIR)/pymmpol.so
 
 libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
-binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe
+binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe $(BIN_DIR)/test_c.out
 
 $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
+
+$(BIN_DIR)/%.out: $(SRC_DIR)/%.c $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
+	$(CC) $(CFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(INCLUDE_DIR) $< -lopenmmpol -o $@
 
 $(LIB_DIR)/mmpolmodules.a: $(OBJS) $(LIB_DIR)
 	ar crs $@ $(OBJS)
