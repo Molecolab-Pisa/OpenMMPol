@@ -39,7 +39,7 @@ OBJS := $(addprefix $(OBJ_DIR)/, $(OBJS))
 
 PY_SUFFIX = $(shell python3-config --extension-suffix)
 
-all: libraries binaries python
+all: libraries binaries # python
 
 python: $(PYT_DIR)/pymmpol.so
 
@@ -47,7 +47,7 @@ libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
 binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe
 
-$(BIN_DIR)/%.exe: $(SRC_DIR)/%.F90 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
+$(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
 
 $(LIB_DIR)/mmpolmodules.a: $(OBJS) $(LIB_DIR)
@@ -61,10 +61,10 @@ $(PYT_DIR)/pymmpol.so: $(PYT_DIR)/pymmpol$(PY_SUFFIX)
 
 $(PYT_DIR)/pymmpol$(PY_SUFFIX): $(OBJS) $(LIB_DIR)/mmpolmodules.a
 	echo "{'real': {'rp': 'double'}, 'integer': {'ip': 'long'}}" > .f2py_f2cmap
-	f2py3 -c -lblas -llapack -m pymmpol src/mod_memory.f90 \
-					    src/wrapper.f90 \
-		                            src/mmpol.f90 \
-					    src/mmpol_init.f90 \
+	f2py3 -c -lblas -llapack -m pymmpol src/mod_memory.f03 \
+					    src/wrapper.f03 \
+		                            src/mmpol.f03 \
+					    src/mmpol_init.f03 \
 					    lib/mmpolmodules.a \
 					    skip: r_alloc1 r_alloc2 r_alloc3 \
 					          i_alloc1 i_alloc2 i_alloc3 \
@@ -84,7 +84,7 @@ $(BIN_DIR):
 $(LIB_DIR):
 	@mkdir -p $(LIB_DIR)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.f90 $(OBJ_DIR) $(MOD_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.f03 $(OBJ_DIR) $(MOD_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) -I$(MOD_DIR) -J$(MOD_DIR) -c $< -o $@
 
 clean:
