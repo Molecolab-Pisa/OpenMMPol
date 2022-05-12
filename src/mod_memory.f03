@@ -13,8 +13,10 @@ module mod_memory
     integer(ip), parameter :: rp = c_double
     
     integer(ip) :: maxmem ! Max memory that can be allocated in bytes
+    integer(ip) :: usedmem ! Memory that is currently used by the code
     integer(ip) :: size_of_int ! Number of bytes for an integer
     integer(ip) :: size_of_real ! Number of bytes for a real
+    logical :: do_chk_limit ! Decide if the soft memory limit is on
 
     public :: rp, ip ! precision for real and integers
     public :: mallocate, mfree, print_memory_info, \
@@ -50,15 +52,19 @@ module mod_memory
         write(6, *) "The total memory available is ", maxmem, " bytes."
     end subroutine print_memory_info
 
-    subroutine memory_init(max_bytes)
+    subroutine memory_init(do_chk, max_bytes)
         implicit none
 
+        ! This control if the memory control should be done
+        logical :: do_chk 
         integer(ip), intent(in) :: max_bytes
         integer(ip) :: my_int
         real(rp) :: my_real
         intrinsic :: sizeof
 
+        do_chk_limit = do_chk
         maxmem = max_bytes
+        usedmem = 0
         size_of_real = sizeof(my_real)
         size_of_int = sizeof(my_int)
     end subroutine memory_init
@@ -152,14 +158,14 @@ module mod_memory
                t3,'not enough memory. ',i8,' words required',/, &
                t3,'                   ',i8,' words available.')
 
-        if (istat .ne. 0) then
+        if(istat /= 0) then
             write(iof_memory, 9000) string, istat
             stop
-        else if (lall .gt. maxmem) then
-            write(iof_memory,9010) string, lall, maxmem
+        else if(do_chk_limit .and. usedmem+lall > maxmem) then
+            write(iof_memory, 9010) string, lall, maxmem-usedmem
             stop
         else
-            maxmem = maxmem - lall
+            usedmem = usedmem + lall
         end if
     end subroutine chk_alloc
 
@@ -235,22 +241,20 @@ module mod_memory
         end if
     end subroutine i_free3
  
-    subroutine chk_free(string,lfree,istat)
-      implicit none
-      integer(ip),       intent(in) :: lfree, istat
-      character (len=*), intent(in) :: string
-!  
-!     memory error format:
-!  
+    subroutine chk_free(string, lfree, istat)
+        implicit none
+        integer(ip), intent(in) :: lfree, istat
+      character(len=*), intent(in) :: string
+   
    9000 format(t3,'deallocation error in subroutine ',a,'. stat= ',i5)
-!  
-      if (istat.ne.0) then
-        write(iof_memory,9000) string, istat
+
+      if(istat /= 0)then
+        write(iof_memory, 9000) string, istat
         stop
       else
-        maxmem = maxmem + lfree
+        usedmem = usedmem - lfree
       end if
-      return
+
     end subroutine chk_free
 
 end module mod_memory

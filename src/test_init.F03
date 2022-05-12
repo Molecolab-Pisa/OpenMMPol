@@ -8,7 +8,7 @@ program test_init
 ! the name of the mmpol input file and, optionally, the name of the
 ! mmpol binary file are provided in input as arguments to the program:
 !
-  call memory_init(10000000_ip)
+  call memory_init(.false., 10000000_ip)
   call print_memory_info()
 
   if (command_argument_count() .eq. 0) then
