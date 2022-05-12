@@ -7,9 +7,52 @@ module mod_interface
     implicit none
     private
 
+    public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
+    public :: is_amoeba
     public :: w_mmpol_init, do_mm, do_qmmm, restart, get_energy
 
     contains
+
+        function get_mm_atoms() bind(c, name='get_mm_atoms')
+            implicit none
+
+            integer(ip) :: get_mm_atoms
+
+            get_mm_atoms = mm_atoms
+        end function get_mm_atoms
+        
+        function get_pol_atoms() bind(c, name='get_pol_atoms')
+            implicit none
+
+            integer(ip) :: get_pol_atoms
+
+            get_pol_atoms = pol_atoms
+        end function get_pol_atoms
+
+        function get_n_ipd() bind(c, name='get_n_ipd')
+            implicit none
+
+            integer(ip) :: get_n_ipd
+
+            get_n_ipd = n_ipd
+        end function get_n_ipd
+
+        function get_ld_cart() bind(c, name='get_ld_cart')
+            implicit none
+
+            integer(ip) :: get_ld_cart
+
+            get_ld_cart = n_ipd
+        end function get_ld_cart
+
+        function is_amoeba() bind(c, name='is_amoeba')
+            implicit none
+
+            logical(c_bool) :: is_amoeba
+
+            is_amoeba = amoeba
+        end function is_amoeba
+        
         subroutine c2f_string(c_str, f_str)
             implicit none
             

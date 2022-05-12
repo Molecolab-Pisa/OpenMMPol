@@ -20,7 +20,7 @@ else
 endif
 
 CPPFLAGS = -cpp
-CFLAGS = -Wall -pedantic -g -Og
+CFLAGS = -Wall -pedantic -g -Og -std=c99
 
 LDLIBS = -lblas -llapack -lgfortran
 
