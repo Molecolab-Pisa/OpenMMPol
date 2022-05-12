@@ -20,6 +20,7 @@ module mod_interface
 
             do while(c_str(i) /= c_null_char)
                 f_str(i:i) = c_str(i)
+                i = i + 1
             end do
 
             f_str = trim(f_str)
@@ -31,6 +32,7 @@ module mod_interface
             character(len=120) :: BsName
 
             call c2f_string(filename, input_file)
+            
             BsName = input_file(1:scan(input_file, '.', back=.true.))
             scratch_file = trim(BsName)//'rwf'
 
