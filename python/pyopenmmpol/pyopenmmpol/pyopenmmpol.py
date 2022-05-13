@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ctypeslib as npct
 import ctypes as ct
 
 try:
@@ -18,48 +19,113 @@ _libopenmmpol.do_mm.restypes = []
 def do_mm():
     _libopenmmpol.do_mm()
 
-_libopenmmpol.do_qmmm.argtypes = []
 _libopenmmpol.do_qmmm.restypes = []
-def do_qmmm():
-    _libopenmmpol.do_qmmm()
+def do_qmmm(vqm, eqm):
+    print(vqm.shape)
+    print(eqm.shape)
+    print(vqm)
+    vqm_type = npct.ndpointer(dtype=ct.c_double,
+                              ndim=2,
+                              shape=(get_ld_cart(),
+                                     get_mm_atoms()))
+    eqm_type = npct.ndpointer(dtype=ct.c_double,
+                              ndim=3,
+                              shape=(3,
+                                     get_pol_atoms(),
+                                     get_n_ipd()))
+    _libopenmmpol.do_qmmm.argtypes = [vqm_type, 
+                                      eqm_type,
+                                      ct.c_int32,
+                                      ct.c_int32,
+                                      ct.c_int32,
+                                      ct.c_int32]
+                                                  
+    _libopenmmpol.do_qmmm(vqm, 
+                          eqm,
+                          get_ld_cart(),
+                          get_mm_atoms(),
+                          get_pol_atoms(),
+                          get_n_ipd())
 
 _libopenmmpol.restart.argtypes = []
 _libopenmmpol.restart.restypes = []
 def restart():
     _libopenmmpol.restart()
 
-_libopenmmpol.get_energy.argtypes = [ct.c_double, ct.c_double]
+_libopenmmpol.get_energy.argtypes = [ct.POINTER(ct.c_double), 
+                                     ct.POINTER(ct.c_double)]
 _libopenmmpol.get_energy.restypes = []
 def get_energy():
     EMM = ct.c_double(0.0)
-    EPol = ct.c_double(0,0)
-    _libopenmmpol.get_energy(EMM, EPol)
-    return float(EMM), float(EPol)
+    EPol = ct.c_double(0.0)
+    _libopenmmpol.get_energy(ct.byref(EMM), 
+                             ct.byref(EPol))
+    return EMM.value, EPol.value
 
 _libopenmmpol.get_n_ipd.argtypes = []
-_libopenmmpol.get_n_ipd.restypes = [ct.c_int32]
+_libopenmmpol.get_n_ipd.restype = ct.c_int32
 def get_n_ipd():
     return int(_libopenmmpol.get_n_ipd())
 
 _libopenmmpol.get_ld_cart.argtypes = []
-_libopenmmpol.get_ld_cart.restypes = [ct.c_int32]
+_libopenmmpol.get_ld_cart.restype = ct.c_int32
 def get_ld_cart():
     return int(_libopenmmpol.get_ld_cart())
 
 _libopenmmpol.get_mm_atoms.argtypes = []
-_libopenmmpol.get_mm_atoms.restypes = [ct.c_int32]
+_libopenmmpol.get_mm_atoms.restype = ct.c_int32
 def get_mm_atoms():
     return int(_libopenmmpol.get_mm_atoms())
 
 _libopenmmpol.get_pol_atoms.argtypes = []
-_libopenmmpol.get_pol_atoms.restypes = [ct.c_int32]
+_libopenmmpol.get_pol_atoms.restype = ct.c_int32
 def get_pol_atoms():
     return int(_libopenmmpol.get_pol_atoms())
 
 _libopenmmpol.is_amoeba.argtypes = []
-_libopenmmpol.is_amoeba.restypes = [ct.c_bool]
+_libopenmmpol.is_amoeba.restype = ct.c_bool
 def is_amoeba():
      return bool(_libopenmmpol.is_amoeba())
+
+_libopenmmpol.get_cmm.argtypes = []
+def get_cmm():
+    rtype = npct.ndpointer(dtype=ct.c_double,
+                           ndim=2,
+                           shape=(get_mm_atoms(),3),
+                           flags=('F_CONTIGUOUS'))
+    _libopenmmpol.get_cmm.restype = rtype 
+    cmm = _libopenmmpol.get_cmm()
+    return cmm
+
+_libopenmmpol.get_cpol.argtypes = []
+def get_cpol():
+    rtype = npct.ndpointer(dtype=ct.c_double,
+                           ndim=2,
+                           shape=(get_pol_atoms(),3),
+                           flags=('F_CONTIGUOUS'))
+    _libopenmmpol.get_cpol.restype = rtype 
+    cpol = _libopenmmpol.get_cpol()
+    return cpol
+
+_libopenmmpol.get_q.argtypes = []
+def get_q():
+    rtype = npct.ndpointer(dtype=ct.c_double,
+                           ndim=2,
+                           shape=(get_mm_atoms(), get_ld_cart()),
+                           flags=('F_CONTIGUOUS'))
+    _libopenmmpol.get_q.restype = rtype 
+    q = _libopenmmpol.get_q()
+    return q
+
+_libopenmmpol.get_ipd.argtypes = []
+def get_ipd():
+    rtype = npct.ndpointer(dtype=ct.c_double,
+                           ndim=3,
+                           shape=(get_n_ipd(), get_pol_atoms(), 3),
+                           flags=('F_CONTIGUOUS'))
+    _libopenmmpol.get_ipd.restype = rtype 
+    ipd = _libopenmmpol.get_ipd()
+    return ipd
 
 class MMPol(object):
   def __init__(self, mmpol_file):
@@ -92,20 +158,20 @@ class MMPol(object):
     return get_pol_atoms()
 
   @property
-  def cmm(self): 
-    return mmpol.cmm.T
+  def cmm(self):
+    return get_cmm()
 
   @property
   def cpol(self):
-    return mmpol.cpol.T
+    return get_cpol()
 
   @property
   def q(self):
-    return mmpol.q.T
+    return get_q()
 
   @property
   def ipd(self):
-    return mmpol.ipd.T
+    return get_ipd()
 
 
   def do_mm(self):
