@@ -66,7 +66,7 @@ module mod_interface
 
             integer(ip) :: get_ld_cart
 
-            get_ld_cart = n_ipd
+            get_ld_cart = ld_cart
         end function get_ld_cart
 
         function is_amoeba() bind(c, name='is_amoeba')
