@@ -38,11 +38,6 @@ module mmpol
 !
   integer(ip), parameter   :: ws_max = 100
 !
-!     maximum number of integer and real parameters (for i/o purposes)
-!
-! MB22: ??
-  integer(ip), parameter   :: nipars = 32, nrpars = 32
-!
 !     maximum amount of memory (in gb) and number of cores that can be used by mmpol:
 !
 ! MB22: ??
@@ -141,11 +136,6 @@ module mmpol
 !     or on the polarization group " connectivity (AMOEBA)
 !
   real(rp)                 :: uscale(4)
-!
-!     arrays to pack the integer and real parameters for i/o purposed:
-!
-  integer(ip)              :: int_pars(nipars)
-  real(rp)                 :: real_pars(nrpars)
 !
 !   arrays:
 !   =======
