@@ -167,8 +167,8 @@ module mod_interface
             implicit none
             real(kind=rp), intent(out) :: EMM, EPol
 
-            call energy(int(0,ip),EMM)
-            call energy(int(1,ip),EPol)
+            call energy(0_ip,EMM)
+            call energy(1_ip,EPol)
 
         end subroutine
 end module mod_interface

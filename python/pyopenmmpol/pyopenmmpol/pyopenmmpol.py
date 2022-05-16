@@ -21,18 +21,19 @@ def do_mm():
 
 _libopenmmpol.do_qmmm.restypes = []
 def do_qmmm(vqm, eqm):
-    print(vqm.shape)
-    print(eqm.shape)
-    print(vqm)
+    _eqm = np.ascontiguousarray(eqm)
+    _vqm = np.ascontiguousarray(vqm)
     vqm_type = npct.ndpointer(dtype=ct.c_double,
                               ndim=2,
-                              shape=(get_ld_cart(),
-                                     get_mm_atoms()))
+                              shape=(get_mm_atoms(),
+                                     get_ld_cart()),
+                                     flags='C_CONTIGUOUS')
     eqm_type = npct.ndpointer(dtype=ct.c_double,
                               ndim=3,
-                              shape=(3,
+                              shape=(get_n_ipd(),
                                      get_pol_atoms(),
-                                     get_n_ipd()))
+                                     3),
+                                     flags='C_CONTIGUOUS')
     _libopenmmpol.do_qmmm.argtypes = [vqm_type, 
                                       eqm_type,
                                       ct.c_int32,
@@ -40,8 +41,8 @@ def do_qmmm(vqm, eqm):
                                       ct.c_int32,
                                       ct.c_int32]
                                                   
-    _libopenmmpol.do_qmmm(vqm, 
-                          eqm,
+    _libopenmmpol.do_qmmm(_vqm, 
+                          _eqm,
                           get_ld_cart(),
                           get_mm_atoms(),
                           get_pol_atoms(),
@@ -193,7 +194,7 @@ class MMPol(object):
     assert np.shape(VQM) == (self.mm_atoms,self.ld_cart)
     assert np.shape(EQM) == (self.n_ipd,self.pol_atoms,3)
 
-    do_qmmm(VQM.T,EQM.T)
+    do_qmmm(VQM,EQM)
 
   def get_MM_energy(self):
 
