@@ -1,6 +1,7 @@
 # makefile for open_mmpol
 
 DEBUG = YES
+USE_INT64 = NO
 #--------------------------------------#
 OBJ_DIR = ./obj
 BIN_DIR = ./bin
@@ -20,6 +21,9 @@ else
 endif
 
 CPPFLAGS = -cpp
+ifeq ($(USE_INT64), YES)
+    CPPFLAGS += -DUSE_I8 
+endif
 CFLAGS = -Wall -pedantic -g -Og -std=c99
 
 LDLIBS = -lblas -llapack -lgfortran

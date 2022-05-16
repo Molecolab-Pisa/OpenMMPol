@@ -8,6 +8,11 @@ except OSError:
     print("Cannot find libopenmmpol.so. Check to have set correctly $LD_LIBRARY_PATH")
     raise ImportError
 
+if _libopenmmpol.__use_8bytes_int():
+    INT_TYPE = ct.c_int64
+else:
+    INT_TYPE = ct.c_int32
+
 _libopenmmpol.w_mmpol_init.argtypes = [ct.c_char_p]
 _libopenmmpol.w_mmpol_init.restypes = []
 def w_mmpol_init(infile_mmp):
@@ -36,10 +41,10 @@ def do_qmmm(vqm, eqm):
                                      flags='C_CONTIGUOUS')
     _libopenmmpol.do_qmmm.argtypes = [vqm_type, 
                                       eqm_type,
-                                      ct.c_int32,
-                                      ct.c_int32,
-                                      ct.c_int32,
-                                      ct.c_int32]
+                                      INT_TYPE,
+                                      INT_TYPE,
+                                      INT_TYPE,
+                                      INT_TYPE]
                                                   
     _libopenmmpol.do_qmmm(_vqm, 
                           _eqm,
@@ -64,22 +69,22 @@ def get_energy():
     return EMM.value, EPol.value
 
 _libopenmmpol.get_n_ipd.argtypes = []
-_libopenmmpol.get_n_ipd.restype = ct.c_int32
+_libopenmmpol.get_n_ipd.restype = INT_TYPE
 def get_n_ipd():
     return int(_libopenmmpol.get_n_ipd())
 
 _libopenmmpol.get_ld_cart.argtypes = []
-_libopenmmpol.get_ld_cart.restype = ct.c_int32
+_libopenmmpol.get_ld_cart.restype = INT_TYPE
 def get_ld_cart():
     return int(_libopenmmpol.get_ld_cart())
 
 _libopenmmpol.get_mm_atoms.argtypes = []
-_libopenmmpol.get_mm_atoms.restype = ct.c_int32
+_libopenmmpol.get_mm_atoms.restype = INT_TYPE
 def get_mm_atoms():
     return int(_libopenmmpol.get_mm_atoms())
 
 _libopenmmpol.get_pol_atoms.argtypes = []
-_libopenmmpol.get_pol_atoms.restype = ct.c_int32
+_libopenmmpol.get_pol_atoms.restype = INT_TYPE
 def get_pol_atoms():
     return int(_libopenmmpol.get_pol_atoms())
 
@@ -130,7 +135,7 @@ def get_ipd():
 
 class MMPol(object):
   def __init__(self, mmpol_file):
-    
+   
     if (get_mm_atoms() > 0):
       raise( RuntimeError('\n MMPol Module was already initialized! '))
 

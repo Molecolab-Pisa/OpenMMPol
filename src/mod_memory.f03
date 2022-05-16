@@ -5,11 +5,11 @@ module mod_memory
     implicit none
     private 
 
-!    #ifdef USE_I8
-!        integer(kind=c_int64_t), parameter :: ip = c_int64_t
-!    #else
-        integer(kind=c_int32_t), parameter :: ip = c_int32_t
-!    #endif
+#ifdef USE_I8
+    integer(kind=c_int64_t), parameter :: ip = c_int64_t
+#else
+    integer(kind=c_int32_t), parameter :: ip = c_int32_t
+#endif
     integer(ip), parameter :: rp = c_double
     
     integer(ip) :: maxmem ! Max memory that can be allocated in bytes
@@ -21,6 +21,7 @@ module mod_memory
     public :: rp, ip ! precision for real and integers
     public :: mallocate, mfree, print_memory_info, \
               memory_init
+    public :: use_8bytes_int 
     
     interface mallocate
         module procedure r_alloc1
@@ -41,6 +42,16 @@ module mod_memory
     end interface mfree
 
     contains
+
+    function use_8bytes_int() bind(c, name='__use_8bytes_int')
+        logical(kind=c_bool) :: use_8bytes_int
+
+#ifdef USE_I8
+        use_8bytes_int = .true.
+#else
+        use_8bytes_int = .false.
+#endif
+    end function use_8bytes_int
 
     subroutine print_memory_info()
         implicit none 
