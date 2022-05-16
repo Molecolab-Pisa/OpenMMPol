@@ -96,13 +96,8 @@ module mod_interface
         subroutine w_mmpol_init(filename) bind(c, name='w_mmpol_init')
             implicit none
             character(kind=c_char), intent(in) :: filename(120)
-            character(len=120) :: BsName
 
             call c2f_string(filename, input_file)
-            
-            BsName = input_file(1:scan(input_file, '.', back=.true.))
-            scratch_file = trim(BsName)//'rwf'
-
             call mmpol_init()
         end subroutine 
 

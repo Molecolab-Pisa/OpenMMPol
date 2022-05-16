@@ -28,7 +28,7 @@ module mmpol
 !
 !     units used for i/o:
 !
-  integer(ip), parameter   :: mmpinp = 100, mmpfile = 101
+  integer(ip), parameter   :: mmpinp = 100
 !
 !     maximum allowed number of 1-2, ..., 1-5 neighbors.
 !
@@ -93,8 +93,8 @@ module mmpol
 !
 !     name of the input and scratch files and associated lenght
 !
-  integer(ip)             :: len_inname, len_scname
-  character(len=120)      :: input_file, scratch_file
+  integer(ip)             :: len_inname
+  character(len=120)      :: input_file
 !
   logical                 :: amoeba
 !

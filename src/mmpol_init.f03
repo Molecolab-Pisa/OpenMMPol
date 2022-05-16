@@ -15,8 +15,6 @@ subroutine mmpol_init
 !
   len_inname = len(trim(input_file))
   open (unit=mmpinp, file=input_file(1:len_inname),form='formatted',access='sequential')
-  len_scname = len(trim(scratch_file))
-  open (unit=mmpfile, file=scratch_file(1:len_scname),form='unformatted')
 !
 ! start reading the integer control parameters:
 !
@@ -172,10 +170,5 @@ subroutine mmpol_init
 !
   call mallocate('mmpol_init [idp]',int(3,ip),pol_atoms,n_ipd,ipd) 
   ipd    = Zero
-!
-! start reading the integer QM parameters:
-!
-!  read(mmpfile,*) input_revision
-!  if (input_revision .ne. revision) call fatal_error('input and internal revision conflict.')
 
 end subroutine mmpol_init
