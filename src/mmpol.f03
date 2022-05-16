@@ -7,17 +7,6 @@ module mmpol
 !   Department of Chemistry and Industrial Chemistry
 !   University of Pisa, Italy
 !
-! 
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                                  !
-!   this fortran module contains all the shared scalar and array quantities that   !
-!   are used by the mmpol library.                                                 !
-!   it also contains wrapper routines to allocate memory, keeping track of the     !
-!   amount used.                                                                   !
-!                                                                                  !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
 !   scalar control variables:
 !   =========================
 !
@@ -37,11 +26,6 @@ module mmpol
 !     maximum number of neighbors to consider for building the Wang-Skeel preconditioner
 !
   integer(ip), parameter   :: ws_max = 100
-!
-!     maximum amount of memory (in gb) and number of cores that can be used by mmpol:
-!
-! MB22: ??
-  integer(ip)              :: maxcor, nproc
 !
 !     verbosity flag:
 !

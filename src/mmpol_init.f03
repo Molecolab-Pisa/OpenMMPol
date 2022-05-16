@@ -7,6 +7,7 @@ subroutine mmpol_init
 ! read the input for the mmpol calculation and process it.
 !
   integer(ip)              :: input_revision, iconv, i, j
+  integer(ip) :: maxcor, nproc
 !
 ! integer(ip), allocatable :: 
   real(rp),    allocatable :: polar(:)
