@@ -26,10 +26,6 @@ module mmpol
 !
   integer(ip), parameter   :: revision = 1
 !
-!     units used for i/o:
-!
-  integer(ip), parameter   :: mmpinp = 100
-!
 !     maximum allowed number of 1-2, ..., 1-5 neighbors.
 !
   integer(ip), parameter   :: maxn12 = 8, maxn13 = 24, maxn14 = 72, maxn15 = 216

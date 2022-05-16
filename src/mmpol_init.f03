@@ -1,6 +1,7 @@
 subroutine mmpol_init
   use mmpol
   use mod_memory, only: ip, rp
+  use mod_io, only: iof_mmpinp
   implicit none
 !
 ! read the input for the mmpol calculation and process it.
@@ -14,21 +15,21 @@ subroutine mmpol_init
 ! open the (formatted) input file and the (binary) internal scratch file:
 !
   len_inname = len(trim(input_file))
-  open (unit=mmpinp, file=input_file(1:len_inname),form='formatted',access='sequential')
+  open (unit=iof_mmpinp, file=input_file(1:len_inname),form='formatted',access='sequential')
 !
 ! start reading the integer control parameters:
 !
-  read(mmpinp,*) input_revision
+  read(iof_mmpinp,*) input_revision
   if (input_revision .ne. revision) call fatal_error('input and internal revision conflict.')
-  read(mmpinp,*) maxcor, nproc
+  read(iof_mmpinp,*) maxcor, nproc
   call memory_init(.true., maxcor*1024*1024*1024/8)
-  read(mmpinp,*) verbose
-  read(mmpinp,*) ff_type
-  read(mmpinp,*) ff_rules
-  read(mmpinp,*) solver
-  read(mmpinp,*) matrix_vector
-  read(mmpinp,*) iconv
-  read(mmpinp,*) mm_atoms
+  read(iof_mmpinp,*) verbose
+  read(iof_mmpinp,*) ff_type
+  read(iof_mmpinp,*) ff_rules
+  read(iof_mmpinp,*) solver
+  read(iof_mmpinp,*) matrix_vector
+  read(iof_mmpinp,*) iconv
+  read(iof_mmpinp,*) mm_atoms
 !
 ! decode a few scalar parameters:
 !
@@ -79,25 +80,25 @@ subroutine mmpol_init
 ! coordinates:
 !
   do i = 1, mm_atoms
-    read(mmpinp,*) cmm(1:3,i)
+    read(iof_mmpinp,*) cmm(1:3,i)
   end do
 !
 ! group/fragment/residue:
 !
   do i = 1, mm_atoms
-    read(mmpinp,*) group(i)
+    read(iof_mmpinp,*) group(i)
   end do
 !
 ! charges/multipoles:
 !
   do i = 1, mm_atoms
-    read(mmpinp,*) q(1:ld_cart,i)
+    read(iof_mmpinp,*) q(1:ld_cart,i)
   end do
 !
 ! polarizabilities:
 !
   do i = 1, mm_atoms
-    read(mmpinp,*) polar(i)
+    read(iof_mmpinp,*) polar(i)
   end do
 !
 ! count how many atoms are polarizable:
@@ -118,7 +119,7 @@ subroutine mmpol_init
 ! 1-2 connectivity:
 !
   do i = 1, mm_atoms
-    read(mmpinp,*) i12(1:maxn12,i)
+    read(iof_mmpinp,*) i12(1:maxn12,i)
   end do
 !
 ! the following input is only relevant for amoeba:
@@ -129,14 +130,14 @@ subroutine mmpol_init
 !   (to be replaced with polarization group)
 !
     do i = 1, mm_atoms
-      read(mmpinp,*) ip11(1:maxpgp,i)
+      read(iof_mmpinp,*) ip11(1:maxpgp,i)
     end do
 !
 !   information to rotate the multipoles to the lab frame.
 !   mol_frame, iz, ix, iy:
 !
     do i = 1, mm_atoms
-      read(mmpinp,*) mol_frame(i), iz(i), ix(i), iy(i)
+      read(iof_mmpinp,*) mol_frame(i), iz(i), ix(i), iy(i)
     end do
   end if
 !
