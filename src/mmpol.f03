@@ -28,7 +28,7 @@ module mmpol
 !
 !     units used for i/o:
 !
-  integer(ip), parameter   :: mmpinp = 100, mmpfile = 101, mmpout=6
+  integer(ip), parameter   :: mmpinp = 100, mmpfile = 101
 !
 !     maximum allowed number of 1-2, ..., 1-5 neighbors.
 !

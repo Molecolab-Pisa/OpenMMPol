@@ -4,6 +4,7 @@ module mod_io
     private
 
     integer, parameter :: iof_memory = 6
+    integer, parameter :: iof_mmpol = 6
 
-    public :: iof_memory
+    public :: iof_memory, iof_mmpol
 end module mod_io

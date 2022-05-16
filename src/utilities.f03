@@ -3,6 +3,7 @@
 !
 subroutine print_header
   use mmpol
+  use mod_io, only : iof_mmpol
   implicit none
 !
   character (len=20) ffprt, lssolv, mvalg
@@ -32,9 +33,9 @@ subroutine print_header
               t5,'# polarizable atoms:   ',i18,/, &
               t3,'=============================================')
 !
-  write(mmpout,9000)
-  write(mmpout,9100)
-  write(mmpout,*)
+  write(iof_mmpol,9000)
+  write(iof_mmpol,9100)
+  write(iof_mmpol,*)
   if (ff_type.eq.0) then
     if (ff_rules.eq.0) ffprt = '    AMBER (WangAL)'
     if (ff_rules.eq.1) ffprt = '    AMBER (WangDL)'
@@ -55,14 +56,15 @@ subroutine print_header
   else if (matrix_vector.eq.1) then
     mvalg = '            incore'
   end if
-  write(mmpout,1000) ffprt, lssolv, mvalg, convergence, mm_atoms, pol_atoms
-  write(mmpout,*)
+  write(iof_mmpol,1000) ffprt, lssolv, mvalg, convergence, mm_atoms, pol_atoms
+  write(iof_mmpol,*)
 !
   return
 end subroutine print_header
-!
+
 subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
   use mmpol
+  use mod_io, only : iof_mmpol
   implicit none
   logical,                         intent(in) :: trans
   character    (len=*),            intent(in) :: label
@@ -75,7 +77,7 @@ subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
   1000 format(t3,a)
   1010 format(t3,5i16)
   1020 format(t3,5f16.8)
-  write(mmpout,1000) label
+  write(iof_mmpol,1000) label
   if (trans) then
 !
     nbatch = n/5
@@ -89,20 +91,20 @@ subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
       icol(3) = (i-1)*5 + 3
       icol(4) = (i-1)*5 + 4
       icol(5) = (i-1)*5 + 5
-      write(mmpout,1010) icol(1:5)
+      write(iof_mmpol,1010) icol(1:5)
       do j = 1, m
-        write(mmpout,1020) matrix(icol(1):icol(5),j)
+        write(iof_mmpol,1020) matrix(icol(1):icol(5),j)
       end do
-      write(mmpout,*)
+      write(iof_mmpol,*)
     end do
 !
     if (nres.ne.0) then
       do i = 1, nres
         icol(i) = 5*nbatch + i
       end do
-      write(mmpout,iform) icol(1:nres)
+      write(iof_mmpol,iform) icol(1:nres)
       do j = 1, m
-        write(mmpout,rform) matrix(icol(1):icol(nres),j)
+        write(iof_mmpol,rform) matrix(icol(1):icol(nres),j)
       end do
     end if
 !
@@ -119,28 +121,28 @@ subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
       icol(3) = (i-1)*5 + 3
       icol(4) = (i-1)*5 + 4
       icol(5) = (i-1)*5 + 5
-      write(mmpout,1010) icol(1:5)
+      write(iof_mmpol,1010) icol(1:5)
       do j = 1, n
-        write(mmpout,1020) matrix(j,icol(1):icol(5))
+        write(iof_mmpol,1020) matrix(j,icol(1):icol(5))
       end do
-      write(mmpout,*)
+      write(iof_mmpol,*)
     end do
 !
     if (nres.ne.0) then
       do i = 1, nres
         icol(i) = 5*nbatch + i
       end do
-      write(mmpout,iform) icol(1:nres)
+      write(iof_mmpol,iform) icol(1:nres)
       do j = 1, n
-        write(mmpout,rform) matrix(j,icol(1):icol(nres))
+        write(iof_mmpol,rform) matrix(j,icol(1):icol(nres))
        end do
     end if
   end if
-  return
 end subroutine print_matrix
 !
 subroutine print_int_vec(label,n,ibeg,iend,vec)
   use mmpol
+  use mod_io, only : iof_mmpol
   implicit none
   character    (len=*),      intent(in) :: label
   integer(ip),               intent(in) :: n, ibeg, iend
@@ -155,8 +157,8 @@ subroutine print_int_vec(label,n,ibeg,iend,vec)
   if (ib.eq.0) ib = 1
   if (ie.eq.0) ie = n
 !
-  write(mmpout,1000) label
-  write(mmpout,1010) vec(ib:ie)
+  write(iof_mmpol,1000) label
+  write(iof_mmpol,1010) vec(ib:ie)
   return
 !
 end subroutine print_int_vec

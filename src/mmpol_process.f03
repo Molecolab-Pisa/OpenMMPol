@@ -1,5 +1,6 @@
 subroutine mmpol_process(polar)
   use mmpol
+  use mod_io, only: iof_mmpol
   implicit none
 !
 ! this routine processes the input for mmpol and amoeba calculations.
@@ -416,7 +417,7 @@ subroutine mmpol_process(polar)
 !
   1000 format(t3,'connectivity information for the ',i8,'-th atom:')
     do i = 1, mm_atoms
-      write(mmpout,1000) i
+      write(iof_mmpol, 1000) i
       call print_int_vec('1-2 neighors:',n12(i),0,0,i12(:,i))
       call print_int_vec('1-3 neighors:',n13(i),0,0,i13(:,i))
       call print_int_vec('1-4 neighors:',n14(i),0,0,i14(:,i))
