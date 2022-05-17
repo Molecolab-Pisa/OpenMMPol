@@ -3,12 +3,12 @@
 DEBUG = YES
 USE_INT64 = NO
 #--------------------------------------#
+DOC_DIR = ./doc
 OBJ_DIR = ./obj
 BIN_DIR = ./bin
 LIB_DIR = ./lib
 MOD_DIR = ./mod
 SRC_DIR = ./src
-PYT_DIR = ./python/pyopenmmp/pyopenmmp
 INCLUDE_DIR = ./include
 
 FC = gfortran
@@ -46,8 +46,6 @@ OBJS   = coulomb_kernel.o \
 
 OBJS := $(addprefix $(OBJ_DIR)/, $(OBJS))
 
-PY_SUFFIX = $(shell python3-config --extension-suffix)
-
 all: libraries binaries # python
 
 python: $(PYT_DIR)/pymmpol.so
@@ -55,6 +53,9 @@ python: $(PYT_DIR)/pymmpol.so
 libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
 binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe $(BIN_DIR)/test_c.out
+
+doc: openMMPol.md
+	ford openMMPol.md
 
 $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
@@ -67,25 +68,6 @@ $(LIB_DIR)/mmpolmodules.a: $(OBJS) $(LIB_DIR)
 
 $(LIB_DIR)/libopenmmpol.so: $(OBJS) $(LIB_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -shared -I$(MOD_DIR) -o $@ $(OBJS)
-
-$(PYT_DIR)/pymmpol.so: $(PYT_DIR)/pymmpol$(PY_SUFFIX)
-	ln -s $(shell realpath $<) $@
-
-$(PYT_DIR)/pymmpol$(PY_SUFFIX): $(OBJS) $(LIB_DIR)/mmpolmodules.a
-	echo "{'real': {'rp': 'double'}, 'integer': {'ip': 'long'}}" > .f2py_f2cmap
-	f2py3 -c -lblas -llapack -m pymmpol src/mod_memory.f03 \
-					    src/wrapper.f03 \
-		                            src/mmpol.f03 \
-					    src/mmpol_init.f03 \
-					    lib/mmpolmodules.a \
-					    skip: r_alloc1 r_alloc2 r_alloc3 \
-					          i_alloc1 i_alloc2 i_alloc3 \
-						  r_free1 r_free2 r_free3 \
-						  i_free1 i_free2 i_free3 : \
-					    --fcompiler=gnu95 \
-					    --f90flags="$(FFLAGS)"
-	mv pymmpol$(PY_SUFFIX) $(PYT_DIR)
-	rm .f2py_f2cmap
 
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
@@ -100,8 +82,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.f03 $(OBJ_DIR) $(MOD_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) -I$(MOD_DIR) -J$(MOD_DIR) -c $< -o $@
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(LIB_DIR)
-	rm -rf $(PYT_DIR)/*.so
+	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(LIB_DIR) $(DOC_DIR)
 
 # Explicit dependencies
 $(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mmpol.o

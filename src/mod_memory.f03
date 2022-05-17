@@ -1,4 +1,8 @@
 module mod_memory
+    !! This module is used to handle the memory, the variable
+    !! kinds, the dynamic allocation and the optional soft
+    !! memory limit of the openMMPol library.
+
     use iso_c_binding
     use mod_io, only : iof_memory
 
@@ -10,20 +14,25 @@ module mod_memory
 #else
     integer(kind=c_int32_t), parameter :: ip = c_int32_t
 #endif
-    integer(ip), parameter :: rp = c_double
+    !! Required precision for integer type
+    integer(ip), parameter :: rp = c_double !! Required precision for real type
     
-    integer(ip) :: maxmem ! Max memory that can be allocated in bytes
-    integer(ip) :: usedmem ! Memory that is currently used by the code
-    integer(ip) :: size_of_int ! Number of bytes for an integer
-    integer(ip) :: size_of_real ! Number of bytes for a real
-    logical :: do_chk_limit ! Decide if the soft memory limit is on
+    
+    integer(ip) :: maxmem !! Max memory that can be allocated in bytes
+    integer(ip) :: usedmem !! Memory that is currently used by the code
+    integer(ip) :: size_of_int !! Number of bytes for an integer
+    integer(ip) :: size_of_real !! Number of bytes for a real
+    logical :: do_chk_limit !! Decide if the soft memory limit is on
 
-    public :: rp, ip ! precision for real and integers
+    public :: rp, ip
     public :: mallocate, mfree, print_memory_info, \
               memory_init
     public :: use_8bytes_int 
     
     interface mallocate
+        !! Interface to perform memory allocation within the
+        !! openMMPol library, it can be called for 1,2 and 
+        !! 3-dimensional arrays of either integer or real
         module procedure r_alloc1
         module procedure r_alloc2
         module procedure r_alloc3
@@ -33,6 +42,9 @@ module mod_memory
     end interface mallocate
 
     interface mfree
+        !! Interface to perform memory deallocation within the
+        !! openMMPol library, it can be called for 1,2 and 
+        !! 3-dimensional arrays of either integer or real
         module procedure r_free1
         module procedure r_free2
         module procedure r_free3
@@ -44,6 +56,8 @@ module mod_memory
     contains
 
     function use_8bytes_int() bind(c, name='__use_8bytes_int')
+        !! This function is used to know if the library is
+        !! compiled using integer 8 or 4 bytes long.
         logical(kind=c_bool) :: use_8bytes_int
 
 #ifdef USE_I8
@@ -64,13 +78,14 @@ module mod_memory
     end subroutine print_memory_info
 
     subroutine memory_init(do_chk, max_bytes)
+        !! Routine used to initialize the memory module. It should
+        !! be called during the module initialization.
         implicit none
 
-        ! This control if the memory control should be done
-        logical :: do_chk 
-        integer(ip), intent(in) :: max_bytes
-        integer(ip) :: my_int
-        real(rp) :: my_real
+        logical :: do_chk !! Switch for memory soft limit 
+        integer(ip), intent(in) :: max_bytes !! Amount of memory available in bytes
+        integer(ip) :: my_int !! Integer used only as target for sizeof
+        real(rp) :: my_real !! Real used only as target for sizeof
         intrinsic :: sizeof
 
         do_chk_limit = do_chk
