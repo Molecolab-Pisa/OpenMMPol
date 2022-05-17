@@ -30,12 +30,13 @@ LDLIBS = -lblas -llapack -lgfortran
 
 OBJS   = coulomb_kernel.o \
 	     electrostatics.o \
-	     mmpol.o \
 	     mmpol_init.o \
 	     mmpol_process.o \
+         mod_constants.o \
          mod_interface.o \
          mod_io.o \
          mod_memory.o \
+	     mod_mmpol.o \
 	     elstat.o \
 	     energy.o \
          polar.o \
@@ -85,19 +86,20 @@ clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(LIB_DIR) $(DOC_DIR)
 
 # Explicit dependencies
-$(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mmpol.o
+$(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mod_mmpol.o
 $(OBJ_DIR)/elstat.o:
-$(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/mod_memory.o
-$(OBJ_DIR)/energy.o: $(OBJ_DIR)/mmpol.o
-$(OBJ_DIR)/mmpol.o: $(OBJ_DIR)/mod_memory.o
-$(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mmpol.o 
-$(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/mod_io.o
-$(OBJ_DIR)/mod_interface.o: $(OBJ_DIR)/mmpol.o $(OBJ_DIR)/mod_memory.o
+$(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
+$(OBJ_DIR)/energy.o: $(OBJ_DIR)/mod_mmpol.o
+$(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mod_mmpol.o 
+$(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_io.o
+$(OBJ_DIR)/mod_constants.o: $(OBJ_DIR)/mod_memory.o
+$(OBJ_DIR)/mod_interface.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mod_io.o:
 $(OBJ_DIR)/mod_memory.o: $(OBJ_DIR)/mod_io.o
+$(OBJ_DIR)/mod_mmpol.o: $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_constants.o
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
 $(OBJ_DIR)/polar.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o $(OBJ_DIR)/mod_memory.o
-$(OBJ_DIR)/rotate_multipoles.o: $(OBJ_DIR)/mmpol.o 
+$(OBJ_DIR)/rotate_multipoles.o: $(OBJ_DIR)/mod_mmpol.o 
 $(OBJ_DIR)/solvers.o: $(OBJ_DIR)/mod_memory.o
-$(OBJ_DIR)/utilities.o: $(OBJ_DIR)/mmpol.o
+$(OBJ_DIR)/utilities.o: $(OBJ_DIR)/mod_mmpol.o

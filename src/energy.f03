@@ -1,5 +1,7 @@
 subroutine energy(scr,EMM)
-    use mmpol
+    use mod_mmpol, only: q, v_qq, ef_qd, amoeba, ipd, mm_atoms, pol_atoms
+    use mod_memory, only : ip, rp
+    use mod_constants, only: zero, pt5, two
     implicit none
     !
     ! Compute the total MM interaction energy between static multipole

@@ -1,5 +1,7 @@
 subroutine coulomb_kernel(damp,maxder,x,y,z,thole_i,thole_j,rm1,rm3,rm5,rm7,rm9,rm11)
-  use mmpol
+  use mod_mmpol, only: ff_type
+  use mod_constants, only: zero, one, three, four, nine
+  use mod_memory, only: ip, rp
   implicit none
 !
 ! given in input the cartesian coordinates of a distance vector x, y, z,

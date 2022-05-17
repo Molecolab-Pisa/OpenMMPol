@@ -1,5 +1,5 @@
 program test_amoeba
-  use mmpol
+  use mod_mmpol
   use elstat
   use polar
   implicit none

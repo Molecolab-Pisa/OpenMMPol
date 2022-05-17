@@ -1,5 +1,5 @@
 subroutine electrostatics(isrc,itrg,ider,v,e,dv,de)
-  use mmpol
+  use mod_mmpol, only: mm_atoms, pol_atoms, ld_cart, ld_cder, n_ipd
   use elstat
   use mod_memory, only: ip, rp
   implicit none

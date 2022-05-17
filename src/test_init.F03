@@ -1,5 +1,5 @@
 program test_init
-  use mmpol
+  use mod_mmpol
   use mod_memory, only: print_memory_info
 
   implicit none

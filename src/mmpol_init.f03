@@ -1,8 +1,15 @@
 subroutine mmpol_init
-  use mmpol
+  use mod_mmpol
   use mod_memory, only: ip, rp
   use mod_io, only: iof_mmpinp
+  use mod_constants, only: zero, ten, thres
   implicit none
+!     revision control: parameter used to check the consistency between the code
+!     and the version of qmip used to generate the input file.
+!
+    integer(ip), parameter   :: revision = 1
+    !! 
+        
 !
 ! read the input for the mmpol calculation and process it.
 !

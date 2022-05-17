@@ -2,7 +2,8 @@
 ! various utilities for mmpol.
 !
 subroutine print_header
-  use mmpol
+  use mod_mmpol, only: convergence, ff_rules, ff_type, matrix_vector
+  use mod_mmpol, only: mm_atoms, pol_atoms, solver
   use mod_io, only : iof_mmpol
   implicit none
 !
@@ -63,7 +64,8 @@ subroutine print_header
 end subroutine print_header
 
 subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
-  use mmpol
+  !use mmpol
+  use mod_memory, only: ip, rp
   use mod_io, only : iof_mmpol
   implicit none
   logical,                         intent(in) :: trans
@@ -141,7 +143,8 @@ subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
 end subroutine print_matrix
 !
 subroutine print_int_vec(label,n,ibeg,iend,vec)
-  use mmpol
+  !use mmpol
+  use mod_memory, only: ip, rp
   use mod_io, only : iof_mmpol
   implicit none
   character    (len=*),      intent(in) :: label
@@ -164,7 +167,8 @@ subroutine print_int_vec(label,n,ibeg,iend,vec)
 end subroutine print_int_vec
 !
 subroutine ihsort(remove_duplicates,n,a)
-  use mmpol
+  !use mmpol
+  use mod_memory, only: ip, rp
 !
 ! sort an integer array, possibly removing duplicate entries.
 ! mostly taken from numerical recipes in fortran 77.

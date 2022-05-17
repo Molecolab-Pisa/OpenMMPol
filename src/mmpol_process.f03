@@ -1,6 +1,7 @@
 subroutine mmpol_process(polar)
-  use mmpol
+  use mod_mmpol
   use mod_io, only: iof_mmpol
+  use mod_constants, only: zero, one, three, six, thres 
   implicit none
 !
 ! this routine processes the input for mmpol and amoeba calculations.

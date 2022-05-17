@@ -1,7 +1,7 @@
 ! Wrapper function for open-mmpol library
 module mod_interface
     use iso_c_binding
-    use mmpol
+    use mod_mmpol
     use mod_memory, only: ip, rp
 
     implicit none
@@ -108,10 +108,10 @@ module mod_interface
             implicit none
   
             ! Initialize variables
-            v_qq   = Zero
-            ef_qd  = Zero
-            dv_qq  = Zero
-            def_qd = Zero
+            v_qq   = 0.0_rp
+            ef_qd  = 0.0_rp
+            dv_qq  = 0.0_rp
+            def_qd = 0.0_rp
     
             call electrostatics(0_ip,0_ip,0_ip,v_qq,ef_qd,dv_qq,def_qd)
             call electrostatics(0_ip,1_ip,0_ip,v_qq,ef_qd,dv_qq,def_qd)
@@ -135,7 +135,7 @@ module mod_interface
             !call print_matrix(.true.,'EQM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,1))) 
             !call print_matrix(.true.,'EQM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,2)))
             ! Initialize variables
-            ipd = Zero
+            ipd = 0.0_rp 
 
             ! Compute polarization
             nmax = 200
@@ -148,11 +148,11 @@ module mod_interface
         subroutine restart() bind(c, name='restart')
             implicit none
 
-            v_qq   = Zero
-            ef_qd  = Zero
-            dv_qq  = Zero
-            def_qd = Zero
-            ipd    = Zero
+            v_qq   = 0.0_rp 
+            ef_qd  = 0.0_rp
+            dv_qq  = 0.0_rp
+            def_qd = 0.0_rp
+            ipd    = 0.0_rp
 
         end subroutine
 
