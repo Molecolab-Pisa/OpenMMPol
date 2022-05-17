@@ -5,3 +5,4 @@
 *.mod
 *.exe
 **/__pycache__
+doc/*
