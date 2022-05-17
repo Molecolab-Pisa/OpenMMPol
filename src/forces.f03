@@ -45,7 +45,7 @@ if (itrg.eq.0) then       ! Calculate forces at MM sites
             call rotate_multipoles(.true.,dv_qq,ff_torq_qq)
         end if
         !
-        if (verbose.ge.4) then
+        if (verbose >= 2) then
             call print_matrix(.true.,'q E(MM) (force from MM at MM) ',mm_atoms,3,mm_atoms,3,transpose(ff_qq))
             call print_matrix(.true.,'qE(MM) Trq (Torque forces MM multipoles): ',mm_atoms,3,mm_atoms,3,transpose(ff_torq_qq))
         end if
@@ -66,7 +66,7 @@ if (itrg.eq.0) then       ! Calculate forces at MM sites
         !
         ! Add torque forces to the multipole forces
         !
-        if (verbose.ge.4) then
+        if (verbose >= 2) then
             call print_matrix(.true.,'q E(mu) (force from ipd at MM) ',mm_atoms,3,mm_atoms,3,transpose(ff_dq))
             call print_matrix(.true.,'q E(mu) Trq (Torque forces from ipd): ',mm_atoms,3,mm_atoms,3,transpose(ff_torq_dq))
         end if
@@ -81,7 +81,7 @@ elseif (itrg.eq.1) then       ! Calculate forces at ipd
         !
         call forces_DD(def_qd,ff_qd) 
         !
-        if (verbose.ge.4) then
+        if (verbose >= 2) then
             call print_matrix(.true.,'mu G(MM) (force from MM at ipd) ',pol_atoms,3,pol_atoms,3,transpose(ff_qd))
         end if
         !
@@ -89,7 +89,7 @@ elseif (itrg.eq.1) then       ! Calculate forces at ipd
         !
         call forces_DD(def_dd,ff_dd)
         !
-        if (verbose.ge.4) then
+        if (verbose >= 2) then
             call print_matrix(.true.,'mu G(MM) (force from ipd at ipd) ',pol_atoms,3,pol_atoms,3,transpose(ff_dd))
         end if
         !

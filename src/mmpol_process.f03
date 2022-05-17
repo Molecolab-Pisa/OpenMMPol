@@ -405,7 +405,7 @@ subroutine mmpol_process(polar)
 !
 ! if required, print all the relevant information:
 !
-  if (verbose.ge.4) then
+  if (verbose >= 2) then
     call print_matrix(.true.,'coordinates:',3,mm_atoms,3,mm_atoms,cmm)
     if (amoeba) call print_matrix(.true.,'multipoles - non rotated:',ld_cart,mm_atoms,ld_cart,mm_atoms,q0)
     call print_matrix(.true.,'multipoles :',ld_cart,mm_atoms,ld_cart,mm_atoms,q)

@@ -16,7 +16,7 @@ subroutine mmpol_init_from_mmp(input_file)
     integer(ip) :: input_revision, iconv
     integer(ip) :: maxcor, nproc
     integer(ip) :: my_mm_atoms, my_pol_atoms, my_ff_type, my_ff_rules
-    integer(ip) :: my_ld_cart
+    integer(ip) :: my_ld_cart, verbosity
     
     integer(ip) :: i
     
@@ -38,7 +38,7 @@ subroutine mmpol_init_from_mmp(input_file)
     
     call memory_init(.true., maxcor*1024*1024*1024/8)
     
-    read(iof_mmpinp,*) verbose
+    read(iof_mmpinp,*) verbosity
     read(iof_mmpinp,*) my_ff_type
     read(iof_mmpinp,*) my_ff_rules
     read(iof_mmpinp,*) solver
@@ -60,8 +60,7 @@ subroutine mmpol_init_from_mmp(input_file)
     call mallocate('mmpol_init_from_mmp [my_group]', my_mm_atoms, my_group)
     call mallocate('mmpol_init_from_mmp [my_q]', my_ld_cart, my_mm_atoms, my_q)
     call mallocate('mmpol_init_from_mmp [my_pol]', my_mm_atoms, my_pol)
-    
-    
+   
     ! coordinates:
     do i = 1, my_mm_atoms
         read(iof_mmpinp,*) my_cmm(1:3,i)
@@ -90,6 +89,7 @@ subroutine mmpol_init_from_mmp(input_file)
     end do
     
     call mmpol_init(my_ff_type, my_ff_rules, my_pol_atoms, my_mm_atoms)
+    call set_verbosity(verbosity)
     cmm = my_cmm
     group = my_group
     q = my_q

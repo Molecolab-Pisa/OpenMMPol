@@ -22,7 +22,7 @@ module mod_mmpol
     !! maximum number of neighbors to consider for building 
     !! the Wang-Skeel preconditioner
     
-    integer(ip) :: verbose
+    integer(ip), protected :: verbose = 0_ip
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
     ! TODO adapt to this convention!!
@@ -178,6 +178,19 @@ module mod_mmpol
     !! array to store the thole factors for computing damping functions
     
     contains
+
+    subroutine set_verbosity(v)
+        integer(ip), intent(in) :: v
+
+        if( v < 0 ) then
+            verbose = 0_ip
+        else if( v > 3 ) then 
+            verbose = 3_ip
+        else
+            verbose = v
+        end if
+
+    end subroutine set_verbosity
 
     subroutine mmpol_init(l_ff_type, l_ff_rules, l_mm_atoms, l_pol_atoms)
         !! Performs all the memory allocation and vector initialization

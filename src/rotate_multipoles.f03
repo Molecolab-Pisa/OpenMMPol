@@ -37,7 +37,7 @@ subroutine rotate_multipoles(doder,def,fx)
 !
 !     (very verbose) debug printing:
 !
-      if (verbose.ge.8) then
+      if(verbose == 3) then
         do i = 1, 3
           call print_matrix(.false.,'dri:',3,3,3,3,dri(:,:,i))
         end do
@@ -281,7 +281,7 @@ subroutine rotate_multipoles(doder,def,fx)
 !
 !     (very verbose) output:
 !
-      if (verbose.gt.8) call print_matrix(.false.,'ri:',3,3,3,3,r)
+      if (verbose == 3) call print_matrix(.false.,'ri:',3,3,3,3,r)
       rt = transpose(r)
 !
 !     copy the monopole:
@@ -661,7 +661,7 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !
 ! (very verbose) debug printing:
 !
-  if (verbose.gt.10) then
+  if(verbose == 3) then
     call print_matrix(.false.,'ez_u',3,3,3,3,ez_u)
     call print_matrix(.false.,'u_ri',3,3,3,3,u_ri)
     call print_matrix(.false.,'u_riz',3,3,3,3,u_riz)
