@@ -54,12 +54,6 @@ module mod_mmpol
     real(rp) :: ws_shift
     !! diagonal shift parameter for the Wang-Skeel preconditioner (default: 1.0 for AMBER, 2.0 for AMOEBA).
     
-    integer(ip) :: len_inname
-    !! length of input file name
-    
-    character(len=120) :: input_file
-    !! name of the input file
-    
     logical :: amoeba
     
     integer(ip) :: mm_atoms !! number of MM atoms

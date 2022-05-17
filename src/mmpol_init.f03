@@ -1,29 +1,28 @@
-subroutine mmpol_init
-  use mod_mmpol
-  use mod_memory, only: ip, rp
-  use mod_io, only: iof_mmpinp
-  use mod_constants, only: zero, ten, thres
-  implicit none
-!     revision control: parameter used to check the consistency between the code
-!     and the version of qmip used to generate the input file.
-!
-    integer(ip), parameter   :: revision = 1
-    !! 
+subroutine mmpol_init(input_file)
+    use mod_mmpol
+    use mod_memory, only: ip, rp
+    use mod_io, only: iof_mmpinp
+    use mod_constants, only: zero, ten, thres
+
+    implicit none
+    character(len=*), intent(in) :: input_file
+    !! name of the input file
+
+    integer(ip), parameter :: revision = 1
+    !! mmpol file revision expected from the code
+    ! TODO
         
-!
-! read the input for the mmpol calculation and process it.
-!
-  integer(ip)              :: input_revision, iconv, i, j
-  integer(ip) :: maxcor, nproc
-!
-! integer(ip), allocatable :: 
-  real(rp),    allocatable :: polar(:)
-!
-!
-! open the (formatted) input file and the (binary) internal scratch file:
-!
-  len_inname = len(trim(input_file))
-  open (unit=iof_mmpinp, file=input_file(1:len_inname),form='formatted',access='sequential')
+    ! read the input for the mmpol calculation and process it.
+    integer(ip) :: input_revision, iconv, i, j
+    integer(ip) :: maxcor, nproc
+    
+    real(rp), allocatable :: polar(:)
+    
+    ! open the (formatted) input file
+    open (unit=iof_mmpinp, &
+          file=input_file(1:len(trim(input_file))), &
+          form='formatted', &
+          access='sequential')
 !
 ! start reading the integer control parameters:
 !

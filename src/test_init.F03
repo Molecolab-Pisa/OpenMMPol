@@ -13,7 +13,6 @@ program test_init
      write(6, *) "   $ test_init.exe input_file.mmp"
   else
     call get_command_argument(1, args(1))
-    input_file = trim(args(1))
-    call mmpol_init()
+    call mmpol_init(trim(args(1)))
   end if
 end program test_init

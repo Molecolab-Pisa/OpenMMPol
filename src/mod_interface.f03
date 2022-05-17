@@ -96,9 +96,11 @@ module mod_interface
         subroutine w_mmpol_init(filename) bind(c, name='w_mmpol_init')
             implicit none
             character(kind=c_char), intent(in) :: filename(120)
+            
+            character(len=120) :: input_file
 
             call c2f_string(filename, input_file)
-            call mmpol_init()
+            call mmpol_init(input_file)
         end subroutine 
 
         subroutine do_mm() bind(c, name='do_mm') 
