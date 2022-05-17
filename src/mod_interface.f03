@@ -90,6 +90,10 @@ module mod_interface
                 i = i + 1
             end do
 
+            do i = i, len(f_str)
+                f_str(i:i) = ' '
+            end do
+
             f_str = trim(f_str)
         end subroutine c2f_string
         
@@ -100,7 +104,7 @@ module mod_interface
             character(len=120) :: input_file
 
             call c2f_string(filename, input_file)
-            call mmpol_init(input_file)
+            call mmpol_init_from_mmp(input_file)
         end subroutine 
 
         subroutine do_mm() bind(c, name='do_mm') 

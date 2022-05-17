@@ -1,6 +1,6 @@
 program test_init
   use mod_mmpol
-  use mod_memory, only: print_memory_info
+  use mod_memory, only: print_memory_info, memory_init
 
   implicit none
   character (len=120), dimension(2) :: args
@@ -13,6 +13,6 @@ program test_init
      write(6, *) "   $ test_init.exe input_file.mmp"
   else
     call get_command_argument(1, args(1))
-    call mmpol_init(trim(args(1)))
+    call mmpol_init_from_mmp(trim(args(1)))
   end if
 end program test_init

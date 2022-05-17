@@ -10,7 +10,7 @@ program test_amoeba
      write(6, *) "   $ test_amoeba.exe input_file.mmp"
   else 
     call get_command_argument(1, args(1))
-    call mmpol_init(trim(args(1)))
+    call mmpol_init_from_mmp(trim(args(1)))
   end if
 !
   

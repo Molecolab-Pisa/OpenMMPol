@@ -25,7 +25,7 @@ module mod_memory
     logical :: do_chk_limit !! Decide if the soft memory limit is on
 
     public :: rp, ip
-    public :: mallocate, mfree, print_memory_info, \
+    public :: mallocate, mfree, print_memory_info, & 
               memory_init
     public :: use_8bytes_int 
     

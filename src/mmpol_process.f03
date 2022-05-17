@@ -1,5 +1,6 @@
 subroutine mmpol_process(polar)
   use mod_mmpol
+  use mod_memory, only: mallocate
   use mod_io, only: iof_mmpol
   use mod_constants, only: zero, one, three, six, thres 
   implicit none
