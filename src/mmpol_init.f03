@@ -1,15 +1,15 @@
 subroutine mmpol_init_from_mmp(input_file)
     use mod_mmpol, only: mmpol_init, cmm, group, &
-                         q, pol, i12, ip11
+                         q, q0, pol, i12, ip11
     use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
                          ff_type, amoeba, solver, &
                          matrix_vector, convergence, &
-                         maxpgp, maxn12
+                         maxpgp, maxn12, polar_mm
     use mod_mmpol, only: mol_frame, iz, ix, iy
-    use mod_mmpol, only: fatal_error, set_verbosity
+    use mod_mmpol, only: fatal_error, set_verbosity, mmpol_prepare
     use mod_memory, only: ip, rp, mfree, mallocate, memory_init
     use mod_io, only: iof_mmpinp
-    use mod_constants, only: zero, ten, thres
+    use mod_constants, only: zero, ten, thres, angstrom2au
 
     implicit none
 
@@ -26,10 +26,10 @@ subroutine mmpol_init_from_mmp(input_file)
     integer(ip) :: my_mm_atoms, my_pol_atoms, my_ff_type, my_ff_rules
     integer(ip) :: my_ld_cart, verbosity
     
-    integer(ip) :: i
+    integer(ip) :: i, j
     
     real(rp), allocatable :: my_pol(:), my_cmm(:,:), my_q(:,:)
-    integer(ip), allocatable :: my_group(:)
+    integer(ip), allocatable :: my_group(:), pol_atoms_list(:)
     
     ! open the (formatted) input file
     open (unit=iof_mmpinp, &
@@ -67,6 +67,7 @@ subroutine mmpol_init_from_mmp(input_file)
     call mallocate('mmpol_init_from_mmp [my_group]', my_mm_atoms, my_group)
     call mallocate('mmpol_init_from_mmp [my_q]', my_ld_cart, my_mm_atoms, my_q)
     call mallocate('mmpol_init_from_mmp [my_pol]', my_mm_atoms, my_pol)
+    call mallocate('mmpol_init_from_mmp [my_pol_atoms]', my_mm_atoms, pol_atoms_list)
    
     ! coordinates:
     do i = 1, my_mm_atoms
@@ -91,22 +92,38 @@ subroutine mmpol_init_from_mmp(input_file)
 
     ! count how many atoms are polarizable:
     my_pol_atoms = 0
+    pol_atoms_list(:) = 0
     do i = 1, my_mm_atoms
-        if (my_pol(i).gt.thres) my_pol_atoms = my_pol_atoms + 1
+        if (my_pol(i) > thres) then
+            my_pol_atoms = my_pol_atoms + 1
+            pol_atoms_list(my_pol_atoms) = i
+        end if
+    end do
+    
+    ! remove null polarizabilities from the list
+    do i = 1, my_pol_atoms
+        my_pol(i) = my_pol(pol_atoms_list(i))
     end do
     
     ! mmpol module initialization
     call mmpol_init(my_ff_type, my_ff_rules, my_pol_atoms, my_mm_atoms)
     call set_verbosity(verbosity)
     
-    cmm = my_cmm
+    ! Copy data in the correct units (this means AU)
+    cmm = my_cmm * angstrom2au
     group = my_group
     q = my_q
-    pol = my_pol(:pol_atoms)
+    if(amoeba) then
+        my_pol = my_pol*angstrom2au**3
+    end if
+    pol = my_pol
+    polar_mm = pol_atoms_list
+
     
     call mfree('mmpol_init_from_mmp [my_cmm]', my_cmm)
     call mfree('mmpol_init_from_mmp [my_group]', my_group)
     call mfree('mmpol_init_from_mmp [my_q]', my_q)
+    call mfree('mmpol_init_from_mmp [pol]', my_pol)
     
     call print_header()
 
@@ -114,7 +131,7 @@ subroutine mmpol_init_from_mmp(input_file)
     do i = 1, mm_atoms
         read(iof_mmpinp,*) i12(1:maxn12,i)
     end do
-    
+     
     if(amoeba) then
         ! group 11 connectivity:
         ! (to be replaced with polarization group)
@@ -130,8 +147,8 @@ subroutine mmpol_init_from_mmp(input_file)
     end if
     ! now, process the input, create all the required arrays 
     ! and the correspondence lists:
-  
-    call mmpol_process(my_pol)
-    call mfree('mmpol_init_from_mmp [pol]', my_pol)
+ 
+    call mmpol_prepare()
+    call mmpol_process()
 
 end subroutine mmpol_init_from_mmp

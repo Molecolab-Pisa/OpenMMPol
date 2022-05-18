@@ -1,4 +1,4 @@
-subroutine mmpol_process(polar)
+subroutine mmpol_process()
   use mod_mmpol
   use mod_memory, only: mallocate
   use mod_io, only: iof_mmpol
@@ -23,52 +23,12 @@ subroutine mmpol_process(polar)
 !
 ! 5) for amoeba, rotate the multipoles to the lab frame.
 !
-  real(rp), dimension(mm_atoms), intent(inout) :: polar
-!
   logical                 :: bad_neigh
   integer(ip)             :: i, ii, ij, j, k, l, neigh
   integer(ip)             :: nkeep, nlist
   real(rp)                :: third, tobohr, tobohr3, fa, fexp, xx(3)
   integer(ip),    allocatable :: mask(:), keep(:), list(:)
-  real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
-!
-! set the exclusion rules:
-!
-!
-  third   = one/three
-  tobohr  = angstrom2au
-  tobohr3 = tobohr**3
-!
-! 1) fix the units:
-!
-  cmm = cmm*tobohr
-  if (amoeba) then
-    polar = polar*tobohr3
-    q0    = q
-    do i = 1, mm_atoms
-      do j = 5, 10
-        q0(j,i) = third*q0(j,i)
-      end do
-    end do
-  end if
-!
-! 2) create the compressed polarizability array and correspondence lists:
-!
-  ii = 0
-  mm_polar = 0
-  polar_mm = 0
-!
-  do i = 1, mm_atoms
-    if (polar(i).gt.thres) then
-      ii = ii + 1
-      pol(ii)    = polar(i)
-      mm_polar(i)  = ii
-      polar_mm(ii) = i
-      cpol(1,ii)   = cmm(1,i)
-      cpol(2,ii)   = cmm(2,i)
-      cpol(3,ii)   = cmm(3,i)
-    end if
-  end do
+
 !
 ! 3) build the connectivity lists:
 !
@@ -377,25 +337,6 @@ subroutine mmpol_process(polar)
     end do
   end if
 !
-! precompute factors for thole's damping:
-!
-  call mallocate('mmpol_process [thole]',mm_atoms,thole)
-  thole = zero
-  fexp  = one/six
-  if (ff_type.eq.0 .and. ff_rules.eq.0) then
-    fa = sqrt(a_wal)
-  else if (ff_type.eq.0 .and. ff_rules.eq.1) then
-    fa = sqrt(a_wdl)
-  end if
-  do ij = 1, pol_atoms
-    i = polar_mm(ij)
-    if (amoeba) then
-      thole(i) = pol(ij)**fexp
-    else 
-      thole(i) = fa*(pol(ij)**fexp)
-    end if
-  end do
-!
 ! if required, rotate the multipoles:
 !
   if (amoeba) then
@@ -409,7 +350,7 @@ subroutine mmpol_process(polar)
     if (amoeba) call print_matrix(.true.,'multipoles - non rotated:',ld_cart,mm_atoms,ld_cart,mm_atoms,q0)
     call print_matrix(.true.,'multipoles :',ld_cart,mm_atoms,ld_cart,mm_atoms,q)
     call print_matrix(.true.,'coordinates of polarizable atoms:',3,pol_atoms,3,pol_atoms,cpol)
-    call print_matrix(.false.,'polarizabilities:',mm_atoms,1,mm_atoms,1,polar)
+    call print_matrix(.false.,'polarizabilities:',mm_atoms,1,mm_atoms,1,pol)
     call print_matrix(.false.,'thole factors:',mm_atoms,1,mm_atoms,1,thole)
     call print_int_vec('mm_polar list:',mm_atoms,0,0,mm_polar)
     call print_int_vec('polar_mm list:',pol_atoms,0,0,polar_mm)

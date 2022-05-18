@@ -246,6 +246,7 @@ module mod_mmpol
         call mallocate('mmpol_init [cpol]', 3_ip, pol_atoms, cpol)
         call mallocate('mmpol_init [polar_mm]', pol_atoms, polar_mm)
         call mallocate('mmpol_init [mm_polar]', mm_atoms, mm_polar)
+        call mallocate('mmpol_init [thole]', mm_atoms, thole)
         call mallocate('mmpol_init [idp]', 3_ip, pol_atoms, n_ipd, ipd) 
         ipd = 0.0_rp
 
@@ -288,6 +289,56 @@ module mod_mmpol
       
     end subroutine mmpol_init
 
+    subroutine mmpol_prepare()
+        !! Compute some derived quantities from the input that 
+        !! are used during the calculation. The upstream code have
+        !! to provide cmm, ... TODO.
+        !! This routine 
+        !!   * compute connectivity lists from connected atoms
+        !!   * invert polar_mm list creating mm_polar
+        !!   * populate cpol list of coordinates
+        !!   * compute factors for thole damping 
+        !!   * scales by 1/3 AMOEBA quadrupoles (?)
+        !!   * TODO pol groups?
+        !!   * performs multipoles rotation
+        
+        implicit none
+
+        integer(ip) :: i
+
+        ! compute connectivity lists from connected atoms
+        
+        ! invert mm_polar list creating mm_polar
+        mm_polar(:) = 0
+        do i = 1, pol_atoms
+            mm_polar(polar_mm(i)) = i
+        end do
+
+        ! populate cpol list of coordinates
+        do i = 1, pol_atoms
+            cpol(:,i) = cmm(:, polar_mm(i))
+        end do
+
+        ! compute factors for thole damping
+        call thole_init()
+
+        if(amoeba) then
+            ! Copy multipoles from q to q0
+            q0 = q
+
+            ! scales by 1/3 AMOEBA quadrupoles (?)
+            ! Mysterious division of multipoles by three
+            ! FL told me that it was done like that in
+            ! Tinker
+            q0(5:10,:) = q0(5:10,:) / 3.0_rp
+
+            ! pol groups?
+
+            ! performs multipoles rotation
+        end if
+
+    end subroutine mmpol_prepare
+
     subroutine mmpol_terminate()
         !! Performs all the deallocation needed at the end of the 
         !! calculation
@@ -306,6 +357,7 @@ module mod_mmpol
         call mfree('mmpol_terminate [cpol]', cpol)
         call mfree('mmpol_terminate [polar_mm]', polar_mm)
         call mfree('mmpol_terminate [mm_polar]', mm_polar)
+        call mfree('mmpol_terminate [thole]', thole)
         call mfree('mmpol_terminate [idp]', ipd) 
         call mfree('mmpol_terminate [v_qq]', v_qq)
         call mfree('mmpol_terminate [ef_qd]', ef_qd)
@@ -351,6 +403,30 @@ module mod_mmpol
         write(6, '(t3,a)') message
         stop '   error termination for open_mmpol.'
     end subroutine fatal_error
+
+    subroutine thole_init()
+        ! This routine compute the thole factors and stores
+        ! them in a vector. TODO add reference
+        use mod_constants, only: a_wal, a_wdl
+        
+        implicit none
+        
+        integer(ip) :: i, j
+        
+        thole = 0.0_rp
+        
+        do i = 1, pol_atoms
+            j = polar_mm(i)
+            thole(j) = pol(i) ** (1.0_rp/6.0_rp)
+        end do
+        
+        if(.not. amoeba) then
+            if(ff_rules == 0) &
+                thole = thole * sqrt(a_wal)
+            if(ff_rules == 1) &
+                thole = thole * sqrt(a_wdl)
+        end if
+    end subroutine thole_init
 
     subroutine set_screening_parameters()
         !! Subroutine to initialize the screening parameters
