@@ -34,7 +34,6 @@ subroutine mmpol_process(polar)
 !
 ! set the exclusion rules:
 !
-  call set_screening_parameters
 !
   third   = one/three
   tobohr  = angstrom2au

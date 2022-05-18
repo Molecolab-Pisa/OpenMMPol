@@ -212,6 +212,7 @@ module mod_mmpol
         integer(ip), intent(in) :: l_pol_atoms
         !! Number of polarizable atoms used in initialization
         
+        ! FF related settings
         ff_type = l_ff_type
         ff_rules = l_ff_rules
         mm_atoms = l_mm_atoms
@@ -228,7 +229,10 @@ module mod_mmpol
             ld_cder = 3_ip
             n_ipd = 1_ip
         end if
+  
+        call set_screening_parameters
         
+        ! Memory allocation
         call mallocate('mmpol_init [cmm]', 3_ip, mm_atoms, cmm)
         call mallocate('mmpol_init [q]', ld_cart, mm_atoms, q)
         call mallocate('mmpol_init [n12]', mm_atoms, n12)
