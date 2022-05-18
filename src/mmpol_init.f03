@@ -1,10 +1,18 @@
 subroutine mmpol_init_from_mmp(input_file)
-    use mod_mmpol
+    use mod_mmpol, only: mmpol_init, cmm, group, &
+                         q, pol, i12, ip11
+    use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
+                         ff_type, amoeba, solver, &
+                         matrix_vector, convergence, &
+                         maxpgp, maxn12
+    use mod_mmpol, only: mol_frame, iz, ix, iy
+    use mod_mmpol, only: fatal_error, set_verbosity
     use mod_memory, only: ip, rp, mfree, mallocate, memory_init
     use mod_io, only: iof_mmpinp
     use mod_constants, only: zero, ten, thres
 
     implicit none
+
     character(len=*), intent(in) :: input_file
     !! name of the input file
 
@@ -49,7 +57,6 @@ subroutine mmpol_init_from_mmp(input_file)
     ! decode a few scalar parameters:
     convergence = ten**(-iconv)
 
-    ! TODO improve this part
     if(my_ff_type == 1) then
         my_ld_cart = 10
     else
@@ -88,8 +95,10 @@ subroutine mmpol_init_from_mmp(input_file)
         if (my_pol(i).gt.thres) my_pol_atoms = my_pol_atoms + 1
     end do
     
+    ! mmpol module initialization
     call mmpol_init(my_ff_type, my_ff_rules, my_pol_atoms, my_mm_atoms)
     call set_verbosity(verbosity)
+    
     cmm = my_cmm
     group = my_group
     q = my_q
