@@ -4,9 +4,10 @@ subroutine mmpol_init_from_mmp(input_file)
     use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
                          ff_type, amoeba, solver, &
                          matrix_vector, convergence, &
-                         maxpgp, maxn12, polar_mm
+                         maxpgp, maxn12, polar_mm, verbose
     use mod_mmpol, only: mol_frame, iz, ix, iy
     use mod_mmpol, only: fatal_error, set_verbosity, mmpol_prepare
+    use mod_mmpol, only: mmpol_print_summary
     use mod_memory, only: ip, rp, mfree, mallocate, memory_init
     use mod_io, only: iof_mmpinp
     use mod_constants, only: zero, ten, thres, angstrom2au
@@ -149,6 +150,7 @@ subroutine mmpol_init_from_mmp(input_file)
     ! and the correspondence lists:
  
     call mmpol_prepare()
-    call mmpol_process()
+
+    if(verbose == 3) call mmpol_print_summary()
 
 end subroutine mmpol_init_from_mmp

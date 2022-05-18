@@ -31,7 +31,6 @@ LDLIBS = -lblas -llapack -lgfortran
 OBJS   = coulomb_kernel.o \
 	     electrostatics.o \
 	     mmpol_init.o \
-	     mmpol_process.o \
          mod_constants.o \
          mod_interface.o \
          mod_io.o \
@@ -91,7 +90,6 @@ $(OBJ_DIR)/elstat.o:
 $(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/energy.o: $(OBJ_DIR)/mod_mmpol.o
 $(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o 
-$(OBJ_DIR)/mmpol_process.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_io.o
 $(OBJ_DIR)/mod_constants.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mod_interface.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mod_io.o:

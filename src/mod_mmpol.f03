@@ -334,7 +334,8 @@ module mod_mmpol
             ! Tinker
             q0(5:10,:) = q0(5:10,:) / 3.0_rp
 
-            ! pol groups?
+            ! pol groups connectivity list
+            call pg_connectivity_list_init()
 
             ! performs multipoles rotation
             call rotate_multipoles(.false.,xx,xx)
@@ -435,20 +436,15 @@ module mod_mmpol
         !! Subroutine to initialize the connectivity lists.
         !! Basically it starts from a list of atoms that are
         !! connected () and it computes list of atoms that are
-        !! n-bonds away. n=2,3,4
+        !! n-bonds away. n=2,3,4,(5 - only for amoeba)
         
         implicit none
 
         integer(ip) :: i, j, k, l, ij, neigh
         logical :: bad_neigh
 
-        n12 = 0
-        n13 = 0
-        i13 = 0
-        n14 = 0
-        i14 = 0
-        
         ! n12:
+        n12 = 0
         do i = 1, mm_atoms
             do j = 1, maxn12
                 if(i12(j,i).ne.0) n12(i) = n12(i) + 1
@@ -458,6 +454,9 @@ module mod_mmpol
         end do
 
         ! n13, i13:
+        n13 = 0
+        i13 = 0
+        
         do i = 1, mm_atoms
             do j = 1, n12(i)
                 ij = i12(j,i)
@@ -480,6 +479,9 @@ module mod_mmpol
         end do
     
         ! n14, i14:
+        n14 = 0
+        i14 = 0
+        
         do i = 1, mm_atoms
             do j = 1, n13(i)
                 ij = i13(j,i)
@@ -504,8 +506,227 @@ module mod_mmpol
             ! sort i14 and remove duplicates:
             call ihsort(.true.,n14(i),i14(:,i))
         end do
+
+        if(amoeba) then
+            ! For amoeba also the 1,5 connectivity is needed
+            n15 = 0
+            i15 = 0
+
+            do i = 1, mm_atoms
+                do j = 1, n14(i)
+                    ij = i14(j,i)
+                    do k = 1, n12(ij)
+                        neigh = i12(k,ij)
+                        ! check that neigh is actually a 1-5 neighbor:
+                        bad_neigh = .false.
+                        if (neigh.eq.i) bad_neigh = .true.
+                        do l = 1, n12(i)
+                            if (neigh.eq.i12(l,i)) bad_neigh = .true.
+                        end do
+                        do l = 1, n13(i)
+                            if (neigh.eq.i13(l,i)) bad_neigh = .true.
+                        end do
+                        do l = 1, n14(i)
+                            if (neigh.eq.i14(l,i)) bad_neigh = .true.
+                        end do
+                        if (.not. bad_neigh) then
+                            n15(i) = n15(i) + 1
+                            i15(n15(i),i) = neigh
+                        end if
+                     end do
+                 end do
+                 ! sort i15 and remove duplicates:
+                 call ihsort(.true.,n15(i),i15(:,i))
+            end do
+        end if
     end subroutine connectivity_list_init
 
+    subroutine pg_connectivity_list_init()
+        !! TODO Insert the documentation for this function
+
+        use mod_memory, only: mallocate, mfree
+       
+        implicit none
+
+        integer(ip) :: i, j, k, l, ij, nlist, nkeep
+        integer(ip), allocatable :: mask(:), keep(:), list(:)
+
+        call mallocate('pg_connectivity_list_init [mask]', mm_atoms, mask)
+        call mallocate('pg_connectivity_list_init [keep]',120_ip, keep)
+        call mallocate('pg_connectivity_list_init [list]',1000_ip, list)
+        
+        mask(:) = 0_ip
+        keep(:) = 0_ip
+        list(:) = 0_ip
+        
+        ! np11:
+        np11 = 0
+        do i = 1, mm_atoms
+            do j = 1, maxpgp
+                if (ip11(j,i).ne.0) np11(i) = np11(i) + 1
+            end do
+            ! sort ip11 and remove duplicates:
+            call ihsort(.true.,np11(i),ip11(:,i))
+        end do
+
+        ! np12, ip12:
+        np12 = 0
+        ip12 = 0
+        
+        do i = 1, mm_atoms
+            ! create a mask to record what atoms belong 
+            ! to the same polarization group as the i-th:
+            do j = 1, np11(i)
+                ij = ip11(j,i)
+                mask(ij) = i
+            end do
+
+            ! now scan the 1-2 neighbors of the atoms in the 
+            ! same group and check whether they also belong 
+            ! to the same group. if not, keep them:
+
+            nkeep = 0
+            nlist = 0
+
+            do j = 1, np11(i)
+                ij = ip11(j,i)
+                do k = 1, n12(ij)
+                    l = i12(k,ij)
+                    if (mask(l).ne.i) then
+                        nkeep       = nkeep + 1
+                        keep(nkeep) = l 
+                    end if
+                end do
+            end do
+
+            ! now, for each kept element, add to a temporary 
+            ! list all the atoms belonging to the same polarization 
+            ! group:
+
+            do j = 1, nkeep
+                ij = keep(j)
+                do k = 1, np11(ij)
+                    l           = ip11(k,ij)
+                    nlist       = nlist + 1
+                    list(nlist) = l
+                end do
+            end do
+
+            ! sort the list and get rid of the duplicates:
+            call ihsort(.true.,nlist,list)
+
+            ! if there are too many atoms in the list, 
+            ! abort the calculation:
+
+            if (nlist.gt.maxpgp) then
+                call fatal_error('too many atoms in 1-2 polarization group.')
+            else
+                np12(i)         = nlist
+                ip12(1:nlist,i) = list(1:nlist)
+            end if
+        end do
+        
+        ! np13, ip13:
+        np13 = 0
+        ip13 = 0
+        mask = 0
+        list = 0
+
+        do i = 1, mm_atoms
+            ! create a mask to record what atoms belong 
+            ! to the same polarization group
+            ! as the i-th or to a 1-2 polarization neighbor:
+            do j = 1, np11(i)
+                ij = ip11(j,i)
+                mask(ij) = i
+            end do
+            do j = 1, np12(i)
+                ij = ip12(j,i)
+                mask(ij) = i
+            end do
+            ! proceed as for standard connectivity lists. 
+            ! look at 1-2 polarization neighbors of 1-2 polarization 
+            ! neighbors:
+            
+            nlist = 0
+            do j = 1, np12(i)
+                ij = ip12(j,i)
+                do k = 1, np12(ij)
+                    l = ip12(k,ij)
+                    if (mask(l).ne.i) then
+                        nlist       = nlist + 1
+                        list(nlist) = l 
+                    end if
+                end do
+            end do
+            ! sort the list and get rid of the duplicates:
+            call ihsort(.true.,nlist,list)
+            
+            ! if there are too many atoms in the list, 
+            ! abort the calculation:
+            if (nlist.gt.maxpgp) then
+                call fatal_error('too many atoms in 1-3 polarization group.')
+            else
+                np13(i)         = nlist
+                ip13(1:nlist,i) = list(1:nlist)
+            end if
+        end do
+
+        ! np14, ip14:
+        np14 = 0
+        ip14 = 0
+        mask(:) = 0_ip
+        list(:) = 0_ip
+
+        do i = 1, mm_atoms
+            ! create a mask to record what atoms belong to 
+            ! the same polarization group as the i-th or to a 
+            ! 1-2 or 1-3 polarization neighbor:
+            do j = 1, np11(i)
+                ij       = ip11(j,i)
+                mask(ij) = i
+            end do
+            do j = 1, np12(i)
+                ij       = ip12(j,i)
+                mask(ij) = i
+            end do
+            do j = 1, np13(i)
+                ij       = ip13(j,i)
+                mask(ij) = i
+            end do
+            ! proceed as for standard connectivity lists. 
+            ! look at 1-2 polarization neighbors of 1-3 polarization 
+            ! neighbors:
+
+            nlist = 0
+            do j = 1, np13(i)
+                ij = ip13(j,i)
+                do k = 1, np12(ij)
+                    l = ip12(k,ij)
+                    if (mask(l).ne.i) then
+                        nlist       = nlist + 1
+                        list(nlist) = l 
+                    end if
+                end do
+            end do
+
+            ! sort the list and get rid of the duplicates:
+            call ihsort(.true.,nlist,list)
+            ! if there are too many atoms in the list, 
+            ! abort the calculation:
+            if (nlist.gt.maxpgp) then
+                call fatal_error('too many atoms in 1-4 polarization group.')
+            else
+                np14(i) = nlist
+                ip14(1:nlist,i) = list(1:nlist)
+            end if
+        end do
+        
+        call mfree('pg_connectivity_list_init [mask]', mask)
+        call mfree('pg_connectivity_list_init [keep]', keep)
+        call mfree('pg_connectivity_list_init [list]', list)
+    end subroutine pg_connectivity_list_init
+    
     subroutine set_screening_parameters()
         !! Subroutine to initialize the screening parameters
         use mod_constants, only: one, zero, pt5
@@ -573,5 +794,58 @@ module mod_mmpol
             call fatal_error('the required force field is not implemented.')
         end if
     end subroutine set_screening_parameters
+
+    subroutine mmpol_print_summary()
+        !! Prints a complete summary of all the quantities stored 
+        !! in the MMPol module
+
+        use mod_io, only : iof_mmpol 
+        implicit none
+
+        integer(ip) :: i
+
+        call print_matrix(.true.,'coordinates:', &
+                          3,mm_atoms,3,mm_atoms,cmm)
+        if (amoeba) then
+            call print_matrix(.true.,'multipoles - non rotated:', &
+                              ld_cart,mm_atoms,ld_cart,mm_atoms,q0)
+        end if
+        call print_matrix(.true.,'multipoles :', &
+                          ld_cart,mm_atoms,ld_cart,mm_atoms,q)
+        call print_matrix(.true.,'coordinates of polarizable atoms:', &
+                          3,pol_atoms,3,pol_atoms,cpol)
+        call print_matrix(.false.,'polarizabilities:', &
+                          mm_atoms,1,mm_atoms,1,pol)
+        call print_matrix(.false.,'thole factors:', &
+                          mm_atoms,1,mm_atoms,1,thole)
+        call print_int_vec('mm_polar list:', &
+                           mm_atoms,0,0,mm_polar)
+        call print_int_vec('polar_mm list:', &
+                           pol_atoms,0,0,polar_mm)
+
+        ! write the connectivity information for each atom:
+  1000  format(t3,'connectivity information for the ',i8,'-th atom:')
+    
+        do i = 1, mm_atoms
+            write(iof_mmpol, 1000) i
+            
+            call print_int_vec('1-2 neighors:',n12(i),0,0,i12(:,i))
+            call print_int_vec('1-3 neighors:',n13(i),0,0,i13(:,i))
+            call print_int_vec('1-4 neighors:',n14(i),0,0,i14(:,i))
+
+            if(amoeba) then 
+                call print_int_vec('1-5 neighors:',n15(i),0,0,i15(:,i))
+                call print_int_vec('1-1 polarization neighors:', &
+                                   np11(i),0,0,ip11(:,i))
+                call print_int_vec('1-2 polarization neighors:', &
+                                   np12(i),0,0,ip12(:,i))
+                call print_int_vec('1-3 polarization neighors:', &
+                                   np13(i),0,0,ip13(:,i))
+                call print_int_vec('1-4 polarization neighors:', &
+                                   np14(i),0,0,ip14(:,i))
+            end if
+        end do
+
+    end subroutine mmpol_print_summary
 
 end module mod_mmpol
