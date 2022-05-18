@@ -308,6 +308,7 @@ module mod_mmpol
         real(rp) :: xx(3) ! TODO remove this variable
 
         ! compute connectivity lists from connected atoms
+        call connectivity_list_init()
         
         ! invert mm_polar list creating mm_polar
         mm_polar(:) = 0
@@ -429,6 +430,81 @@ module mod_mmpol
                 thole = thole * sqrt(a_wdl)
         end if
     end subroutine thole_init
+
+    subroutine connectivity_list_init()
+        !! Subroutine to initialize the connectivity lists.
+        !! Basically it starts from a list of atoms that are
+        !! connected () and it computes list of atoms that are
+        !! n-bonds away. n=2,3,4
+        
+        implicit none
+
+        integer(ip) :: i, j, k, l, ij, neigh
+        logical :: bad_neigh
+
+        n12 = 0
+        n13 = 0
+        i13 = 0
+        n14 = 0
+        i14 = 0
+        
+        ! n12:
+        do i = 1, mm_atoms
+            do j = 1, maxn12
+                if(i12(j,i).ne.0) n12(i) = n12(i) + 1
+            end do
+            ! sort i12:
+            call ihsort(.true.,n12(i),i12(:,i))
+        end do
+
+        ! n13, i13:
+        do i = 1, mm_atoms
+            do j = 1, n12(i)
+                ij = i12(j,i)
+                do k = 1, n12(ij)
+                    neigh = i12(k,ij)
+                    ! check that neigh is actually a 1-3 neighbor:
+                    bad_neigh = .false.
+                    if (neigh.eq.i) bad_neigh = .true.
+                    do l = 1, n12(i)
+                        if (neigh.eq.i12(l,i)) bad_neigh = .true.
+                    end do
+                    if (.not. bad_neigh) then
+                        n13(i) = n13(i) + 1
+                        i13(n13(i),i) = neigh
+                    end if
+                end do
+            end do
+            ! sort i13 and remove duplicates:
+            call ihsort(.true.,n13(i),i13(:,i))
+        end do
+    
+        ! n14, i14:
+        do i = 1, mm_atoms
+            do j = 1, n13(i)
+                ij = i13(j,i)
+                do k = 1, n12(ij)
+                    neigh = i12(k,ij)
+                    ! check that neigh is actually a 1-4 neighbor
+
+                    bad_neigh = .false.
+                    if(neigh.eq.i) bad_neigh = .true.
+                    do l = 1, n12(i)
+                        if(neigh.eq.i12(l,i)) bad_neigh = .true.
+                    end do
+                    do l = 1, n13(i)
+                        if (neigh.eq.i13(l,i)) bad_neigh = .true.
+                    end do
+                    if (.not. bad_neigh) then
+                        n14(i) = n14(i) + 1
+                        i14(n14(i),i) = neigh
+                    end if
+                end do
+            end do
+            ! sort i14 and remove duplicates:
+            call ihsort(.true.,n14(i),i14(:,i))
+        end do
+    end subroutine connectivity_list_init
 
     subroutine set_screening_parameters()
         !! Subroutine to initialize the screening parameters
