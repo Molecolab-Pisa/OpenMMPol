@@ -337,12 +337,6 @@ subroutine mmpol_process()
     end do
   end if
 !
-! if required, rotate the multipoles:
-!
-  if (amoeba) then
-    call rotate_multipoles(.false.,xx,xx)
-  end if
-!
 ! if required, print all the relevant information:
 !
   if (verbose >= 2) then

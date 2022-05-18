@@ -305,6 +305,7 @@ module mod_mmpol
         implicit none
 
         integer(ip) :: i
+        real(rp) :: xx(3) ! TODO remove this variable
 
         ! compute connectivity lists from connected atoms
         
@@ -335,6 +336,7 @@ module mod_mmpol
             ! pol groups?
 
             ! performs multipoles rotation
+            call rotate_multipoles(.false.,xx,xx)
         end if
 
     end subroutine mmpol_prepare
