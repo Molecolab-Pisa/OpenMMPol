@@ -2,7 +2,8 @@ subroutine mmpol_process(polar)
   use mod_mmpol
   use mod_memory, only: mallocate
   use mod_io, only: iof_mmpol
-  use mod_constants, only: zero, one, three, six, thres 
+  use mod_constants, only: zero, one, three, six, thres
+  use mod_constants, only: angstrom2au
   implicit none
 !
 ! this routine processes the input for mmpol and amoeba calculations.
@@ -29,7 +30,6 @@ subroutine mmpol_process(polar)
   integer(ip)             :: nkeep, nlist
   real(rp)                :: third, tobohr, tobohr3, fa, fexp, xx(3)
   integer(ip),    allocatable :: mask(:), keep(:), list(:)
-  real(rp),   parameter   :: toang = 0.52917721092_rp
   real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
 !
 ! set the exclusion rules:
@@ -37,7 +37,7 @@ subroutine mmpol_process(polar)
   call set_screening_parameters
 !
   third   = one/three
-  tobohr  = one/toang
+  tobohr  = angstrom2au
   tobohr3 = tobohr**3
 !
 ! 1) fix the units:
