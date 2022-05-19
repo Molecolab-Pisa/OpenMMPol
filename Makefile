@@ -24,13 +24,16 @@ endif
 CPPFLAGS = -cpp
 CFLAGS = -Wall -pedantic -g -Og -std=c99
 LDLIBS = -lblas -llapack -lgfortran
+DOC_CPPFLAGS = 
 
 ifeq ($(USE_INT64), YES)
     CPPFLAGS += -DUSE_I8 
+	DOC_CPPFLAGS += -m USE_I8
 endif
 
 ifeq ($(USE_HDF5), YES)
     CPPFLAGS += -DUSE_HDF5 
+	DOC_CPPFLAGS += -m USE_HDF5
 	LDLIBS += -lhdf5_fortran
 	FFLAGS += -I/usr/include
 endif
@@ -63,7 +66,7 @@ libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe $(BIN_DIR)/test_c.out
 
 doc: openMMPol.md
-	ford openMMPol.md
+	ford openMMPol.md $(DOC_CPPFLAGS)
 
 $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
