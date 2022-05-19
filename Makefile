@@ -2,6 +2,7 @@
 
 DEBUG = YES
 USE_INT64 = NO
+USE_HDF5 = YES
 #--------------------------------------#
 DOC_DIR = ./doc
 OBJ_DIR = ./obj
@@ -21,12 +22,19 @@ else
 endif
 
 CPPFLAGS = -cpp
+CFLAGS = -Wall -pedantic -g -Og -std=c99
+LDLIBS = -lblas -llapack -lgfortran
+
 ifeq ($(USE_INT64), YES)
     CPPFLAGS += -DUSE_I8 
 endif
-CFLAGS = -Wall -pedantic -g -Og -std=c99
 
-LDLIBS = -lblas -llapack -lgfortran
+ifeq ($(USE_HDF5), YES)
+    CPPFLAGS += -DUSE_HDF5 
+	LDLIBS += -lhdf5_fortran
+	FFLAGS += -I/usr/include
+endif
+
 
 OBJS   = coulomb_kernel.o \
 	     electrostatics.o \
@@ -92,9 +100,9 @@ $(OBJ_DIR)/energy.o: $(OBJ_DIR)/mod_mmpol.o
 $(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o 
 $(OBJ_DIR)/mod_constants.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mod_interface.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
-$(OBJ_DIR)/mod_io.o:
-$(OBJ_DIR)/mod_memory.o: $(OBJ_DIR)/mod_io.o
-$(OBJ_DIR)/mod_mmpol.o: $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_constants.o
+$(OBJ_DIR)/mod_io.o: $(OBJ_DIR)/mod_memory.o
+$(OBJ_DIR)/mod_memory.o:
+$(OBJ_DIR)/mod_mmpol.o: $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_constants.o $(OBJ_DIR)/mod_io.o
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
 $(OBJ_DIR)/polar.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o $(OBJ_DIR)/mod_memory.o

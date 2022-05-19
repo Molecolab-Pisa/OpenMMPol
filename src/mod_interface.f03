@@ -83,8 +83,9 @@ module mod_interface
             character(kind=c_char), intent(in) :: c_str(:)
             character(len=*), intent(out) :: f_str
 
-            integer :: i = 1
+            integer :: i 
 
+            i = 1
             do while(c_str(i) /= c_null_char)
                 f_str(i:i) = c_str(i)
                 i = i + 1
@@ -172,5 +173,26 @@ module mod_interface
             call energy(1_ip,EPol)
 
         end subroutine
+
+#ifdef USE_HDF5
+        function write_hdf5(filename) bind(c, name='write_hdf5')
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
+            use mod_io, only: mmpol_save_as_hdf5
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(120)
+            
+            character(len=120) :: hdf5out
+            integer(ip) :: write_hdf5
+
+            call c2f_string(filename, hdf5out)
+            call mmpol_save_as_hdf5(hdf5out, write_hdf5)
+            
+        end function write_hdf5
+#endif
+
 end module mod_interface
 

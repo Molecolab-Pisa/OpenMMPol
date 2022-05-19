@@ -4,8 +4,7 @@ module mod_memory
     !! memory limit of the openMMPol library.
 
     use iso_c_binding
-    use mod_io, only : iof_memory
-
+    
     implicit none
     private 
 
@@ -17,7 +16,8 @@ module mod_memory
     !! Required precision for integer type
     integer(ip), parameter :: rp = c_double !! Required precision for real type
     
-    
+    integer(ip), parameter :: iof_memory = 6
+    !! Unit file for memory errors, warning and debug
     integer(ip) :: maxmem !! Max memory that can be allocated in bytes
     integer(ip) :: usedmem !! Memory that is currently used by the code
     integer(ip) :: size_of_int !! Number of bytes for an integer
