@@ -15,7 +15,7 @@ module mod_memory
 #endif
     !! Required precision for integer type
     integer(ip), parameter :: rp = c_double !! Required precision for real type
-    
+
     integer(ip), parameter :: iof_memory = 6
     !! Unit file for memory errors, warning and debug
     integer(ip) :: maxmem !! Max memory that can be allocated in bytes

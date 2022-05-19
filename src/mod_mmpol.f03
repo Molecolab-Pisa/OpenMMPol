@@ -25,7 +25,6 @@ module mod_mmpol
     integer(ip), protected :: verbose = 0_ip
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
-    ! TODO adapt to this convention!!
     
     integer(ip), protected :: ff_type
     !! Force field type selection flag (0 for AMBER, 1 for AMOEBA)
@@ -794,58 +793,5 @@ module mod_mmpol
             call fatal_error('the required force field is not implemented.')
         end if
     end subroutine set_screening_parameters
-
-    subroutine mmpol_print_summary()
-        !! Prints a complete summary of all the quantities stored 
-        !! in the MMPol module
-
-        use mod_io, only : iof_mmpol 
-        implicit none
-
-        integer(ip) :: i
-
-        call print_matrix(.true.,'coordinates:', &
-                          3,mm_atoms,3,mm_atoms,cmm)
-        if (amoeba) then
-            call print_matrix(.true.,'multipoles - non rotated:', &
-                              ld_cart,mm_atoms,ld_cart,mm_atoms,q0)
-        end if
-        call print_matrix(.true.,'multipoles :', &
-                          ld_cart,mm_atoms,ld_cart,mm_atoms,q)
-        call print_matrix(.true.,'coordinates of polarizable atoms:', &
-                          3,pol_atoms,3,pol_atoms,cpol)
-        call print_matrix(.false.,'polarizabilities:', &
-                          mm_atoms,1,mm_atoms,1,pol)
-        call print_matrix(.false.,'thole factors:', &
-                          mm_atoms,1,mm_atoms,1,thole)
-        call print_int_vec('mm_polar list:', &
-                           mm_atoms,0,0,mm_polar)
-        call print_int_vec('polar_mm list:', &
-                           pol_atoms,0,0,polar_mm)
-
-        ! write the connectivity information for each atom:
-  1000  format(t3,'connectivity information for the ',i8,'-th atom:')
-    
-        do i = 1, mm_atoms
-            write(iof_mmpol, 1000) i
-            
-            call print_int_vec('1-2 neighors:',n12(i),0,0,i12(:,i))
-            call print_int_vec('1-3 neighors:',n13(i),0,0,i13(:,i))
-            call print_int_vec('1-4 neighors:',n14(i),0,0,i14(:,i))
-
-            if(amoeba) then 
-                call print_int_vec('1-5 neighors:',n15(i),0,0,i15(:,i))
-                call print_int_vec('1-1 polarization neighors:', &
-                                   np11(i),0,0,ip11(:,i))
-                call print_int_vec('1-2 polarization neighors:', &
-                                   np12(i),0,0,ip12(:,i))
-                call print_int_vec('1-3 polarization neighors:', &
-                                   np13(i),0,0,ip13(:,i))
-                call print_int_vec('1-4 polarization neighors:', &
-                                   np14(i),0,0,ip14(:,i))
-            end if
-        end do
-
-    end subroutine mmpol_print_summary
 
 end module mod_mmpol

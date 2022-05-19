@@ -7,7 +7,7 @@ subroutine mmpol_init_from_mmp(input_file)
                          maxpgp, maxn12, polar_mm, verbose
     use mod_mmpol, only: mol_frame, iz, ix, iy
     use mod_mmpol, only: fatal_error, set_verbosity, mmpol_prepare
-    use mod_mmpol, only: mmpol_print_summary
+    use mod_io, only: mmpol_print_summary
     use mod_memory, only: ip, rp, mfree, mallocate, memory_init
     use mod_io, only: iof_mmpinp
     use mod_constants, only: zero, ten, thres, angstrom2au
