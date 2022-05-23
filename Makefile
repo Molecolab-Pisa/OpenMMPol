@@ -100,12 +100,12 @@ $(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mod_mmpol.o
 $(OBJ_DIR)/elstat.o:
 $(OBJ_DIR)/electrostatics.o: $(OBJ_DIR)/elstat.o $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/energy.o: $(OBJ_DIR)/mod_mmpol.o
-$(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o 
+$(OBJ_DIR)/mmpol_init.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_io.o 
 $(OBJ_DIR)/mod_constants.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/mod_interface.o: $(OBJ_DIR)/mod_mmpol.o $(OBJ_DIR)/mod_memory.o
-$(OBJ_DIR)/mod_io.o: $(OBJ_DIR)/mod_memory.o
+$(OBJ_DIR)/mod_io.o: $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_mmpol.o 
 $(OBJ_DIR)/mod_memory.o:
-$(OBJ_DIR)/mod_mmpol.o: $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_constants.o $(OBJ_DIR)/mod_io.o
+$(OBJ_DIR)/mod_mmpol.o: $(OBJ_DIR)/mod_memory.o $(OBJ_DIR)/mod_constants.o
 $(OBJ_DIR)/multipoles_functions.o: $(OBJ_DIR)/elstat.o 
 $(OBJ_DIR)/polar.o: $(OBJ_DIR)/mod_memory.o
 $(OBJ_DIR)/polarization.o: $(OBJ_DIR)/solvers.o $(OBJ_DIR)/mod_memory.o

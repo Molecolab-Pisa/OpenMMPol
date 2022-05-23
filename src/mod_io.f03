@@ -31,7 +31,8 @@ module mod_io
     subroutine mmpol_save_as_hdf5(filename, out_fail)
         use hdf5
         use mod_memory, only: ip
-        use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q
+        use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
+                             amoeba, pol
 
         implicit none
 
@@ -89,6 +90,7 @@ module mod_io
                          H5T_IP, &
                          cur_dsp, cur_dst, eflag)
         call h5dwrite_f(cur_dst, H5T_IP, polar_mm, dims(:1), eflag)
+        
         ! q
         dims = (/ld_cart, mm_atoms, 0, 0/)
         call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
@@ -97,7 +99,23 @@ module mod_io
                          H5T_RP, &
                          cur_dsp, cur_dst, eflag)
         call h5dwrite_f(cur_dst, H5T_RP, q, dims(:2), eflag)
+        
         ! polarizabilities 
+        dims = (/pol_atoms, 0, 0, 0/)
+        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
+        call h5dcreate_f(hg_sysfund, &
+                         "Polarizabilities of POL atoms", &
+                         H5T_RP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_RP, pol, dims(:1), eflag)
+
+        ! Which is the best way to save the connectivity??
+
+        if(amoeba) then
+            ! Rotation convenction
+
+            ! Group connectivity 
+        endif
 
         call h5gclose_f(hg_sysfund, eflag)
         if( eflag /= 0) then 
