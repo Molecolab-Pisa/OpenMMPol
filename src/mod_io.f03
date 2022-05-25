@@ -32,14 +32,16 @@ module mod_io
         use hdf5
         use mod_memory, only: ip
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
-                             amoeba, pol
+                             amoeba, pol, i12, n12, maxn12, ff_rules, ff_type, &
+                             ix, iy, iz, mol_frame, ip11, maxpgp
 
         implicit none
 
         character(len=*), intent(in) :: filename
         integer(ip), intent(out) :: out_fail
         
-        integer(hid_t) :: hg_sysfund, hg_sysder, hg_res, cur_dst, cur_dsp
+        integer(hid_t) :: hg_sysfund, hg_sysder, hg_res, hg_cur, hg_amoeba, &
+                          cur_dst, cur_dsp
         integer(hsize_t), dimension(4) :: dims
         integer(kind=4) :: eflag
 
@@ -72,15 +74,44 @@ module mod_io
         ! Those are the minimal quantities needed to start a calculation.
         ! It should contain only the information needed by the program to 
         ! correctly describe the system.
-       
+
+        ! Attributes
+        dims = (/1, 0, 0, 0/)
+        call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
+        
+        call H5Acreate_f(hg_sysfund, &
+                         "numer of MM atoms", &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call H5Awrite_f(cur_dst, H5T_IP, mm_atoms, dims(:1), eflag)
+        
+        call H5Acreate_f(hg_sysfund, &
+                         "numer of POL atoms", &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call H5Awrite_f(cur_dst, H5T_IP, pol_atoms, dims(:1), eflag)
+
+        call H5Acreate_f(hg_sysfund, &
+                         "FF type", &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call H5Awrite_f(cur_dst, H5T_IP, ff_type, dims(:1), eflag)
+        
+        call H5Acreate_f(hg_sysfund, &
+                         "FF rules", &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call H5Awrite_f(cur_dst, H5T_IP, ff_rules, dims(:1), eflag)
+
+        ! Dataset
         ! coordinates
         dims = (/3, mm_atoms, 0, 0/)
-        call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
-        call h5dcreate_f(hg_sysfund, &
+        call H5Screate_simple_f(2, dims(:2), cur_dsp, eflag)
+        call H5Dcreate_f(hg_sysfund, &
                          "Coordinates of MM sites", &
                          H5T_RP, &
                          cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_RP, cmm, dims(:2), eflag)
+        call H5Dwrite_f(cur_dst, H5T_RP, cmm, dims(:2), eflag)
 
         ! list of polarizable atoms
         dims = (/pol_atoms, 0, 0, 0/)
@@ -109,12 +140,72 @@ module mod_io
                          cur_dsp, cur_dst, eflag)
         call h5dwrite_f(cur_dst, H5T_RP, pol, dims(:1), eflag)
 
-        ! Which is the best way to save the connectivity??
+        ! TODO
+        ! Connectivity of the environment is saved as an adjacency matrix; 
+        ! Since such a matrix is sparse and boolean it can be represented in
+        ! a very efficient way using Yale format (sometimes called compressed
+        ! sparse row) omitting the V vector. In this way the adj. matrix is 
+        ! represented by adj_m_ci(n_bond) and adj_m_ri(mm_atoms+1).
+        
+        ! For now, just save n1m and i1m, all closed in a subfolder
+        call h5gcreate_f(hg_sysfund, "topology", hg_cur, eflag)
+        
+        dims = (/maxn12, mm_atoms, 0, 0/)
+        call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
+        call h5dcreate_f(hg_cur, &
+                         "Adjacency indices", &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_IP, i12, dims(:2), eflag)
+        
+        call h5gclose_f(hg_cur, eflag)
 
         if(amoeba) then
+            call h5gcreate_f(hg_sysfund, "amoeba", hg_amoeba, eflag)
             ! Rotation convenction
-
+            call h5gcreate_f(hg_amoeba, "rotation", hg_cur, eflag)
+            
+            dims = (/mm_atoms, 0, 0, 0/)
+            call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
+            call h5dcreate_f(hg_cur, &
+                             "X-axys index", &
+                             H5T_IP, &
+                             cur_dsp, cur_dst, eflag)
+            call h5dwrite_f(cur_dst, H5T_IP, ix, dims(:1), eflag)
+            
+            call h5dcreate_f(hg_cur, &
+                             "Y-axys index", &
+                             H5T_IP, &
+                             cur_dsp, cur_dst, eflag)
+            call h5dwrite_f(cur_dst, H5T_IP, iy, dims(:1), eflag)
+            
+            call h5dcreate_f(hg_cur, &
+                             "Z-axys index", &
+                             H5T_IP, &
+                             cur_dsp, cur_dst, eflag)
+            call h5dwrite_f(cur_dst, H5T_IP, iz, dims(:1), eflag)
+            
+            call h5dcreate_f(hg_cur, &
+                             "Molecular frame def", &
+                             H5T_IP, &
+                             cur_dsp, cur_dst, eflag)
+            call h5dwrite_f(cur_dst, H5T_IP, mol_frame, dims(:1), eflag)
+            
             ! Group connectivity 
+            call h5gcreate_f(hg_amoeba, "polarization groups connectivity", &
+                             hg_cur, eflag)
+            
+            dims = (/maxpgp, mm_atoms, 0, 0/)
+            call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
+            call h5dcreate_f(hg_cur, &
+                             "Adjacency indices", &
+                             H5T_IP, &
+                             cur_dsp, cur_dst, eflag)
+            call h5dwrite_f(cur_dst, H5T_IP, ip11, dims(:2), eflag)
+            
+            call h5gclose_f(hg_cur, eflag)
+            
+            call h5gclose_f(hg_amoeba, eflag)
         endif
 
         call h5gclose_f(hg_sysfund, eflag)

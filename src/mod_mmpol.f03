@@ -291,7 +291,9 @@ module mod_mmpol
     subroutine mmpol_prepare()
         !! Compute some derived quantities from the input that 
         !! are used during the calculation. The upstream code have
-        !! to provide cmm, ... TODO.
+        !! to provide cmm, q, pol, adjacency matrix and in
+        !! the case of AMOEBA also multipoles rotation information, and 
+        !! polarization group information.
         !! This routine 
         !!   * compute connectivity lists from connected atoms
         !!   * invert polar_mm list creating mm_polar
