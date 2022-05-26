@@ -18,10 +18,6 @@ module mod_mmpol
     integer(ip), parameter :: maxpgp = 120
     !! maximum number of members for the same polarization group
     
-    integer(ip), parameter :: ws_max = 100
-    !! maximum number of neighbors to consider for building 
-    !! the Wang-Skeel preconditioner
-    
     integer(ip), protected :: verbose = 0_ip
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
@@ -51,9 +47,6 @@ module mod_mmpol
     !! convergence threshold (rms norm of the residual/increment) for 
     !! iterative solvers
   
-    logical :: gradient
-    !! ??
-    
     real(rp) :: ws_shift
     !! diagonal shift parameter for the Wang-Skeel preconditioner 
     !! (default: 1.0 for AMBER, 2.0 for AMOEBA).
@@ -153,12 +146,17 @@ module mod_mmpol
     !! electrostatic and polarization energies, including 
     !! their breakdown into contributoins
 
-    real(rp), allocatable :: v_qq(:,:), dv_qq(:,:)
-    !! potential (and higher order terms) of the multipoles 
-    !! at the charges (multipoles) and its derivatives
+    real(rp), allocatable :: v_qq(:,:)
+    !! potential of MM permanent multipoles at MM sites; 
+    !! shaped (ld_cart, mm_atoms).
+    real(rp), allocatable :: dv_qq(:,:)
+    !! derivative of v_qq TODO; shaped (ld_cder, mm_atoms)
   
-    real(rp), allocatable :: ef_qd(:,:,:), def_qd(:,:,:)
-    !! field of the charges (multipoles) at the ipd and its derivatives
+    real(rp), allocatable :: ef_qd(:,:,:)
+    !! electric field of MM permanent multipoles at POL sites; 
+    !! shaped (3, pol_atoms, n_ipd)
+    real(rp), allocatable :: def_qd(:,:,:)
+    !! derivative of ef_qd TODO; shaped (3, pol_atoms, n_ipd)
   
     real(rp), allocatable :: v_dq(:,:), dv_dq(:,:)
     !! potential (and higher order terms) of the induced point 
@@ -166,12 +164,6 @@ module mod_mmpol
     
     real(rp), allocatable :: ef_dd(:,:,:), def_dd(:,:,:)
     !! field of the ipd at the ipd and its derivatives
-    
-    integer(ip), allocatable :: n_ws(:), list_ws(:)
-    !! things related to the wang-skeel preconditioner
-    
-    real(rp),    allocatable :: block_ws(:,:)
-    !! things related to the wang-skeel preconditioner
     
     real(rp),    allocatable :: thole(:)
     !! array to store the thole factors for computing damping functions
@@ -271,18 +263,20 @@ module mod_mmpol
   
         call mallocate('mmpol_init [v_qq]', ld_cart, mm_atoms, v_qq)
         v_qq = 0.0_rp
-        call mallocate('mmpol_init [ef_qd]', 3_ip, pol_atoms, n_ipd, ef_qd)
-        ef_qd = 0.0_rp
         call mallocate('mmpol_init [dv_qq]', ld_cder, mm_atoms, dv_qq)
         dv_qq = 0.0_rp
-        call mallocate('mmpol_init [def_qd]', 3_ip, pol_atoms, n_ipd, def_qd)
-        def_qd = 0.0_rp
+        
         call mallocate('mmpol_init [v_dq]', ld_cart, mm_atoms, v_dq)
         v_dq = 0.0_rp
+        call mallocate('mmpol_init [dv_dq]', ld_cder, mm_atoms, dv_dq)
+        dv_dq = 0.0_rp
+        call mallocate('mmpol_init [ef_qd]', 3_ip, pol_atoms, n_ipd, ef_qd)
+        ef_qd = 0.0_rp
+        call mallocate('mmpol_init [def_qd]', 3_ip, pol_atoms, n_ipd, def_qd)
+        def_qd = 0.0_rp
+        
         call mallocate('mmpol_init [ef_dd]', 3_ip, pol_atoms, n_ipd, ef_dd)
         ef_dd = 0.0_rp
-        call mallocate('mmpol_init [dv_dq]', ld_cder, mm_atoms, dv_dq)
-        dv_qq = 0.0_rp
         call mallocate('mmpol_init [def_dd]', 6_ip, pol_atoms, n_ipd, def_dd)
         def_dd = 0.0_rp
       
