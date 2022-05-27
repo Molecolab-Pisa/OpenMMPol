@@ -305,7 +305,7 @@ module adjacency_matrix
             !! Build connectivity matrices up to \(\mathbb C_n\) 
             !! starting from \(\mathbb C_1\). Results are stored in an
             !! array of boolean sparse matrix in Yale format in such a way that
-            !! \(\res(n) := \mathbb C_n\); since FORTRAN is 1-based the useless
+            !! \(res(n) := \mathbb C_n\); since FORTRAN is 1-based the useless
             !! \(\mathbb C_0\) is not stored.
             implicit none
             
