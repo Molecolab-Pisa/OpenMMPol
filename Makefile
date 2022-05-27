@@ -65,8 +65,8 @@ libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
 binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe $(BIN_DIR)/test_c.out
 
-doc: openMMPol.md
-	ford openMMPol.md $(DOC_CPPFLAGS)
+docpages: README.md
+	ford $< $(DOC_CPPFLAGS)
 
 $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(MOD_DIR) $< -lopenmmpol -o $@
@@ -93,7 +93,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.f03 $(OBJ_DIR) $(MOD_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) -I$(MOD_DIR) -J$(MOD_DIR) -c $< -o $@
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(LIB_DIR) $(DOC_DIR)
+	rm -rf $(OBJ_DIR) $(BIN_DIR) $(MOD_DIR) $(LIB_DIR) $(DOC_PAGES)
 
 # Explicit dependencies
 $(OBJ_DIR)/coulomb_kernel.o: $(OBJ_DIR)/mod_mmpol.o
