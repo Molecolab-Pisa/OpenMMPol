@@ -65,7 +65,7 @@ libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
 
 binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe $(BIN_DIR)/test_c.out
 
-docpages: README.md
+docpages: DOC.md
 	ford $< $(DOC_CPPFLAGS)
 
 $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
