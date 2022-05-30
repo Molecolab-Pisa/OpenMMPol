@@ -110,6 +110,19 @@ module mod_mmpol
     type(yale_sparse), allocatable :: conn(:)
     !! connectivity matrices listing atoms separetad by 1, 2, 3 (and 4 -- only 
     !! for AMOEBA) bonds
+
+    integer(ip), allocatable :: mmat_polgrp(:)
+    !! Polarizability group index for each MM site
+
+    type(yale_sparse) :: polgrp_mmat
+    !! For each polarization group index, list all the MM atoms included.
+    !! It basically is a sparse boolean matrix of dimension 
+    !! N_polgroups x N_mmatoms
+
+    type(yale_sparse), allocatable :: pg_conn(:)
+    !! Adjacency and connectivity matytrices between polarizability groups.
+    !! Two groups are said to be adjacent if they are connected by a chemical 
+    !! bond.
     
     integer(ip), allocatable :: np11(:), ip11(:,:), np12(:), ip12(:,:), np13(:), ip13(:,:), np14(:), ip14(:,:)
     !! polarization group "connectivity":
@@ -232,6 +245,7 @@ module mod_mmpol
             ! Extra quantities that should be allocated only
             ! for AMOEBA
             call mallocate('mmpol_init [q0]', ld_cart, mm_atoms, q0)
+            
             call mallocate('mmpol_init [np11]', mm_atoms, np11)
             call mallocate('mmpol_init [ip11]', maxpgp, mm_atoms, ip11)
             call mallocate('mmpol_init [np12]', mm_atoms, np12)
@@ -240,6 +254,9 @@ module mod_mmpol
             call mallocate('mmpol_init [ip13]', maxpgp, mm_atoms, ip13)
             call mallocate('mmpol_init [np14]', mm_atoms, np14)
             call mallocate('mmpol_init [ip14]', maxpgp, mm_atoms, ip14)
+
+            call mallocate('mmpol_init [mmat_polgrp]', mm_atoms, mmat_polgrp)
+
             call mallocate('mmpol_init [mol_frame]', mm_atoms, mol_frame)
             call mallocate('mmpol_init [ix]', mm_atoms, ix)
             call mallocate('mmpol_init [iy]', mm_atoms, iy)
@@ -289,13 +306,15 @@ module mod_mmpol
         integer(ip) :: i
         real(rp) :: xx(3) ! TODO remove this variable
         
-        type(yale_sparse) :: adj
+        type(yale_sparse) :: adj, pg_adj
 
         ! compute connectivity lists from connected atoms
         call matcpy(conn(1), adj)
         deallocate(conn)
 
-        if(amoeba) then
+        if(amoeba) then 
+            ! Amoeba needs connectivity matrices up to atoms separated  by 3 
+            ! bonds
             call build_conn_upto_n(adj, 4, conn)
         else
             call build_conn_upto_n(adj, 3, conn)
@@ -326,6 +345,10 @@ module mod_mmpol
             q0(5:10,:) = q0(5:10,:) / 3.0_rp
 
             ! pol groups connectivity list
+            call reverse_polgrp_tab(mmat_polgrp, polgrp_mmat)
+            call build_pg_adjacency_matrix(pg_adj)
+            call build_conn_upto_n(pg_adj, 3, pg_conn)
+
             call pg_connectivity_list_init()
 
             ! performs multipoles rotation
@@ -370,6 +393,7 @@ module mod_mmpol
             ! Extra quantities that should be deallocated only
             ! for AMOEBA
             call mfree('mmpol_terminate [q0]', q0)
+            
             call mfree('mmpol_terminate [np11]', np11)
             call mfree('mmpol_terminate [ip11]', ip11)
             call mfree('mmpol_terminate [np12]', np12)
@@ -378,6 +402,14 @@ module mod_mmpol
             call mfree('mmpol_terminate [ip13]', ip13)
             call mfree('mmpol_terminate [np14]', np14)
             call mfree('mmpol_terminate [ip14]', ip14)
+
+            call mfree('mmpol_terminate [mmat_polgrp]', mmat_polgrp)
+            do i=1, size(pg_conn)
+                call matfree(pg_conn(i))
+            end do
+            deallocate(pg_conn)
+            call matfree(polgrp_mmat)
+
             call mfree('mmpol_terminate [mol_frame]', mol_frame)
             call mfree('mmpol_terminate [ix]', ix)
             call mfree('mmpol_terminate [iy]', iy)
@@ -424,6 +456,100 @@ module mod_mmpol
         end if
     end subroutine thole_init
 
+    subroutine reverse_polgrp_tab(mm2pg, pg2mm)
+        !! Takes as argument an array of polarization group index for each
+        !! atom, and create a list of atms in each group using the boolean
+        !! sparse matrix format (saved as Yale format).
+        
+        implicit none
+
+        integer(ip), intent(in) :: mm2pg(mm_atoms)
+        !! Index of polarization group for each MM atom
+        type(yale_sparse), intent(out) :: pg2mm
+        !! Indices of atoms included in each polarization group;
+        !! Atom indeces for the n-th group are found at 
+        !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
+
+        integer(ip) :: i, j
+
+        ! Allocation of Yale fmt sparse matrix
+        pg2mm%n = maxval(mm2pg)
+        allocate(pg2mm%ri(pg2mm%n+1))
+        allocate(pg2mm%ci(mm_atoms))
+        pg2mm%ri(1) = 1
+
+        do i=1, pg2mm%n
+            pg2mm%ri(i+1) = pg2mm%ri(i)
+            
+            do j=1, mm_atoms
+                if(mm2pg(j) /= i) cycle
+                
+                pg2mm%ci(pg2mm%ri(i+1)) = j
+                pg2mm%ri(i+1) = pg2mm%ri(i+1) + 1
+            end do
+        end do
+        
+        if(verbose == 3_ip) then
+            do i=1, pg2mm%n
+                write(*, '("Atoms in polarization group ", I5, ":", *(I5))') &
+                      i, pg2mm%ci(pg2mm%ri(i):pg2mm%ri(i+1)-1)
+            end do
+        end if
+    end subroutine reverse_polgrp_tab
+
+    subroutine build_pg_adjacency_matrix(adj)
+        !! Builds the adjacency matrix of polarization groups starting from
+        !! atomic adjacency matrix and list of polarization groups indices.
+
+        use mod_adjacency_mat, only: reallocate_mat 
+
+        implicit none
+
+        type(yale_sparse), intent(out) :: adj
+        !! The group adjacency matrix to be saved.
+
+        integer(ip) :: npg, pg1, pg2, atm1, atm2, i, j
+
+        npg = polgrp_mmat%n
+
+        adj%n = npg
+        allocate(adj%ri(adj%n+1))
+        allocate(adj%ci(adj%n*2))
+        adj%ri(1) = 1
+
+        do pg1=1, npg
+            ! For each polarization group
+            adj%ri(pg1+1) = adj%ri(pg1)
+
+            do i=polgrp_mmat%ri(pg1), polgrp_mmat%ri(pg1+1)-1
+                ! Loop on every atom of the group
+                atm1 = polgrp_mmat%ci(i)
+                do j=conn(1)%ri(atm1), conn(1)%ri(atm1+1)-1
+                    ! Loop on each connected atom...
+                    atm2 = conn(1)%ci(j)
+
+                    ! If the two atoms are in different PG, then the two
+                    ! polarization groups are connected. 
+                    if(mmat_polgrp(atm1) /= mmat_polgrp(atm2) .and. &
+                       ! if the group is not already present in the matrix
+                       all(adj%ci(adj%ri(pg1):adj%ri(pg1+1)-1) /= mmat_polgrp(atm2))) then
+                        adj%ci(adj%ri(pg1+1)) = mmat_polgrp(atm2)
+                        adj%ri(pg1+1) = adj%ri(pg1+1) + 1
+                        if(adj%ri(pg1+1) > size(adj%ci)) then
+                            ! If matrix is too small, it could be enlarged...
+                            call reallocate_mat(adj, size(adj%ci)+adj%n)
+                        end if
+                    end if
+                end do
+            end do
+        end do
+        
+        ! Finally trim the output matrix
+        call reallocate_mat(adj, adj%ri(adj%n+1)-1)
+
+    end subroutine build_pg_adjacency_matrix
+    
+    
     subroutine pg_connectivity_list_init()
         !! TODO Insert the documentation for this function
 

@@ -1,5 +1,5 @@
 program test_amoeba
-  use mod_mmpol
+  use mod_inputloader, only : mmpol_init_from_mmp
   use elstat
   use polar
   implicit none

@@ -263,7 +263,8 @@ subroutine mmpol_print_summary()
 
         implicit none
 
-        integer(ip) :: i
+        integer(ip) :: i, j, grp, igrp, lst(1000), ilst
+        character(len=120) :: str
 
         call print_matrix(.true.,'coordinates:', &
                           3,mm_atoms,3,mm_atoms,cmm)
@@ -290,37 +291,39 @@ subroutine mmpol_print_summary()
         do i = 1, mm_atoms
             write(iof_mmpol, 1000) i
             
-            call print_int_vec('1-2 neighors:', &
-                               size(conn(1)%ci), &
-                               conn(1)%ri(i), &
-                               conn(1)%ri(i+1)-1, & 
-                               conn(1)%ci)
-            call print_int_vec('1-3 neighors:', &
-                               size(conn(2)%ci), &
-                               conn(2)%ri(i), &
-                               conn(2)%ri(i+1)-1, &
-                               conn(2)%ci)
-            call print_int_vec('1-4 neighors:', &
-                               size(conn(3)%ci), &
-                               conn(3)%ri(i), &
-                               conn(3)%ri(i+1)-1, &
-                               conn(3)%ci)
-
-
+            do j=1, 4
+                if(j == 4 .and. .not. amoeba) cycle
+                
+                write(str, "('1-', I1, ' neighors:')") j+1
+                call print_int_vec(str, &
+                                   size(conn(j)%ci), &
+                                   conn(j)%ri(i), &
+                                   conn(j)%ri(i+1)-1, & 
+                                   conn(j)%ci)
+            end do
+            
             if(amoeba) then 
-                call print_int_vec('1-5 neighors:', &
-                                   size(conn(4)%ci), &
-                                   conn(4)%ri(i), &
-                                   conn(4)%ri(i+1)-1, &
-                                   conn(4)%ci)
+                
                 call print_int_vec('1-1 polarization neighors:', &
-                                   np11(i),0,0,ip11(:,i))
-                call print_int_vec('1-2 polarization neighors:', &
-                                   np12(i),0,0,ip12(:,i))
-                call print_int_vec('1-3 polarization neighors:', &
-                                   np13(i),0,0,ip13(:,i))
-                call print_int_vec('1-4 polarization neighors:', &
-                                   np14(i),0,0,ip14(:,i))
+                                   mm_atoms, &
+                                   polgrp_mmat%ri(mmat_polgrp(i)), &
+                                   polgrp_mmat%ri(mmat_polgrp(i)+1)-1, &
+                                   polgrp_mmat%ci)
+               
+                do j=1, 3
+                    ilst = 1
+                    do igrp=pg_conn(j)%ri(mmat_polgrp(i)), &
+                            pg_conn(j)%ri(mmat_polgrp(i)+1)-1
+                        grp = pg_conn(j)%ci(igrp)
+                        lst(ilst:ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)-1) = &
+                        polgrp_mmat%ci(polgrp_mmat%ri(grp):polgrp_mmat%ri(grp+1)-1)
+                        ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
+                    end do
+                    
+                    write(str, "('1-', I1, ' polarization neighors:')") j+1
+                    call print_int_vec(str, & 
+                                       ilst-1,0,0,lst)
+                end do
             end if
         end do
 

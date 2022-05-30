@@ -99,6 +99,7 @@ module mod_interface
         end subroutine c2f_string
         
         subroutine w_mmpol_init(filename) bind(c, name='w_mmpol_init')
+            use mod_inputloader, only : mmpol_init_from_mmp
             implicit none
             character(kind=c_char), intent(in) :: filename(120)
             

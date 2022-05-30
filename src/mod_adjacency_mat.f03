@@ -38,7 +38,8 @@ module mod_adjacency_mat
     end type yale_sparse
 
     public :: yale_sparse
-    public :: adj_mat_from_conn, build_conn_upto_n, matfree, matcpy
+    public :: adj_mat_from_conn, build_conn_upto_n, matfree, matcpy, &
+              reallocate_mat
 
     contains
 

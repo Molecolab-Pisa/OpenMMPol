@@ -1,6 +1,6 @@
 program test_init
-  use mod_mmpol
-  use mod_memory, only: print_memory_info, memory_init
+  use mod_inputloader, only: mmpol_init_from_mmp
+  use mod_memory, only: print_memory_info, memory_init, ip
 
   implicit none
   character (len=120), dimension(2) :: args
