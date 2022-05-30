@@ -1,16 +1,17 @@
 subroutine mmpol_init_from_mmp(input_file)
     use mod_mmpol, only: mmpol_init, cmm, group, &
-                         q, q0, pol, i12, ip11
+                         q, q0, pol, ip11
     use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
                          ff_type, amoeba, solver, &
                          matrix_vector, convergence, &
-                         maxpgp, maxn12, polar_mm, verbose
+                         maxpgp, polar_mm, verbose, conn
     use mod_mmpol, only: mol_frame, iz, ix, iy
     use mod_mmpol, only: fatal_error, set_verbosity, mmpol_prepare
-    use mod_io, only: mmpol_print_summary
+    
     use mod_memory, only: ip, rp, mfree, mallocate, memory_init
-    use mod_io, only: iof_mmpinp
+    use mod_io, only: mmpol_print_summary, iof_mmpinp
     use mod_constants, only: zero, ten, thres, angstrom2au
+    use mod_adjacency_mat, only: adj_mat_from_conn
 
     implicit none
 
@@ -31,6 +32,9 @@ subroutine mmpol_init_from_mmp(input_file)
     
     real(rp), allocatable :: my_pol(:), my_cmm(:,:), my_q(:,:)
     integer(ip), allocatable :: my_group(:), pol_atoms_list(:)
+    
+    integer(ip), parameter :: maxn12 = 8
+    integer(ip), allocatable :: i12(:,:)
     
     ! open the (formatted) input file
     open (unit=iof_mmpinp, &
@@ -119,7 +123,6 @@ subroutine mmpol_init_from_mmp(input_file)
     end if
     pol = my_pol
     polar_mm = pol_atoms_list
-
     
     call mfree('mmpol_init_from_mmp [my_cmm]', my_cmm)
     call mfree('mmpol_init_from_mmp [my_group]', my_group)
@@ -129,9 +132,14 @@ subroutine mmpol_init_from_mmp(input_file)
     call print_header()
 
     ! 1-2 connectivity:
+    call mallocate('mmpol_init_from_mmp [i12]', maxn12, mm_atoms, i12)
     do i = 1, mm_atoms
         read(iof_mmpinp,*) i12(1:maxn12,i)
     end do
+    
+    ! Writes the adjacency matrix in Yale sparse format in conn(1)
+    call adj_mat_from_conn(i12, conn(1)) 
+    call mfree('mmpol_init_from_mmp [i12]', i12)
      
     if(amoeba) then
         ! group 11 connectivity:

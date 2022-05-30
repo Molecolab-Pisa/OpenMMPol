@@ -1,4 +1,4 @@
-module adjacency_matrix
+module mod_adjacency_mat
     !! This module is used to efficiently handle the topological problem of
     !! finding all the atom pairs in the molecule separated by exactly n bonds.
     !! To do so the molecule is tought as an undirected unweighted graph, 
@@ -38,7 +38,7 @@ module adjacency_matrix
     end type yale_sparse
 
     public :: yale_sparse
-    public :: adj_mat_from_conn, build_conn_upto_n
+    public :: adj_mat_from_conn, build_conn_upto_n, matfree, matcpy
 
     contains
 
@@ -69,7 +69,7 @@ module adjacency_matrix
             m%n=0_ip
         end subroutine matfree
 
-        subroutine adj_mat_from_conn(i12, n12, sparse)
+        subroutine adj_mat_from_conn(i12, sparse)
             !! Create adjacency matrix \(\mathbb C_1\) from connectivity lists.   
             !! Array i12 and n12 contain the connectivity list in the following
             !! format: i12(0:n(j),j) contains the index of all the atoms connected
@@ -79,16 +79,14 @@ module adjacency_matrix
 
             integer(ip), intent(in) :: i12(:,:)
             !! Indices of connected atoms for each atom in the molecule
-            integer(ip), intent(in) :: n12(:)
-            !! Number of connected atoms for each atom in the molecule
             type(yale_sparse), intent(out) :: sparse
             !! Adjacency matrix in Yale format (\(\mathbb C_1\))
 
             integer(ip) :: i, j, nnz
 
-            nnz = sum(n12)
-            
             sparse%n = size(i12, 2)
+            nnz = count(i12 /= 0)
+
             allocate(sparse%ri(sparse%n+1))
             allocate(sparse%ci(nnz))
 
@@ -337,4 +335,4 @@ module adjacency_matrix
             end do
             call matfree(tmp)
         end subroutine build_conn_upto_n
-end module adjacency_matrix
+end module mod_adjacency_mat

@@ -5,16 +5,12 @@ module mod_mmpol
     !! the calculation required from the quantum chemical software.
     
     use mod_memory, only: ip, rp
+    use mod_adjacency_mat, only: yale_sparse
 
     implicit none 
     !private
     
-    ! scalar control variables
-
-    integer(ip), parameter :: maxn12 = 8, maxn13 = 24, maxn14 = 72, &
-                              maxn15 = 216
-    !! maximum allowed number of 1-2, ..., 1-5 neighbors.
-
+    !TODO
     integer(ip), parameter :: maxpgp = 120
     !! maximum number of members for the same polarization group
     
@@ -47,10 +43,6 @@ module mod_mmpol
     !! convergence threshold (rms norm of the residual/increment) for 
     !! iterative solvers
   
-    real(rp) :: ws_shift
-    !! diagonal shift parameter for the Wang-Skeel preconditioner 
-    !! (default: 1.0 for AMBER, 2.0 for AMOEBA).
-    
     logical, protected :: amoeba
     
     integer(ip), protected :: mm_atoms !! number of MM atoms
@@ -65,7 +57,7 @@ module mod_mmpol
     !! number of induced point dipoles distributions 
     !! this is 1 for AMBER and 2 for AMOEBA
     
-    !   arrays for the force field dependent exclusion factors. 
+    ! arrays for the force field dependent exclusion factors. 
     
     ! TODO MB22 why those are vectors?
     real(rp) :: mscale(4)
@@ -115,8 +107,9 @@ module mod_mmpol
     integer(ip), allocatable :: polar_mm(:)
     !! positions of a polarizable atom in the mm atoms list
     
-    integer(ip), allocatable :: n12(:), i12(:,:), n13(:), i13(:,:), n14(:), i14(:,:), n15(:), i15(:,:)
-    !! connectivity (number of neighbors and list of neighbors)
+    type(yale_sparse), allocatable :: conn(:)
+    !! connectivity matrices listing atoms separetad by 1, 2, 3 (and 4 -- only 
+    !! for AMOEBA) bonds
     
     integer(ip), allocatable :: group(:)
     !! polarization group or fragment
@@ -221,17 +214,11 @@ module mod_mmpol
             n_ipd = 1_ip
         end if
   
-        call set_screening_parameters
+        call set_screening_parameters()
         
         ! Memory allocation
         call mallocate('mmpol_init [cmm]', 3_ip, mm_atoms, cmm)
         call mallocate('mmpol_init [q]', ld_cart, mm_atoms, q)
-        call mallocate('mmpol_init [n12]', mm_atoms, n12)
-        call mallocate('mmpol_init [i12]', maxn12, mm_atoms, i12)
-        call mallocate('mmpol_init [n12]', mm_atoms, n13)
-        call mallocate('mmpol_init [i13]', maxn13, mm_atoms, i13)
-        call mallocate('mmpol_init [n14]', mm_atoms, n14)
-        call mallocate('mmpol_init [i14]', maxn14, mm_atoms, i14)
         call mallocate('mmpol_init [group]', mm_atoms, group)
         call mallocate('mmpol_init [pol]', pol_atoms, pol)
         call mallocate('mmpol_init [cpol]', 3_ip, pol_atoms, cpol)
@@ -240,13 +227,15 @@ module mod_mmpol
         call mallocate('mmpol_init [thole]', mm_atoms, thole)
         call mallocate('mmpol_init [idp]', 3_ip, pol_atoms, n_ipd, ipd) 
         ipd = 0.0_rp
+        allocate(conn(1)) 
+        ! Temporary allocation, it should be allocated of the proper
+        ! size when all the connectivity matricies are built, now
+        ! it should only contain adjacency matrix.
 
         if (amoeba) then
             ! Extra quantities that should be allocated only
             ! for AMOEBA
             call mallocate('mmpol_init [q0]', ld_cart, mm_atoms, q0)
-            call mallocate('mmpol_init [n15]', mm_atoms, n15)
-            call mallocate('mmpol_init [i15]', maxn15, mm_atoms, i15)
             call mallocate('mmpol_init [np11]', mm_atoms, np11)
             call mallocate('mmpol_init [ip11]', maxpgp, mm_atoms, ip11)
             call mallocate('mmpol_init [np12]', mm_atoms, np12)
@@ -296,14 +285,25 @@ module mod_mmpol
         !!   * scales by 1/3 AMOEBA quadrupoles (?)
         !!   * TODO pol groups?
         !!   * performs multipoles rotation
-        
+
+        use mod_adjacency_mat, only: build_conn_upto_n, matcpy
+
         implicit none
 
         integer(ip) :: i
         real(rp) :: xx(3) ! TODO remove this variable
+        
+        type(yale_sparse) :: adj
 
         ! compute connectivity lists from connected atoms
-        call connectivity_list_init()
+        call matcpy(conn(1), adj)
+        deallocate(conn)
+
+        if(amoeba) then
+            call build_conn_upto_n(adj, 4, conn)
+        else
+            call build_conn_upto_n(adj, 3, conn)
+        end if
         
         ! invert mm_polar list creating mm_polar
         mm_polar(:) = 0
@@ -342,15 +342,14 @@ module mod_mmpol
         !! Performs all the deallocation needed at the end of the 
         !! calculation
         use mod_memory, only: mfree
+        use mod_adjacency_mat, only: matfree
+
+        implicit none 
+
+        integer(ip) :: i
 
         call mfree('mmpol_terminate [cmm]', cmm)
         call mfree('mmpol_terminate [q]', q)
-        call mfree('mmpol_terminate [n12]', n12)
-        call mfree('mmpol_terminate [i12]', i12)
-        call mfree('mmpol_terminate [n12]', n13)
-        call mfree('mmpol_terminate [i13]', i13)
-        call mfree('mmpol_terminate [n14]', n14)
-        call mfree('mmpol_terminate [i14]', i14)
         call mfree('mmpol_terminate [group]', group)
         call mfree('mmpol_terminate [pol]', pol)
         call mfree('mmpol_terminate [cpol]', cpol)
@@ -366,13 +365,16 @@ module mod_mmpol
         call mfree('mmpol_terminate [ef_dd]', ef_dd)
         call mfree('mmpol_terminate [dv_dq]', dv_dq)
         call mfree('mmpol_terminate [def_dd]', def_dd)
+        
+        do i=1, size(conn)
+            call matfree(conn(i))
+        end do
+        deallocate(conn)
 
         if (amoeba) then
             ! Extra quantities that should be deallocated only
             ! for AMOEBA
             call mfree('mmpol_terminate [q0]', q0)
-            call mfree('mmpol_terminate [n15]', n15)
-            call mfree('mmpol_terminate [i15]', i15)
             call mfree('mmpol_terminate [np11]', np11)
             call mfree('mmpol_terminate [ip11]', ip11)
             call mfree('mmpol_terminate [np12]', np12)
@@ -427,115 +429,6 @@ module mod_mmpol
         end if
     end subroutine thole_init
 
-    subroutine connectivity_list_init()
-        !! Subroutine to initialize the connectivity lists.
-        !! Basically it starts from a list of atoms that are
-        !! connected () and it computes list of atoms that are
-        !! n-bonds away. n=2,3,4,(5 - only for amoeba)
-        
-        implicit none
-
-        integer(ip) :: i, j, k, l, ij, neigh
-        logical :: bad_neigh
-
-        ! n12:
-        n12 = 0
-        do i = 1, mm_atoms
-            do j = 1, maxn12
-                if(i12(j,i).ne.0) n12(i) = n12(i) + 1
-            end do
-            ! sort i12:
-            call ihsort(.true.,n12(i),i12(:,i))
-        end do
-
-        ! n13, i13:
-        n13 = 0
-        i13 = 0
-        
-        do i = 1, mm_atoms
-            do j = 1, n12(i)
-                ij = i12(j,i)
-                do k = 1, n12(ij)
-                    neigh = i12(k,ij)
-                    ! check that neigh is actually a 1-3 neighbor:
-                    bad_neigh = .false.
-                    if (neigh.eq.i) bad_neigh = .true.
-                    do l = 1, n12(i)
-                        if (neigh.eq.i12(l,i)) bad_neigh = .true.
-                    end do
-                    if (.not. bad_neigh) then
-                        n13(i) = n13(i) + 1
-                        i13(n13(i),i) = neigh
-                    end if
-                end do
-            end do
-            ! sort i13 and remove duplicates:
-            call ihsort(.true.,n13(i),i13(:,i))
-        end do
-    
-        ! n14, i14:
-        n14 = 0
-        i14 = 0
-        
-        do i = 1, mm_atoms
-            do j = 1, n13(i)
-                ij = i13(j,i)
-                do k = 1, n12(ij)
-                    neigh = i12(k,ij)
-                    ! check that neigh is actually a 1-4 neighbor
-
-                    bad_neigh = .false.
-                    if(neigh.eq.i) bad_neigh = .true.
-                    do l = 1, n12(i)
-                        if(neigh.eq.i12(l,i)) bad_neigh = .true.
-                    end do
-                    do l = 1, n13(i)
-                        if (neigh.eq.i13(l,i)) bad_neigh = .true.
-                    end do
-                    if (.not. bad_neigh) then
-                        n14(i) = n14(i) + 1
-                        i14(n14(i),i) = neigh
-                    end if
-                end do
-            end do
-            ! sort i14 and remove duplicates:
-            call ihsort(.true.,n14(i),i14(:,i))
-        end do
-
-        if(amoeba) then
-            ! For amoeba also the 1,5 connectivity is needed
-            n15 = 0
-            i15 = 0
-
-            do i = 1, mm_atoms
-                do j = 1, n14(i)
-                    ij = i14(j,i)
-                    do k = 1, n12(ij)
-                        neigh = i12(k,ij)
-                        ! check that neigh is actually a 1-5 neighbor:
-                        bad_neigh = .false.
-                        if (neigh.eq.i) bad_neigh = .true.
-                        do l = 1, n12(i)
-                            if (neigh.eq.i12(l,i)) bad_neigh = .true.
-                        end do
-                        do l = 1, n13(i)
-                            if (neigh.eq.i13(l,i)) bad_neigh = .true.
-                        end do
-                        do l = 1, n14(i)
-                            if (neigh.eq.i14(l,i)) bad_neigh = .true.
-                        end do
-                        if (.not. bad_neigh) then
-                            n15(i) = n15(i) + 1
-                            i15(n15(i),i) = neigh
-                        end if
-                     end do
-                 end do
-                 ! sort i15 and remove duplicates:
-                 call ihsort(.true.,n15(i),i15(:,i))
-            end do
-        end if
-    end subroutine connectivity_list_init
-
     subroutine pg_connectivity_list_init()
         !! TODO Insert the documentation for this function
 
@@ -585,8 +478,10 @@ module mod_mmpol
 
             do j = 1, np11(i)
                 ij = ip11(j,i)
-                do k = 1, n12(ij)
-                    l = i12(k,ij)
+                do k = conn(1)%ri(ij), &
+                       conn(1)%ri(ij+1)-1
+                    !l = i12(k,ij)
+                    l = conn(1)%ci(k)
                     if (mask(l).ne.i) then
                         nkeep       = nkeep + 1
                         keep(nkeep) = l 

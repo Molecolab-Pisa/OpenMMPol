@@ -32,7 +32,7 @@ module mod_io
         use hdf5
         use mod_memory, only: ip
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
-                             amoeba, pol, i12, n12, maxn12, ff_rules, ff_type, &
+                             amoeba, pol, conn, ff_rules, ff_type, &
                              ix, iy, iz, mol_frame, ip11, maxpgp
 
         implicit none
@@ -150,13 +150,21 @@ module mod_io
         ! For now, just save n1m and i1m, all closed in a subfolder
         call h5gcreate_f(hg_sysfund, "topology", hg_cur, eflag)
         
-        dims = (/maxn12, mm_atoms, 0, 0/)
-        call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
+        dims = (/mm_atoms+1, 0, 0, 0/)
+        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
         call h5dcreate_f(hg_cur, &
-                         "Adjacency indices", &
+                         "Adjacency matrix (Yale format) RowIdx", &
                          H5T_IP, &
                          cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_IP, i12, dims(:2), eflag)
+        call h5dwrite_f(cur_dst, H5T_IP, conn(1)%ri, dims(:1), eflag)
+        
+        dims = (/size(conn(1)%ci), 0, 0, 0/)
+        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
+        call h5dcreate_f(hg_cur, &
+                         "Adjacency matrix (Yale format) ColumnIdx", &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_IP, conn(1)%ci, dims(:1), eflag)
         
         call h5gclose_f(hg_cur, eflag)
 
@@ -282,12 +290,29 @@ subroutine mmpol_print_summary()
         do i = 1, mm_atoms
             write(iof_mmpol, 1000) i
             
-            call print_int_vec('1-2 neighors:',n12(i),0,0,i12(:,i))
-            call print_int_vec('1-3 neighors:',n13(i),0,0,i13(:,i))
-            call print_int_vec('1-4 neighors:',n14(i),0,0,i14(:,i))
+            call print_int_vec('1-2 neighors:', &
+                               size(conn(1)%ci), &
+                               conn(1)%ri(i), &
+                               conn(1)%ri(i+1)-1, & 
+                               conn(1)%ci)
+            call print_int_vec('1-3 neighors:', &
+                               size(conn(2)%ci), &
+                               conn(2)%ri(i), &
+                               conn(2)%ri(i+1)-1, &
+                               conn(2)%ci)
+            call print_int_vec('1-4 neighors:', &
+                               size(conn(3)%ci), &
+                               conn(3)%ri(i), &
+                               conn(3)%ri(i+1)-1, &
+                               conn(3)%ci)
+
 
             if(amoeba) then 
-                call print_int_vec('1-5 neighors:',n15(i),0,0,i15(:,i))
+                call print_int_vec('1-5 neighors:', &
+                                   size(conn(4)%ci), &
+                                   conn(4)%ri(i), &
+                                   conn(4)%ri(i+1)-1, &
+                                   conn(4)%ci)
                 call print_int_vec('1-1 polarization neighors:', &
                                    np11(i),0,0,ip11(:,i))
                 call print_int_vec('1-2 polarization neighors:', &

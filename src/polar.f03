@@ -71,9 +71,8 @@ module polar
 
     subroutine create_TMat(TMat)
         use mod_mmpol, only : pol_atoms, cpol, uscale, np11, np12, np13, np14, &
-                               ip11, ip12, ip13, ip14, n12, n13, n14, n15, &
-                               i12, i13, i14, i15, pol, mm_polar, Amoeba,  &
-                               verbose, polar_mm
+                               ip11, ip12, ip13, ip14, pol, mm_polar, Amoeba,  &
+                               verbose, polar_mm, conn
         implicit none
         !                      
         ! Construct polarization tensor for matrix inversion solution
@@ -178,9 +177,10 @@ module polar
             do I = 1,pol_atoms
 
                 ! Field from dipoles is scaled by uscale
+                ! TODO ineigh cycle
                 if (uscale(1).ne.one) then
-                    do IJ = 1, n12( polar_mm(I) )   ! polar_mm changes pol index into mm index
-                        J = i12(IJ, polar_mm(I) )
+                    do ij = conn(1)%ri(polar_mm(i)), conn(1)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
+                        j = conn(1)%ci(ij)
                         
                         if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                                                     ! mm_polar changes mm index index into pol index
@@ -191,8 +191,8 @@ module polar
                 end if
 
                 if (uscale(2).ne.one) then
-                    do IJ = 1, n13( polar_mm(I) )   ! polar_mm changes pol index into mm index
-                        J = i13(IJ, polar_mm(I) )
+                    do ij = conn(2)%ri(polar_mm(i)), conn(2)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
+                        j = conn(2)%ci(ij)
                         
                         if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                                                     ! mm_polar changes mm index index into pol index
@@ -203,8 +203,8 @@ module polar
                 end if
 
                 if (uscale(3).ne.one) then
-                    do IJ = 1, n14( polar_mm(I) )   ! polar_mm changes pol index into mm index
-                        J = i14(IJ, polar_mm(I) )
+                    do ij = conn(3)%ri(polar_mm(i)), conn(3)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
+                        j = conn(3)%ci(ij)
                         
                         if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                                                     ! mm_polar changes mm index index into pol index
@@ -215,8 +215,8 @@ module polar
                 end if
 
                 if (uscale(4).ne.one) then
-                    do IJ = 1, n15( polar_mm(I) )   ! polar_mm changes pol index into mm index
-                        J = i15(IJ, polar_mm(I) )
+                    do ij = conn(4)%ri(polar_mm(i)), conn(4)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
+                        j = conn(4)%ci(ij)
                         
                         if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
                                                     ! mm_polar changes mm index index into pol index
