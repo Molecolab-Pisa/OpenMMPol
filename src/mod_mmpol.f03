@@ -111,9 +111,6 @@ module mod_mmpol
     !! connectivity matrices listing atoms separetad by 1, 2, 3 (and 4 -- only 
     !! for AMOEBA) bonds
     
-    integer(ip), allocatable :: group(:)
-    !! polarization group or fragment
-    
     integer(ip), allocatable :: np11(:), ip11(:,:), np12(:), ip12(:,:), np13(:), ip13(:,:), np14(:), ip14(:,:)
     !! polarization group "connectivity":
 
@@ -219,7 +216,6 @@ module mod_mmpol
         ! Memory allocation
         call mallocate('mmpol_init [cmm]', 3_ip, mm_atoms, cmm)
         call mallocate('mmpol_init [q]', ld_cart, mm_atoms, q)
-        call mallocate('mmpol_init [group]', mm_atoms, group)
         call mallocate('mmpol_init [pol]', pol_atoms, pol)
         call mallocate('mmpol_init [cpol]', 3_ip, pol_atoms, cpol)
         call mallocate('mmpol_init [polar_mm]', pol_atoms, polar_mm)
@@ -350,7 +346,6 @@ module mod_mmpol
 
         call mfree('mmpol_terminate [cmm]', cmm)
         call mfree('mmpol_terminate [q]', q)
-        call mfree('mmpol_terminate [group]', group)
         call mfree('mmpol_terminate [pol]', pol)
         call mfree('mmpol_terminate [cpol]', cpol)
         call mfree('mmpol_terminate [polar_mm]', polar_mm)

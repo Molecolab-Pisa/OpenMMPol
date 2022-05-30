@@ -1,5 +1,5 @@
 subroutine mmpol_init_from_mmp(input_file)
-    use mod_mmpol, only: mmpol_init, cmm, group, &
+    use mod_mmpol, only: mmpol_init, cmm, &
                          q, q0, pol, ip11
     use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
                          ff_type, amoeba, solver, &
@@ -116,7 +116,6 @@ subroutine mmpol_init_from_mmp(input_file)
     
     ! Copy data in the correct units (this means AU)
     cmm = my_cmm * angstrom2au
-    group = my_group
     q = my_q
     if(amoeba) then
         my_pol = my_pol*angstrom2au**3
