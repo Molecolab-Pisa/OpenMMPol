@@ -271,15 +271,15 @@ module mod_mmpol
         !! are used during the calculation. The upstream code have
         !! to provide cmm, q, pol, adjacency matrix and in
         !! the case of AMOEBA also multipoles rotation information, and 
-        !! polarization group information.
-        !! This routine 
-        !!   * compute connectivity lists from connected atoms
-        !!   * invert polar_mm list creating mm_polar
-        !!   * populate cpol list of coordinates
-        !!   * compute factors for thole damping 
-        !!   * scales by 1/3 AMOEBA quadrupoles (?)
-        !!   * TODO pol groups?
-        !!   * performs multipoles rotation
+        !! polarization group information.   
+        !! This routine    
+        !!   * compute connectivity lists from connected atoms    
+        !!   * invert polar_mm list creating mm_polar   
+        !!   * populate cpol list of coordinates   
+        !!   * compute factors for thole damping    
+        !!   * scales by 1/3 AMOEBA quadrupoles (?)    
+        !!   * Build list for polarization groups, compute groups connectivity   
+        !!   * performs multipoles rotation   
 
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
 
@@ -326,7 +326,7 @@ module mod_mmpol
             ! Tinker
             q0(5:10,:) = q0(5:10,:) / 3.0_rp
 
-            ! pol groups connectivity list
+            ! polarization groups connectivity list
             call reverse_polgrp_tab(mmat_polgrp, polgrp_mmat)
             call build_pg_adjacency_matrix(pg_adj)
             call build_conn_upto_n(pg_adj, 3, pg_conn, .true.)
@@ -372,8 +372,11 @@ module mod_mmpol
         if (amoeba) then
             ! Extra quantities that should be deallocated only
             ! for AMOEBA
+            
+            ! Second set of multipoles (q0 = unrotated, q=rotated)
             call mfree('mmpol_terminate [q0]', q0)
             
+            ! Polarization groups
             call mfree('mmpol_terminate [mmat_polgrp]', mmat_polgrp)
             do i=1, size(pg_conn)
                 call matfree(pg_conn(i))
@@ -381,6 +384,7 @@ module mod_mmpol
             deallocate(pg_conn)
             call matfree(polgrp_mmat)
 
+            ! Information for multipoles rotation
             call mfree('mmpol_terminate [mol_frame]', mol_frame)
             call mfree('mmpol_terminate [ix]', ix)
             call mfree('mmpol_terminate [iy]', iy)
