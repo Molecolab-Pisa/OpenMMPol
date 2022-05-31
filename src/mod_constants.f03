@@ -8,6 +8,24 @@ module mod_constants
                               ten = 10.0_rp, f15 = 15.0_rp, f105 = 105.0_rp
     real(rp), parameter :: angstrom2au = 1.8897261245650_rp 
     !! Conversion factor Angstrom -> Bohr
+
+
+    real(rp), parameter :: mscale_wang_al(4) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: pscale_wang_al(5) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: dscale_wang_al(4) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: uscale_wang_al(4) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp/)
+    
+    real(rp), parameter :: mscale_wang_dl(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: pscale_wang_dl(5) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: dscale_wang_dl(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: uscale_wang_dl(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    
+    real(rp), parameter :: mscale_amoeba(4) = (/0.0_rp, 0.0_rp, 0.4_rp, 0.8_rp/)
+    real(rp), parameter :: pscale_amoeba(5) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp, 0.5_rp/)
+    real(rp), parameter :: dscale_amoeba(4) = (/0.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: uscale_amoeba(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+            
+            
     real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
     !! TODO those are used in thole factors...
 end module mod_constants

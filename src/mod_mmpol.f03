@@ -8,7 +8,7 @@ module mod_mmpol
     use mod_adjacency_mat, only: yale_sparse
 
     implicit none 
-    !private
+    !private TODO
     
     integer(ip), protected :: verbose = 0_ip
     !! verbosity flag, allowed range 0 (no printing at all) -- 
@@ -20,22 +20,22 @@ module mod_mmpol
     integer(ip), protected :: ff_rules
     !! Force field exclusion rules (0 for Wang AL, 1 for Wang DL)
 
-    integer(ip) :: solver
+    integer(ip) :: solver !TODO remove
     !! Parameter that control how the polarization equations are solved.
     !! 1 = preconditioned conjugate gradient (default),
     !! 2 = jacobi iterations with DIIS extrapolation,
     !! 3 = matrix inversion
     
-    integer(ip) :: matrix_vector
+    integer(ip) :: matrix_vector !TODO remove
     !! Selection flag for the matrix-vectror product routine
     !! 1 = assemble the matrix using O(n^2) storage and use dgemv
     !! 2 = compute the matrix vector products in a direct fashion (default)
     !! 3 = use a fast multiplication technique (TODO)
   
-    integer(ip) :: nmax
+    integer(ip) :: nmax !TODO remove
     !! maximum number of steps for iterative solvers
     
-    real(rp) :: convergence
+    real(rp) :: convergence !TODO remove
     !! convergence threshold (rms norm of the residual/increment) for 
     !! iterative solvers
   
@@ -55,21 +55,20 @@ module mod_mmpol
     
     ! arrays for the force field dependent exclusion factors. 
     
-    ! TODO MB22 why those are vectors?
-    real(rp) :: mscale(4)
+    real(rp), protected :: mscale(4)
     !! factors for charge-charge (or multipole-multipole) interactions
 
-    real(rp) :: pscale(5)
+    real(rp), protected :: pscale(5)
     !! factors for chrage-ipd (or multipole-ipd) interactions.
     !! in AMOEBA, this is used to define the polarization field, i.e., the right-hand
     !! side to the polarization equations, and depends on the connectivity.
     
-    real(rp) :: dscale(4)
+    real(rp), protected :: dscale(4)
     !! factors for multipoles-ipd interactions used to compute the direct field,
     !! which is used to define the polarization energy. these factors depend on 
     !! the polarization group "connectivity" (AMOEBA only)
 
-    real(rp) :: uscale(4)
+    real(rp), protected :: uscale(4)
     !! factor for ipd-ipd interactions. these depend on the connectivity (AMBER)
     !! or on the polarization group " connectivity (AMOEBA)
 
@@ -533,15 +532,18 @@ module mod_mmpol
             mscale(2) = zero
             mscale(3) = one
             mscale(4) = one
+
             pscale(1) = zero
             pscale(2) = zero
             pscale(3) = one
             pscale(4) = one
             pscale(5) = one
+            
             dscale(1) = zero
             dscale(2) = zero
             dscale(3) = one
             dscale(4) = one
+            
             uscale(1) = zero
             uscale(2) = zero
             uscale(3) = one
@@ -552,15 +554,18 @@ module mod_mmpol
             mscale(2) = one
             mscale(3) = one
             mscale(4) = one
+            
             pscale(1) = one
             pscale(2) = one
             pscale(3) = one
             pscale(4) = one
             pscale(5) = one
+            
             dscale(1) = one
             dscale(2) = one
             dscale(3) = one
             dscale(4) = one
+            
             uscale(1) = one
             uscale(2) = one
             uscale(3) = one
@@ -571,15 +576,18 @@ module mod_mmpol
             mscale(2) = zero
             mscale(3) = pt4
             mscale(4) = pt8
+            
             pscale(1) = zero
             pscale(2) = zero
             pscale(3) = one
             pscale(4) = one
             pscale(5) = pt5
+            
             dscale(1) = zero
             dscale(2) = one
             dscale(3) = one
             dscale(4) = one
+            
             uscale(1) = one
             uscale(2) = one
             uscale(3) = one
