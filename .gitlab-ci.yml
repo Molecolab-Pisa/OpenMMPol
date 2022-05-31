@@ -1,5 +1,6 @@
 stages:
     - docker-building
+    - configure
     - compile-lib
     - compile-bin
 
@@ -16,35 +17,48 @@ build_docker_env:
         changes:
             - Dockerfile
 
+cmake-config:
+    stage: configure
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - mkdir build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=DEBUG ..
+    artifacts:
+        paths:
+            - build
+
 make-lib:
     stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - make libraries
+        - cd build
+        - make openmmpol
     artifacts:
         paths:
-            - lib/libopenmmpol.so
+            - build/lib/libopenmmpol.so
     only:
         - pushes
 
 compile-C:
-    stage: compile-bin
+    stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - make C_binaries
+        - cd build
+        - make test_c
     artifacts:
         paths:
-            - bin/*.out
+            - build/bin/test_c
     only:
         - pushes
 
-compile-FORTRAN:
-    stage: compile-bin
-    image: $CI_REGISTRY_IMAGE:latest
-    script:
-        - make FORTRAN_binaries
-    artifacts:
-        paths:
-            - bin/*.exe
-    only:
-        - pushes
+#compile-FORTRAN:
+#    stage: compile-bin
+#    image: $CI_REGISTRY_IMAGE:latest
+#    script:
+#        - make FORTRAN_binaries
+#    artifacts:
+#        paths:
+#            - bin/*.exe
+#    only:
+#        - pushes

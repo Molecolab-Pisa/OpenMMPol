@@ -7,6 +7,7 @@ RUN zypper --non-interactive in gcc \
                                 gcc-c++ \ 
                                 gcc-fortran \ 
                                 make \
+                                cmake \
                                 python \
                                 lapack-devel \
                                 liblapack3 \ 
