@@ -3,6 +3,7 @@ stages:
     - configure
     - compile-lib
     - compile-bin
+    - documentation
 
 build_docker_env:
     stage: docker-building
@@ -51,6 +52,17 @@ compile-C:
             - build/bin/test_c
     only:
         - pushes
+
+make-doc:
+    stage: documentation
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - ford DOC.md 
+    artifacts:
+        paths:
+            - doc
+    only:
+        -pushes
 
 #compile-FORTRAN:
 #    stage: compile-bin
