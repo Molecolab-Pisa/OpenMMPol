@@ -41,7 +41,7 @@ make-lib:
         - pushes
 
 compile-C:
-    stage: compile-lib
+    stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build

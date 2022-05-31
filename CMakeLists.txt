@@ -40,16 +40,17 @@ if (HDF5_FOUND)
     target_link_libraries(openmmpol ${HDF5_Fortran_LIBRARIES})
 endif(HDF5_FOUND)
 
+# Enable preprocessor for Fortran
 target_compile_options(openmmpol PRIVATE -cpp)
 # cmake 3.18 is needed for this
 #set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
 
-target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003)
-target_compile_options(openmmpol PRIVATE -fPIC)
-target_compile_options(openmmpol PRIVATE -fall-intrinsics)
+target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003) # Very strict check on code
+target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
+target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
 target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-fbacktrace>)
 
-include_directories(include)
+include_directories(include) # Directory for .h files
 add_executable(test_c src/test.c)
 target_link_libraries(test_c openmmpol)
 target_compile_options(test_c PRIVATE -Wall -Wextra -pedantic)

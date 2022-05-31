@@ -12,4 +12,5 @@ RUN zypper --non-interactive in gcc \
                                 lapack-devel \
                                 liblapack3 \ 
                                 hdf5 \
-                                hdf5-devel
+                                hdf5-devel \
+                                zlib-devel
