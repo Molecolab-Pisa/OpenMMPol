@@ -6,7 +6,6 @@ module elstat
     !use mod_mmpol, only: ld_cart,  mm_atoms, pol_atoms
     !use mod_mmpol, only: q, polar_mm, cmm, thole, cpol, ipd, mm_polar
     !use mod_mmpol, only: pscale
-    !use mod_mmpol, only: ip11, np11, np12, ip12, np13, ip13, np14, ip14 
     use mod_mmpol
     use mod_constants, only: zero, pt5, one, two, three, four, f15, f105
     implicit none 
@@ -1811,7 +1810,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh
+        integer(ip) :: I, J, K, IJ, ineigh, pg_j, grp2, igrp2
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp, One = 1.0_rp
@@ -1873,41 +1872,23 @@ module elstat
     !            endif 
                 
                 ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
-                if(dscale(1).ne.one) then
-                    do IJ = 1, np11(polar_mm(J))
-                        I = ip11(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_D2M(dscale(1)-One,Zero,I,J,v)
-                        call potential_D2M(Zero,dscale(1)-One,I,J,v)
-                    enddo
-                endif 
-                
-                if(dscale(2).ne.one) then
-                    do IJ = 1, np12(polar_mm(J))
-                        I = ip12(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_D2M(dscale(2)-One,Zero,I,J,v)
-                        call potential_D2M(Zero,dscale(2)-One,I,J,v)
-                    enddo
-                endif 
-                
-                if(dscale(3).ne.one) then
-                    do IJ = 1, np13(polar_mm(J))
-                        I = ip13(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_D2M(dscale(3)-One,Zero,I,J,v)
-                        call potential_D2M(Zero,dscale(3)-One,I,J,v)
-                    enddo
-                endif 
-                
-                if(dscale(4).ne.one) then
-                    do IJ = 1, np14(polar_mm(J))
-                        I = ip14(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_D2M(dscale(4)-One,Zero,I,J,v)
-                        call potential_D2M(Zero,dscale(4)-One,I,J,v)
-                    enddo
-                endif 
+                pg_j = mmat_polgrp(polar_mm(j)) ! Polarization group of j
+                do ineigh=1, 4
+                    if(dscale(ineigh).ne.one) then
+                        do igrp2=pg_conn(ineigh)%ri(pg_j), &
+                                 pg_conn(ineigh)%ri(pg_j+1)-1
+                             grp2 = pg_conn(ineigh)%ci(igrp2)
+                             do ij=polgrp_mmat%ri(grp2), &
+                                   polgrp_mmat%ri(grp2+1)-1
+                                i = polgrp_mmat%ci(ij)
+                                
+                                if (i /= polar_mm(j)) then
+                                    call potential_D2M(Zero,dscale(ineigh)-One,I,J,v)
+                                end if
+                            end do
+                        end do
+                    end if
+                end do
             enddo
         elseif ((scr.eq.1).and.(.not. Amoeba)) then
             
@@ -1956,7 +1937,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh
+        integer(ip) :: I, J, K, IJ, ineigh, grp, igrp, pg_i
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp ,One = 1.0_rp
@@ -1981,10 +1962,11 @@ module elstat
                                 ! Strange way of rescaling 1-4 interactions - if 1-4 atom also 
                                 ! in ip11 then scale by pscale(3)*pscale(5) else pscale(3)
                                 scale = pscale(3)
-                                do K = 1,np11(polar_mm(I))
-                                    if (J.eq.ip11(K,polar_mm(I))) scale = pscale(3)*pscale(5)
-                                enddo
-                                if (scale.ne.one) then
+
+                                if(mmat_polgrp(j) == mmat_polgrp(polar_mm(i))) then
+                                    scale = pscale(3)*pscale(5)
+                                end if
+                                if (scale /= one) then
                                     call field_M2D(Zero,scale-One,I,J,e)
                                 end if
                             end if
@@ -1993,37 +1975,23 @@ module elstat
                 end do
 
                 ! d field dipoles
-                if (dscale(1).ne.One) then
-                    do IJ = 1, np11(polar_mm(I))
-                        J = ip11(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_M2D(dscale(1)-One,Zero,I,J,e)
-                    enddo
-                end if 
-
-                if (dscale(2).ne.one) then
-                    do IJ = 1, np12(polar_mm(I))
-                        J = ip12(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_M2D(dscale(2)-One,Zero,I,J,e)
-                    enddo
-                end if 
-
-                if (dscale(3).ne.one) then
-                    do IJ = 1, np13(polar_mm(I))
-                        J = ip13(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_M2D(dscale(3)-One,Zero,I,J,e)
-                    enddo
-                end if 
-
-                if (dscale(4).ne.one) then
-                    do IJ = 1, np14(polar_mm(I))
-                        J = ip14(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_M2D(dscale(4)-One,Zero,I,J,e)
-                    enddo
-                end if 
+                pg_i = mmat_polgrp(polar_mm(i)) ! Polarization group of i
+                do ineigh=1, 4
+                    if(dscale(ineigh).ne.one) then
+                        do igrp=pg_conn(ineigh)%ri(pg_i), &
+                                 pg_conn(ineigh)%ri(pg_i+1)-1
+                             grp = pg_conn(ineigh)%ci(igrp)
+                             do ij=polgrp_mmat%ri(grp), &
+                                   polgrp_mmat%ri(grp+1)-1
+                                j = polgrp_mmat%ci(ij)
+                                
+                                if (j /= polar_mm(i)) then
+                                    call field_M2D(dscale(ineigh)-One,Zero,I,J,e)
+                                end if
+                            end do
+                        end do
+                    end if
+                end do
             enddo
             
         elseif ((scr.eq.0).and.(.not. Amoeba)) then     ! AMBER and sources are MM atoms
@@ -2042,45 +2010,23 @@ module elstat
         
         elseif ((scr.eq.1).and.(Amoeba)) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
             do I = 1,pol_atoms
-                if (uscale(1).ne.One) then
-                    do IJ = 1, np11( polar_mm(I) )
-                        J = ip11(IJ, polar_mm(I) )
-
-                        if ((mm_polar(J).eq.0).or.(polar_mm(I).eq.J)) cycle ! if J is not polarizable atom, skip J
-
-                        call field_D2D(uscale(1)-One,uscale(1)-One,I,mm_polar(J),e)
-                    enddo
-                end if 
-
-                if (uscale(2).ne.one) then
-                    do IJ = 1, np12(polar_mm(I))
-                        J = ip12(IJ,polar_mm(I))
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call field_D2D(uscale(2)-One,uscale(2)-One,I,mm_polar(J),e)
-                    enddo
-                end if 
-
-                if (uscale(3).ne.one) then
-                    do IJ = 1, np13(polar_mm(I))
-                        J = ip13(IJ,polar_mm(I))
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call field_D2D(uscale(3)-One,uscale(3)-One,I,mm_polar(J),e)
-                    enddo
-                end if 
-
-                if (uscale(4).ne.one) then
-                    do IJ = 1, np14(polar_mm(I))
-                        J = ip14(IJ,polar_mm(I))
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call field_D2D(uscale(4)-One,uscale(4)-One,I,mm_polar(J),e)
-                    enddo
-                end if 
+                pg_i = mmat_polgrp(polar_mm(i)) ! Polarization group of j
+                do ineigh=1, 4
+                    if(uscale(ineigh).ne.one) then
+                        do igrp=pg_conn(ineigh)%ri(pg_i), &
+                                 pg_conn(ineigh)%ri(pg_i+1)-1
+                             grp = pg_conn(ineigh)%ci(igrp)
+                             do ij=polgrp_mmat%ri(grp), &
+                                   polgrp_mmat%ri(grp+1)-1
+                                j = polgrp_mmat%ci(ij)
+                                
+                                if (mm_polar(j) /= 0 .and. j /= polar_mm(i)) then
+                                    call field_D2D(uscale(ineigh)-One,uscale(ineigh)-One,I,mm_polar(J),e)
+                                end if
+                            end do
+                        end do
+                    end if
+                end do
             enddo
             
         elseif ((scr.eq.1).and.(.not. Amoeba)) then     ! AMBER and sources are induced dipoles
@@ -2126,7 +2072,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh
+        integer(ip) :: I, J, K, IJ, ineigh, igrp, grp
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp, One = 1.0_rp
@@ -2165,10 +2111,13 @@ module elstat
                                 call potential_deriv_D2M(pscale(ineigh)-One,Zero,I,J,dv)
                             else
                                 scale = pscale(3)
-                                do K = 1,np11(polar_mm(J))
-                                    if (I.eq.ip11(K,polar_mm(J))) scale = pscale(3)*pscale(5)
-                                enddo
-                                if (scale.ne.one) then
+                                
+                                ! If the two atoms are in the same polarization grop
+                                if(mmat_polgrp(i) == mmat_polgrp(polar_mm(j))) then
+                                    scale = pscale(3)*pscale(5)
+                                end if
+
+                                if (scale /= one) then
                                     !call potential_deriv_D2M(Zero,scale-One,I,J,dv)
                                     call potential_deriv_D2M(scale-One,Zero,I,J,dv)
                                 end if
@@ -2178,41 +2127,21 @@ module elstat
                 end do
                 
                 ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
-                if(dscale(1).ne.one) then
-                    do IJ = 1, np11(polar_mm(J))
-                        I = ip11(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_deriv_D2M(dscale(1)-One,Zero,I,J,dv)
-                        call potential_deriv_D2M(Zero,dscale(1)-One,I,J,dv)
-                    enddo
-                endif 
-                
-                if(dscale(2).ne.one) then
-                    do IJ = 1, np12(polar_mm(J))
-                        I = ip12(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_deriv_D2M(dscale(2)-One,Zero,I,J,dv)
-                        call potential_deriv_D2M(Zero,dscale(2)-One,I,J,dv)
-                    enddo
-                endif 
-                
-                if(dscale(3).ne.one) then
-                    do IJ = 1, np13(polar_mm(J))
-                        I = ip13(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_deriv_D2M(dscale(3)-One,Zero,I,J,dv)
-                        call potential_deriv_D2M(Zero,dscale(3)-One,I,J,dv)
-                    enddo
-                endif 
-                
-                if(dscale(4).ne.one) then
-                    do IJ = 1, np14(polar_mm(J))
-                        I = ip14(IJ,polar_mm(J))
-                        if (I.eq.polar_mm(J)) cycle
-                        !call potential_deriv_D2M(dscale(4)-One,Zero,I,J,dv)
-                        call potential_deriv_D2M(Zero,dscale(4)-One,I,J,dv)
-                    enddo
-                endif 
+                do ineigh=1, 4
+                    if(dscale(ineigh).ne.one) then
+                        do igrp=pg_conn(ineigh)%ri(polar_mm(j)), &
+                                pg_conn(ineigh)%ri(polar_mm(j)+1)-1
+                           grp = pg_conn(ineigh)%ci(igrp)
+                           do ij=polgrp_mmat%ri(igrp), &
+                                 polgrp_mmat%ri(igrp+1)-1
+                                i = polgrp_mmat%ci(ij)
+                                if (i /= polar_mm(j)) then
+                                    call potential_deriv_D2M(Zero,dscale(ineigh)-One,I,J,dv)
+                                end if
+                           end do
+                        end do
+                    end if 
+                end do
             enddo
         elseif ((scr.eq.1).and.(.not. Amoeba)) then
             
@@ -2265,7 +2194,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh
+        integer(ip) :: I, J, K, IJ, ineigh, igrp, grp
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp ,One = 1.0_rp
@@ -2286,10 +2215,11 @@ module elstat
                                 call field_deriv_M2D(Zero,pscale(ineigh)-One,I,J,de)
                             else
                                 scale = pscale(3)
-                                do K = 1,np11(polar_mm(I))
-                                    if (J.eq.ip11(K,polar_mm(I))) scale = pscale(3)*pscale(5)
-                                enddo
-                                if (scale.ne.one) then
+                                if(mmat_polgrp(j) == mmat_polgrp(polar_mm(i))) then
+                                    scale = pscale(3)*pscale(5)
+                                end if
+                                
+                                if (scale /= one) then
                                     call field_deriv_M2D(Zero,scale-One,I,J,de)
                                 end if
                             end if
@@ -2298,37 +2228,22 @@ module elstat
                 end do
 
                 ! d field dipoles
-                if (dscale(1).ne.One) then
-                    do IJ = 1, np11(polar_mm(I))
-                        J = ip11(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_deriv_M2D(dscale(1)-One,Zero,I,J,de)
-                    enddo
-                end if 
-
-                if (dscale(2).ne.one) then
-                    do IJ = 1, np12(polar_mm(I))
-                        J = ip12(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_deriv_M2D(dscale(2)-One,Zero,I,J,de)
-                    enddo
-                end if 
-
-                if (dscale(3).ne.one) then
-                    do IJ = 1, np13(polar_mm(I))
-                        J = ip13(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_deriv_M2D(dscale(3)-One,Zero,I,J,de)
-                    enddo
-                end if 
-
-                if (dscale(4).ne.one) then
-                    do IJ = 1, np14(polar_mm(I))
-                        J = ip14(IJ,polar_mm(I))
-                        if (polar_mm(I).eq.J) cycle
-                        call field_deriv_M2D(dscale(4)-One,Zero,I,J,de)
-                    enddo
-                end if 
+                do ineigh=1, 4
+                    if (dscale(ineigh).ne.One) then
+                        do igrp=pg_conn(ineigh)%ri(polar_mm(i)), &
+                                pg_conn(ineigh)%ri(polar_mm(i)+1)-1
+                            grp = pg_conn(ineigh)%ci(igrp)
+                            
+                            do ij = polgrp_mmat%ri(grp), &
+                                    polgrp_mmat%ri(grp+1)-1
+                                j = polgrp_mmat%ci(ij)
+                                if (polar_mm(i) /= j) then
+                                    call field_deriv_M2D(dscale(ineigh)-One,Zero,I,J,de)
+                                end if
+                            enddo
+                        end do
+                    end if 
+                end do
             enddo
             
         elseif ((scr.eq.0).and.(.not. Amoeba)) then     ! AMBER and sources are MM atoms
@@ -2347,45 +2262,23 @@ module elstat
         
         elseif ((scr.eq.1).and.(Amoeba)) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
             do I = 1,pol_atoms
-                if (uscale(1).ne.One) then
-                    do IJ = 1, np11(polar_mm(I))
-                        J = ip11(IJ,polar_mm(I))
+                do ineigh=1, 4
+                    if (uscale(ineigh).ne.One) then
+                        do igrp=pg_conn(ineigh)%ri(polar_mm(i)), &
+                                pg_conn(ineigh)%ri(polar_mm(i)+1)-1
+                            grp = pg_conn(ineigh)%ci(igrp)
 
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
+                            do ij=polgrp_mmat%ri(grp), &
+                                  polgrp_mmat%ri(grp+1)-1
+                                j = polgrp_mmat%ci(ij)
 
-                        call field_deriv_D2D(uscale(1)-One,uscale(1)-One,I,mm_polar(J),de) !Amoeba,
-                    enddo
-                end if 
-
-                if (uscale(2).ne.one) then
-                    do IJ = 1, np12(polar_mm(I))
-                        J = ip12(IJ,polar_mm(I))
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call field_deriv_D2D(uscale(2)-One,uscale(2)-One,I,mm_polar(J),de) !Amoeba,
-                    enddo
-                end if 
-
-                if (uscale(3).ne.one) then
-                    do IJ = 1, np13(polar_mm(I))
-                        J = ip13(IJ,polar_mm(I))
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call field_deriv_D2D(uscale(3)-One,uscale(3)-One,I,mm_polar(J),de) !Amoeba,
-                    enddo
-                end if 
-
-                if (uscale(4).ne.one) then
-                    do IJ = 1, np14(polar_mm(I))
-                        J = ip14(IJ,polar_mm(I))
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call field_deriv_D2D(uscale(4)-One,uscale(4)-One,I,mm_polar(J),de) !Amoeba,
-                    enddo
-                end if 
+                                if(mm_polar(j) /= 0) then
+                                    call field_deriv_D2D(uscale(ineigh)-One,uscale(ineigh)-One,I,mm_polar(J),de) !Amoeba,
+                                end if
+                            end do
+                        enddo
+                    end if 
+                end do
             enddo
             
         elseif ((scr.eq.1).and.(.not. Amoeba)) then     ! AMBER and sources are induced dipoles

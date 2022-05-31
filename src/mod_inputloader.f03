@@ -8,11 +8,11 @@ module mod_inputloader
     
     subroutine mmpol_init_from_mmp(input_file)
         use mod_mmpol, only: mmpol_init, cmm, &
-                             q, q0, pol, ip11
+                             q, q0, pol
         use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
                              ff_type, amoeba, solver, &
                              matrix_vector, convergence, &
-                             maxpgp, polar_mm, verbose, conn, mmat_polgrp
+                             polar_mm, verbose, conn, mmat_polgrp
         use mod_mmpol, only: mol_frame, iz, ix, iy
         use mod_mmpol, only: fatal_error, set_verbosity, mmpol_prepare
         
@@ -39,9 +39,11 @@ module mod_inputloader
         integer(ip) :: i, j
         
         real(rp), allocatable :: my_pol(:), my_cmm(:,:), my_q(:,:)
-        integer(ip), allocatable :: my_group(:), pol_atoms_list(:)
+        integer(ip), allocatable :: my_group(:), pol_atoms_list(:), my_ip11(:,:)
         
         integer(ip), parameter :: maxn12 = 8
+        integer(ip), parameter :: maxpgp = 120
+        !! maximum number of members for the same polarization group
         integer(ip), allocatable :: i12(:,:)
         
         ! open the (formatted) input file
@@ -81,6 +83,7 @@ module mod_inputloader
         call mallocate('mmpol_init_from_mmp [my_q]', my_ld_cart, my_mm_atoms, my_q)
         call mallocate('mmpol_init_from_mmp [my_pol]', my_mm_atoms, my_pol)
         call mallocate('mmpol_init_from_mmp [my_pol_atoms]', my_mm_atoms, pol_atoms_list)
+        call mallocate('mmpol_init_from_mmp [my_ip11]', maxpgp, my_mm_atoms, my_ip11)
        
         ! coordinates:
         do i = 1, my_mm_atoms
@@ -153,10 +156,11 @@ module mod_inputloader
             ! group 11 connectivity:
             ! (to be replaced with polarization group)
             do i = 1, mm_atoms
-                read(iof_mmpinp,*) ip11(1:maxpgp,i)
+                read(iof_mmpinp,*) my_ip11(1:maxpgp,i)
             end do
 
-            call polgroup11_to_mm2pg(ip11, mmat_polgrp)
+            call polgroup11_to_mm2pg(my_ip11, mmat_polgrp)
+            call mfree('mmpol_init_from_mmp [my_ip11]', my_ip11)
 
             ! information to rotate the multipoles to the lab frame.
             ! mol_frame, iz, ix, iy:

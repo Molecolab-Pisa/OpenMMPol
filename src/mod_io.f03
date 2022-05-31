@@ -33,7 +33,7 @@ module mod_io
         use mod_memory, only: ip
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
                              amoeba, pol, conn, ff_rules, ff_type, &
-                             ix, iy, iz, mol_frame, ip11, maxpgp
+                             ix, iy, iz, mol_frame, mmat_polgrp
 
         implicit none
 
@@ -200,16 +200,16 @@ module mod_io
             call h5dwrite_f(cur_dst, H5T_IP, mol_frame, dims(:1), eflag)
             
             ! Group connectivity 
-            call h5gcreate_f(hg_amoeba, "polarization groups connectivity", &
+            call h5gcreate_f(hg_amoeba, "Polarization groups", &
                              hg_cur, eflag)
             
-            dims = (/maxpgp, mm_atoms, 0, 0/)
-            call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
+            dims = (/mm_atoms, 0, 0, 0/)
+            call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
             call h5dcreate_f(hg_cur, &
-                             "Adjacency indices", &
+                             "Polarization groups index", &
                              H5T_IP, &
                              cur_dsp, cur_dst, eflag)
-            call h5dwrite_f(cur_dst, H5T_IP, ip11, dims(:2), eflag)
+            call h5dwrite_f(cur_dst, H5T_IP, mmat_polgrp, dims(:1), eflag)
             
             call h5gclose_f(hg_cur, eflag)
             
@@ -303,14 +303,7 @@ subroutine mmpol_print_summary()
             end do
             
             if(amoeba) then 
-                
-                call print_int_vec('1-1 polarization neighors:', &
-                                   mm_atoms, &
-                                   polgrp_mmat%ri(mmat_polgrp(i)), &
-                                   polgrp_mmat%ri(mmat_polgrp(i)+1)-1, &
-                                   polgrp_mmat%ci)
-               
-                do j=1, 3
+                do j=1, 4
                     ilst = 1
                     do igrp=pg_conn(j)%ri(mmat_polgrp(i)), &
                             pg_conn(j)%ri(mmat_polgrp(i)+1)-1
@@ -320,7 +313,7 @@ subroutine mmpol_print_summary()
                         ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
                     end do
                     
-                    write(str, "('1-', I1, ' polarization neighors:')") j+1
+                    write(str, "('1-', I1, ' polarization neighors:')") j
                     call print_int_vec(str, & 
                                        ilst-1,0,0,lst)
                 end do

@@ -300,7 +300,7 @@ module mod_adjacency_mat
 
         end subroutine sparse_identity
 
-        subroutine build_conn_upto_n(adj, n, res)
+        subroutine build_conn_upto_n(adj, n, res, start_id)
             !! Build connectivity matrices up to \(\mathbb C_n\) 
             !! starting from \(\mathbb C_1\). Results are stored in an
             !! array of boolean sparse matrix in Yale format in such a way that
@@ -314,21 +314,33 @@ module mod_adjacency_mat
             !! Maximum level of connectivity that should be computed
             type(yale_sparse), intent(out), allocatable :: res(:)
             !! Results connectivity matrices
+            logical :: start_id
+            !! Specifies if the first matrix allocated res(1) should be the 
+            !! identity (true) or the adjacency (false).
 
-            integer(ip) :: i
+            integer(ip) :: i, adj_idx
             type(yale_sparse) :: tmp, id
 
-            allocate(res(n))
-
-            call matcpy(adj, res(1))
-
-            do i=2, n
-                call mat_mult(res(i-1), res(1), res(i))
+            if(start_id) then
+                allocate(res(n+1))
+                adj_idx = 2
+            else
+                allocate(res(n))
+                adj_idx = 1
+            end if
+            
+            call matcpy(adj, res(adj_idx))
+            
+            do i=adj_idx+1, adj_idx+n-1
+                call mat_mult(res(i-1), res(adj_idx), res(i))
                 !call matcpy(res(i-1), res(i))
                 call mat_andnot(res(i), res(i-1), tmp)
-                if(i == 2) then
+                if(i == adj_idx+1) then
                     call sparse_identity(adj%n, id)
                     call mat_andnot(tmp, id, res(i))
+                    if(start_id) then
+                        call matcpy(id, res(1))
+                    end if
                     call matfree(id)
                 else
                     call mat_andnot(tmp, res(i-2), res(i))

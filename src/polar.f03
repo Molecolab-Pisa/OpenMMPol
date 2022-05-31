@@ -70,9 +70,9 @@ module polar
         
 
     subroutine create_TMat(TMat)
-        use mod_mmpol, only : pol_atoms, cpol, uscale, np11, np12, np13, np14, &
-                               ip11, ip12, ip13, ip14, pol, mm_polar, Amoeba,  &
-                               verbose, polar_mm, conn
+        use mod_mmpol, only : pol_atoms, cpol, uscale, pol, mm_polar, amoeba, &
+                              verbose, polar_mm, conn, pg_conn, mmat_polgrp, &
+                              polgrp_mmat
         implicit none
         !                      
         ! Construct polarization tensor for matrix inversion solution
@@ -91,7 +91,7 @@ module polar
         real(rp), dimension(3*pol_atoms,3*pol_atoms), intent(out) :: TMat
         !
         real(rp), dimension(3,pol_atoms,3,pol_atoms) :: TTens
-        integer(ip) :: I, J, K, L, IJ
+        integer(ip) :: I, J, K, L, IJ, ineigh, ipg
         !
         real(rp), parameter   :: Zero = 0.0_rp, One = 1.0_rp
         !
@@ -129,48 +129,23 @@ module polar
         ! Remove excluded interactions
         if  (Amoeba) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
             do I = 1,pol_atoms
-                if (uscale(1).ne.One) then
-                    do IJ = 1, np11( polar_mm(I) )
-                        J = ip11(IJ, polar_mm(I) )
+                ! For polarization group pg_conn(1) is the identity matrix
+                do ineigh=1, 4
+                    if (uscale(ineigh).ne.One) then
+                        do ipg=pg_conn(ineigh)%ri(mmat_polgrp(i)), &
+                               pg_conn(ineigh)%ri(mmat_polgrp(i)+1)-1
 
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
+                            do ij = polgrp_mmat%ri(ipg), &
+                                    polgrp_mmat%ri(ipg+1)-1
+                                j = polgrp_mmat%ci(ij)
 
-                        call dipole_T(uscale(1)-One,I, mm_polar(J) ,TTens)
+                                if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
 
-                    enddo
-                end if 
-
-                if (uscale(2).ne.one) then
-                    do IJ = 1, np12( polar_mm(I) )
-                        J = ip12(IJ, polar_mm(I) )
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call dipole_T(uscale(2)-One,I, mm_polar(J) ,TTens)
-                    enddo
-                end if 
-
-                if (uscale(3).ne.one) then
-                    do IJ = 1, np13( polar_mm(I) )
-                        J = ip13(IJ, polar_mm(I) )
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call dipole_T(uscale(3)-One,I, mm_polar(J) ,TTens)
-                        
-                    enddo
-                end if 
-
-                if (uscale(4).ne.one) then
-                    do IJ = 1, np14( polar_mm(I) )
-                        J = ip14(IJ, polar_mm(I) )
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                        
-                        call dipole_T(uscale(4)-One,I, mm_polar(J) ,TTens)
-
-                    enddo
-                end if 
+                                call dipole_T(uscale(ineigh)-One,I, mm_polar(J) ,TTens)
+                            end do
+                        enddo
+                    end if 
+                end do
             enddo
             
         else     ! AMBER and sources are induced dipoles

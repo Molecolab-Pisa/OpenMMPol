@@ -10,10 +10,6 @@ module mod_mmpol
     implicit none 
     !private
     
-    !TODO
-    integer(ip), parameter :: maxpgp = 120
-    !! maximum number of members for the same polarization group
-    
     integer(ip), protected :: verbose = 0_ip
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
@@ -109,7 +105,7 @@ module mod_mmpol
     
     type(yale_sparse), allocatable :: conn(:)
     !! connectivity matrices listing atoms separetad by 1, 2, 3 (and 4 -- only 
-    !! for AMOEBA) bonds
+    !! for AMOEBA) bonds. 1st element is the adjacency matrix.
 
     integer(ip), allocatable :: mmat_polgrp(:)
     !! Polarizability group index for each MM site
@@ -122,13 +118,9 @@ module mod_mmpol
     type(yale_sparse), allocatable :: pg_conn(:)
     !! Adjacency and connectivity matytrices between polarizability groups.
     !! Two groups are said to be adjacent if they are connected by a chemical 
-    !! bond.
+    !! bond. The 1st element is the identity matrix for code simplicity.
     
-    integer(ip), allocatable :: np11(:), ip11(:,:), np12(:), ip12(:,:), np13(:), ip13(:,:), np14(:), ip14(:,:)
-    !! polarization group "connectivity":
-
     ! parameters for the definition of the rotation matrices for the multipoles:
-    
     integer(ip), allocatable :: mol_frame(:)
     !! definition of the molecular frame
     !! convention: 0 ... do not rotate
@@ -246,15 +238,6 @@ module mod_mmpol
             ! for AMOEBA
             call mallocate('mmpol_init [q0]', ld_cart, mm_atoms, q0)
             
-            call mallocate('mmpol_init [np11]', mm_atoms, np11)
-            call mallocate('mmpol_init [ip11]', maxpgp, mm_atoms, ip11)
-            call mallocate('mmpol_init [np12]', mm_atoms, np12)
-            call mallocate('mmpol_init [ip12]', maxpgp, mm_atoms, ip12)
-            call mallocate('mmpol_init [np13]', mm_atoms, np13)
-            call mallocate('mmpol_init [ip13]', maxpgp, mm_atoms, ip13)
-            call mallocate('mmpol_init [np14]', mm_atoms, np14)
-            call mallocate('mmpol_init [ip14]', maxpgp, mm_atoms, ip14)
-
             call mallocate('mmpol_init [mmat_polgrp]', mm_atoms, mmat_polgrp)
 
             call mallocate('mmpol_init [mol_frame]', mm_atoms, mol_frame)
@@ -315,9 +298,9 @@ module mod_mmpol
         if(amoeba) then 
             ! Amoeba needs connectivity matrices up to atoms separated  by 3 
             ! bonds
-            call build_conn_upto_n(adj, 4, conn)
+            call build_conn_upto_n(adj, 4, conn, .false.)
         else
-            call build_conn_upto_n(adj, 3, conn)
+            call build_conn_upto_n(adj, 3, conn, .false.)
         end if
         
         ! invert mm_polar list creating mm_polar
@@ -347,9 +330,7 @@ module mod_mmpol
             ! pol groups connectivity list
             call reverse_polgrp_tab(mmat_polgrp, polgrp_mmat)
             call build_pg_adjacency_matrix(pg_adj)
-            call build_conn_upto_n(pg_adj, 3, pg_conn)
-
-            call pg_connectivity_list_init()
+            call build_conn_upto_n(pg_adj, 3, pg_conn, .true.)
 
             ! performs multipoles rotation
             call rotate_multipoles(.false.,xx,xx)
@@ -394,15 +375,6 @@ module mod_mmpol
             ! for AMOEBA
             call mfree('mmpol_terminate [q0]', q0)
             
-            call mfree('mmpol_terminate [np11]', np11)
-            call mfree('mmpol_terminate [ip11]', ip11)
-            call mfree('mmpol_terminate [np12]', np12)
-            call mfree('mmpol_terminate [ip12]', ip12)
-            call mfree('mmpol_terminate [np13]', np13)
-            call mfree('mmpol_terminate [ip13]', ip13)
-            call mfree('mmpol_terminate [np14]', np14)
-            call mfree('mmpol_terminate [ip14]', ip14)
-
             call mfree('mmpol_terminate [mmat_polgrp]', mmat_polgrp)
             do i=1, size(pg_conn)
                 call matfree(pg_conn(i))
@@ -548,195 +520,6 @@ module mod_mmpol
         call reallocate_mat(adj, adj%ri(adj%n+1)-1)
 
     end subroutine build_pg_adjacency_matrix
-    
-    
-    subroutine pg_connectivity_list_init()
-        !! TODO Insert the documentation for this function
-
-        use mod_memory, only: mallocate, mfree
-       
-        implicit none
-
-        integer(ip) :: i, j, k, l, ij, nlist, nkeep
-        integer(ip), allocatable :: mask(:), keep(:), list(:)
-
-        call mallocate('pg_connectivity_list_init [mask]', mm_atoms, mask)
-        call mallocate('pg_connectivity_list_init [keep]',120_ip, keep)
-        call mallocate('pg_connectivity_list_init [list]',1000_ip, list)
-        
-        mask(:) = 0_ip
-        keep(:) = 0_ip
-        list(:) = 0_ip
-        
-        ! np11:
-        np11 = 0
-        do i = 1, mm_atoms
-            do j = 1, maxpgp
-                if (ip11(j,i).ne.0) np11(i) = np11(i) + 1
-            end do
-            ! sort ip11 and remove duplicates:
-            call ihsort(.true.,np11(i),ip11(:,i))
-        end do
-
-        ! np12, ip12:
-        np12 = 0
-        ip12 = 0
-        
-        do i = 1, mm_atoms
-            ! create a mask to record what atoms belong 
-            ! to the same polarization group as the i-th:
-            do j = 1, np11(i)
-                ij = ip11(j,i)
-                mask(ij) = i
-            end do
-
-            ! now scan the 1-2 neighbors of the atoms in the 
-            ! same group and check whether they also belong 
-            ! to the same group. if not, keep them:
-
-            nkeep = 0
-            nlist = 0
-
-            do j = 1, np11(i)
-                ij = ip11(j,i)
-                do k = conn(1)%ri(ij), &
-                       conn(1)%ri(ij+1)-1
-                    !l = i12(k,ij)
-                    l = conn(1)%ci(k)
-                    if (mask(l).ne.i) then
-                        nkeep       = nkeep + 1
-                        keep(nkeep) = l 
-                    end if
-                end do
-            end do
-
-            ! now, for each kept element, add to a temporary 
-            ! list all the atoms belonging to the same polarization 
-            ! group:
-
-            do j = 1, nkeep
-                ij = keep(j)
-                do k = 1, np11(ij)
-                    l           = ip11(k,ij)
-                    nlist       = nlist + 1
-                    list(nlist) = l
-                end do
-            end do
-
-            ! sort the list and get rid of the duplicates:
-            call ihsort(.true.,nlist,list)
-
-            ! if there are too many atoms in the list, 
-            ! abort the calculation:
-
-            if (nlist.gt.maxpgp) then
-                call fatal_error('too many atoms in 1-2 polarization group.')
-            else
-                np12(i)         = nlist
-                ip12(1:nlist,i) = list(1:nlist)
-            end if
-        end do
-        
-        ! np13, ip13:
-        np13 = 0
-        ip13 = 0
-        mask = 0
-        list = 0
-
-        do i = 1, mm_atoms
-            ! create a mask to record what atoms belong 
-            ! to the same polarization group
-            ! as the i-th or to a 1-2 polarization neighbor:
-            do j = 1, np11(i)
-                ij = ip11(j,i)
-                mask(ij) = i
-            end do
-            do j = 1, np12(i)
-                ij = ip12(j,i)
-                mask(ij) = i
-            end do
-            ! proceed as for standard connectivity lists. 
-            ! look at 1-2 polarization neighbors of 1-2 polarization 
-            ! neighbors:
-            
-            nlist = 0
-            do j = 1, np12(i)
-                ij = ip12(j,i)
-                do k = 1, np12(ij)
-                    l = ip12(k,ij)
-                    if (mask(l).ne.i) then
-                        nlist       = nlist + 1
-                        list(nlist) = l 
-                    end if
-                end do
-            end do
-            ! sort the list and get rid of the duplicates:
-            call ihsort(.true.,nlist,list)
-            
-            ! if there are too many atoms in the list, 
-            ! abort the calculation:
-            if (nlist.gt.maxpgp) then
-                call fatal_error('too many atoms in 1-3 polarization group.')
-            else
-                np13(i)         = nlist
-                ip13(1:nlist,i) = list(1:nlist)
-            end if
-        end do
-
-        ! np14, ip14:
-        np14 = 0
-        ip14 = 0
-        mask(:) = 0_ip
-        list(:) = 0_ip
-
-        do i = 1, mm_atoms
-            ! create a mask to record what atoms belong to 
-            ! the same polarization group as the i-th or to a 
-            ! 1-2 or 1-3 polarization neighbor:
-            do j = 1, np11(i)
-                ij       = ip11(j,i)
-                mask(ij) = i
-            end do
-            do j = 1, np12(i)
-                ij       = ip12(j,i)
-                mask(ij) = i
-            end do
-            do j = 1, np13(i)
-                ij       = ip13(j,i)
-                mask(ij) = i
-            end do
-            ! proceed as for standard connectivity lists. 
-            ! look at 1-2 polarization neighbors of 1-3 polarization 
-            ! neighbors:
-
-            nlist = 0
-            do j = 1, np13(i)
-                ij = ip13(j,i)
-                do k = 1, np12(ij)
-                    l = ip12(k,ij)
-                    if (mask(l).ne.i) then
-                        nlist       = nlist + 1
-                        list(nlist) = l 
-                    end if
-                end do
-            end do
-
-            ! sort the list and get rid of the duplicates:
-            call ihsort(.true.,nlist,list)
-            ! if there are too many atoms in the list, 
-            ! abort the calculation:
-            if (nlist.gt.maxpgp) then
-                call fatal_error('too many atoms in 1-4 polarization group.')
-            else
-                np14(i) = nlist
-                ip14(1:nlist,i) = list(1:nlist)
-            end if
-        end do
-        
-        call mfree('pg_connectivity_list_init [mask]', mask)
-        call mfree('pg_connectivity_list_init [keep]', keep)
-        call mfree('pg_connectivity_list_init [list]', list)
-    end subroutine pg_connectivity_list_init
     
     subroutine set_screening_parameters()
         !! Subroutine to initialize the screening parameters
