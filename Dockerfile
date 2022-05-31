@@ -1,4 +1,4 @@
-FROM opensuse:leap
+FROM opensuse/leap:latest
 LABEL version="1.0"
 LABEL description="Dockerfile to build and run open-mmpol library"
 
