@@ -9,4 +9,6 @@ RUN zypper --non-interactive in gcc \
                                 make \
                                 python \
                                 lapack-devel \
-                                liblapack3
+                                liblapack3 \ 
+                                hdf5 \
+                                hdf5-devel

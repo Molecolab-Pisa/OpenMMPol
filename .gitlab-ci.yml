@@ -1,6 +1,7 @@
 stages:
     - docker-building
-    - compile
+    - compile-lib
+    - compile-bin
 
 build_docker_env:
     stage: docker-building
@@ -15,8 +16,8 @@ build_docker_env:
         changes:
             - Dockerfile
 
-compile-lib:
-    stage: compile
+make-lib:
+    stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - make libraries
@@ -27,7 +28,7 @@ compile-lib:
         - pushes
 
 compile-C:
-    stage: compile
+    stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - make C_binaries
@@ -36,11 +37,9 @@ compile-C:
             - bin/*.out
     only:
         - pushes
-    dependencies:
-        - compile-lib
 
 compile-FORTRAN:
-    stage: compile
+    stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - make FORTRAN_binaries
@@ -49,5 +48,3 @@ compile-FORTRAN:
             - bin/*.exe
     only:
         - pushes
-    dependencies:
-        - compile-lib
