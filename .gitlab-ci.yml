@@ -36,7 +36,7 @@ make-lib:
         - make openmmpol
     artifacts:
         paths:
-            - build/lib/libopenmmpol.so
+            - build
     only:
         - pushes
 
