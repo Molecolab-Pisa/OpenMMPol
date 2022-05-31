@@ -23,7 +23,7 @@ endif
 
 CPPFLAGS = -cpp
 CFLAGS = -Wall -pedantic -g -Og -std=c99
-LDLIBS = -lblas -llapack -lgfortran
+LDLIBS = -llapack -lgfortran
 DOC_CPPFLAGS = 
 
 ifeq ($(USE_INT64), YES)
@@ -62,9 +62,13 @@ all: libraries binaries # python
 
 python: $(PYT_DIR)/pymmpol.so
 
-libraries: $(LIB_DIR)/mmpolmodules.a $(LIB_DIR)/libopenmmpol.so
+libraries: $(LIB_DIR)/libopenmmpol.so
 
-binaries: $(BIN_DIR)/test_init.exe $(BIN_DIR)/test_amoeba.exe $(BIN_DIR)/test_c.out
+binaries: C_binaries FORTRAN_binaries
+
+C_binaries: $(BIN_DIR)/test_c.out
+
+FORTRAN_binaries: $(BIN_DIR)/test_init.exe
 
 docpages: DOC.md
 	ford $< $(DOC_CPPFLAGS)
@@ -74,9 +78,6 @@ $(BIN_DIR)/%.exe: $(SRC_DIR)/%.F03 $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 
 $(BIN_DIR)/%.out: $(SRC_DIR)/%.c $(BIN_DIR) $(LIB_DIR)/libopenmmpol.so
 	$(CC) $(CFLAGS) $(LDLIBS) -L$(LIB_DIR) -I$(INCLUDE_DIR) $< -lopenmmpol -o $@
-
-$(LIB_DIR)/mmpolmodules.a: $(OBJS) $(LIB_DIR)
-	ar crs $@ $(OBJS)
 
 $(LIB_DIR)/libopenmmpol.so: $(OBJS) $(LIB_DIR)
 	$(FC) $(CPPFLAGS) $(FFLAGS) $(LDLIBS) -shared -I$(MOD_DIR) -o $@ $(OBJS)

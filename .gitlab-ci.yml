@@ -1,0 +1,53 @@
+stages:
+    - docker-building
+    - compile
+
+build_docker_env:
+    stage: docker-building
+    image: docker:git
+    script:
+        - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN molimen1.dcci.unipi.it:22003
+        - docker build -t molimen1.dcci.unipi.it:22003/molecolab/open-mmpol .
+        - docker push molimen1.dcci.unipi.it:22003/molecolab/open-mmpol
+    only:
+        refs:
+            - pushes
+        changes:
+            - Dockerfile
+
+compile-lib:
+    stage: compile
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - make libraries
+    artifacts:
+        paths:
+            - lib/libopenmmpol.so
+    only:
+        - pushes
+
+compile-C:
+    stage: compile
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - make C_binaries
+    artifacts:
+        paths:
+            - bin/*.out
+    only:
+        - pushes
+    dependencies:
+        - compile-lib
+
+compile-FORTRAN:
+    stage: compile
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - make FORTRAN_binaries
+    artifacts:
+        paths:
+            - bin/*.exe
+    only:
+        - pushes
+    dependencies:
+        - compile-lib
