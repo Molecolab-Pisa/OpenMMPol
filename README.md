@@ -20,13 +20,13 @@ use the following command:
 
 To build the package, just use cmake in the standard way; from the root directory of the git repository:
 
-``$ mkdir build    
+``$ mkdir build``
   
-  $ cd build
+``$ cd build``
   
-  $ cmake -DCMAKE_BUILD_TYPE=DEBUG .. # You can use DEBUG or RELEASE to control the build flags
+``$ cmake -DCMAKE_BUILD_TYPE=DEBUG .. # You can use DEBUG or RELEASE to control the build flags``
   
-  $ make``
+``$ make``
 
 
 
