@@ -62,7 +62,7 @@ make-doc:
         paths:
             - doc
     only:
-        -pushes
+        - pushes
 
 #compile-FORTRAN:
 #    stage: compile-bin
