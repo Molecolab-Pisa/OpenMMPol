@@ -159,7 +159,7 @@ module mod_mmpol
     real(rp), allocatable :: ef_dd(:,:,:), def_dd(:,:,:)
     !! field of the ipd at the ipd and its derivatives
     
-    real(rp),    allocatable :: thole(:)
+    real(rp), allocatable :: thole(:)
     !! array to store the thole factors for computing damping functions
     
     contains
