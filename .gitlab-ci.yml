@@ -46,10 +46,22 @@ compile-C:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make test_c
+        - make C_test_init
     artifacts:
         paths:
-            - build/bin/test_c
+            - build/bin/C_test_init
+    only:
+        - pushes
+
+compile-FORTRAN:
+    stage: compile-bin
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build
+        - make F_test_init
+    artifacts:
+        paths:
+            - bin/F_test_init
     only:
         - pushes
 
@@ -64,13 +76,3 @@ make-doc:
     only:
         - pushes
 
-#compile-FORTRAN:
-#    stage: compile-bin
-#    image: $CI_REGISTRY_IMAGE:latest
-#    script:
-#        - make FORTRAN_binaries
-#    artifacts:
-#        paths:
-#            - bin/*.exe
-#    only:
-#        - pushes
