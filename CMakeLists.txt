@@ -9,6 +9,8 @@ add_compile_options($<$<CONFIG:RELEASE>:-O3>
                     $<$<CONFIG:DEBUG>:-Og>
                     $<$<CONFIG:DEBUG>:-g>)
 
+#set(CMAKE_VERBOSE_MAKEFILE ON)
+
 add_library(openmmpol SHARED 
             src/coulomb_kernel.f90 
             src/electrostatics.f90
@@ -35,7 +37,7 @@ target_link_libraries(openmmpol ${LAPACK_LIBRARIES})
 # HDF5
 find_package(HDF5 COMPONENTS Fortran)
 if (HDF5_FOUND)
-    add_compile_definitions(USE_HDF5)
+    add_definitions(-DUSE_HDF5)
     include_directories( SYSTEM ${HDF5_INCLUDE_DIRS})
     target_link_libraries(openmmpol ${HDF5_Fortran_LIBRARIES})
 endif(HDF5_FOUND)
@@ -51,8 +53,12 @@ target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed
 target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-fbacktrace>)
 
 include_directories(include) # Directory for .h files
-add_executable(test_c src/test.c)
-target_link_libraries(test_c openmmpol)
-target_compile_options(test_c PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET test_c PROPERTY C_STANDARD 99)
 
+add_executable(C_test_init src/test_init.c)
+target_link_libraries(C_test_init openmmpol)
+target_compile_options(C_test_init PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
+
+add_executable(F_test_init src/test_init.F90)
+target_link_libraries(F_test_init openmmpol)
+target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)

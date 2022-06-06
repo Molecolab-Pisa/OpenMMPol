@@ -9,7 +9,8 @@ module mod_interface
 
     public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
     public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
-    public :: w_mmpol_init, do_mm, do_qmmm, restart, get_energy
+    public :: w_mmpol_init, do_mm, do_qmmm, restart, get_energy, &
+              write_hdf5
 
     contains
         
@@ -100,9 +101,10 @@ module mod_interface
         
         subroutine w_mmpol_init(filename) bind(c, name='w_mmpol_init')
             use mod_inputloader, only : mmpol_init_from_mmp
-            implicit none
-            character(kind=c_char), intent(in) :: filename(120)
             
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(120)
             character(len=120) :: input_file
 
             call c2f_string(filename, input_file)
@@ -185,7 +187,6 @@ module mod_interface
             implicit none
             
             character(kind=c_char), intent(in) :: filename(120)
-            
             character(len=120) :: hdf5out
             integer(ip) :: write_hdf5
 
