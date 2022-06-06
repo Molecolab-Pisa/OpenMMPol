@@ -16,10 +16,10 @@ int main(int argc, char **argv){
     strcpy(outfile, argv[2]);
         
     printf("Input file: '%s'\n", infile);
-    printf("Output file: '%s'\n", outfile);
 
     w_mmpol_init(infile);
-    write_hdf5(outfile);
+    set_verbose(OMMP_VERBOSE_DEBUG);
+    print_summary();
     
     return 0;
 }

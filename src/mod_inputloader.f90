@@ -28,7 +28,6 @@ module mod_inputloader
 
         integer(ip), parameter :: revision = 1
         !! mmpol file revision expected from the code
-        ! TODO
             
         ! read the input for the mmpol calculation and process it.
         integer(ip) :: input_revision, iconv
@@ -172,8 +171,6 @@ module mod_inputloader
         ! and the correspondence lists:
      
         call mmpol_prepare()
-
-        if(verbose == 3) call mmpol_print_summary()
 
     end subroutine mmpol_init_from_mmp
 

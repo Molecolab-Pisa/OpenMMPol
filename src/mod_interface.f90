@@ -78,6 +78,22 @@ module mod_interface
             is_amoeba = amoeba
         end function is_amoeba
         
+        subroutine set_verbose(verb) bind(c, name='set_verbose')
+            implicit none 
+
+            integer(ip), intent(in), value :: verb
+
+            call set_verbosity(verb)
+        end subroutine set_verbose
+
+        subroutine print_summary() bind(c, name='print_summary')
+            use mod_io, only: mmpol_print_summary
+
+            implicit none
+
+            call mmpol_print_summary()
+        end subroutine print_summary
+
         subroutine c2f_string(c_str, f_str)
             implicit none
             
