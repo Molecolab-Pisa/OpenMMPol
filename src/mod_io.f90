@@ -140,14 +140,12 @@ module mod_io
                          cur_dsp, cur_dst, eflag)
         call h5dwrite_f(cur_dst, H5T_RP, pol, dims(:1), eflag)
 
-        ! TODO
         ! Connectivity of the environment is saved as an adjacency matrix; 
         ! Since such a matrix is sparse and boolean it can be represented in
         ! a very efficient way using Yale format (sometimes called compressed
         ! sparse row) omitting the V vector. In this way the adj. matrix is 
         ! represented by adj_m_ci(n_bond) and adj_m_ri(mm_atoms+1).
         
-        ! For now, just save n1m and i1m, all closed in a subfolder
         call h5gcreate_f(hg_sysfund, "topology", hg_cur, eflag)
         
         dims = (/mm_atoms+1, 0, 0, 0/)
@@ -199,13 +197,9 @@ module mod_io
                              cur_dsp, cur_dst, eflag)
             call h5dwrite_f(cur_dst, H5T_IP, mol_frame, dims(:1), eflag)
             
-            ! Group connectivity 
-            call h5gcreate_f(hg_amoeba, "Polarization groups", &
-                             hg_cur, eflag)
-            
             dims = (/mm_atoms, 0, 0, 0/)
             call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-            call h5dcreate_f(hg_cur, &
+            call h5dcreate_f(hg_amoeba, &
                              "Polarization groups index", &
                              H5T_IP, &
                              cur_dsp, cur_dst, eflag)
