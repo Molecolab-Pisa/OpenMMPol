@@ -83,4 +83,4 @@ run_tests:
     script:
         - make test
     only:
-        -pushes
+        - pushes
