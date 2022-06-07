@@ -81,6 +81,7 @@ run_tests:
     stage: test
     image: $CI_REGISTRY_IMAGE:latest
     script:
+        - cd build
         - make test
     only:
         - pushes
