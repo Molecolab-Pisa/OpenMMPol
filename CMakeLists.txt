@@ -63,6 +63,8 @@ add_executable(F_test_init src/test_init.F90)
 target_link_libraries(F_test_init openmmpol)
 target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
 
-add_test(NMA_loading bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.mmp Testing/output)
-add_test(NAME NMA_loading_comp COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary.ref)
+add_test(NMA_loading 
+         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp Testing/output)
+add_test(NAME NMA_loading_comp 
+         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
 
