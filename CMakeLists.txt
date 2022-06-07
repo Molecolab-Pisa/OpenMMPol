@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.17)
 project(Open-MMPol)
 enable_language(Fortran)
+enable_testing()
 
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -61,3 +62,7 @@ set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
 add_executable(F_test_init src/test_init.F90)
 target_link_libraries(F_test_init openmmpol)
 target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
+
+add_test(NMA_loading bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.mmp Testing/output)
+add_test(NAME NMA_loading_comp COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary.ref)
+

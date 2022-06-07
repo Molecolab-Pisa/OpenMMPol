@@ -90,9 +90,23 @@ module mod_interface
             use mod_io, only: mmpol_print_summary
 
             implicit none
-
+            
             call mmpol_print_summary()
+
         end subroutine print_summary
+        
+        subroutine print_summary_to_file(filename) bind(c, name='print_summary_to_file')
+            use mod_io, only: mmpol_print_summary
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(120)
+            character(len=120) :: output_file
+            
+            call c2f_string(filename, output_file)
+            call mmpol_print_summary(output_file)
+
+        end subroutine print_summary_to_file
 
         subroutine c2f_string(c_str, f_str)
             implicit none

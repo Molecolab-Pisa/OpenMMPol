@@ -13,6 +13,7 @@ extern void restart(void);
 extern void get_energy(double, double);
 extern void write_hdf5(char *);
 extern void print_summary(void);
+extern void print_summary_to_file(char *);
 
 extern int32_t get_n_ipd(void);
 extern int32_t get_ld_cart(void);

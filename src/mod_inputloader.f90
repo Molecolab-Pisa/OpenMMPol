@@ -19,11 +19,12 @@ module mod_inputloader
         integer(ip), intent(in) :: n
 
         integer(ip) :: i
-        character(len=512) :: s
+        ! character(len=512) :: s
 
         do i=1, n
-            read(f, *) s
-            write(6, *) "SKIPPING ", i, "/", n, "  '", trim(s),"'"
+            read(f, *)
+            ! read(f, *) s
+            ! write(6, *) "SKIPPING ", i, "/", n, "  '", trim(s),"'"
         end do
 
     end subroutine skip_lines

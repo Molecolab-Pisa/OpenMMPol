@@ -250,7 +250,7 @@ module mod_io
     
 #endif
     
-    subroutine mmpol_print_summary()
+    subroutine mmpol_print_summary(of_name)
         !! Prints a complete summary of all the quantities stored 
         !! in the MMPol module
 
@@ -258,44 +258,57 @@ module mod_io
 
         implicit none
 
+        character(len=*), intent(in), optional :: of_name
+        
+        integer(ip) :: of_unit
+
         integer(ip) :: i, j, grp, igrp, lst(1000), ilst
         character(len=120) :: str
 
+        if(present(of_name)) then
+            of_unit = 101
+            open(unit=of_unit, &
+                 file=of_name(1:len(trim(of_name))), &
+                 action='write')
+        else
+            of_unit = iof_mmpol
+        end if
+
         call print_matrix(.true.,'coordinates:', &
-                          3,mm_atoms,3,mm_atoms,cmm)
+                          3,mm_atoms,3,mm_atoms,cmm,of_unit)
         if (amoeba) then
             call print_matrix(.true.,'multipoles - non rotated:', &
-                              ld_cart,mm_atoms,ld_cart,mm_atoms,q0)
+                              ld_cart,mm_atoms,ld_cart,mm_atoms,q0,of_unit)
         end if
         call print_matrix(.true.,'multipoles :', &
-                          ld_cart,mm_atoms,ld_cart,mm_atoms,q)
+                          ld_cart,mm_atoms,ld_cart,mm_atoms,q,of_unit)
         call print_matrix(.true.,'coordinates of polarizable atoms:', &
-                          3,pol_atoms,3,pol_atoms,cpol)
+                          3,pol_atoms,3,pol_atoms,cpol,of_unit)
         call print_matrix(.false.,'polarizabilities:', &
-                          mm_atoms,1,mm_atoms,1,pol)
+                          mm_atoms,1,mm_atoms,1,pol,of_unit)
         call print_matrix(.false.,'thole factors:', &
-                          mm_atoms,1,mm_atoms,1,thole)
+                          mm_atoms,1,mm_atoms,1,thole,of_unit)
         call print_int_vec('mm_polar list:', &
-                           mm_atoms,0,0,mm_polar,.true.)
+                           mm_atoms,0,0,mm_polar,.true., of_unit)
         call print_int_vec('polar_mm list:', &
-                           pol_atoms,0,0,polar_mm, .true.)
+                           pol_atoms,0,0,polar_mm, .true.,of_unit)
 
         ! write the connectivity information for each atom:
   1000  format(t3,'connectivity information for the ',i8,'-th atom:')
     
         do i = 1, mm_atoms
-            write(iof_mmpol, 1000) i
+            write(of_unit, 1000) i
             
             do j=1, 4
                 if(j == 4 .and. .not. amoeba) cycle
                 
                 write(str, "('1-', I1, ' neighors:')") j+1
-                call print_int_vec(str, &
+                call print_int_vec(trim(str), &
                                    size(conn(j)%ci), &
                                    conn(j)%ri(i), &
                                    conn(j)%ri(i+1)-1, & 
                                    conn(j)%ci, &
-                                   .true.)
+                                   .true.,of_unit)
             end do
             
             if(amoeba) then 
@@ -310,11 +323,13 @@ module mod_io
                     end do
                     
                     write(str, "('1-', I1, ' polarization neighors:')") j
-                    call print_int_vec(str, & 
-                                       ilst-1,0,0,lst,.true.)
+                    call print_int_vec(trim(str), & 
+                                       ilst-1,0,0,lst,.true., of_unit)
                 end do
             end if
         end do
+        
+        if(present(of_name)) close(of_unit)
 
     end subroutine mmpol_print_summary
 
@@ -379,7 +394,7 @@ module mod_io
       return
     end subroutine print_header
 
-    subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
+    subroutine print_matrix(trans,label,lda,ldb,n,m,matrix, ofunit)
       !use mmpol
       use mod_memory, only: ip, rp
       implicit none
@@ -387,14 +402,21 @@ module mod_io
       character    (len=*),            intent(in) :: label
       integer(ip),                     intent(in) :: lda, ldb, n, m
       real(rp),    dimension(lda,ldb), intent(in) :: matrix
+      integer(ip), intent(in), optional :: ofunit
     !
-      integer(ip)        :: i, j, nbatch, nres, icol(5)
+      integer(ip)        :: i, j, nbatch, nres, icol(5), out_unit
       character (len=24) :: iform, rform
+
+      if(present(ofunit)) then
+          out_unit = ofunit
+      else
+          out_unit = iof_mmpol
+      end if
     !
       1000 format(t3,a)
       1010 format(t3,5i16)
       1020 format(t3,5f16.8)
-      write(iof_mmpol,1000) label
+      write(out_unit,1000) label
       if (trans) then
     !
         nbatch = n/5
@@ -408,20 +430,20 @@ module mod_io
           icol(3) = (i-1)*5 + 3
           icol(4) = (i-1)*5 + 4
           icol(5) = (i-1)*5 + 5
-          write(iof_mmpol,1010) icol(1:5)
+          write(out_unit,1010) icol(1:5)
           do j = 1, m
-            write(iof_mmpol,1020) matrix(icol(1):icol(5),j)
+            write(out_unit,1020) matrix(icol(1):icol(5),j)
           end do
-          write(iof_mmpol,*)
+          write(out_unit,*)
         end do
     !
         if (nres.ne.0) then
           do i = 1, nres
             icol(i) = 5*nbatch + i
           end do
-          write(iof_mmpol,iform) icol(1:nres)
+          write(out_unit,iform) icol(1:nres)
           do j = 1, m
-            write(iof_mmpol,rform) matrix(icol(1):icol(nres),j)
+            write(out_unit,rform) matrix(icol(1):icol(nres),j)
           end do
         end if
     !
@@ -438,26 +460,26 @@ module mod_io
           icol(3) = (i-1)*5 + 3
           icol(4) = (i-1)*5 + 4
           icol(5) = (i-1)*5 + 5
-          write(iof_mmpol,1010) icol(1:5)
+          write(out_unit,1010) icol(1:5)
           do j = 1, n
-            write(iof_mmpol,1020) matrix(j,icol(1):icol(5))
+            write(out_unit,1020) matrix(j,icol(1):icol(5))
           end do
-          write(iof_mmpol,*)
+          write(out_unit,*)
         end do
     !
         if (nres.ne.0) then
           do i = 1, nres
             icol(i) = 5*nbatch + i
           end do
-          write(iof_mmpol,iform) icol(1:nres)
+          write(out_unit,iform) icol(1:nres)
           do j = 1, n
-            write(iof_mmpol,rform) matrix(j,icol(1):icol(nres))
+            write(out_unit,rform) matrix(j,icol(1):icol(nres))
            end do
         end if
       end if
     end subroutine print_matrix
     !
-    subroutine print_int_vec(label, n, ibeg, iend, vec, dosort)
+    subroutine print_int_vec(label, n, ibeg, iend, vec, dosort, ofunit)
         use mod_memory, only: ip, rp
         
         implicit none
@@ -465,10 +487,11 @@ module mod_io
         character(len=*), intent(in) :: label
         integer(ip), intent(in) :: n, ibeg, iend
         logical, optional :: dosort
+        integer(ip), intent(in), optional :: ofunit
         logical :: sort
         integer(ip), dimension(n), intent(in) :: vec
         
-        integer(ip) :: ib, ie
+        integer(ip) :: ib, ie, out_unit
 
         integer(ip), allocatable, dimension(:) :: sorted_vec
 
@@ -482,13 +505,19 @@ module mod_io
             sort =  dosort
         end if
         
-        write(iof_mmpol, '(t3, a)') label
+        if(present(ofunit)) then
+            out_unit = ofunit
+        else
+            out_unit = iof_mmpol
+        end if
+        
+        write(out_unit, '(t3, a)') label
         
         if(sort) then
             call sort_ivec(vec(ib:ie), sorted_vec)
-            write(iof_mmpol,'(t5, 10i8)') sorted_vec
+            write(out_unit,'(t5, 10i8)') sorted_vec
         else
-            write(iof_mmpol,'(t5, 10i8)') vec(ib:ie)
+            write(out_unit,'(t5, 10i8)') vec(ib:ie)
         end if
 
         return
