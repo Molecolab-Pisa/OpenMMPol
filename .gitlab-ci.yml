@@ -3,6 +3,7 @@ stages:
     - configure
     - compile-lib
     - compile-bin
+    - test
     - documentation
 
 build_docker_env:
@@ -76,3 +77,10 @@ make-doc:
     only:
         - pushes
 
+run_tests:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - make test
+    only:
+        -pushes
