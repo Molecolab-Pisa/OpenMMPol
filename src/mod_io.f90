@@ -10,7 +10,8 @@ module mod_io
     integer, parameter :: iof_mmpol = 6
     integer, parameter :: iof_mmpinp = 100
     public :: iof_memory, iof_mmpol, iof_mmpinp
-    public :: mmpol_print_summary
+    public :: mmpol_print_summary, print_header
+    public :: print_matrix, print_int_vec
 
 #ifdef USE_HDF5
     integer(hid_t) :: iof_hdf5_out = 101
@@ -249,7 +250,7 @@ module mod_io
     
 #endif
     
-subroutine mmpol_print_summary()
+    subroutine mmpol_print_summary()
         !! Prints a complete summary of all the quantities stored 
         !! in the MMPol module
 
@@ -275,9 +276,9 @@ subroutine mmpol_print_summary()
         call print_matrix(.false.,'thole factors:', &
                           mm_atoms,1,mm_atoms,1,thole)
         call print_int_vec('mm_polar list:', &
-                           mm_atoms,0,0,mm_polar)
+                           mm_atoms,0,0,mm_polar,.true.)
         call print_int_vec('polar_mm list:', &
-                           pol_atoms,0,0,polar_mm)
+                           pol_atoms,0,0,polar_mm, .true.)
 
         ! write the connectivity information for each atom:
   1000  format(t3,'connectivity information for the ',i8,'-th atom:')
@@ -293,7 +294,8 @@ subroutine mmpol_print_summary()
                                    size(conn(j)%ci), &
                                    conn(j)%ri(i), &
                                    conn(j)%ri(i+1)-1, & 
-                                   conn(j)%ci)
+                                   conn(j)%ci, &
+                                   .true.)
             end do
             
             if(amoeba) then 
@@ -309,11 +311,217 @@ subroutine mmpol_print_summary()
                     
                     write(str, "('1-', I1, ' polarization neighors:')") j
                     call print_int_vec(str, & 
-                                       ilst-1,0,0,lst)
+                                       ilst-1,0,0,lst,.true.)
                 end do
             end if
         end do
 
     end subroutine mmpol_print_summary
+
+    subroutine print_header
+      use mod_mmpol, only: convergence, ff_rules, ff_type, matrix_vector
+      use mod_mmpol, only: mm_atoms, pol_atoms, solver
+      implicit none
+    !
+      character (len=20) ffprt, lssolv, mvalg
+    !
+      9000 format(t3,' .d88888b.                             888b     d888 888b     d888 8888888b.          888 ',/,&
+                  t3,'d88P" "Y88b                            8888b   d8888 8888b   d8888 888   Y88b         888 ',/,&
+                  t3,'888     888                            88888b.d88888 88888b.d88888 888    888         888 ',/,&
+                  t3,'888     888 88888b.   .d88b.  88888b.  888Y88888P888 888Y88888P888 888   d88P .d88b.  888 ',/,&
+                  t3,'888     888 888 "88b d8P  Y8b 888 "88b 888 Y888P 888 888 Y888P 888 8888888P" d88""88b 888 ',/,&
+                  t3,'888     888 888  888 88888888 888  888 888  Y8P  888 888  Y8P  888 888       888  888 888 ',/,&
+                  t3,'Y88b. .d88P 888 d88P Y8b.     888  888 888   "   888 888   "   888 888       Y88..88P 888 ',/,&
+                  t3,' "Y88888P"  88888P"   "Y8888  888  888 888       888 888       888 888        "Y88P"  888 ',/,&
+                  t3,'            888                                                                           ',/,&
+                  t3,'            888                                                                           ',/,&
+                  t3,'            888                                                                           ')
+      9100 format(t3,'an open-source implementation of MMPol and AMOEBA embedding for polarizable QM/MM',/, &
+                  t5,'by Vladislav Slama, Lorenzo Cupellini, Benedetta Mennucci, ..., Filippo Lipparini',/, &
+                  t5,'MoLECoLab Pisa')
+
+      1000 format(t3,'parameters:     ',/, &
+                  t3,'=============================================',/, &
+                  t5,'force field:           ',a,/, &
+                  t5,'solution method:       ',a,/, &
+                  t5,'algorithm:             ',a,/, &
+                  t5,'convergence threshold: ',d18.2,/, &
+                  t5,'# mm atoms:            ',i18,/, &
+                  t5,'# polarizable atoms:   ',i18,/, &
+                  t3,'=============================================')
+    !
+      write(iof_mmpol,9000)
+      write(iof_mmpol,9100)
+      write(iof_mmpol,*)
+      if (ff_type.eq.0) then
+        if (ff_rules.eq.0) ffprt = '    AMBER (WangAL)'
+        if (ff_rules.eq.1) ffprt = '    AMBER (WangDL)'
+      else
+        ffprt = '            AMOEBA'
+      end if
+    ! 
+      if (solver.eq.0 .or. solver.eq.1) then
+        lssolv = 'conjugate gradient'
+      else if (solver.eq.2) then
+        lssolv = '       jacobi/DIIS'
+      else
+        lssolv = '  matrix inversion'
+      end if
+    ! 
+      if (matrix_vector.eq.0 .or. matrix_vector.eq.2) then
+        mvalg = '        on-the-fly'
+      else if (matrix_vector.eq.1) then
+        mvalg = '            incore'
+      end if
+      write(iof_mmpol,1000) ffprt, lssolv, mvalg, convergence, mm_atoms, pol_atoms
+      write(iof_mmpol,*)
+    !
+      return
+    end subroutine print_header
+
+    subroutine print_matrix(trans,label,lda,ldb,n,m,matrix)
+      !use mmpol
+      use mod_memory, only: ip, rp
+      implicit none
+      logical,                         intent(in) :: trans
+      character    (len=*),            intent(in) :: label
+      integer(ip),                     intent(in) :: lda, ldb, n, m
+      real(rp),    dimension(lda,ldb), intent(in) :: matrix
+    !
+      integer(ip)        :: i, j, nbatch, nres, icol(5)
+      character (len=24) :: iform, rform
+    !
+      1000 format(t3,a)
+      1010 format(t3,5i16)
+      1020 format(t3,5f16.8)
+      write(iof_mmpol,1000) label
+      if (trans) then
+    !
+        nbatch = n/5
+        nres   = n - 5*nbatch
+        write(iform,'("(t3,",i1,"i16)")') nres
+        write(rform,'("(t3,",i1,"f16.8)")') nres
+    !
+        do i = 1, nbatch
+          icol(1) = (i-1)*5 + 1
+          icol(2) = (i-1)*5 + 2
+          icol(3) = (i-1)*5 + 3
+          icol(4) = (i-1)*5 + 4
+          icol(5) = (i-1)*5 + 5
+          write(iof_mmpol,1010) icol(1:5)
+          do j = 1, m
+            write(iof_mmpol,1020) matrix(icol(1):icol(5),j)
+          end do
+          write(iof_mmpol,*)
+        end do
+    !
+        if (nres.ne.0) then
+          do i = 1, nres
+            icol(i) = 5*nbatch + i
+          end do
+          write(iof_mmpol,iform) icol(1:nres)
+          do j = 1, m
+            write(iof_mmpol,rform) matrix(icol(1):icol(nres),j)
+          end do
+        end if
+    !
+      else
+    !
+        nbatch = m/5
+        nres   = m - 5*nbatch
+        write(iform,'("(t3,",i1,"i16)")') nres
+        write(rform,'("(t3,",i1,"f16.8)")') nres
+    !
+        do i = 1, nbatch
+          icol(1) = (i-1)*5 + 1
+          icol(2) = (i-1)*5 + 2
+          icol(3) = (i-1)*5 + 3
+          icol(4) = (i-1)*5 + 4
+          icol(5) = (i-1)*5 + 5
+          write(iof_mmpol,1010) icol(1:5)
+          do j = 1, n
+            write(iof_mmpol,1020) matrix(j,icol(1):icol(5))
+          end do
+          write(iof_mmpol,*)
+        end do
+    !
+        if (nres.ne.0) then
+          do i = 1, nres
+            icol(i) = 5*nbatch + i
+          end do
+          write(iof_mmpol,iform) icol(1:nres)
+          do j = 1, n
+            write(iof_mmpol,rform) matrix(j,icol(1):icol(nres))
+           end do
+        end if
+      end if
+    end subroutine print_matrix
+    !
+    subroutine print_int_vec(label, n, ibeg, iend, vec, dosort)
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        character(len=*), intent(in) :: label
+        integer(ip), intent(in) :: n, ibeg, iend
+        logical, optional :: dosort
+        logical :: sort
+        integer(ip), dimension(n), intent(in) :: vec
+        
+        integer(ip) :: ib, ie
+
+        integer(ip), allocatable, dimension(:) :: sorted_vec
+
+        ib = ibeg
+        ie = iend
+        if(ib == 0) ib = 1
+        if(ie == 0) ie = n
+        if(.not. present(dosort)) then
+            sort = .false.
+        else
+            sort =  dosort
+        end if
+        
+        write(iof_mmpol, '(t3, a)') label
+        
+        if(sort) then
+            call sort_ivec(vec(ib:ie), sorted_vec)
+            write(iof_mmpol,'(t5, 10i8)') sorted_vec
+        else
+            write(iof_mmpol,'(t5, 10i8)') vec(ib:ie)
+        end if
+
+        return
+
+    end subroutine print_int_vec
+
+    subroutine sort_ivec(iv, ov)
+        !! This is a simple -- and unefficient -- routine to sort a vector of int
+        !! it is just used during some output to simplify comparisons with older 
+        !! version of the code
+        use mod_memory, only: ip, mallocate
+
+        implicit none
+
+        !! Input vector
+        integer(ip), dimension(:), intent(in) :: iv
+        !! Output, sorted vector
+        integer(ip), allocatable, intent(out) :: ov(:)
+        integer(ip) :: i, imin(1)
+        logical, allocatable :: mask(:)
+
+        call mallocate('sort_ivec', size(iv), ov)
+        allocate(mask(size(iv)))
+        mask = .true.
+
+        do i = 1, size(iv)
+            imin = minloc(iv, mask)
+            ov(i) = iv(imin(1))
+            mask(imin(1)) = .false.
+        end do
+
+        deallocate(mask)
+
+    end subroutine sort_ivec
 
 end module mod_io

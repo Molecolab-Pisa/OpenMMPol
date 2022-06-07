@@ -26,8 +26,7 @@ add_library(openmmpol SHARED
             src/polar.f90
             src/polarization.f90
             src/rotate_multipoles.f90
-            src/solvers.f90
-            src/utilities.f90)
+            src/solvers.f90)
 
 # LAPACK
 find_package(LAPACK REQUIRED COMPONENTS Fortran)

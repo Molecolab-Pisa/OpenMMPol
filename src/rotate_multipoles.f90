@@ -2,6 +2,7 @@ subroutine rotate_multipoles(doder,def,fx)
   use mod_memory, only: ip, rp
   use mod_mmpol, only: ld_cder, mm_atoms, q, q0, verbose, ix, iy, iz
   use mod_constants, only: zero, one, two
+  use mod_io, only: print_matrix
   implicit none
 !
 ! this routine rotates the atomic multipoles from the molecular frame
@@ -321,6 +322,7 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   use mod_mmpol, only: cmm, verbose, mol_frame, fatal_error
   use mod_memory, only: ip, rp
   use mod_constants, only: zero, one, two
+  use mod_io, only: print_matrix
   implicit none
 !
 ! given an atom j and the reference atoms jx, jy, and jz, this routine

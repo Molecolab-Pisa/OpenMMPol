@@ -73,6 +73,9 @@ module polar
         use mod_mmpol, only : pol_atoms, cpol, uscale, pol, mm_polar, amoeba, &
                               verbose, polar_mm, conn, pg_conn, mmat_polgrp, &
                               polgrp_mmat
+
+        use mod_io, only: print_matrix
+
         implicit none
         !                      
         ! Construct polarization tensor for matrix inversion solution

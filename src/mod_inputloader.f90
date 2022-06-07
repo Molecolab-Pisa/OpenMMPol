@@ -6,15 +6,39 @@ module mod_inputloader
 
     contains
     
+    subroutine skip_lines(f, n)
+        !! This subroutine just skip lines while reading an input
+        !! file
+        use mod_memory, only: ip
+        
+        implicit none
+
+        !! unit file
+        integer(ip), intent(in) :: f
+        !! number of line to be skipped
+        integer(ip), intent(in) :: n
+
+        integer(ip) :: i
+        character(len=512) :: s
+
+        do i=1, n
+            read(f, *) s
+            write(6, *) "SKIPPING ", i, "/", n, "  '", trim(s),"'"
+        end do
+
+    end subroutine skip_lines
+
     subroutine mmpol_init_from_mmp(input_file)
-        use mod_mmpol, only: mmpol_init, cmm, &
-                             q, q0, pol
+        !! This function read a .mmp file (revision 2 and 3) are supported
+        !! and initialize all the quantities need to describe the environment
+        !! within this library.
+
+        use mod_mmpol, only: cmm, q, q0, pol
         use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
-                             ff_type, amoeba, solver, &
-                             matrix_vector, convergence, &
-                             polar_mm, verbose, conn, mmat_polgrp
+                             ff_type, amoeba, &
+                             polar_mm,  conn, mmat_polgrp
         use mod_mmpol, only: mol_frame, iz, ix, iy
-        use mod_mmpol, only: fatal_error, set_verbosity, mmpol_prepare
+        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: mmpol_print_summary, iof_mmpinp
@@ -26,9 +50,6 @@ module mod_inputloader
         character(len=*), intent(in) :: input_file
         !! name of the input file
 
-        integer(ip), parameter :: revision = 1
-        !! mmpol file revision expected from the code
-            
         ! read the input for the mmpol calculation and process it.
         integer(ip) :: input_revision, iconv
         integer(ip) :: maxcor, nproc
@@ -38,7 +59,7 @@ module mod_inputloader
         integer(ip) :: i, j
         
         real(rp), allocatable :: my_pol(:), my_cmm(:,:), my_q(:,:)
-        integer(ip), allocatable :: my_group(:), pol_atoms_list(:), my_ip11(:,:)
+        integer(ip), allocatable :: pol_atoms_list(:), my_ip11(:,:)
         
         integer(ip), parameter :: maxn12 = 8
         integer(ip), parameter :: maxpgp = 120
@@ -51,26 +72,26 @@ module mod_inputloader
               form='formatted', &
               access='sequential')
 
-        ! start reading the integer control parameters:
-
+        ! Read input revision, supported revisions are 2 and 3.
         read(iof_mmpinp,*) input_revision
-        if (input_revision .ne. revision) &
+        
+        if (input_revision /= 3 .and. input_revision /= 2) &
             call fatal_error('input and internal revision conflict.')
-        read(iof_mmpinp,*) maxcor, nproc
+
+        call memory_init(.false., 0)
         
-        call memory_init(.true., maxcor*1024*1024*1024/8)
-        
-        read(iof_mmpinp,*) verbosity
+        call skip_lines(iof_mmpinp, 2)
         read(iof_mmpinp,*) my_ff_type
         read(iof_mmpinp,*) my_ff_rules
-        read(iof_mmpinp,*) solver
-        read(iof_mmpinp,*) matrix_vector
-        read(iof_mmpinp,*) iconv
+        
+        if(input_revision == 3) then
+            call skip_lines(iof_mmpinp, 17)
+        else if(input_revision == 2) then
+            call skip_lines(iof_mmpinp, 15)
+        end if
+        
         read(iof_mmpinp,*) my_mm_atoms
         
-        ! decode a few scalar parameters:
-        convergence = ten**(-iconv)
-
         if(my_ff_type == 1) then
             my_ld_cart = 10
         else
@@ -78,22 +99,20 @@ module mod_inputloader
         end if
         
         call mallocate('mmpol_init_from_mmp [my_cmm]', 3_ip, my_mm_atoms, my_cmm)
-        call mallocate('mmpol_init_from_mmp [my_group]', my_mm_atoms, my_group)
         call mallocate('mmpol_init_from_mmp [my_q]', my_ld_cart, my_mm_atoms, my_q)
         call mallocate('mmpol_init_from_mmp [my_pol]', my_mm_atoms, my_pol)
         call mallocate('mmpol_init_from_mmp [my_pol_atoms]', my_mm_atoms, pol_atoms_list)
         call mallocate('mmpol_init_from_mmp [my_ip11]', maxpgp, my_mm_atoms, my_ip11)
        
+        call skip_lines(iof_mmpinp, my_mm_atoms+1) ! Skip a zero and the section of atomic numbers
+
         ! coordinates:
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_cmm(1:3,i)
         end do
 
-        ! group/fragment/residue:
-        do i = 1, my_mm_atoms
-            read(iof_mmpinp,*) my_group(i)
-        end do
-        
+        call skip_lines(iof_mmpinp, my_mm_atoms) ! Skip section of residues number
+
         ! charges/multipoles:
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_q(1:my_ld_cart,i)
@@ -123,7 +142,6 @@ module mod_inputloader
         
         ! mmpol module initialization
         call mmpol_init(my_ff_type, my_ff_rules, my_pol_atoms, my_mm_atoms)
-        call set_verbosity(verbosity)
         
         ! Copy data in the correct units (this means AU)
         cmm = my_cmm * angstrom2au
@@ -135,11 +153,8 @@ module mod_inputloader
         polar_mm = pol_atoms_list
         
         call mfree('mmpol_init_from_mmp [my_cmm]', my_cmm)
-        call mfree('mmpol_init_from_mmp [my_group]', my_group)
         call mfree('mmpol_init_from_mmp [my_q]', my_q)
         call mfree('mmpol_init_from_mmp [pol]', my_pol)
-        
-        call print_header()
 
         ! 1-2 connectivity:
         call mallocate('mmpol_init_from_mmp [i12]', maxn12, mm_atoms, i12)
