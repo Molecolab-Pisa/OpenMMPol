@@ -263,6 +263,12 @@ module mod_mmpol
         ef_dd = 0.0_rp
         call mallocate('mmpol_init [def_dd]', 6_ip, pol_atoms, n_ipd, def_dd)
         def_dd = 0.0_rp
+
+        ! TODO
+        solver = 1
+        matrix_vector = 1 
+        nmax = 200
+        convergence = 1e-8
       
     end subroutine mmpol_init
 

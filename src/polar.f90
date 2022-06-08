@@ -210,7 +210,7 @@ module polar
         TMat = RESHAPE(TTens, (/3*pol_atoms, 3*pol_atoms/))  
         
         ! Print the matrix if verbose output is requested
-        if (verbose >= 1) then
+        if (verbose >= 2) then
             call print_matrix(.true.,'K:',3*pol_atoms,3*pol_atoms,3*pol_atoms,3*pol_atoms,TMat)
         end if
         

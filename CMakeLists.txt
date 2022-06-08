@@ -59,24 +59,47 @@ target_link_libraries(C_test_init openmmpol)
 target_compile_options(C_test_init PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
 
+add_executable(C_test_ipd src/test_ipd.c)
+target_link_libraries(C_test_ipd openmmpol)
+target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
+
 add_executable(F_test_init src/test_init.F90)
 target_link_libraries(F_test_init openmmpol)
 target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
 
-add_test(NMA_loading 
+# Tests on parameters loading
+add_test(NMA_loading_AMOEBA
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp Testing/output)
-add_test(NAME NMA_loading_comp 
+add_test(NAME NMA_loading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
-add_test(1ao6_loading 
+add_test(1ao6_loading_AMOEBA
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA.mmp Testing/output)
-add_test(NAME 1ao6_loading_comp 
+add_test(NAME 1ao6_loading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA.ref)
-add_test(1crn_loading 
+add_test(1crn_loading_AMOEBA 
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp Testing/output)
-add_test(NAME 1crn_loading_comp 
+add_test(NAME 1crn_loading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1crn/summary_AMOEBA.ref)
-add_test(1ubq_loading 
+add_test(1ubq_loading_AMOEBA 
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp Testing/output)
-add_test(NAME 1ubq_loading_comp 
+add_test(NAME 1ubq_loading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ubq/summary_AMOEBA.ref)
 
+# Tests on calculation of IPD
+add_test(NAME NMA_ipd0_AMOEBA
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_0.txt 
+         Testing/output)
+add_test(NAME NMA_ipd0_AMOEBA_comp
+         COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA.ref)
+add_test(NAME NMA_ipd1_AMOEBA
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt 
+         Testing/output)
+add_test(NAME NMA_ipd1_AMOEBA_comp
+         COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA.ref)
