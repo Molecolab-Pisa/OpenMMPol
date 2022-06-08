@@ -51,6 +51,7 @@ compile-C:
     artifacts:
         paths:
             - build/bin/C_test_init
+            - build/bin/C_test_ipd
     only:
         - pushes
 
