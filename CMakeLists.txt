@@ -73,10 +73,10 @@ add_test(NMA_loading_AMOEBA
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp Testing/output)
 add_test(NAME NMA_loading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
-add_test(NMA_loading_AMBER_AL
-         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMBER_AL.mmp Testing/output)
-add_test(NAME NMA_loading_AMBER_AL_comp 
-    COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMBER_AL.ref)
+add_test(NMA_loading_WANG_AL
+    bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp Testing/output)
+add_test(NAME NMA_loading_WANG_AL_comp 
+         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_WANG_AL.ref)
 
 add_test(1crn_loading_AMOEBA 
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp Testing/output)
@@ -87,6 +87,10 @@ add_test(1ubq_loading_AMOEBA
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp Testing/output)
 add_test(NAME 1ubq_loading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ubq/summary_AMOEBA.ref)
+add_test(1ubq_loading_WANG_AL 
+         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp Testing/output)
+add_test(NAME 1ubq_loading_WANG_AL_comp 
+         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ubq/summary_WANG_AL.ref)
 
 add_test(1ao6_loading_AMOEBA
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA.mmp Testing/output)
@@ -111,19 +115,19 @@ add_test(NAME NMA_ipd1_AMOEBA_comp
          COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA.ref)
 
-add_test(NAME NMA_ipd0_AMBER_AL
+add_test(NAME NMA_ipd0_WANG_AL
          COMMAND  bin/C_test_ipd 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMBER_AL.mmp 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_0.txt 
          Testing/output)
-     add_test(NAME NMA_ipd0_AMBER_AL_comp
+add_test(NAME NMA_ipd0_WANG_AL_comp
          COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMBER_AL.ref)
-     add_test(NAME NMA_ipd1_AMBER_AL
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL.ref)
+add_test(NAME NMA_ipd1_WANG_AL
          COMMAND  bin/C_test_ipd 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMBER_AL.mmp 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt 
          Testing/output)
-     add_test(NAME NMA_ipd1_AMBER_AL_comp
+add_test(NAME NMA_ipd1_WANG_AL_comp
          COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMBER_AL.ref)
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL.ref)
