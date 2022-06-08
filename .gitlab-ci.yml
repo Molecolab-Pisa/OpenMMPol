@@ -47,7 +47,7 @@ compile-C:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make C_test_init
+        - make C_test_init C_test_ipd
     artifacts:
         paths:
             - build/bin/C_test_init
