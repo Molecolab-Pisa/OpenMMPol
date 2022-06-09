@@ -18,13 +18,13 @@ subroutine energy(scr,EMM)
     real(rp), intent(out) :: EMM
     integer(ip), intent(in) :: scr
     !
-    integer(ip) :: Nqq, I
+    integer(ip) :: I
     real(rp)    :: ddot
     real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz
     real(rp)    :: fv, ex, ey, ez, gxx, gxy, gxz, gyy, gyz, gzz
     !
-    real(rp), dimension(10), parameter :: fac = (/ 1.0_rp, -1.0_rp, -1.0_rp, -1.0_rp, 1.0_rp, &
-                                                  2.0_rp, 1.0_rp, 2.0_rp, 2.0_rp, 1.0_rp /)
+    ! real(rp), dimension(10), parameter :: fac = (/ 1.0_rp, -1.0_rp, -1.0_rp, -1.0_rp, 1.0_rp, &
+    !                                                2.0_rp, 1.0_rp, 2.0_rp, 2.0_rp, 1.0_rp /)
     !
     
     ! Initialize the interaction energy

@@ -42,7 +42,7 @@ real(rp), dimension(3,pol_atoms,n_ipd), intent(out) :: ipds
 ! internal variables:
 !
 real(rp),dimension(3*pol_atoms) :: ep_vec, ed_vec, ipd0_p, ipd0_d
-integer(ip) :: I,n
+integer(ip) :: n
 logical :: status
 !
 integer(ip), parameter :: diis_max = 20, norm_jacobi = 2
