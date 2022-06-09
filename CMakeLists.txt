@@ -69,6 +69,9 @@ target_link_libraries(F_test_init openmmpol)
 target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
 
 # Tests on parameters loading
+set(RTOL 1e-5)
+set(ATOL 1e-6)
+
 add_test(NMA_loading_AMOEBA
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp Testing/output)
 add_test(NAME NMA_loading_AMOEBA_comp 
@@ -114,7 +117,7 @@ add_test(NAME NMA_ipd0_AMOEBA_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA.ref 
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 add_test(NAME NMA_ipd1_AMOEBA
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
@@ -122,9 +125,9 @@ add_test(NAME NMA_ipd1_AMOEBA
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt) 
 add_test(NAME NMA_ipd1_AMOEBA_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
-         Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA.ref
-         1e-4 1e-6)
+         Testing/output 
+         ${RTOL} ${ATOL})
 
 add_test(NAME NMA_ipd0_WANG_AL
          COMMAND  bin/C_test_ipd 
@@ -134,7 +137,7 @@ add_test(NAME NMA_ipd0_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 add_test(NAME NMA_ipd1_WANG_AL
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
@@ -144,7 +147,7 @@ add_test(NAME NMA_ipd1_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1crn_ipd0_AMOEBA
          COMMAND  bin/C_test_ipd 
@@ -154,7 +157,7 @@ add_test(NAME 1crn_ipd0_AMOEBA_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_0_AMOEBA.ref 
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 add_test(NAME 1crn_ipd1_AMOEBA
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp 
@@ -164,7 +167,7 @@ add_test(NAME 1crn_ipd1_AMOEBA_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_1_AMOEBA.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1crn_ipd0_WANG_AL
          COMMAND  bin/C_test_ipd 
@@ -174,7 +177,7 @@ add_test(NAME 1crn_ipd0_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_0_WANG_AL.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 add_test(NAME 1crn_ipd1_WANG_AL
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/1crn/input_WANG_AL.mmp 
@@ -184,7 +187,7 @@ add_test(NAME 1crn_ipd1_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_1_WANG_AL.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1ubq_ipd0_AMOEBA
          COMMAND  bin/C_test_ipd 
@@ -194,7 +197,7 @@ add_test(NAME 1ubq_ipd0_AMOEBA_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_0_AMOEBA.ref 
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 add_test(NAME 1ubq_ipd1_AMOEBA
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp 
@@ -204,7 +207,7 @@ add_test(NAME 1ubq_ipd1_AMOEBA_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_AMOEBA.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1ubq_ipd0_WANG_AL
          COMMAND  bin/C_test_ipd 
@@ -214,7 +217,7 @@ add_test(NAME 1ubq_ipd0_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_0_WANG_AL.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 add_test(NAME 1ubq_ipd1_WANG_AL
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp 
@@ -224,5 +227,5 @@ add_test(NAME 1ubq_ipd1_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_WANG_AL.ref
-         1e-4 1e-6)
+         ${RTOL} ${ATOL})
 
