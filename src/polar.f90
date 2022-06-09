@@ -70,11 +70,12 @@ module polar
         
 
     subroutine create_TMat(TMat)
-        use mod_mmpol, only : pol_atoms, cpol, uscale, pol, mm_polar, amoeba, &
+        use mod_mmpol, only : pol_atoms, uscale, mm_polar, amoeba, &
                               verbose, polar_mm, conn, pg_conn, mmat_polgrp, &
                               polgrp_mmat
 
         use mod_io, only: print_matrix
+        use mod_constants, only: eps_rp
 
         implicit none
         !                      
@@ -134,7 +135,7 @@ module polar
             do I = 1,pol_atoms
                 ! For polarization group pg_conn(1) is the identity matrix
                 do ineigh=1, 4
-                    if (uscale(ineigh).ne.One) then
+                    if (abs(uscale(ineigh) - 1.0_rp) > eps_rp) then
                         do ipg=pg_conn(ineigh)%ri(mmat_polgrp(i)), &
                                pg_conn(ineigh)%ri(mmat_polgrp(i)+1)-1
 
@@ -151,58 +152,25 @@ module polar
                 end do
             enddo
             
-        else     ! AMBER and sources are induced dipoles
+        else     
+            ! AMBER and sources are induced dipoles
             do I = 1,pol_atoms
-
-                ! Field from dipoles is scaled by uscale
-                ! TODO ineigh cycle
-                if (uscale(1).ne.one) then
-                    do ij = conn(1)%ri(polar_mm(i)), conn(1)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
-                        j = conn(1)%ci(ij)
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                                                    ! mm_polar changes mm index index into pol index
-                        
-                        call dipole_T(uscale(1)-One,I,mm_polar(J),TTens)
-
-                    enddo
-                end if
-
-                if (uscale(2).ne.one) then
-                    do ij = conn(2)%ri(polar_mm(i)), conn(2)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
-                        j = conn(2)%ci(ij)
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                                                    ! mm_polar changes mm index index into pol index
-                        
-                        call dipole_T(uscale(2)-One,I,mm_polar(J),TTens)
-                        
-                    enddo
-                end if
-
-                if (uscale(3).ne.one) then
-                    do ij = conn(3)%ri(polar_mm(i)), conn(3)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
-                        j = conn(3)%ci(ij)
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                                                    ! mm_polar changes mm index index into pol index
-                        
-                        call dipole_T(uscale(3)-One,I,mm_polar(J),TTens)
-
-                    enddo
-                end if
-
-                if (uscale(4).ne.one) then
-                    do ij = conn(4)%ri(polar_mm(i)), conn(4)%ri(polar_mm(i)+1)-1  ! polar_mm changes pol index into mm index
-                        j = conn(4)%ci(ij)
-                        
-                        if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-                                                    ! mm_polar changes mm index index into pol index
-
-                        call dipole_T(uscale(4)-One,I,mm_polar(J),TTens)
-                        
-                    enddo
-                end if
+                do ineigh=1, 4
+                    ! Field from dipoles is scaled by uscale
+                    if(abs(uscale(ineigh) - one) > eps_rp) then
+                        do ij = conn(ineigh)%ri(polar_mm(i)), &
+                                conn(ineigh)%ri(polar_mm(i)+1)-1
+                            j = conn(ineigh)%ci(ij)
+                            
+                            if (mm_polar(J) /= 0) then
+                                ! if J is not polarizable atom, skip J
+                                ! mm_polar changes mm index index into pol index
+                            
+                                call dipole_T(uscale(ineigh)-One,I,mm_polar(J),TTens)
+                            end if
+                        enddo
+                    end if
+                end do
             enddo 
         end if
 
@@ -320,7 +288,7 @@ module polar
     end subroutine PolVec
 
     subroutine induce_dipoles_MatInv(elf,dip) !,ipd)
-        use mod_mmpol, only : pol_atoms, n_ipd, Amoeba, pol
+        use mod_mmpol, only : pol_atoms
         use mod_memory, only: mallocate
         !
         ! Induce dipoles on the polarizable atoms. The dipoles are induced
@@ -334,7 +302,7 @@ module polar
         real(rp), dimension(3*pol_atoms), intent(in) :: elf
         real(rp), dimension(3*pol_atoms), intent(out) :: dip
         !
-        integer(ip) :: LDT,I
+        integer(ip) :: LDT
         integer(ip) :: Info
         !real(rp), dimension(3*pol_atoms,3*pol_atoms) :: TMat
         integer(ip),dimension(3*pol_atoms) :: iPiv

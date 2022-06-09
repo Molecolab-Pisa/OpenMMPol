@@ -2161,6 +2161,8 @@ module elstat
     end subroutine multipoles_potential_deriv_remove
 
     subroutine multipoles_field_deriv_remove(scr,de)
+        use mod_constants, only: eps_rp
+
         implicit none
         !
         ! Remove unwanted 1-4 contributions to the electric field derivatives
@@ -2206,7 +2208,7 @@ module elstat
             do I = 1,pol_atoms 
                 do ineigh=1, 4
                     ! p field dipoles
-                    if (pscale(ineigh) /= one .or. ineigh == 3) then
+                    if(abs(pscale(ineigh) - 1.0_rp) > eps_rp .or. ineigh == 3) then
                         do ij = conn(ineigh)%ri(polar_mm(i)), &
                                 conn(ineigh)%ri(polar_mm(i)+1)-1
                             j = conn(ineigh)%ci(ij)
@@ -2219,7 +2221,7 @@ module elstat
                                     scale = pscale(3)*pscale(5)
                                 end if
                                 
-                                if (scale /= one) then
+                                if (abs(scale - 1.0_rp) > eps_rp) then
                                     call field_deriv_M2D(Zero,scale-One,I,J,de)
                                 end if
                             end if
@@ -2229,7 +2231,7 @@ module elstat
 
                 ! d field dipoles
                 do ineigh=1, 4
-                    if (dscale(ineigh).ne.One) then
+                    if(abs(dscale(ineigh)-1.0_rp) > eps_rp) then
                         do igrp=pg_conn(ineigh)%ri(polar_mm(i)), &
                                 pg_conn(ineigh)%ri(polar_mm(i)+1)-1
                             grp = pg_conn(ineigh)%ci(igrp)
@@ -2250,7 +2252,7 @@ module elstat
             do I = 1,pol_atoms
                 do ineigh=1, 4
                     ! Field from dipoles is scaled by pscale
-                    if(pscale(ineigh).ne.one) then
+                    if(abs(pscale(ineigh)-1.0_rp) > eps_rp) then
                         do ij = conn(ineigh)%ri(polar_mm(i)), &
                                 conn(ineigh)%ri(polar_mm(i)+1)-1
                             j = conn(ineigh)%ci(ij)

@@ -27,6 +27,6 @@ module mod_constants
             
     real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
     
-    real(rp), parameter :: eps_rp = epsilon(a_wal) * 100
+    real(rp), parameter :: eps_rp = epsilon(0.0_rp) * 100
     real(rp), parameter :: thres = 1e-8
 end module mod_constants
