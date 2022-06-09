@@ -64,6 +64,11 @@ target_link_libraries(C_test_ipd openmmpol)
 target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
 
+add_executable(C_test_energy src/test_energy.c)
+target_link_libraries(C_test_energy openmmpol)
+target_compile_options(C_test_energy PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_energy PROPERTY C_STANDARD 99)
+
 add_executable(F_test_init src/test_init.F90)
 target_link_libraries(F_test_init openmmpol)
 target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
@@ -229,3 +234,118 @@ add_test(NAME 1ubq_ipd1_WANG_AL_comp
          ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_WANG_AL.ref
          ${RTOL} ${ATOL})
 
+# Tests on calculation of energy
+add_test(NAME NMA_ene0_AMOEBA
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
+         Testing/output)
+add_test(NAME NMA_ene0_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_AMOEBA.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ene1_AMOEBA
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt) 
+add_test(NAME NMA_ene1_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_AMOEBA.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ene0_WANG_AL
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
+         Testing/output)
+add_test(NAME NMA_ene0_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_WANG_AL.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ene1_WANG_AL
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt) 
+add_test(NAME NMA_ene1_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_WANG_AL.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene0_AMOEBA
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp 
+         Testing/output)
+add_test(NAME 1crn_ene0_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_0_AMOEBA.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene1_AMOEBA
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1crn/EF_1.txt) 
+add_test(NAME 1crn_ene1_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_1_AMOEBA.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene0_WANG_AL
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_WANG_AL.mmp 
+         Testing/output)
+add_test(NAME 1crn_ene0_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_0_WANG_AL.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene1_WANG_AL
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_WANG_AL.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1crn/EF_1.txt) 
+add_test(NAME 1crn_ene1_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_1_WANG_AL.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene0_AMOEBA
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp 
+         Testing/output)
+add_test(NAME 1ubq_ene0_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_0_AMOEBA.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene1_AMOEBA
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/EF_1.txt) 
+add_test(NAME 1ubq_ene1_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_AMOEBA.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene0_WANG_AL
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp 
+         Testing/output)
+add_test(NAME 1ubq_ene0_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_0_WANG_AL.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene1_WANG_AL
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/EF_1.txt) 
+add_test(NAME 1ubq_ene1_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_WANG_AL.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
