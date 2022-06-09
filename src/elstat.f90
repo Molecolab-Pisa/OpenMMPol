@@ -524,7 +524,7 @@ module elstat
         integer(ip), intent(in) :: I, J
         real(rp), intent(in)    :: scalef
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
         !
         
@@ -627,7 +627,7 @@ module elstat
         !logical,intent(in)      :: Amoeba
         integer(ip),intent(in)  :: I, J
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
         !
         !real(rp), parameter :: Two = 2.0_rp
@@ -719,7 +719,7 @@ module elstat
         integer(ip), intent(in) :: I, J
         real(rp), intent(in)    :: scalef
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
         !
         real(rp), parameter :: f945 = 945.0_rp
@@ -846,7 +846,7 @@ module elstat
         !logical,intent(in)      :: Amoeba
         integer(ip),intent(in)  :: I, J
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: qq, px, py, pz, qxx, qxy, qxz, qyy, qyz, qzz, DdR, QRx, QRy, QRz, QRR, fac
         real(rp)    :: fac1, fac2, fGxx, fGxy, fGxz, fGyy, fGyz, fGzz
         !
@@ -962,9 +962,9 @@ module elstat
         integer(ip), intent(in) :: I, J
         real(rp), intent(in)    :: scalefd,scalefp
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: dpx, dpy, dpz, ppx, ppy, ppz, px, py, pz, DdR, DpdR, DddR
-        real(rp)    :: facd, facp, fac
+        real(rp)    :: facd, facp
         !
         !real(rp), parameter :: Two = 2.0_rp, Four = 4.0_rp
         
@@ -1112,7 +1112,7 @@ module elstat
         !logical,intent(in)      :: Amoeba
         integer(ip),intent(in)  :: I, J
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: px, py, pz, DdR
         
         dx   = cpol(1,I) - cpol(1,J)
@@ -1207,11 +1207,9 @@ module elstat
         integer(ip), intent(in) :: I, J
         real(rp), intent(in)    :: scalefd, scalefp
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: px, py,pz, DdR, dpx, dpy, dpz, ppx, ppy, ppz, DpdR, DddR, facd, facp !,fac,DdR
         !
-        real(rp), parameter :: f945 = 945.0_rp
-        
         dx   = cmm(1,I) - cpol(1,J)
         dy   = cmm(2,I) - cpol(2,J)
         dz   = cmm(3,I) - cpol(3,J)
@@ -1390,7 +1388,7 @@ module elstat
         !logical, intent(in)      :: Amoeba
         integer(ip), intent(in)  :: I, J
         !
-        real(rp)    :: x, y, z, dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
+        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
         real(rp)    :: px, py, pz, DdR
         !
         !real(rp), parameter :: Two = 2.0_rp, Three = 3.0_rp, Four = 4.0_rp
@@ -1790,6 +1788,7 @@ module elstat
 
 
     subroutine multipoles_potential_remove(scr,v)
+        use mod_constants, only: eps_rp
         implicit none
         !
         ! Remove unwanted 1-5 contributions to the potential at MM sites 
@@ -1810,8 +1809,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh, pg_j, grp2, igrp2
-        real(rp)    :: scale
+        integer(ip) :: I, J, IJ, ineigh, pg_j, grp2, igrp2
         !
         !real(rp), parameter :: Zero = 0.0_rp, One = 1.0_rp
         
@@ -1822,7 +1820,7 @@ module elstat
                 ! For every mm atom subtract interaction with it's neighbors
                 do ineigh=1, 4
                     ! Scale factor for atoms separated by ineigh bonds
-                    if(mscale(ineigh).ne.one) then
+                    if(abs(mscale(ineigh)-1.0_rp) > eps_rp) then
                         do IJ = conn(ineigh)%ri(i), conn(ineigh)%ri(i+1)-1!1, n12(I) 
                             J = conn(ineigh)%ci(ij)
                             call potential_M2M(mscale(ineigh)-One,I,J,v)
@@ -1874,7 +1872,7 @@ module elstat
                 ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
                 pg_j = mmat_polgrp(polar_mm(j)) ! Polarization group of j
                 do ineigh=1, 4
-                    if(dscale(ineigh).ne.one) then
+                    if(abs(dscale(ineigh)-1.0_rp) > eps_rp) then
                         do igrp2=pg_conn(ineigh)%ri(pg_j), &
                                  pg_conn(ineigh)%ri(pg_j+1)-1
                              grp2 = pg_conn(ineigh)%ci(igrp2)
@@ -1895,7 +1893,7 @@ module elstat
             ! For AMBER the potential from the dipoles is scaled by pscale (so far)
             do J = 1,pol_atoms
                 do ineigh=1, 4
-                    if(pscale(ineigh).ne.one) then
+                    if(abs(pscale(ineigh)-1.0_rp) > eps_rp) then
                         do IJ = conn(ineigh)%ri(polar_mm(j)), &
                                 conn(ineigh)%ri(polar_mm(j)+1)-1
                             i = conn(ineigh)%ci(ij)
@@ -1908,6 +1906,7 @@ module elstat
     end subroutine multipoles_potential_remove
 
     subroutine multipoles_field_remove(scr,e)
+        use mod_constants, only: eps_rp
         implicit none
         !
         ! Remove unwanted 1-4 contributions to the electric field from
@@ -1937,7 +1936,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh, grp, igrp, pg_i
+        integer(ip) :: I, J, IJ, ineigh, grp, igrp, pg_i
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp ,One = 1.0_rp
@@ -1949,7 +1948,7 @@ module elstat
             do I = 1,pol_atoms
                 ! p field dipoles
                 do ineigh=1, 4
-                    if (pscale(ineigh).ne.one .or. ineigh == 3 ) then
+                    if (abs(pscale(ineigh) - 1.0_rp) > eps_rp .or. ineigh == 3 ) then
                         do ij = conn(ineigh)%ri(polar_mm(i)), &
                                 conn(ineigh)%ri(polar_mm(i)+1)-1
                             j = conn(ineigh)%ci(ij)
@@ -1966,7 +1965,7 @@ module elstat
                                 if(mmat_polgrp(j) == mmat_polgrp(polar_mm(i))) then
                                     scale = pscale(3)*pscale(5)
                                 end if
-                                if (scale /= one) then
+                                if (abs(scale-1.0_rp) > eps_rp) then
                                     call field_M2D(Zero,scale-One,I,J,e)
                                 end if
                             end if
@@ -1977,7 +1976,7 @@ module elstat
                 ! d field dipoles
                 pg_i = mmat_polgrp(polar_mm(i)) ! Polarization group of i
                 do ineigh=1, 4
-                    if(dscale(ineigh).ne.one) then
+                    if(abs(dscale(ineigh)-1.0_rp) > eps_rp) then
                         do igrp=pg_conn(ineigh)%ri(pg_i), &
                                  pg_conn(ineigh)%ri(pg_i+1)-1
                              grp = pg_conn(ineigh)%ci(igrp)
@@ -1998,7 +1997,7 @@ module elstat
             do I = 1,pol_atoms
                 do ineigh=1, 4
                     ! Field from dipoles is scaled by pscale
-                    if (pscale(ineigh).ne.one) then
+                    if (abs(pscale(ineigh)-1.0_rp) > eps_rp) then
                         do ij = conn(ineigh)%ri(polar_mm(i)), &
                                 conn(ineigh)%ri(polar_mm(i)+1)-1
                             j = conn(ineigh)%ci(ij)
@@ -2012,7 +2011,7 @@ module elstat
             do I = 1,pol_atoms
                 pg_i = mmat_polgrp(polar_mm(i)) ! Polarization group of j
                 do ineigh=1, 4
-                    if(uscale(ineigh).ne.one) then
+                    if(abs(uscale(ineigh) - 1.0_rp) > eps_rp) then
                         do igrp=pg_conn(ineigh)%ri(pg_i), &
                                  pg_conn(ineigh)%ri(pg_i+1)-1
                              grp = pg_conn(ineigh)%ci(igrp)
@@ -2033,7 +2032,7 @@ module elstat
             do I = 1,pol_atoms
                 do ineigh=1, 4
                     ! Field from dipoles is scaled by uscale
-                    if(uscale(ineigh).ne.one) then
+                    if(abs(uscale(ineigh)-1.0_rp) > eps_rp) then
                         do ij = conn(ineigh)%ri(polar_mm(i)), &
                                 conn(ineigh)%ri(polar_mm(i)+1)-1
                             j = conn(ineigh)%ci(ij)
@@ -2051,6 +2050,7 @@ module elstat
     end subroutine multipoles_field_remove
 
     subroutine multipoles_potential_deriv_remove(scr,dv)
+        use mod_constants, only: eps_rp
         implicit none
         !
         ! Remove unwanted 1-5 contributions to the potential derivatives at 
@@ -2072,7 +2072,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh, igrp, grp
+        integer(ip) :: I, J, IJ, ineigh, igrp, grp
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp, One = 1.0_rp
@@ -2083,7 +2083,7 @@ module elstat
             do I = 1,mm_atoms
                 do ineigh=1, 4
                     ! For every mm atom subtract interaction with it's neighbors 
-                    if(mscale(ineigh).ne.one) then
+                    if(abs(mscale(ineigh)-1.0_rp) > eps_rp) then
                         do ij = conn(ineigh)%ri(i), &
                                 conn(ineigh)%ri(i+1)-1
                             j = conn(ineigh)%ci(ij)
@@ -2100,7 +2100,7 @@ module elstat
             do J = 1,pol_atoms
                 ! For every pol atom subtract interaction with it's neighbors for polarization field (p dipoles) 
                 do ineigh=1, 4
-                    if(pscale(ineigh) /= one .or. ineigh == 3) then
+                    if(abs(pscale(ineigh)-1.0_rp) > eps_rp .or. ineigh == 3) then
                         do ij = conn(ineigh)%ri(polar_mm(j)), & 
                                 conn(ineigh)%ri(polar_mm(j)+1)-1
                             i = conn(ineigh)%ci(ij) 
@@ -2117,7 +2117,7 @@ module elstat
                                     scale = pscale(3)*pscale(5)
                                 end if
 
-                                if (scale /= one) then
+                                if (abs(scale-1.0_rp) > eps_rp) then
                                     !call potential_deriv_D2M(Zero,scale-One,I,J,dv)
                                     call potential_deriv_D2M(scale-One,Zero,I,J,dv)
                                 end if
@@ -2128,7 +2128,7 @@ module elstat
                 
                 ! For every pol atom subtract interaction with it's neighbors for direct field (d dipoles) 
                 do ineigh=1, 4
-                    if(dscale(ineigh).ne.one) then
+                    if(abs(dscale(ineigh)-1.0_rp) > eps_rp) then
                         do igrp=pg_conn(ineigh)%ri(polar_mm(j)), &
                                 pg_conn(ineigh)%ri(polar_mm(j)+1)-1
                            grp = pg_conn(ineigh)%ci(igrp)
@@ -2148,7 +2148,7 @@ module elstat
             ! For AMBER the potential from the dipoles is scaled by pscale (so far)
             do J = 1,pol_atoms
                 do ineigh=1, 4
-                    if(pscale(ineigh).ne.one) then
+                    if(abs(pscale(ineigh)-1.0_rp) > eps_rp) then
                         do ij = conn(ineigh)%ri(polar_mm(j)), &
                                 conn(ineigh)%ri(polar_mm(j)+1)-1
                             i = conn(ineigh)%ci(ij)
@@ -2196,7 +2196,7 @@ module elstat
         integer(ip), intent(in) :: scr
         !
         !logical     :: Amoeba
-        integer(ip) :: I, J, K, IJ, ineigh, igrp, grp
+        integer(ip) :: I, J, IJ, ineigh, igrp, grp
         real(rp)    :: scale
         !
         !real(rp), parameter :: Zero = 0.0_rp ,One = 1.0_rp
@@ -2265,7 +2265,7 @@ module elstat
         elseif ((scr.eq.1).and.(Amoeba)) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
             do I = 1,pol_atoms
                 do ineigh=1, 4
-                    if (uscale(ineigh).ne.One) then
+                    if (abs(uscale(ineigh)-1.0_rp) > eps_rp) then
                         do igrp=pg_conn(ineigh)%ri(polar_mm(i)), &
                                 pg_conn(ineigh)%ri(polar_mm(i)+1)-1
                             grp = pg_conn(ineigh)%ci(igrp)
@@ -2287,7 +2287,7 @@ module elstat
             do I = 1,pol_atoms
                 do ineigh=1, 4
                     ! Field from dipoles is scaled by uscale
-                    if(uscale(ineigh).ne.one) then
+                    if(abs(uscale(ineigh)-1.0_rp) > eps_rp) then
                         do ij = conn(ineigh)%ri(polar_mm(i)), &
                                 conn(ineigh)%ri(polar_mm(i)+1)-1
                             J = conn(ineigh)%ci(ij)
