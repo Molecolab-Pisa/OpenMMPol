@@ -489,7 +489,7 @@ module mod_mmpol
         type(yale_sparse), intent(out) :: adj
         !! The group adjacency matrix to be saved.
 
-        integer(ip) :: npg, pg1, pg2, atm1, atm2, i, j
+        integer(ip) :: npg, pg1, atm1, atm2, i, j
 
         npg = polgrp_mmat%n
 

@@ -480,7 +480,7 @@ module mod_io
     end subroutine print_matrix
     !
     subroutine print_int_vec(label, n, ibeg, iend, vec, dosort, ofunit)
-        use mod_memory, only: ip, rp
+        use mod_memory, only: ip
         
         implicit none
         

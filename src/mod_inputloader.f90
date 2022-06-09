@@ -34,16 +34,15 @@ module mod_inputloader
         !! and initialize all the quantities need to describe the environment
         !! within this library.
 
-        use mod_mmpol, only: cmm, q, q0, pol
-        use mod_mmpol, only: mm_atoms, pol_atoms, ff_rules, &
-                             ff_type, amoeba, &
-                             polar_mm,  conn, mmat_polgrp
+        use mod_mmpol, only: cmm, q, pol
+        use mod_mmpol, only: mm_atoms, amoeba, &
+                             polar_mm, conn, mmat_polgrp
         use mod_mmpol, only: mol_frame, iz, ix, iy
         use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: mmpol_print_summary, iof_mmpinp
-        use mod_constants, only: zero, ten, thres, angstrom2au
+        use mod_constants, only: thres, angstrom2au
         use mod_adjacency_mat, only: adj_mat_from_conn
 
         implicit none
@@ -52,12 +51,11 @@ module mod_inputloader
         !! name of the input file
 
         ! read the input for the mmpol calculation and process it.
-        integer(ip) :: input_revision, iconv
-        integer(ip) :: maxcor, nproc
+        integer(ip) :: input_revision
         integer(ip) :: my_mm_atoms, my_pol_atoms, my_ff_type, my_ff_rules
-        integer(ip) :: my_ld_cart, verbosity
+        integer(ip) :: my_ld_cart
         
-        integer(ip) :: i, j
+        integer(ip) :: i
         
         real(rp), allocatable :: my_pol(:), my_cmm(:,:), my_q(:,:)
         integer(ip), allocatable :: pol_atoms_list(:), my_ip11(:,:)
