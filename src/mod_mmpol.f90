@@ -532,78 +532,41 @@ module mod_mmpol
     
     subroutine set_screening_parameters()
         !! Subroutine to initialize the screening parameters
-        use mod_constants, only: one, zero, pt5
+        use mod_constants, only: mscale_wang_al, &
+                                 pscale_wang_al, &
+                                 dscale_wang_al, &
+                                 uscale_wang_al, & 
+                                 mscale_wang_dl, &
+                                 pscale_wang_dl, &
+                                 dscale_wang_dl, &
+                                 uscale_wang_dl, & 
+                                 mscale_amoeba, &
+                                 pscale_amoeba, &
+                                 dscale_amoeba, &
+                                 uscale_amoeba  
         
         implicit none
-        real(rp), parameter :: pt4 = 0.40_rp, pt8 = 0.80_rp
+        
         if (ff_type.eq.0 .and. ff_rules.eq.0) then
-            ! WangAL
-            mscale(1) = zero
-            mscale(2) = zero
-            mscale(3) = one
-            mscale(4) = one
-
-            pscale(1) = zero
-            pscale(2) = zero
-            pscale(3) = one
-            pscale(4) = one
-            pscale(5) = one
-            
-            dscale(1) = zero
-            dscale(2) = zero
-            dscale(3) = one
-            dscale(4) = one
-            
-            uscale(1) = zero
-            uscale(2) = zero
-            uscale(3) = one
-            uscale(4) = one
+            mscale = mscale_wang_al
+            pscale = pscale_wang_al
+            dscale = dscale_wang_al
+            uscale = uscale_wang_al
+        
         else if (ff_type.eq.0 .and. ff_rules.eq.1) then
-            ! WangDL
-            mscale(1) = one
-            mscale(2) = one
-            mscale(3) = one
-            mscale(4) = one
-            
-            pscale(1) = one
-            pscale(2) = one
-            pscale(3) = one
-            pscale(4) = one
-            pscale(5) = one
-            
-            dscale(1) = one
-            dscale(2) = one
-            dscale(3) = one
-            dscale(4) = one
-            
-            uscale(1) = one
-            uscale(2) = one
-            uscale(3) = one
-            uscale(4) = one
+            mscale = mscale_wang_dl
+            pscale = pscale_wang_dl
+            dscale = dscale_wang_dl
+            uscale = uscale_wang_dl
+
         else if (ff_type.eq.1) then
-            ! AMOEBA
-            mscale(1) = zero
-            mscale(2) = zero
-            mscale(3) = pt4
-            mscale(4) = pt8
-            
-            pscale(1) = zero
-            pscale(2) = zero
-            pscale(3) = one
-            pscale(4) = one
-            pscale(5) = pt5
-            
-            dscale(1) = zero
-            dscale(2) = one
-            dscale(3) = one
-            dscale(4) = one
-            
-            uscale(1) = one
-            uscale(2) = one
-            uscale(3) = one
-            uscale(4) = one
+            mscale = mscale_amoeba
+            pscale = pscale_amoeba
+            dscale = dscale_amoeba
+            uscale = uscale_amoeba
+        
         else
-            call fatal_error('the required force field is not implemented.')
+            call fatal_error('Unexpected error in force-field settings.')
         end if
     end subroutine set_screening_parameters
 
