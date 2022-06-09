@@ -88,11 +88,11 @@ int main(int argc, char **argv){
     FILE *fp = fopen(argv[2], "w+");
 
     for(int k = 0; k < n_ipd; k++){
-        fprintf(fp, "IPD SET %d\n", k+1);
+        // fprintf(fp, "IPD SET %d\n", k+1);
         
         for(int i = 0; i < pol_atoms; i++){
             for(int j = 0; j < 3; j++)
-                fprintf(fp, "%10.6f", ipd[k][i][j]);
+                fprintf(fp, "%20.12e", ipd[k][i][j]);
             fprintf(fp, "\n");
         }
     }

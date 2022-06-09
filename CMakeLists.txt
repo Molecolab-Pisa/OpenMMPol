@@ -111,29 +111,118 @@ add_test(NAME NMA_ipd0_AMOEBA
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
          Testing/output)
 add_test(NAME NMA_ipd0_AMOEBA_comp
-         COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA.ref)
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA.ref 
+         1e-4 1e-6)
 add_test(NAME NMA_ipd1_AMOEBA
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
          Testing/output
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt) 
 add_test(NAME NMA_ipd1_AMOEBA_comp
-         COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA.ref)
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA.ref
+         1e-4 1e-6)
 
 add_test(NAME NMA_ipd0_WANG_AL
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
          Testing/output)
 add_test(NAME NMA_ipd0_WANG_AL_comp
-         COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL.ref)
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL.ref
+         1e-4 1e-6)
 add_test(NAME NMA_ipd1_WANG_AL
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
          Testing/output
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt)
 add_test(NAME NMA_ipd1_WANG_AL_comp
-         COMMAND  ${CMAKE_COMMAND} -E compare_files Testing/output 
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL.ref)
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL.ref
+         1e-4 1e-6)
+
+add_test(NAME 1crn_ipd0_AMOEBA
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp 
+         Testing/output)
+add_test(NAME 1crn_ipd0_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_0_AMOEBA.ref 
+         1e-4 1e-6)
+add_test(NAME 1crn_ipd1_AMOEBA
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1crn/EF_1.txt) 
+add_test(NAME 1crn_ipd1_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_1_AMOEBA.ref
+         1e-4 1e-6)
+
+add_test(NAME 1crn_ipd0_WANG_AL
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_WANG_AL.mmp 
+         Testing/output)
+add_test(NAME 1crn_ipd0_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_0_WANG_AL.ref
+         1e-4 1e-6)
+add_test(NAME 1crn_ipd1_WANG_AL
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_WANG_AL.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1crn/EF_1.txt)
+add_test(NAME 1crn_ipd1_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1crn/IPD_1_WANG_AL.ref
+         1e-4 1e-6)
+
+add_test(NAME 1ubq_ipd0_AMOEBA
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp 
+         Testing/output)
+add_test(NAME 1ubq_ipd0_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_0_AMOEBA.ref 
+         1e-4 1e-6)
+add_test(NAME 1ubq_ipd1_AMOEBA
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/EF_1.txt) 
+add_test(NAME 1ubq_ipd1_AMOEBA_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_AMOEBA.ref
+         1e-4 1e-6)
+
+add_test(NAME 1ubq_ipd0_WANG_AL
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp 
+         Testing/output)
+add_test(NAME 1ubq_ipd0_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_0_WANG_AL.ref
+         1e-4 1e-6)
+add_test(NAME 1ubq_ipd1_WANG_AL
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/EF_1.txt)
+add_test(NAME 1ubq_ipd1_WANG_AL_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_WANG_AL.ref
+         1e-4 1e-6)
+
