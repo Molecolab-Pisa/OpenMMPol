@@ -1,7 +1,7 @@
 subroutine rotate_multipoles(doder,def,fx)
   use mod_memory, only: ip, rp
   use mod_mmpol, only: ld_cder, mm_atoms, q, q0, verbose, ix, iy, iz
-  use mod_constants, only: zero, one, two
+  use mod_constants, only: zero,  two
   use mod_io, only: print_matrix
   implicit none
 !
@@ -321,7 +321,7 @@ end subroutine rotate_multipoles
 subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   use mod_mmpol, only: cmm, verbose, mol_frame, fatal_error
   use mod_memory, only: ip, rp
-  use mod_constants, only: zero, one, two
+  use mod_constants, only: zero, one
   use mod_io, only: print_matrix
   implicit none
 !
@@ -368,11 +368,11 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   real(rp),    dimension(3,3),   intent(inout) :: r
   real(rp),    dimension(3,3,3), intent(inout) :: dri, driz, drix, driy
 !
-  integer(ip)              :: k, l, m, n
-  real(rp)                 :: xj, yj, zj, dx, dy, dz, dot
+  integer(ip)              :: k
+  real(rp)                 :: dot
   real(rp)                 :: xi(3), eta(3), zeta(3), xi_norm, eta_norm, zeta_norm
   real(rp)                 :: u(3), v(3), u_norm, ex(3), ey(3), ez(3), ex_nrm, ex_sq,      &
-                              u_sq, u_cube, e_sq, vez
+                              u_sq, u_cube, vez
   real(rp), dimension(3,3) :: ez_u, ex_v, ex_ez, ey_ez, ey_ex, u_ri, u_riz, u_rix,         &
                               u_riy, v_ri, v_rix, v_riy, ez_ri, ez_riz, ez_rix, ez_riy,    &
                               ex_ri, ex_riz, ex_rix, ex_riy, ey_ri, ey_riz, ey_rix, ey_riy

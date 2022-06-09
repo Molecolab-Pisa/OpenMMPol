@@ -23,6 +23,7 @@ module solvers
   contains
 !
   subroutine conjugate_gradient(n,lprint,tol,rhs,x,n_iter,ok,matvec,precnd)
+    use mod_constants, only: eps_rp
     implicit none
 !
 !   preconditioned conjugated gradient solver.
@@ -64,8 +65,6 @@ module solvers
     real(rp)                 :: rms_norm, alpha, gnew, gold, gama
     real(rp),    allocatable :: r(:), p(:), h(:), z(:)
 !  
-    real(rp),    parameter   :: zero = 0.0_rp, one = 1.0_rp
-!
 !   initialize and allocate memory:
 !
     ok = .false.
@@ -78,7 +77,7 @@ module solvers
 !   compute a guess, if required:
 !
     rms_norm = dot_product(x,x)
-    if (rms_norm.eq.zero) call precnd(n,rhs,x)
+    if (rms_norm < eps_rp) call precnd(n,rhs,x)
 !
 !   compute the residual:
 !
@@ -103,7 +102,7 @@ module solvers
 !
 !     unlikely quick return:
 !
-      if (gama.eq.zero) then
+      if (gama < eps_rp) then
         ok = .true.
         n_iter = it
         return
@@ -146,6 +145,7 @@ module solvers
   end subroutine conjugate_gradient
 
   subroutine jacobi_diis(n,lprint,diis_max,norm,tol,rhs,x,n_iter,ok,matvec,precnd)
+    use mod_constants, only: eps_rp
     implicit none
 !
 !   jacobi/diis solver.
@@ -197,8 +197,6 @@ module solvers
     logical               :: dodiis
 !  
     real(rp), allocatable :: x_new(:), y(:), x_diis(:,:), e_diis(:,:), bmat(:,:)
-    real(rp), parameter   :: zero = 0.0_rp
-!  
 !   DIIS extrapolation flag
 !  
     dodiis =  (diis_max.ne.0)
@@ -235,7 +233,7 @@ module solvers
 !   if required, compute a guess:
 !
     rms_norm = dot_product(x,x)
-    if (rms_norm.eq.zero) call precnd(n,rhs,x)
+    if (rms_norm < eps_rp ) call precnd(n,rhs,x)
 !  
 !   Jacobi iterations
 !   =================
