@@ -13,7 +13,7 @@ if len(sys.argv) > 4:
 else:
     atol = 1e-08
 
-print(rtol, atol)
+#print(rtol, atol)
 
 if(np.allclose(A, B, rtol=rtol, atol=atol)):
     quit(0)
