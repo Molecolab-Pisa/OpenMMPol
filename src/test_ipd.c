@@ -40,9 +40,9 @@ double **read_ef(char *fin){
 }
 
 int main(int argc, char **argv){
-    if(argc != 4){
+    if(argc != 4 && argc != 3){
         printf("Syntax expected\n");
-        printf("    $ test_init.exe <INPUT FILE> <ELECTRIC_FIELD_FILE> <OUTPUT FILE>\n");
+        printf("    $ test_init.exe <INPUT FILE> <OUTPUT FILE> [<ELECTRIC FIELD FILE>]\n");
         return 0;
     }
     
@@ -57,14 +57,18 @@ int main(int argc, char **argv){
     pol_atoms = get_pol_atoms();
     
     electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
-    external_ef = read_ef(argv[2]);
-
-    electric_potential = (double *) malloc(sizeof(double) * pol_atoms);
+    if(argc == 4)
+        external_ef = read_ef(argv[3]);
 
     for(int i = 0; i < n_ipd; i++)
         for(int j = 0; j < pol_atoms; j++)
             for(int k = 0; k < 3; k++)
-                electric_field[i*pol_atoms*3+j*3+k] = external_ef[j][k];
+                if(argc == 4)
+                    electric_field[i*pol_atoms*3+j*3+k] = external_ef[j][k];
+                else
+                    electric_field[i*pol_atoms*3+j*3+k] = 0.0;
+
+    electric_potential = (double *) malloc(sizeof(double) * pol_atoms);
 
     do_mm(); // Compute the EF of the MM part...
     do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd);
@@ -81,7 +85,7 @@ int main(int argc, char **argv){
         }
     }
 
-    FILE *fp = fopen(argv[3], "w+");
+    FILE *fp = fopen(argv[2], "w+");
 
     for(int k = 0; k < n_ipd; k++){
         fprintf(fp, "IPD SET %d\n", k+1);
