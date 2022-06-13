@@ -22,7 +22,7 @@ module mod_polarization
         !! field and induced dipoles are stored in e(:,:,1)/ipds(:,:,1) while
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
-        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, verbose, fatal_error
+        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, fatal_error
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
@@ -48,12 +48,7 @@ module mod_polarization
         
         real(rp), dimension(3*pol_atoms) :: ep_vec, ed_vec, ipd0_p, ipd0_d
         integer(ip) :: n, solver, mvmethod
-        logical :: status
         
-        integer(ip), parameter :: diis_max = 20, norm_jacobi = 2 ! TODO
-        real(rp) :: convergence = 1e-8
-        integer(ip) :: nmax = 200
-
         ! Handling of optional arguments
         if(present(arg_solver)) then
             solver = arg_solver
