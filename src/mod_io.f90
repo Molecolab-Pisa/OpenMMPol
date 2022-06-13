@@ -334,11 +334,11 @@ module mod_io
     end subroutine mmpol_print_summary
 
     subroutine print_header
-      use mod_mmpol, only: convergence, ff_rules, ff_type, matrix_vector
+      use mod_mmpol, only: ff_rules, ff_type
       use mod_mmpol, only: mm_atoms, pol_atoms
       implicit none
     !
-      character (len=20) ffprt, lssolv, mvalg
+      character (len=20) ffprt
     !
       9000 format(t3,' .d88888b.                             888b     d888 888b     d888 8888888b.          888 ',/,&
                   t3,'d88P" "Y88b                            8888b   d8888 8888b   d8888 888   Y88b         888 ',/,&

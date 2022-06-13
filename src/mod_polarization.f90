@@ -27,6 +27,8 @@ module mod_polarization
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
         use mod_constants, only: OMMP_MATV_DEFAULT, &
+                                 OMMP_MATV_DIRECT, &
+                                 OMMP_MATV_INCORE, &
                                  OMMP_SOLVER_DEFAULT, &
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
@@ -48,6 +50,16 @@ module mod_polarization
         
         real(rp), dimension(3*pol_atoms) :: ep_vec, ed_vec, ipd0_p, ipd0_d
         integer(ip) :: n, solver, mvmethod
+
+        abstract interface
+            subroutine mv(n, x, y)
+                use mod_memory, only: rp, ip
+                integer(ip), intent(in) :: n
+                real(rp), dimension(n), intent(in) :: x
+                real(rp), dimension(n), intent(out) :: y
+            end subroutine mv
+        end interface
+        procedure(mv), pointer :: precnd, matvec
         
         ! Handling of optional arguments
         if(present(arg_solver)) then
@@ -66,8 +78,10 @@ module mod_polarization
         n = 3*pol_atoms
 
         ! Allocate and compute dipole polarization matrix
-        call mallocate('polarization [TMat]',n,n,TMat)
-        call create_TMat(TMat)
+        if(mvmethod == OMMP_MATV_INCORE .or. solver == OMMP_SOLVER_INVERSION) then
+            call mallocate('polarization [TMat]',n,n,TMat)
+            call create_TMat(TMat)
+        end if
 
         ! Reshape electric field matrix into a vector
         ! direct field for Wang and Amoeba
@@ -83,12 +97,25 @@ module mod_polarization
         if(solver /= OMMP_SOLVER_INVERSION) then
             call PolVec(3*pol_atoms, ed_vec, ipd0_d)
             if(amoeba) call PolVec(3*pol_atoms, ep_vec, ipd0_p)
+
+            select case(mvmethod)
+                case(OMMP_MATV_INCORE) 
+                   matvec => TMatVec_incore
+
+                case(OMMP_MATV_DIRECT)
+                    ! TODO
+                    call fatal_error("This method is still to be implemented") 
+
+                case default
+                    call fatal_error("Unknown matrix-vector method requested")
+                
+            end select
         end if
 
         select case (solver)
             case(OMMP_SOLVER_CG)
-                call conjugate_gradient_solver(n, ed_vec, ipd0_d, TMatVec, PolVec)
-                if(amoeba) call conjugate_gradient_solver(n, ep_vec, ipd0_p, TMatVec, PolVec)
+                call conjugate_gradient_solver(n, ed_vec, ipd0_d, matvec, PolVec)
+                if(amoeba) call conjugate_gradient_solver(n, ep_vec, ipd0_p, matvec, PolVec)
 
             case(OMMP_SOLVER_DIIS)
                 call jacobi_diis_solver(n, ed_vec, ipd0_d, TMatVec_offdiag, PolVec)
@@ -288,107 +315,74 @@ module mod_polarization
         
     end subroutine create_TMat
 
-    subroutine TMatVec(n,x,y)
-        use mod_constants, only : One, Zero
+    subroutine TMatVec_incore(n, x, y)
+        !! Perform matrix vector multiplication y = TMat*x,
+        !! where TMat is polarization matrix (precomputed and stored in memory)
+        !! and x and y are column vectors
         implicit none
-        ! Perform matrix vector multiplication y = TMat*x,
-        ! where TMat is polarization matrix and x,y are 
-        ! vectors
-        !
-        !   variables:
-        !  
-        !     n        : integer, input, size of the matrix
-        ! 
-        !     x        : real, vector which is multiplied by the matrix
-        !
-        !     y        : real, solution vector
-        !
+        
         integer(ip), intent(in) :: n
-        real(rp),dimension(n),intent(in)   :: x
-        real(rp),dimension(n), intent(out) :: y
-        !
-        ! initialize solution vector
-        !
-        y = 0
-        !
+        !! Size of TMat
+        real(rp), dimension(n), intent(in) :: x
+        !! Input vector
+        real(rp), dimension(n), intent(out) :: y
+        !! Output vector
+        
+        ! initialize solution vector TODO needed?
+        y = 0.0_rp
         ! Compute the matrix vector product
-        !
-        call DGEMM('N','N',n,1,n,One,TMat,n,x,n,Zero,y,n) !XGEMM
-        !
-    end subroutine TMatVec
+        call dgemm('N', 'N', n, 1, n, 1.0_rp, TMat, n, x, n, 0.0_rp, y, n)
+    end subroutine TMatVec_incore
         
     subroutine TMatVec_offdiag(n,x,y)
-        use mod_constants, only : One, Zero
+        !! Perform matrix vector multiplication y = [TMat-diag(TMat)]*x,
+        !! where TMat is polarization matrix (precomputed and stored in memory)
+        !! and x and y are column vectors
         implicit none
-        ! Perform matrix vector multiplication y = [TMat-diag(TMat)]*x,
-        ! where TMat is polarization matrix and x,y are 
-        ! vectors
-        !
-        !   variables:
-        !  
-        !     n        : integer, input, size of the matrix
-        ! 
-        !     x        : real, vector which is multiplied by the matrix
-        !
-        !     y        : real, solution vector
-        !
+        
         integer(ip), intent(in) :: n
-        real(rp),dimension(n),intent(in)   :: x
-        real(rp),dimension(n), intent(out) :: y
-        !
-        real(rp),dimension(n,n) :: O
-        integer(ip) :: I
-        !
+        !! Size of TMat
+        real(rp), dimension(n), intent(in)   :: x
+        !! Input vector
+        real(rp), dimension(n), intent(out) :: y
+        !! Output vector
+        
+        real(rp), dimension(n,n) :: O
+        integer(ip) :: i
+        
         ! initialize solution vector and matrix
-        !
-        y = 0
+        y = 0.0_rp
         O = TMat
-        !
         ! Subtract the diagonal from the O matrix
-        !
-        do I = 1, n
-            O(I,I) = Zero
-        enddo
-        !
+        do i = 1, n
+            O(I,I) = 0.0_rp
+        end do
         ! Compute the matrix vector product
-        !
-        call DGEMM('N','N',n,1,n,One,O,n,x,n,Zero,y,n) !XGEMM
-        !
+        call dgemm('N', 'N', n, 1, n, 1.0_rp, O, n, x, n, 0.0_rp, y, n)
     end subroutine TMatVec_offdiag
 
     subroutine PolVec(n,x,y)
+        !! Perform matrix vector multiplication y = pol*x,
+        !! where pol polarizability vector (stored in memory) x and y are 
+        !! column vectors
         use mod_mmpol, only : pol
+        
         implicit none
-        ! Perform matrix vector multiplication y = pol*x,
-        ! where pol polarizability vector and x,y are 
-        ! vectors
-        !
-        !   variables:
-        !  
-        !     n        : integer, input, size of the matrix
-        ! 
-        !     x        : real, vector which is multiplied by the 
-        !                inverse diagonal matrix
-        !
-        !     y        : real, solution vector
-        !
+        
         integer(ip), intent(in) :: n
-        real(rp),dimension(n),intent(in)   :: x
-        real(rp),dimension(n), intent(out) :: y
-        !
-        integer(ip) :: I,indx
-        !
-        ! initialize solution vector
-        !
-        y = 0
-        !
-        ! Compute the matrix vector product
-        !
-        do I = 1, n
-            indx = (I+2)/3
-            y(I) = pol(indx)*x(I)   
+        !! Size of input vector (number of polarizable sites)
+        real(rp), dimension(n),intent(in)   :: x
+        !! Input vector
+        real(rp), dimension(n), intent(out) :: y
+        !! Output vector
+        
+        integer(ip) :: i, indx
+        
+        do i = 1, n
+            indx = (i+2)/3
+            y(i) = pol(indx)*x(i)   
         enddo
-        !
+        
     end subroutine PolVec
 
 end module mod_polarization

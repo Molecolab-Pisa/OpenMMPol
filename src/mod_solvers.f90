@@ -36,7 +36,6 @@ module mod_solvers
     contains
     
     subroutine inversion_solver(n, rhs, x, tmat)
-        use mod_mmpol, only : pol_atoms
         use mod_memory, only: mallocate, mfree
         !
         ! Induce dipoles on the polarizable atoms. The dipoles are induced
@@ -155,6 +154,7 @@ module mod_solvers
         call precnd(n, r, z)
         p = z
         gold = dot_product(r, z)
+        gama = 0.0_rp
 
         do it = 1, n_iter
             ! compute the step:
@@ -243,7 +243,7 @@ module mod_solvers
         !! Preconditioner routine
         
         integer(ip) :: it, nmat
-        real(rp) :: rms_norm, max_norm, tol_max
+        real(rp) :: rms_norm, max_norm
         logical :: do_diis
         real(rp), allocatable :: x_new(:), y(:), x_diis(:,:), e_diis(:,:), bmat(:,:)
         
@@ -353,7 +353,7 @@ module mod_solvers
         real(rp), dimension(ndiis+1, ndiis+1), intent(inout) :: b
         real(rp), dimension(n), intent(inout) :: xnew
         
-        integer(ip) :: nmat1, i, istatus, info
+        integer(ip) :: nmat1, i, info
         integer(ip) :: j, k
 
         real(rp),    allocatable :: bloc(:,:), cex(:)
@@ -454,7 +454,6 @@ module mod_solvers
         real(rp), intent(inout) :: vrms, vmax
     
         integer(ip) :: i
-        real(rp),   parameter :: zero=0.0d0
     
         ! initialize
         vrms = 0.0_rp
