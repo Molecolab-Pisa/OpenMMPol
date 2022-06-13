@@ -40,13 +40,13 @@ double **read_ef(char *fin){
 }
 
 int main(int argc, char **argv){
-    if(argc != 4 && argc != 3){
+    if(argc != 4 && argc != 5){
         printf("Syntax expected\n");
-        printf("    $ test_init.exe <INPUT FILE> <OUTPUT FILE> [<ELECTRIC FIELD FILE>]\n");
-        return 0;
+        printf("    $ test_init.exe <INPUT FILE> <OUTPUT FILE> <SOLVER> [<ELECTRIC FIELD FILE>]\n");
+        return 1;
     }
     
-    int n_ipd, pol_atoms;
+    int n_ipd, pol_atoms, solver;
     double *_ipd;
     double ***ipd, *electric_field, *electric_potential;
     double **external_ef;
@@ -56,15 +56,32 @@ int main(int argc, char **argv){
 
     n_ipd = get_n_ipd();
     pol_atoms = get_pol_atoms();
+
+    if(strcmp(argv[3], "inversion") == 0){
+        printf("Solving with matrix inversion\n");
+        solver = OMMP_SOLVER_INVERSION;
+    }
+    else if(strcmp(argv[3], "cg") == 0){
+        printf("Solving with conjugate gradients\n");
+        solver = OMMP_SOLVER_CG;
+    }
+    else if(strcmp(argv[3], "diis") == 0){
+        printf("Solving with Jacobi-DIIS\n");
+        solver = OMMP_SOLVER_DIIS;
+    }
+    else{
+        printf("Unrecognized solver (\"%s\"). Exiting.\n", argv[3]);
+        return 1;
+    }
     
     electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
-    if(argc == 4)
-        external_ef = read_ef(argv[3]);
+    if(argc == 5)
+        external_ef = read_ef(argv[4]);
 
     for(int i = 0; i < n_ipd; i++)
         for(int j = 0; j < pol_atoms; j++)
             for(int k = 0; k < 3; k++)
-                if(argc == 4)
+                if(argc == 5)
                     electric_field[i*pol_atoms*3+j*3+k] = external_ef[j][k];
                 else
                     electric_field[i*pol_atoms*3+j*3+k] = 0.0;
@@ -72,7 +89,7 @@ int main(int argc, char **argv){
     electric_potential = (double *) malloc(sizeof(double) * pol_atoms);
 
     do_mm(); // Compute the EF of the MM part...
-    do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd);
+    do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd, solver);
 
     // Get induced point dipoles
     _ipd = (double *) get_ipd();

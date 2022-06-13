@@ -6,9 +6,12 @@ module mod_solvers
   use mod_mmpol, only: verbose, fatal_error
 
   implicit none
+  private
   
   real(rp), parameter :: OMMP_DEFAULT_SOLVER_TOL = 1e-8_rp
   integer(ip), parameter :: OMMP_DEFAULT_SOLVER_ITER = 200
+
+  public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                  !
@@ -30,8 +33,54 @@ module mod_solvers
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
   contains
-!
-  subroutine conjugate_gradient(n, rhs, x, matvec, precnd, arg_tol, arg_n_iter)
+  subroutine inversion_solver(n, rhs, x, tmat)
+      use mod_mmpol, only : pol_atoms
+      use mod_memory, only: mallocate, mfree
+      !
+      ! Induce dipoles on the polarizable atoms. The dipoles are induced
+      ! by the electric field of the static multipoles (Later change to 
+      ! the total electric field including the QM system). For the Amoeba
+      ! force-field only polarization field and p-dipoles are considered.
+      !
+      
+      implicit none
+      
+      integer(ip), intent(in) :: n
+      !! Size of the matrix
+      real(rp), dimension(n), intent(in) :: rhs
+      !! Right hand side of the linear system
+      real(rp), dimension(n), intent(out) :: x
+      !! In output the solution of the linear system
+      real(rp), dimension(n, n), intent(in) :: tmat
+      !! Polarization matrix TODO
+
+
+      integer(ip) :: info
+      integer(ip), dimension(:), allocatable :: ipiv
+      real(rp), dimension(:), allocatable :: work
+      real(rp), dimension(:,:), allocatable :: TMatI
+      
+      call mallocate('inversion_solver [TMatI]', n, n, TMatI)
+      call mallocate('inversion_solver [work]', n, work)
+      call mallocate('inversion_solver [ipiv]', n, ipiv)
+      
+      ! Initialize inverse polarization matrix
+      TMatI = TMat
+      
+      !Compute the inverse of TMat
+      call dgetrf(n, n, TMatI, n, iPiv, info)
+      call dgetri(n, TMatI, n, iPiv, Work, n, info)
+      
+      ! Calculate dipoles with matrix inversion
+      call dgemm('N', 'N', n, 1, n, 1.0_rp, TMatI, n, rhs, n, 0.0_rp, x, n)
+      
+      call mfree('inversion_solver [TMatI]', TMatI)
+      call mfree('inversion_solver [work]', work)
+      call mfree('inversion_solver [ipiv]', ipiv)
+    
+  end subroutine inversion_solver
+
+  subroutine conjugate_gradient_solver(n, rhs, x, matvec, precnd, arg_tol, arg_n_iter)
     !! Conjugate gradient solver (TODO)
     ! TODO add more printing
     use mod_constants, only: eps_rp
@@ -85,10 +134,10 @@ module mod_solvers
         write(6, *) "Tolerance: ", tol
     end if
 
-    call mallocate('conjugate_gradient [r]', n, r)
-    call mallocate('conjugate_gradient [p]', n, p)
-    call mallocate('conjugate_gradient [h]', n, h)
-    call mallocate('conjugate_gradient [z]', n, z)
+    call mallocate('conjugate_gradient_solver [r]', n, r)
+    call mallocate('conjugate_gradient_solver [p]', n, p)
+    call mallocate('conjugate_gradient_solver [h]', n, h)
+    call mallocate('conjugate_gradient_solver [z]', n, z)
     
     ! compute a guess, if required:
     rms_norm = dot_product(x,x)
@@ -143,14 +192,14 @@ module mod_solvers
         call fatal_error("Iterative solver did not converged")
     end if
 
-    call mfree('conjugate_gradient [r]', r)
-    call mfree('conjugate_gradient [p]', p)
-    call mfree('conjugate_gradient [h]', h)
-    call mfree('conjugate_gradient [z]', z)
+    call mfree('conjugate_gradient_solver [r]', r)
+    call mfree('conjugate_gradient_solver [p]', p)
+    call mfree('conjugate_gradient_solver [h]', h)
+    call mfree('conjugate_gradient_solver [z]', z)
   
-  end subroutine conjugate_gradient
+  end subroutine conjugate_gradient_solver
 
-  subroutine jacobi_diis(n,lprint,diis_max,norm,tol,rhs,x,n_iter,ok,matvec,precnd)
+  subroutine jacobi_diis_solver(n,lprint,diis_max,norm,tol,rhs,x,n_iter,ok,matvec,precnd)
     use mod_constants, only: eps_rp
     implicit none
 !
@@ -309,7 +358,7 @@ module mod_solvers
   return
 !
 !
-  end subroutine jacobi_diis
+  end subroutine jacobi_diis_solver
 !
   subroutine diis(n,nmat,ndiis,x,e,b,xnew)
     implicit none

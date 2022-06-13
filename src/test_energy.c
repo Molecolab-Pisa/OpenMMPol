@@ -71,7 +71,7 @@ int main(int argc, char **argv){
     electric_potential = (double *) malloc(sizeof(double) * pol_atoms);
 
     do_mm(); // Compute the EF of the MM part...
-    do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd);
+    do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd, OMMP_SOLVER_DEFAULT);
 
     get_energy(&E_MMMM, &E_MMPOL); 
 

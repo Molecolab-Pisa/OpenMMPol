@@ -21,7 +21,7 @@
 
 extern void w_mmpol_init(char *);
 extern void do_mm(void);
-extern void do_qmmm(double *, double *, int32_t, int32_t, int32_t, int32_t);
+extern void do_qmmm(double *, double *, int32_t, int32_t, int32_t, int32_t, int32_t);
 extern void restart(void);
 extern void get_energy(double *, double *);
 extern void write_hdf5(char *);

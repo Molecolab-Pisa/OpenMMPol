@@ -163,7 +163,7 @@ module mod_interface
         end subroutine 
 
 
-        subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4) bind(c, name='do_qmmm')
+        subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4,solver) bind(c, name='do_qmmm')
             ! Compute polarization and QM-MM energy
             use mod_polarization, only: polarization
 
@@ -171,6 +171,7 @@ module mod_interface
             ! real(kind=rp), intent(in) :: v_qmm(ld_cart,mm_atoms), ef_qmd(3,pol_atoms,n_ipd)
             integer(kind=ip), intent(in), value :: n1,n2,n3,n4
             real(kind=rp), intent(in) :: v_qmm(n1,n2), ef_qmd(3,n3,n4)
+            integer(ip), intent(in), value :: solver
 
             !call print_matrix(.true.,'VQM:',ld_cart,mm_atoms,ld_cart,mm_atoms,v_qmm)
             !call print_matrix(.true.,'EQM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,1))) 
@@ -180,7 +181,7 @@ module mod_interface
 
             ! Compute polarization
             !write(6, *) "Calling polarization"
-            call polarization(ef_qd+ef_qmd,ipd)
+            call polarization(ef_qd+ef_qmd, ipd, solver)
             !write(6, *) "Called polarization"
 
         end subroutine
