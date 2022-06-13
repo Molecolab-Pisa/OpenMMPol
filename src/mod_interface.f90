@@ -165,6 +165,7 @@ module mod_interface
 
         subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4) bind(c, name='do_qmmm')
             ! Compute polarization and QM-MM energy
+            use mod_polarization, only: polarization
 
             implicit none
             ! real(kind=rp), intent(in) :: v_qmm(ld_cart,mm_atoms), ef_qmd(3,pol_atoms,n_ipd)
@@ -178,10 +179,9 @@ module mod_interface
             ipd = 0.0_rp 
 
             ! Compute polarization
-            nmax = 200
-            !convergence = 5.0E-10
-            call polarization(solver,ef_qd+ef_qmd,ipd) ! - jacobi interation solver
-            !call polarization(1,ef_qd+ef_qmd,ipd) 
+            !write(6, *) "Calling polarization"
+            call polarization(ef_qd+ef_qmd,ipd)
+            !write(6, *) "Called polarization"
 
         end subroutine
 

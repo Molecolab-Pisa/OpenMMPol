@@ -42,7 +42,7 @@ module mod_inputloader
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: mmpol_print_summary, iof_mmpinp
-        use mod_constants, only: thres, angstrom2au
+        use mod_constants, only: angstrom2au
         use mod_adjacency_mat, only: adj_mat_from_conn
 
         implicit none
@@ -63,6 +63,10 @@ module mod_inputloader
         integer(ip), parameter :: maxn12 = 8
         integer(ip), parameter :: maxpgp = 120
         !! maximum number of members for the same polarization group
+        real(rp), parameter :: thres = 1e-8
+        !! Threshold used to decide if a polarizability is zero
+        ! TODO why we do not use eps_rp directly?
+
         integer(ip), allocatable :: i12(:,:)
         
         ! open the (formatted) input file

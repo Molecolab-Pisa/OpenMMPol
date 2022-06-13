@@ -20,12 +20,6 @@ module mod_mmpol
     integer(ip), protected :: ff_rules
     !! Force field exclusion rules (0 for Wang AL, 1 for Wang DL)
 
-    integer(ip) :: solver !TODO remove
-    !! Parameter that control how the polarization equations are solved.
-    !! 1 = preconditioned conjugate gradient (default),
-    !! 2 = jacobi iterations with DIIS extrapolation,
-    !! 3 = matrix inversion
-    
     integer(ip) :: matrix_vector !TODO remove
     !! Selection flag for the matrix-vectror product routine
     !! 1 = assemble the matrix using O(n^2) storage and use dgemv
@@ -264,9 +258,6 @@ module mod_mmpol
         call mallocate('mmpol_init [def_dd]', 6_ip, pol_atoms, n_ipd, def_dd)
         def_dd = 0.0_rp
 
-        ! TODO
-        solver = 1
-        matrix_vector = 1 
         nmax = 200
         convergence = 1e-8
       

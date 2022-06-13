@@ -335,7 +335,7 @@ module mod_io
 
     subroutine print_header
       use mod_mmpol, only: convergence, ff_rules, ff_type, matrix_vector
-      use mod_mmpol, only: mm_atoms, pol_atoms, solver
+      use mod_mmpol, only: mm_atoms, pol_atoms
       implicit none
     !
       character (len=20) ffprt, lssolv, mvalg
@@ -358,9 +358,6 @@ module mod_io
       1000 format(t3,'parameters:     ',/, &
                   t3,'=============================================',/, &
                   t5,'force field:           ',a,/, &
-                  t5,'solution method:       ',a,/, &
-                  t5,'algorithm:             ',a,/, &
-                  t5,'convergence threshold: ',d18.2,/, &
                   t5,'# mm atoms:            ',i18,/, &
                   t5,'# polarizable atoms:   ',i18,/, &
                   t3,'=============================================')
@@ -374,21 +371,8 @@ module mod_io
       else
         ffprt = '            AMOEBA'
       end if
-    ! 
-      if (solver.eq.0 .or. solver.eq.1) then
-        lssolv = 'conjugate gradient'
-      else if (solver.eq.2) then
-        lssolv = '       jacobi/DIIS'
-      else
-        lssolv = '  matrix inversion'
-      end if
-    ! 
-      if (matrix_vector.eq.0 .or. matrix_vector.eq.2) then
-        mvalg = '        on-the-fly'
-      else if (matrix_vector.eq.1) then
-        mvalg = '            incore'
-      end if
-      write(iof_mmpol,1000) ffprt, lssolv, mvalg, convergence, mm_atoms, pol_atoms
+    
+      write(iof_mmpol,1000) ffprt, mm_atoms, pol_atoms
       write(iof_mmpol,*)
     !
       return

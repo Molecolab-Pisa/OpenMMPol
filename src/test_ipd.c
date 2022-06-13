@@ -52,7 +52,8 @@ int main(int argc, char **argv){
     double **external_ef;
 
     w_mmpol_init(argv[1]);
-    set_verbose(OMMP_VERBOSE_NONE);
+    set_verbose(OMMP_VERBOSE_DEBUG);
+
     n_ipd = get_n_ipd();
     pol_atoms = get_pol_atoms();
     

@@ -1,6 +1,15 @@
-module solvers
+module mod_solvers
   use mod_memory, only: ip, rp
+  use mod_constants, only: OMMP_VERBOSE_HIGH, &
+                           OMMP_VERBOSE_LOW, &
+                           OMMP_VERBOSE_DEBUG
+  use mod_mmpol, only: verbose, fatal_error
+
   implicit none
+  
+  real(rp), parameter :: OMMP_DEFAULT_SOLVER_TOL = 1e-8_rp
+  integer(ip), parameter :: OMMP_DEFAULT_SOLVER_ITER = 200
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                  !
 ! this fortran module contains a two of routines to iteratively solve a linear     !
@@ -22,126 +31,123 @@ module solvers
 !
   contains
 !
-  subroutine conjugate_gradient(n,lprint,tol,rhs,x,n_iter,ok,matvec,precnd)
+  subroutine conjugate_gradient(n, rhs, x, matvec, precnd, arg_tol, arg_n_iter)
+    !! Conjugate gradient solver (TODO)
+    ! TODO add more printing
     use mod_constants, only: eps_rp
+    use mod_memory, only: mallocate, mfree
+    
     implicit none
-!
-!   preconditioned conjugated gradient solver.
-!  
-!   variables:
-!  
-!     n        : integer, input, size of the matrix
-!  
-!     lprint   : integer, input, printing flag.
-!  
-!     tol      : real, input, convergence criterion. if norm = 3, convergence is 
-!                achieved when rms (grad) < tol and max |grad| < 10*tol.
-!  
-!     rhs      : real, dimension(n), input, right-hand side of the linear system
-!  
-!     x        : real, dimension(n). In input, a guess of the solution (can be zero).
-!                In output, the solution
-!  
-!     n_iter   : integer, in input, the maximum number of iterations. In output,
-!                the number of iterations needed to converge.
-!  
-!     ok       : logical, output, T if the solver converged, false otherwise.
-!  
-!     matvec   : external, subroutine to compute the required matrix-vector multiplication
-!                format: subroutine matvec(n,x,y)
-!  
-!     precnd   : external, subroutine to apply the inverse diagonal matrix to a vector.
-!                format: subroutine precnd(n,x,y)
-!  
-    integer(ip),               intent(in)    :: n, lprint
-    real(rp),                  intent(in)    :: tol
-    real(rp),    dimension(n), intent(in)    :: rhs
-    real(rp),    dimension(n), intent(inout) :: x
-    integer(ip),               intent(inout) :: n_iter
-    logical,                   intent(inout) :: ok
-    external                                 :: matvec, precnd
-!  
-    integer(ip)              :: it, istatus
-    real(rp)                 :: rms_norm, alpha, gnew, gold, gama
-    real(rp),    allocatable :: r(:), p(:), h(:), z(:)
-!  
-!   initialize and allocate memory:
-!
-    ok = .false.
-    allocate (r(n), p(n), h(n), z(n), stat=istatus)
-    if (istatus.ne.0) then
-      write(6,*) ' conjugate_gradient: failed allocation'
-      stop
+    
+    integer(ip), intent(in) :: n
+    !! Size of the matrix
+    real(rp), intent(in), optional :: arg_tol
+    !! Optional convergence criterion in input, if not present
+    !! OMMP_DEFAULT_SOLVER_TOL is used.
+    real(rp) :: tol
+    !! Convergence criterion, it is required that RMS norm < tol
+    
+    integer(ip), intent(in), optional :: arg_n_iter
+    !! Optional maximum number of iterations for the solver, if not present
+    !! OMMP_DEFAULT_SOLVER_ITER is used.
+    integer(ip) :: n_iter
+    !! Maximum number of iterations for the solver 
+
+    real(rp), dimension(n), intent(in) :: rhs
+    !! Right hand side of the linear system
+    real(rp), dimension(n), intent(inout) :: x
+    !! In input, initial guess for the solver, in output the solution
+    external :: matvec
+    !! Routine to perform matrix-vector product
+    external :: precnd
+    !! Preconditioner routine
+
+    integer(ip) :: it
+    real(rp) :: rms_norm, alpha, gnew, gold, gama
+    real(rp), allocatable :: r(:), p(:), h(:), z(:)
+
+    ! Optional arguments handling
+    if(present(arg_tol)) then
+        tol = arg_tol
+    else
+        tol = OMMP_DEFAULT_SOLVER_TOL
     end if
-!
-!   compute a guess, if required:
-!
+    
+    if(present(arg_n_iter)) then
+        n_iter = arg_n_iter
+    else
+        n_iter = OMMP_DEFAULT_SOLVER_ITER
+    end if
+
+    if(verbose >= OMMP_VERBOSE_LOW) then
+        write(6, *) "Solving linear system with CG solver"
+        write(6, *) "Max iter:", n_iter
+        write(6, *) "Tolerance: ", tol
+    end if
+
+    call mallocate('conjugate_gradient [r]', n, r)
+    call mallocate('conjugate_gradient [p]', n, p)
+    call mallocate('conjugate_gradient [h]', n, h)
+    call mallocate('conjugate_gradient [z]', n, z)
+    
+    ! compute a guess, if required:
     rms_norm = dot_product(x,x)
-    if (rms_norm < eps_rp) call precnd(n,rhs,x)
-!
-!   compute the residual:
-!
-    call matvec(n,x,z)
+    if(rms_norm < eps_rp) call precnd(n, rhs, x)
+
+    ! compute the residual:
+    call matvec(n, x, z)
     r = rhs - z
-!
-!   apply the preconditioner and get the first direction:
-!
-    call precnd(n,r,z)
+
+    ! apply the preconditioner and get the first direction:
+    call precnd(n, r, z)
     p = z
-    gold = dot_product(r,z)
-!
-!   main loop:
-!   ==========
-!
+    gold = dot_product(r, z)
+    
     do it = 1, n_iter
-!
-!     compute the step:
-!
-      call matvec(n,p,h)
-      gama = dot_product(h,p)
-!
-!     unlikely quick return:
-!
-      if (gama < eps_rp) then
-        ok = .true.
-        n_iter = it
-        return
+      ! compute the step:
+      call matvec(n, p, h)
+      gama = dot_product(h, p)
+
+      ! unlikely quick return:
+      if(abs(gama) < eps_rp) then
+        write(6, *) "Direction vector with zero norm, exiting iterative solver."
+        exit
       end if
-!
-      alpha = gold/gama
-      x = x + alpha*p
-      r = r - alpha*h
-!
-!     apply the preconditioner:
-!
-      call precnd(n,r,z)
-      gnew = dot_product(r,z)
+
+      alpha = gold / gama
+      x = x + alpha * p
+      r = r - alpha * h
+
+      ! apply the preconditioner:
+      call precnd(n, r, z)
+      gnew = dot_product(r, z)
       rms_norm = sqrt(gnew/dble(n))
-!  
-!     printing
-!
-      if ( lprint.gt.0 )  write(6,100) it, rms_norm
-    100   format(t3,'iter=',i4,' residual rms norm: ', d14.4 )
-!
-!     check for convergence:
-!
-      ok = rms_norm.lt.tol
-!
-!     if done, exit:
-!
-      if (ok) exit
-!
-!     compute the next direction:
-!
+      
+      if(verbose >= OMMP_VERBOSE_HIGH) then
+          write(6, "(t3,'iter=',i4,' residual rms norm: ', d14.4)") it, rms_norm
+      end if
+      
+      ! Check convergence
+      if(rms_norm < tol) then
+          write(6, *) "Required convergence threshold reached, exiting iterative solver."
+          exit
+      end if
+
+      ! compute the next direction:
       gama = gnew/gold
       p    = gama*p + z
       gold = gnew
-!
     end do
-!
-    n_iter = it
-       
-    return
+    
+    if(rms_norm > tol .and. abs(gama) > eps_rp) then
+        call fatal_error("Iterative solver did not converged")
+    end if
+
+    call mfree('conjugate_gradient [r]', r)
+    call mfree('conjugate_gradient [p]', p)
+    call mfree('conjugate_gradient [h]', h)
+    call mfree('conjugate_gradient [z]', z)
+  
   end subroutine conjugate_gradient
 
   subroutine jacobi_diis(n,lprint,diis_max,norm,tol,rhs,x,n_iter,ok,matvec,precnd)
@@ -462,4 +468,4 @@ module solvers
 !      
   end subroutine rmsvec
 !
-end module solvers
+end module mod_solvers

@@ -6,6 +6,19 @@
 #define OMMP_VERBOSE_LOW 1 
 #define OMMP_VERBOSE_NONE 0
 
+#define OMMP_FF_AMOEBA 1
+#define OMMP_FF_WANG_AL 0 
+#define OMMP_FF_WANG_DL 0 
+
+#define OMMP_SOLVER_CG 1
+#define OMMP_SOLVER_DIIS 2
+#define OMMP_SOLVER_INVERSION 3
+#define OMMP_SOLVER_DEFAULT OMMP_SOLVER_CG
+
+#define OMMP_MATV_INCORE 1
+#define OMMP_MATV_DIRECT 2
+#define OMMP_MATV_DEFAULT OMMP_MATV_INCORE
+
 extern void w_mmpol_init(char *);
 extern void do_mm(void);
 extern void do_qmmm(double *, double *, int32_t, int32_t, int32_t, int32_t);
