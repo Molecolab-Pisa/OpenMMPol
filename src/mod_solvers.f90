@@ -10,6 +10,7 @@ module mod_solvers
   
   real(rp), parameter :: OMMP_DEFAULT_SOLVER_TOL = 1e-8_rp
   integer(ip), parameter :: OMMP_DEFAULT_SOLVER_ITER = 200
+  integer(ip), parameter :: OMMP_DEFAULT_DIIS_MAX_POINTS = 20
 
   public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
 
@@ -178,7 +179,8 @@ module mod_solvers
       
       ! Check convergence
       if(rms_norm < tol) then
-          write(6, *) "Required convergence threshold reached, exiting iterative solver."
+          if(verbose >= OMMP_VERBOSE_HIGH) &
+            write(6, *) "Required convergence threshold reached, exiting iterative solver."
           exit
       end if
 
@@ -188,333 +190,282 @@ module mod_solvers
       gold = gnew
     end do
     
-    if(rms_norm > tol .and. abs(gama) > eps_rp) then
-        call fatal_error("Iterative solver did not converged")
-    end if
-
     call mfree('conjugate_gradient_solver [r]', r)
     call mfree('conjugate_gradient_solver [p]', p)
     call mfree('conjugate_gradient_solver [h]', h)
     call mfree('conjugate_gradient_solver [z]', z)
-  
+    
+    if(rms_norm > tol .and. abs(gama) > eps_rp) then
+        call fatal_error("Iterative solver did not converged")
+    end if
+
   end subroutine conjugate_gradient_solver
 
-  subroutine jacobi_diis_solver(n,lprint,diis_max,norm,tol,rhs,x,n_iter,ok,matvec,precnd)
-    use mod_constants, only: eps_rp
-    implicit none
-!
-!   jacobi/diis solver.
-!  
-!   variables:
-!  
-!     n        : integer, input, size of the matrix
-!  
-!     lprint   : integer, input, printing flag.
-!  
-!     diis_max : integer, input, number of points to be used for diis extrapolation
-!  
-!                if diis_max = 0, this is just a Jacobi solver.
-!  
-!     norm     : integer, input, norm to be used to evaluate convergence
-!                1: max |x_new - x|
-!                2: rms (x_new - x)
-!                3: rms (x_new - x) and max |x_new - x|
-!  
-!     tol      : real, input, convergence criterion. if norm = 3, convergence is 
-!                achieved when rms (x_new - x) < tol and max |x_new - x| < 10*tol.
-!  
-!     rhs      : real, dimension(n), input, right-hand side of the linear system
-!  
-!     x        : real, dimension(n). In input, a guess of the solution (can be zero).
-!                In output, the solution
-!  
-!     n_iter   : integer, in input, the maximum number of iterations. In output,
-!                the number of iterations needed to converge.
-!  
-!     ok       : logical, output, T if the solver converged, false otherwise.
-!  
-!     matvec   : external, subroutine to compute the required matrix-vector multiplication
-!                format: subroutine matvec(n,x,y)
-!  
-!     precnd   : external, subroutine to apply the inverse diagonal matrix to a vector.
-!                format: subroutine precnd(n,x,y)
-!  
-    integer(ip),               intent(in)    :: n, diis_max, norm, lprint
-    real(rp),                  intent(in)    :: tol
-    real(rp),    dimension(n), intent(in)    :: rhs
-    real(rp),    dimension(n), intent(inout) :: x
-    integer(ip),               intent(inout) :: n_iter
-    logical,                   intent(inout) :: ok
-    external                                 :: matvec, precnd
-!  
-    integer(ip)           :: it, nmat, istatus, lenb
-    real(rp)              :: rms_norm, max_norm, tol_max
-    logical               :: dodiis
-!  
-    real(rp), allocatable :: x_new(:), y(:), x_diis(:,:), e_diis(:,:), bmat(:,:)
-!   DIIS extrapolation flag
-!  
-    dodiis =  (diis_max.ne.0)
-!  
-!   set tolerance
-!  
-    tol_max = 10.0d0 * tol
-!  
-!   extrapolation required
-!  
-    if (dodiis) then
-!  
-!     allocate workspaces
-!  
-      lenb = diis_max + 1
-      allocate( x_diis(n,diis_max), e_diis(n,diis_max), bmat(lenb,lenb) , stat=istatus )
-      if (istatus .ne. 0) then
-        write(*,*) ' jacobi_diis: [1] failed allocation (diis)'
-        stop
-      endif
-!      
-      nmat = 1
-!      
-    endif
-!  
-!   allocate workspaces
-!  
-    allocate( x_new(n), y(n) , stat=istatus )
-    if (istatus .ne. 0) then
-      write(*,*) ' jacobi_diis: [2] failed allocation (scratch)' 
-      stop
-    endif
-!
-!   if required, compute a guess:
-!
-    rms_norm = dot_product(x,x)
-    if (rms_norm < eps_rp ) call precnd(n,rhs,x)
-!  
-!   Jacobi iterations
-!   =================
-    do it = 1, n_iter
-!  
-!     y = rhs - O x
-      call matvec( n, x, y )
-      y = rhs - y
-!  
-!     x_new = D^-1 y
-      call precnd(n,y,x_new)
-!  
-!     DIIS extrapolation
-!     ==================
-      if (dodiis) then
-!  
-        x_diis(:,nmat) = x_new
-        e_diis(:,nmat) = x_new - x
-!  
-        call diis(n,nmat,diis_max,x_diis,e_diis,bmat,x_new)
-!  
-      endif
-!  
-!     increment
-      x = x_new - x
-!  
-!     rms/max norm of increment
-      if ( norm.le.3 ) then
-!  
-!       compute norm
-        call rmsvec( n, x, rms_norm, max_norm )
-!  
-!       check norm
-        if ( norm.eq.1 ) then
-!                
-          ok = (rms_norm.lt.tol)
-          
-        elseif ( norm.eq.2 ) then
-!                
-          ok = (max_norm.lt.tol)
-!          
-        else 
-
-          ok = (rms_norm.lt.tol) .and. (max_norm.lt.tol_max)
-!          
-        endif
-!  
-      endif
-!  
-!     printing
-!
-      if ( lprint.gt.0 )  write(*,100) it, rms_norm, max_norm
-    100   format(t3,'iter=',i4,' residual norm (rms,max): ', 2d14.4 )
-!  
-!     update
-      x = x_new
-!  
-!     EXIT Jacobi loop here
-!     =====================
-      if (ok) exit
-!  
-    enddo
-!
-! record number of Jacobi iterations
-  n_iter = it
-!
-  return
-!
-!
-  end subroutine jacobi_diis_solver
-!
-  subroutine diis(n,nmat,ndiis,x,e,b,xnew)
-    implicit none
-!  
-!   perform Pulay's direct inversion in the iterative subspace extrapolation:
-!  
-    integer(ip),                             intent(in)    :: n, ndiis
-    integer(ip),                             intent(inout) :: nmat
-    real(rp),    dimension(n,ndiis),         intent(inout) :: x, e
-    real(rp),    dimension(ndiis+1,ndiis+1), intent(inout) :: b
-    real(rp),    dimension(n),               intent(inout) :: xnew
-!  
-    integer(ip) :: nmat1, i, istatus, info
-    integer(ip) :: j, k
-!  
-    real(rp),    allocatable :: bloc(:,:), cex(:)
-    integer(ip), allocatable :: ipiv(:)
-!  
-    real(rp), parameter   :: zero = 0.0_rp, one = 1.0_rp
-!  
-!  ------------------------------------------------------------------------------
-!  
-    if (nmat.ge.ndiis) then
-      do j = 2, nmat - 10
-        do k = 2, nmat - 10
-          b(j,k) = b(j+10,k+10)
-        end do
-      end do
-      do j = 1, nmat - 10
-        x(:,j) = x(:,j+10)
-        e(:,j) = e(:,j+10)
-      end do
-      nmat = nmat - 10
-    end if
-    nmat1 = nmat + 1
-    allocate (bloc(nmat1,nmat1),cex(nmat1), ipiv(nmat1), stat=istatus)
-    if ( istatus.ne.0 ) then 
-      write(*,*) 'diis: allocation failed!'
-      stop
-    endif
+    subroutine jacobi_diis_solver(n, rhs, x, matvec, precnd, arg_tol, &
+                                arg_n_iter, arg_diis_max)
     
-    call makeb(n,nmat,ndiis,e,b)
-    bloc   = b(1:nmat1,1:nmat1)
-    cex    = zero
-    cex(1) = one
-!  
-    call dgesv(nmat1,1,bloc,nmat1,ipiv,cex,nmat1,info)
-    if (info .ne. 0) then
-!  
-!     inversion failed. discard the previous points and restart.
-!  
-      nmat = 1
-      deallocate (bloc,cex,ipiv, stat=istatus)
-      if ( istatus.ne.0 ) then 
-        write(*,*) 'diis: deallocation failed!'
-        stop
-      endif
-      return
-    end if
-!  
-    xnew = zero
-    do i = 1, nmat
-      xnew = xnew + cex(i+1)*x(:,i)
-    end do
-    nmat = nmat + 1
-!  
-    deallocate (bloc,cex,ipiv, stat=istatus)
-    if ( istatus.ne.0 ) then 
-      write(*,*) 'diis: deallocation failed!'
-      stop
-    endif
-!  
-    return
-  end subroutine diis
-!
-  subroutine makeb(n,nmat,ndiis,e,b)
-!
-!   assemble the DIIS B matrix:
-!  
-    implicit none
-    integer(ip),                             intent(in)    :: n, nmat, ndiis
-    real(rp),    dimension(n,ndiis),         intent(in)    :: e
-    real(rp),    dimension(ndiis+1,ndiis+1), intent(inout) :: b
-!  
-    integer(ip)         :: i
-    real(rp)            :: bij
-    real(rp), parameter :: zero = 0.0_rp, one = 1.0_rp
+        use mod_constants, only: eps_rp
+        use mod_memory, only: mallocate, mfree
+        
+        implicit none
+    
+        integer(ip), intent(in) :: n
+        !! Size of the matrix
+        real(rp), intent(in), optional :: arg_tol
+        !! Optional convergence criterion in input, if not present
+        !! OMMP_DEFAULT_SOLVER_TOL is used.
+        real(rp) :: tol
+        !! Convergence criterion, it is required that RMS norm < tol
+        
+        integer(ip), intent(in), optional :: arg_n_iter
+        !! Optional maximum number of iterations for the solver, if not present
+        !! OMMP_DEFAULT_SOLVER_ITER is used.
+        integer(ip) :: n_iter
+        !! Maximum number of iterations for the solver 
+        
+        integer(ip), intent(in), optional :: arg_diis_max
+        !! Optional maximum number of points for diis extrapolation, if not present
+        !! OMMP_DEFAULT_DIIS_MAX_POINTS is used.
+        integer(ip) :: diis_max
+        !! Maximum number of points for diis extrapolation, if zero or negative,
+        !! diis extrapolation is not used.
+
+        real(rp), dimension(n), intent(in) :: rhs
+        !! Right hand side of the linear system
+        real(rp), dimension(n), intent(inout) :: x
+        !! In input, initial guess for the solver, in output the solution
+        external :: matvec
+        !! Routine to perform matrix-vector product
+        external :: precnd
+        !! Preconditioner routine
+        
+        integer(ip) :: it, nmat
+        real(rp) :: rms_norm, max_norm, tol_max
+        logical :: do_diis
+        real(rp), allocatable :: x_new(:), y(:), x_diis(:,:), e_diis(:,:), bmat(:,:)
+        
+        ! Optional arguments handling
+        if(present(arg_tol)) then
+            tol = arg_tol
+        else
+            tol = OMMP_DEFAULT_SOLVER_TOL
+        end if
+        
+        if(present(arg_n_iter)) then
+            n_iter = arg_n_iter
+        else
+            n_iter = OMMP_DEFAULT_SOLVER_ITER
+        end if
+        
+        if(present(arg_diis_max)) then
+            diis_max = arg_diis_max
+        else
+            diis_max = OMMP_DEFAULT_DIIS_MAX_POINTS
+        end if
+
+        do_diis =  (diis_max > 0)
+        
+        if(verbose >= OMMP_VERBOSE_LOW) then
+            write(6, *) "Solving linear system with jacobi solver"
+            write(6, *) "Max iter:", n_iter
+            write(6, *) "Tolerance: ", tol
+            if(do_diis) then
+                write(6, *) "DIIS is enabled with n = ", diis_max
+            else
+                write(6, *) "DIIS is disabled"
+            endif
+        end if
+        
+        ! Memory allocation
+        call mallocate('jacobi_diis_solver [x_new]', n, x_new)
+        call mallocate('jacobi_diis_solver [y]', n, y)
+        if(do_diis) then
+            call mallocate('jacobi_diis_solver [x_diis]', n, diis_max, x_diis)
+            call mallocate('jacobi_diis_solver [e_diis]', n, diis_max, e_diis)
+            call mallocate('jacobi_diis_solver [bmat]', diis_max+1, diis_max+1, bmat)
+            nmat = 1
+        endif
+        
+        ! if required, compute a guess
+        rms_norm = dot_product(x, x)
+        if(rms_norm < eps_rp ) call precnd(n, rhs, x)
+        
+        ! Jacobi iterations
+        do it = 1, n_iter
+            ! y = rhs - O x
+            call matvec(n, x, y)
+            y = rhs - y
+
+            ! x_new = D^-1 y
+            call precnd(n, y, x_new)
+            
+            ! DIIS extrapolation
+            if(do_diis) then
+                x_diis(:,nmat) = x_new
+                e_diis(:,nmat) = x_new - x
+                call diis(n, nmat, diis_max, x_diis, e_diis, bmat, x_new)
+            endif
+
+            ! increment
+            x = x_new - x
+            ! compute norm
+            call rmsvec(n, x, rms_norm, max_norm)
+            ! update
+            x = x_new
+            
+            if(verbose >= OMMP_VERBOSE_HIGH) then
+                write(6, "(t3,'iter=',i4,' residual norm (rms, max): ', 2d14.4)") it, rms_norm, max_norm
+            end if
+            
+            if(max_norm < tol) then
+                if(verbose >= OMMP_VERBOSE_HIGH) &
+                    write(6, *) "Required convergence threshold reached, exiting iterative solver."
+                exit
+            end if
+        enddo
+        
+        call mfree('jacobi_diis_solver [x_new]', x_new)
+        call mfree('jacobi_diis_solver [y]', y)
+        if(do_diis) then
+            call mfree('jacobi_diis_solver [x_diis]', x_diis)
+            call mfree('jacobi_diis_solver [e_diis]', e_diis)
+            call mfree('jacobi_diis_solver [bmat]', bmat)
+        endif
       
-!   1st built
-!  
-    if (nmat.eq.1) then
-!  
-!         [ 0 |  1  ]
-!     b = [ --+---- ]
-!         [ 1 | e*e ]
-!  
-      b(1,1) = zero
-      b(1,2) = one
-      b(2,1) = one
-      b(2,2) = dot_product(e(:,1),e(:,1))
-!  
-!   subsequent builts
-!  
-    else
-!  
-!     first, update the lagrangian line:
-!  
-      b(nmat+1,1) = one
-      b(1,nmat+1) = one
-!  
-!     now, compute the new matrix elements:
-!  
-      do i = 1, nmat - 1
-        bij = dot_product(e(:,i),e(:,nmat))
-        b(nmat+1,i+1) = bij
-        b(i+1,nmat+1) = bij
-      end do
-      b(nmat+1,nmat+1) = dot_product(e(:,nmat),e(:,nmat))
-    end if
-    !
-    return
-  end subroutine makeb
-!
-  subroutine rmsvec( n, v, vrms, vmax )
-    implicit none
-!
-!   compute root-mean-square and max norms of a vector.
-!
-    integer(ip),               intent(in)    :: n
-    real(rp),    dimension(n), intent(in)    :: v
-    real(rp),                  intent(inout) :: vrms, vmax
-!
-    integer(ip)           :: i
-    real(rp),   parameter :: zero=0.0d0
-!      
-!   initialize
-    vrms = zero
-    vmax = zero
-!
-!   loop over entries
-    do i = 1,n
-!
-!     max norm
-      vmax = max(vmax,abs(v(i)))
-!
-!     rms norm
-      vrms = vrms + v(i)*v(i)
-!      
-    enddo
-!
-!   the much neglected square root
-    vrms = sqrt(vrms/dble(n))
-!    
-    return
-!      
-!      
-  end subroutine rmsvec
-!
+        if(max_norm > tol) then
+            call fatal_error("Iterative solver did not converged")
+        end if
+
+    end subroutine jacobi_diis_solver
+  
+    subroutine diis(n,nmat,ndiis,x,e,b,xnew)
+        !! perform Pulay's direct inversion in the iterative subspace extrapolation:
+        use mod_memory, only: mallocate, mfree
+
+        implicit none
+        ! TODO doc
+        integer(ip), intent(in) :: n, ndiis
+        integer(ip), intent(inout) :: nmat
+        real(rp), dimension(n, ndiis), intent(inout) :: x, e
+        real(rp), dimension(ndiis+1, ndiis+1), intent(inout) :: b
+        real(rp), dimension(n), intent(inout) :: xnew
+        
+        integer(ip) :: nmat1, i, istatus, info
+        integer(ip) :: j, k
+
+        real(rp),    allocatable :: bloc(:,:), cex(:)
+        integer(ip), allocatable :: ipiv(:)
+
+        if (nmat.ge.ndiis) then
+            do j = 2, nmat - 10
+                do k = 2, nmat - 10
+                    b(j,k) = b(j+10,k+10)
+                end do
+            end do
+      
+            do j = 1, nmat - 10
+                x(:,j) = x(:,j+10)
+                e(:,j) = e(:,j+10)
+            end do
+            
+            nmat = nmat - 10
+        end if
+
+        nmat1 = nmat + 1
+    
+        call mallocate('diis [bloc]', nmat1, nmat1, bloc)
+        call mallocate('diis [cex]', nmat1, cex)
+        call mallocate('diis [ipiv]', nmat1, ipiv)
+    
+        call makeb(n, nmat, ndiis, e, b)
+        bloc = b(1:nmat1,1:nmat1)
+        cex = 0.0_rp
+        cex(1) = 1.0_rp
+
+        call dgesv(nmat1, 1, bloc, nmat1, ipiv, cex, nmat1, info)
+        
+        if(info /= 0) then
+            ! inversion failed. discard the previous points and restart.
+            nmat = 1
+            call mfree('diis [bloc]', bloc)
+            call mfree('diis [cex]', cex)
+            call mfree('diis [ipiv]', ipiv)
+            return
+        end if
+
+        xnew = 0.0_rp
+        do i = 1, nmat
+            xnew = xnew + cex(i+1)*x(:,i)
+        end do
+        nmat = nmat + 1
+        
+        call mfree('diis [bloc]', bloc)
+        call mfree('diis [cex]', cex)
+        call mfree('diis [ipiv]', ipiv)
+  
+    end subroutine diis
+
+    subroutine makeb(n,nmat,ndiis,e,b)
+        !! assemble the DIIS B matrix:
+        implicit none
+        
+        integer(ip), intent(in) :: n, nmat, ndiis
+        real(rp), dimension(n, ndiis), intent(in) :: e
+        real(rp), dimension(ndiis+1, ndiis+1), intent(inout) :: b
+
+        integer(ip) :: i
+        real(rp) :: bij
+      
+        if(nmat == 1) then
+            ! 1st built:
+            !         [ 0 |  1  ]
+            !     b = [ --+---- ]
+            !         [ 1 | e*e ]
+            b(1,1) = 0.0_rp
+            b(1,2) = 1.0_rp
+            b(2,1) = 1.0_rp
+            b(2,2) = dot_product(e(:,1),e(:,1))
+        else
+            ! subsequent builts
+            ! first, update the lagrangian line:
+            b(nmat+1,1) = 1.0_rp
+            b(1,nmat+1) = 1.0_rp
+
+            ! now, compute the new matrix elements:
+            do i = 1, nmat - 1
+                bij = dot_product(e(:,i),e(:,nmat))
+                b(nmat+1,i+1) = bij
+                b(i+1,nmat+1) = bij
+            end do
+            
+            b(nmat+1,nmat+1) = dot_product(e(:,nmat),e(:,nmat))
+        end if
+    end subroutine makeb
+
+    subroutine rmsvec( n, v, vrms, vmax )
+        !! compute root-mean-square and max norms of a vector.
+        implicit none
+    
+        integer(ip), intent(in) :: n
+        real(rp), dimension(n), intent(in) :: v
+        real(rp), intent(inout) :: vrms, vmax
+    
+        integer(ip) :: i
+        real(rp),   parameter :: zero=0.0d0
+    
+        ! initialize
+        vrms = 0.0_rp
+        vmax = 0.0_rp
+        
+        ! loop over entries
+        do i = 1, n
+            ! max norm
+            vmax = max(vmax,abs(v(i)))
+            ! rms norm
+            vrms = vrms + v(i)*v(i)
+        enddo
+        
+        vrms = sqrt(vrms/dble(n))
+    end subroutine rmsvec
+
 end module mod_solvers

@@ -96,9 +96,8 @@ module mod_polarization
                 if(amoeba) call conjugate_gradient_solver(n, ep_vec, ipd0_p, TMatVec, PolVec)
 
             case(OMMP_SOLVER_DIIS)
-                call jacobi_diis_solver(n,verbose,diis_max,norm_jacobi,convergence,ed_vec,ipd0_d,nmax,status,TMatVec_offdiag,PolVec)
-                if(amoeba) call jacobi_diis_solver(n,verbose,diis_max, &
-                norm_jacobi,convergence,ep_vec,ipd0_p,nmax,status,TMatVec_offdiag,PolVec)
+                call jacobi_diis_solver(n, ed_vec, ipd0_d, TMatVec_offdiag, PolVec)
+                if(amoeba) call jacobi_diis_solver(n, ep_vec, ipd0_p, TMatVec_offdiag, PolVec)
 
             case(OMMP_SOLVER_INVERSION)
                 call inversion_solver(n, ed_vec, ipd0_d, TMat)  
