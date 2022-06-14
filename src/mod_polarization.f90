@@ -199,18 +199,10 @@ module mod_polarization
         !! Interaction tensor between sites i and j
         
         real(rp) :: dr(3)
-        real(rp) ::  rm1, rm3, rm5, rm7, rm9, rm11, s
+        real(rp) ::  coul_k(3), s
 
         integer(ip) :: ii, jj, ineigh, i_mm, j_mm
          
-        ! Initialize variables
-        rm1 = 0.0_rp
-        rm3 = 0.0_rp
-        rm5 = 0.0_rp
-        rm7 = 0.0_rp
-        rm9 = 0.0_rp
-        rm11 = 0.0_rp
-
         tens = 0.0_rp
         
         if(i == j) then
@@ -253,15 +245,15 @@ module mod_polarization
             ! be computed
             dr = cpol(:,j) - cpol(:,i)
 
-            call coulomb_kernel(.true.,2,dr(1),dr(2),dr(3),thole(polar_mm(I)),thole(polar_mm(J)),rm1,rm3,rm5,rm7,rm9,rm11)
+            call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), 2, coul_k)
 
             ! Fill the matrix elemets
             do ii=1, 3
                 do jj=1, 3
                     if(ii == jj) then
-                        tens(ii, ii) = rm3 - 3.0_rp * rm5 * dr(ii) ** 2
+                        tens(ii, ii) = coul_k(2) - 3.0_rp * coul_k(3) * dr(ii) ** 2
                     else
-                        tens(jj, ii) = -3.0_rp * rm5 * dr(ii) * dr(jj)
+                        tens(jj, ii) = -3.0_rp * coul_k(3) * dr(ii) * dr(jj)
                     end if
                 end do
             end do
