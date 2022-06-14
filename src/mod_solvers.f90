@@ -1,48 +1,49 @@
 module mod_solvers
-  use mod_memory, only: ip, rp
-  use mod_constants, only: OMMP_VERBOSE_HIGH, &
-                           OMMP_VERBOSE_LOW, &
-                           OMMP_VERBOSE_DEBUG
-  use mod_mmpol, only: verbose, fatal_error
+    !! Module that contains the routines used to solve the polarization linear 
+    !! system \(\mathbf A \mathbf x = \mathbf B\).
+    !! Currently three methods are implemented:    
+    !! 1.  __matrix inversion__;    
+    !! 2.  __(preconditioned) conjugate gradients__ - since polarization equations 
+    !!     are symmetric and positive definite, this is the optimal choice;    
+    !! 3.  __jacobi iterations__ accelerated with Pulay's direct inversion 
+    !!     in the iterative subspace (__DIIS__): this is a pretty robust solver that 
+    !!     can be use for general systems and that is less sensitive to small 
+    !!     errors in the symmetry of the matrix.    
+    !!       
+    !! Iterative solvers need two additional routines to be passed as arguments,
+    !! namely matvec that computes a generic product 
+    !! \(\mathbf y = \mathbf A \mathbf v\)
+    !! and precond that computes \(\mathbf y = \mathbf M \mathbf v\), where 
+    !! \(M\) is a precontioner
 
-  implicit none
-  private
+    use mod_memory, only: ip, rp
+    use mod_constants, only: OMMP_VERBOSE_HIGH, &
+                             OMMP_VERBOSE_LOW, &
+                             OMMP_VERBOSE_DEBUG
+    use mod_mmpol, only: verbose, fatal_error
+
+    implicit none
+    private
   
-  real(rp), parameter :: OMMP_DEFAULT_SOLVER_TOL = 1e-8_rp
-  integer(ip), parameter :: OMMP_DEFAULT_SOLVER_ITER = 200
-  integer(ip), parameter :: OMMP_DEFAULT_DIIS_MAX_POINTS = 20
+    real(rp), parameter :: OMMP_DEFAULT_SOLVER_TOL = 1e-8_rp
+    !! Default tolerance for iterative solvers
+    integer(ip), parameter :: OMMP_DEFAULT_SOLVER_ITER = 200
+    !! Default maximum number of iteration for iterative solvers
+    integer(ip), parameter :: OMMP_DEFAULT_DIIS_MAX_POINTS = 20
+    !! Default maximum number of points in DIIS extrapolation
 
-  public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
+    public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                                  !
-! this fortran module contains a two of routines to iteratively solve a linear     !
-! system of equations, together with the required ancillary routines.              !
-! at the moment, the algorithms implemented are:                                   !
-!                                                                                  !
-!   - (preconditioned) conjugate gradient: as the polarization equations are       !
-!     symmetric and positive definite, this is the optimal choice.                 !
-!   - jacobi iterations accelerated with Pulay's direct inversion in the iterative !
-!     subspace: this is a pretty robust solver that can be use for general systems !
-!     and that is less sensitive to small errors in the symmetry of the matrix     !
-!                                                                                  !
-! both solvers require two user-provided routines with a fixed interface:          !
-!                                                                                  !
-!   - matvec(n,x,y): computes y = Ax, where A is the linear system matrix          !
-!   - precnd(n,x,y): computes y = Mx, where M is a preconditioner.                 !
-!                                                                                  !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
     contains
     
     subroutine inversion_solver(n, rhs, x, tmat)
+        !! Solve the linear system directly inverting the matrix:
+        !! $$\mathbf A \mathbf x = \mathbf B $$
+        !! $$ \mathbf x = \mathbf A ^-1 \mathbf B $$
+        !! This is highly unefficient and should only be used for testing 
+        !! other methods of solution.
+
         use mod_memory, only: mallocate, mfree
-        !
-        ! Induce dipoles on the polarizable atoms. The dipoles are induced
-        ! by the electric field of the static multipoles (Later change to 
-        ! the total electric field including the QM system). For the Amoeba
-        ! force-field only polarization field and p-dipoles are considered.
-        !
         
         implicit none
         
