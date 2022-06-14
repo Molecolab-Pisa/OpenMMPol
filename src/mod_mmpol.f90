@@ -291,13 +291,7 @@ module mod_mmpol
         call matcpy(conn(1), adj)
         deallocate(conn)
 
-        if(amoeba) then 
-            ! Amoeba needs connectivity matrices up to atoms separated  by 3 
-            ! bonds
-            call build_conn_upto_n(adj, 4, conn, .false.)
-        else
-            call build_conn_upto_n(adj, 3, conn, .false.)
-        end if
+        call build_conn_upto_n(adj, 4, conn, .false.)
         
         ! invert mm_polar list creating mm_polar
         mm_polar(:) = 0

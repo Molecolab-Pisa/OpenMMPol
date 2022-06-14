@@ -173,8 +173,14 @@ module mod_polarization
 
     end subroutine polarization
     
-    subroutine dipole_T(scalef,I,J,TTens)
-        use mod_mmpol, only : thole, cpol, pol_atoms, pol, polar_mm
+    subroutine dipole_T(i, j, tens)
+        !! This subroutine compute the interaction tensor (rank 3) between
+        !! two polarizable sites i and j.
+        !! This tensor is built according to the following rules: ... TODO
+        use mod_mmpol, only : thole, cpol, pol, polar_mm, conn, &
+                              amoeba, uscale, fatal_error
+        use mod_constants, only : eps_rp
+
         implicit none
         !                      
         ! Compute element of the polarization tensor TTens between
@@ -185,159 +191,124 @@ module mod_polarization
         ! Polarizabilities pol are defined for polarizable atoms only while 
         ! Thole factors are defined for all of them
         !
-        real(rp), dimension(3,pol_atoms,3,pol_atoms), intent(inout) :: TTens
-        real(rp), intent(in) :: scalef
-        integer(ip), intent(in) :: I,J
-        !
-        real(rp)    :: dx, dy, dz, rm1, rm3, rm5, rm7, rm9, rm11
-        !
-        real(rp), parameter   :: Zero = 0.0_rp, One = 1.0_rp, Three = 3.0_rp
-        !
+        integer(ip), intent(in) :: i 
+        !! Index (in the list of polarizable sites) of the source site
+        integer(ip), intent(in) :: j
+        !! Index (in the list of polarizable sites) of the target site
+        real(rp), dimension(3, 3), intent(out) :: tens
+        !! Interaction tensor between sites i and j
+        
+        real(rp) :: dr(3)
+        real(rp) ::  rm1, rm3, rm5, rm7, rm9, rm11, s
+
+        integer(ip) :: ii, jj, ineigh, i_mm, j_mm
          
         ! Initialize variables
-        rm1 = Zero
-        rm3 = Zero
-        rm5 = Zero
-        rm7 = Zero
-        rm9 = Zero
-        rm11 = Zero
+        rm1 = 0.0_rp
+        rm3 = 0.0_rp
+        rm5 = 0.0_rp
+        rm7 = 0.0_rp
+        rm9 = 0.0_rp
+        rm11 = 0.0_rp
+
+        tens = 0.0_rp
         
-        if (I.eq.J) then
-            TTens(1,I,1,I) = One/pol(I)
-            TTens(2,I,2,I) = One/pol(I)
-            TTens(3,I,3,I) = One/pol(I)
+        if(i == j) then
+            tens(1, 1) = 1.0_rp / pol(i)
+            tens(2, 2) = 1.0_rp / pol(i)
+            tens(3, 3) = 1.0_rp / pol(i)
         else
+            ! Check if the interaction should be screened for some reason
+            ! connected to the connectivity
+            if(.not. amoeba) then
+                s = 1.0_rp
+                
+                ! Convert index of i and j from polarizable to MM
+                j_mm = polar_mm(j)
+                i_mm = polar_mm(i)
+                    
+                do ineigh=1, 4
+                    ! Possibly interaction between polarizable sites separated
+                    ! by 1, 2, 3 or 4 bonds are screened using uscale parameter
+                    
+                    ! Check if j_mm is in the connectivity list of i_mm at distance
+                    ! ineigh
+                    if(any(conn(ineigh)%ci(conn(ineigh)%ri(i_mm): &
+                                           conn(ineigh)%ri(i_mm+1)-1) == j_mm)) &
+                        s = uscale(ineigh)
+                end do
+            else
+                ! Amoeba should have uscale = 1.0_rp, so the dipole-dipole
+                ! interaction are not screened on connectivity base
+                s = 1.0_rp
+            end if
+
+            if(abs(s) < eps_rp) then
+                ! The scale factor is zero, and so is the interaction tensor
+                ! nothing should be computed
+                return
+            end if
             
-            ! intermediates
-            dx = cpol(1,J) - cpol(1,I)
-            dy = cpol(2,J) - cpol(2,I)
-            dz = cpol(3,J) - cpol(3,I)
+            ! If the scale factor is not zero, the interaction tensor should
+            ! be computed
+            dr = cpol(:,j) - cpol(:,i)
 
-            call coulomb_kernel(.true.,2,dx,dy,dz,thole(polar_mm(I)),thole(polar_mm(J)),rm1,rm3,rm5,rm7,rm9,rm11)
-
-            ! Apply scaling
-            rm3 = rm3*scalef
-            rm5 = rm5*scalef
+            call coulomb_kernel(.true.,2,dr(1),dr(2),dr(3),thole(polar_mm(I)),thole(polar_mm(J)),rm1,rm3,rm5,rm7,rm9,rm11)
 
             ! Fill the matrix elemets
-            TTens(1,J,1,I) = TTens(1,J,1,I) + rm3 - Three*rm5*dx*dx
-            TTens(2,J,1,I) = TTens(2,J,1,I) - Three*rm5*dx*dy
-            TTens(3,J,1,I) = TTens(3,J,1,I) - Three*rm5*dx*dz
-
-            TTens(1,J,2,I) = TTens(1,J,2,I) - Three*rm5*dy*dx
-            TTens(2,J,2,I) = TTens(2,J,2,I) + rm3 - Three*rm5*dy*dy
-            TTens(3,J,2,I) = TTens(3,J,2,I) - Three*rm5*dy*dz
-
-            TTens(1,J,3,I) = TTens(1,J,3,I) - Three*rm5*dz*dx
-            TTens(2,J,3,I) = TTens(2,J,3,I) - Three*rm5*dz*dy
-            TTens(3,J,3,I) = TTens(3,J,3,I) + rm3 - Three*rm5*dz*dz
+            do ii=1, 3
+                do jj=1, 3
+                    if(ii == jj) then
+                        tens(ii, ii) = rm3 - 3.0_rp * rm5 * dr(ii) ** 2
+                    else
+                        tens(jj, ii) = -3.0_rp * rm5 * dr(ii) * dr(jj)
+                    end if
+                end do
+            end do
+            
+            if(abs(s-1.0_rp) > eps_rp) then
+                ! If the scale factor is not one, then apply it
+                tens = tens * s
+            end if
         end if
     end subroutine dipole_T
         
-        
+    subroutine create_tmat(tmat)
+        !! Explicitly construct polarization tensor in memory. This routine
+        !! is only used to accumulate results from [[dipole_T]] and shape it in
+        !! the correct way.
 
-    subroutine create_TMat(TMat)
-        !! Explicitly construct polarization tensor in memory.
-        use mod_mmpol, only : pol_atoms, uscale, mm_polar, amoeba, &
-                              verbose, polar_mm, conn, pg_conn, mmat_polgrp, &
-                              polgrp_mmat
-
+        use mod_mmpol, only : pol_atoms, verbose
         use mod_io, only: print_matrix
-        use mod_constants, only: eps_rp, OMMP_VERBOSE_DEBUG
+        use mod_constants, only: OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH
 
         implicit none
-        !                      
-        ! Construct polarization tensor for matrix inversion solution
-        ! of the induced dipoles by matrix inversion. On the diagonal
-        ! of the TMat there are inverse polarizabilities and on the 
-        ! off-diagonal dipole field.
-        !
-        ! The tensor is constructed with dimension (3,pol_atoms,3,pol_atoms)
-        ! then we subtract the excluded interaction and reshape the tensor
-        ! into matrix with dimension (3*pol_atoms,3*pol_atoms) which is 
-        ! the one on the output.
-        !
-        ! Polarizabilities pol are defined for polarizable atoms only while 
-        ! n12, i12... factors are defined for all of them (even mm atoms)
-        !
-        real(rp), dimension(3*pol_atoms,3*pol_atoms), intent(out) :: TMat
-        !
-        real(rp), dimension(3,pol_atoms,3,pol_atoms) :: TTens
-        integer(ip) :: I, J, K, L, IJ, ineigh, ipg
-        !
-        real(rp), parameter   :: Zero = 0.0_rp, One = 1.0_rp
-        !
         
+        real(rp), dimension(3*pol_atoms, 3*pol_atoms), intent(out) :: tmat
+        !! The interaction tensor to be computed
+        real(rp), dimension(3, 3) :: tensor
+        !! Temporary interaction tensor between two sites
+
+        integer(ip) :: i, j, ii, jj
+        
+        if(verbose >= OMMP_VERBOSE_HIGH) &
+            write(6, *) "Explicitly computing interaction matrix to solve the polarization system"
+
         ! Initialize the tensor with zeros
-        TTens = Zero
+        tmat = 0.0_rp
         
-        ! Assemble the upper triangular MMPol matrix and diagonal
-        do I = 1,pol_atoms
-            do J = 1,I !-1
+        do i = 1, pol_atoms
+            do j = 1, i
+                call dipole_T(i, j, tensor)
                 
-                call dipole_T(One,I,J,TTens)
-                
-            enddo
-        enddo
-        
-        ! Fill the lower diagonal
-        do I = 1, pol_atoms
-            do J = I+1, pol_atoms
-              do K = 1, 3
-                do L = 1, 3
-                    TTens(L,J,K,I) = TTens(K,I,L,J)
-                enddo
-              enddo
-            enddo
-        enddo
-        
-        ! Remove excluded interactions
-        if  (Amoeba) then      ! AMOEBA and sources are induced dipoles (only from p dipoles)
-            do I = 1,pol_atoms
-                ! For polarization group pg_conn(1) is the identity matrix
-                do ineigh=1, 4
-                    if (abs(uscale(ineigh) - 1.0_rp) > eps_rp) then
-                        ! THIS IS NEVER EXECUTED ? TODO
-                        do ipg=pg_conn(ineigh)%ri(mmat_polgrp(i)), &
-                               pg_conn(ineigh)%ri(mmat_polgrp(i)+1)-1
-
-                            do ij = polgrp_mmat%ri(ipg), &
-                                    polgrp_mmat%ri(ipg+1)-1
-                                j = polgrp_mmat%ci(ij)
-
-                                if (mm_polar(J).eq.0) cycle ! if J is not polarizable atom, skip J
-
-                                call dipole_T(uscale(ineigh)-One,I, mm_polar(J) ,TTens)
-                            end do
-                        enddo
-                    end if 
+                do ii=1, 3
+                    do jj=1, 3
+                        tmat((j-1)*3+jj, (i-1)*3+ii) = tensor(jj, ii)
+                        tmat((i-1)*3+ii, (j-1)*3+jj) = tensor(jj, ii)
+                    end do
                 end do
             enddo
-            
-        else     
-            ! AMBER and sources are induced dipoles
-            do I = 1,pol_atoms
-                do ineigh=1, 4
-                    ! Field from dipoles is scaled by uscale
-                    if(abs(uscale(ineigh) - one) > eps_rp) then
-                        do ij = conn(ineigh)%ri(polar_mm(i)), &
-                                conn(ineigh)%ri(polar_mm(i)+1)-1
-                            j = conn(ineigh)%ci(ij)
-                            
-                            if (mm_polar(J) /= 0) then
-                                ! if J is not polarizable atom, skip J
-                                ! mm_polar changes mm index index into pol index
-                            
-                                call dipole_T(uscale(ineigh)-One,I,mm_polar(J),TTens)
-                            end if
-                        enddo
-                    end if
-                end do
-            enddo 
-        end if
-
-        ! Convert polarization tensor to the matrix
-        TMat = RESHAPE(TTens, (/3*pol_atoms, 3*pol_atoms/))  
+        enddo
         
         ! Print the matrix if verbose output is requested
         if(verbose == OMMP_VERBOSE_DEBUG) then
