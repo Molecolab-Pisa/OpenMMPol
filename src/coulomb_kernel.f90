@@ -1,21 +1,17 @@
-subroutine new_coulomb_kernel(i, j, maxder, res)
+subroutine new_coulomb_kernel(dr, maxder, res)
     !! This function compute the coulomb kernel for the distance vector dr and 
     !! its derivative up to the value required by maxder.
-    use mod_mmpol, only: cmm
     use mod_memory, only: ip, rp
 
     implicit none
 
-    integer(ip), intent(in) :: i, j
-    !! Index of atoms (in MM atom list) for which the kernel should be
-    !! computed
-    integer(ip), intent(in) :: maxder
-    !! Maximum derivative to be computed
-    real(rp), intent(out), dimension(maxder) :: res
-    !! Results vector
-    
     real(rp) :: dr(3)
     !! Distance vector from atom i to atom j
+    integer(ip), intent(in) :: maxder
+    !! Maximum derivative to be computed
+    real(rp), intent(out), dimension(maxder+1) :: res
+    !! Results vector
+    
     integer(ip) :: ii
     real(rp) :: norm2_r, inv_norm_sq 
 
@@ -24,7 +20,6 @@ subroutine new_coulomb_kernel(i, j, maxder, res)
         return 
     end if
     
-    dr = cmm(:, i) - cmm(:, j)
     norm2_r = sqrt(dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3))
     res(1) = 1.0_rp / norm2_r
     inv_norm_sq = res(1) * res(1)
@@ -35,9 +30,12 @@ subroutine new_coulomb_kernel(i, j, maxder, res)
     
 end subroutine new_coulomb_kernel
 
-subroutine new_damped_coulomb_kernel(i, j, maxder, res)
-    !! TODO write the doc
-    use mod_mmpol, only: amoeba, thole, fatal_error
+subroutine new_damped_coulomb_kernel(i, j, maxder, res, dr)
+    !! This subroutine computes the damped coulomb kernel between two atoms.
+    !! Note that this only makes sense between two MM atoms, as it is only used
+    !! to compute the field that induces the point dipoles!
+
+    use mod_mmpol, only: amoeba, thole, fatal_error, cmm
     use mod_memory, only: ip, rp
     use mod_constants, only: eps_rp
     
@@ -48,15 +46,18 @@ subroutine new_damped_coulomb_kernel(i, j, maxder, res)
     !! computed
     integer(ip), intent(in) :: maxder
     !! Maximum derivative to be computed
-    real(rp), intent(out), dimension(maxder) :: res
+    real(rp), intent(out), dimension(maxder+1) :: res
     !! Results vector
+    real(rp), intent(out), dimension(3) :: dr
+    !! Distance vector between i and j
     
     real(rp) :: s, u, u3, u4, fexp, eexp
     
     s = thole(i) * thole(j)
     
     ! Compute undamped kernels
-    call new_coulomb_kernel(i, j, maxder, res)
+    dr = cmm(:,j) - cmm(:,i)
+    call new_coulomb_kernel(dr, maxder, res)
 
     if(abs(s) < eps_rp) then
         ! either thole(i) or thole(j) are zero, so the damped kernel

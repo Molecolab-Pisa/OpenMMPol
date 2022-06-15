@@ -243,9 +243,7 @@ module mod_polarization
             
             ! If the scale factor is not zero, the interaction tensor should
             ! be computed
-            dr = cpol(:,j) - cpol(:,i)
-
-            call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), 2, coul_k)
+            call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), 2, coul_k, dr)
 
             ! Fill the matrix elemets
             do ii=1, 3
