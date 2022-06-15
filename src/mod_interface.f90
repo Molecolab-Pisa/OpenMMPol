@@ -144,7 +144,9 @@ module mod_interface
         subroutine do_mm() bind(c, name='do_mm') 
             ! Perform the MM-only calculations of pot and field
             ! and return EMM
-
+            use mod_io, only: print_matrix
+            use mod_electrostatics, only: new_field_M2D
+            
             implicit none
   
             ! Initialize variables
@@ -154,11 +156,14 @@ module mod_interface
             def_qd = 0.0_rp
     
             call electrostatics(0_ip,0_ip,0_ip,v_qq,ef_qd,dv_qq,def_qd)
-            call electrostatics(0_ip,1_ip,0_ip,v_qq,ef_qd,dv_qq,def_qd)
+            !call electrostatics(0_ip,1_ip,0_ip,v_qq,ef_qd,dv_qq,def_qd)
 
             !  call print_matrix(.true.,'VMM:',mm_atoms,ld_cart,mm_atoms,ld_cart,transpose(v_qq))               
-            !  call print_matrix(.true.,'EMM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,1)))               
-            !  call print_matrix(.true.,'EMM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,2)))               
+            !call print_matrix(.true.,'EMM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,1)))               
+            !call print_matrix(.true.,'EMM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,2)))               
+            call new_field_M2D(ef_qd)
+            call print_matrix(.true.,'EMM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,1)))               
+            call print_matrix(.true.,'EMM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,2)))               
 
         end subroutine 
 

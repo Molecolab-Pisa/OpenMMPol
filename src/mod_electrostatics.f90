@@ -156,19 +156,20 @@ module mod_electrostatics
                         call mu_E(q(2:4,i), dr, kernel, tmpE)
                         call quad_E(q(5:10,i), dr, kernel, tmpE)
 
+                        ! TODO review asign of P/D 1/2
                         if(to_do_p) then
                             if(to_scale_p) then
-                                E(:, j, 1) = E(:, j, 1) + tmpE * scalf_p
+                                E(:, j, 2) = E(:, j, 2) + tmpE * scalf_p
                             else
-                                E(:, j, 1) = E(:, j, 1) + tmpE
+                                E(:, j, 2) = E(:, j, 2) + tmpE
                             end if
                         end if
 
                         if(to_do_d) then
                             if(to_scale_d) then
-                                E(:, j, 2) = E(:, j, 2) + tmpE * scalf_d
+                                E(:, j, 1) = E(:, j, 1) + tmpE * scalf_d
                             else
-                                E(:, j, 2) = E(:, j, 2) + tmpE
+                                E(:, j, 1) = E(:, j, 1) + tmpE
                             end if
                         end if
                     end if
