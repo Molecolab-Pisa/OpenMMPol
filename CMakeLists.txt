@@ -17,6 +17,7 @@ add_library(openmmpol SHARED
             src/electrostatics.f90
             src/mod_adjacency_mat.f90
             src/mod_constants.f90
+            src/mod_electrostatics.f90
             src/mod_inputloader.f90
             src/mod_interface.f90
             src/mod_io.f90

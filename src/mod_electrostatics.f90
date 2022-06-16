@@ -9,6 +9,11 @@ module mod_electrostatics
     contains
 
     subroutine q_V(q, dr, kernel, V)
+        !! Computes the electric potential of a charge \(q\) at position
+        !! \(\mathbf{dr}\) from the charge itself. Pre-computed kernel should
+        !! be provided as input. TODO
+        !! The result is added to \(V\).
+        !! $$ V_q = q \frac{f(r)}{||\mathbf{dr}||} $$
         implicit none
 
         real(rp), intent(in) :: q
@@ -120,8 +125,36 @@ module mod_electrostatics
     !subroutine quad_grdE(...)
     !end subroutine quad_grdE
 
+    ! subroutine new_field_D2D(E)
+    !     !! Computes the electric field of indued dipoles at induced dipoles
+    !     !! sites.
+    !     
+    !     use mod_mmpol, only: pol_atoms, amoeba
+
+    !     implicit none
+
+    !     real(rp), intent(out) :: E(3, pol_atoms, n_ipd)
+    !     !! Electric field (results will be added)
+
+    !     integer(ip) :: i, j
+
+    !     if(amoeba) then
+    !         do i=1, pol_atoms
+    !             do j=1, pol_atoms
+    !             end do
+    !         end do
+    !     else
+    !         do i=1, pol_atoms
+    !             do j=1, pol_atoms
+    !             end do
+    !         end do
+    !     end if
+
+
+    ! end subroutine new_field_D2D
+    
     subroutine new_field_M2D(E)
-        !! Compute the electric field of static multipoles at induced dipoles
+        !! Computes the electric field of static multipoles at induced dipoles
         !! sites. This is only intended to be used to build the RHS of the 
         !! linear system. This field is modified by the indroduction of the 
         !! damped kernels and by the connectivity-based screening rules.
@@ -131,13 +164,11 @@ module mod_electrostatics
         implicit none
 
         real(rp), intent(out) :: E(3, pol_atoms, n_ipd)
-        !! Electric field
+        !! Electric field (results will be added)
 
         integer(ip) :: i, j
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale
         real(rp) :: kernel(5), dr(3), tmpE(3), scalf_p, scalf_d, scalf
-
-        E = 0.0_rp
 
         if(amoeba) then
             do i=1, mm_atoms
@@ -145,8 +176,10 @@ module mod_electrostatics
                 do j=1, pol_atoms
                     if(polar_mm(j) == i) cycle
                     !loop on target
-                    call screening_rules_M2D(i, j, 'P', to_do_p, to_scale_p, scalf_p)
-                    call screening_rules_M2D(i, j, 'D', to_do_d, to_scale_d, scalf_d)
+                    call screening_rules(i, 'S', j, 'P', 'P', &
+                                         to_do_p, to_scale_p, scalf_p)
+                    call screening_rules(i, 'S', j, 'P', 'D', &
+                                         to_do_d, to_scale_d, scalf_d)
                     
                     if(to_do_p .or. to_do_d) then
                         call new_damped_coulomb_kernel(i, polar_mm(j), 3, kernel(1:4), dr)
@@ -181,7 +214,8 @@ module mod_electrostatics
                 do j=1, pol_atoms
                     if(polar_mm(j) == i) cycle
                     !loop on target
-                    call screening_rules_M2D(i, j, 'P', to_do, to_scale, scalf)
+                    call screening_rules(i, 'S', j, 'P', 'P', &
+                                         to_do, to_scale, scalf)
                     if(to_do) then
                         call new_damped_coulomb_kernel(i, polar_mm(j), 1, kernel(1:2), dr)
                         
@@ -199,21 +233,33 @@ module mod_electrostatics
 
     end subroutine new_field_M2D
 
-    subroutine screening_rules_M2D(i, j, field, tocompute, toscale, scalf)
-        !! Utility function used to decide if the electric field of MM site i 
-        !! should be computed for polarizable site j when creating the RHS of
-        !! the linear system
+    subroutine screening_rules(i, kind_i, j, kind_j, in_field, &
+                               tocompute, toscale, scalf)
+        !! Utility function used to decide if an interaction between sites i and j
+        !! should be computed and eventually scaled by a factor.
+        !! This is written to minimize code repetitions, all the screening rules
+        !! are handled in two possible cases: 
+        !! 1. rules based on adjacency matrix
+        !! 2. rules based on AMOEBA polarizability groups
+
         use mod_mmpol, only: amoeba, conn, pg_conn, polgrp_mmat, polar_mm, &
-                             mmat_polgrp, pscale, dscale, fatal_error
+                             mmat_polgrp, mscale, pscale, dscale, uscale, &
+                             fatal_error
         use mod_constants, only: eps_rp
 
         integer(ip), intent(in) :: i
-        !! Index (in MM atoms list) of source site
+        !! Index of source site (MM index is used for static sites, while
+        !! Pol index is used for polarizable sites)
         integer(ip), intent(in) :: j
-        !! Index (in polarizable atoms list) of target site
-        character, intent(in) :: field
+        !! Index of target site (MM index is used for static sites, while
+        !! Pol index is used for polarizable sites)
+        character, intent(in) :: in_field
         !! Which screening rules have to be applied? 'D' = screening rules
         !! for direct field; 'P' = screening rules for polarization field
+        character, intent(in) :: kind_i, kind_j
+        !! Type of sites i and j in the interaction for which the screening
+        !! rules are required; possible choices are 'P' (polarizable site) or 
+        !! 'S' (static site). Any other option will cause a fatal error.
         logical, intent(out) :: tocompute
         !! Interaction should be computed?
         logical, intent(out) :: toscale
@@ -222,54 +268,99 @@ module mod_electrostatics
         !! Scale factor for the interaction
 
         integer(ip) :: ineigh, grp, igrp, pg_i
-        integer(ip) :: j_mm
+        integer(ip) :: j_mm, i_mm
+        character :: field, interaction
+
+        real(rp) :: myscale(5)
+
+        ! Decide which kind of rule should be used
+        if(kind_i == 'P') then
+            i_mm = polar_mm(i)
+        else if(kind_i == 'S') then
+            i_mm = i
+        else
+            call fatal_error('Unexpected value of kind_i in screening_rules')
+            i_mm = 0
+        end if
+
+        if(kind_j == 'P') then
+            j_mm = polar_mm(j)
+        else if(kind_j == 'S') then
+            j_mm = j
+        else
+            call fatal_error('Unexpected value of kind_j in screening_rules')
+            j_mm = 0
+        end if
+
+        myscale = 0.0_rp
+        if(kind_j == 'P' .and. kind_i == 'P') then
+            ! Use IPD-IPD screening rules
+            myscale(1:4) = uscale
+            interaction = 'P' !Pol-pol interaction is named P
+        else if(kind_j == 'S' .and. kind_i == 'S') then
+            ! Use static multipoles-static multipoles screening rules
+            myscale(1:4) = mscale
+            field = '-'
+            interaction = 'S' !Static-static interaction is named S
+        else
+            ! Use static multipoles-IPD screening rules
+            if(in_field == 'P') then
+                myscale(1:5) = pscale
+                field = 'P'
+            else if(in_field == 'D' .and. amoeba) then
+                myscale(1:4) = dscale
+                field = 'D'
+            else
+                call fatal_error('Unexpected value of field in screening rules')
+            end if
+            interaction = 'M' !Mixed interaction is named M
+        end if
 
         ! Default return values
         tocompute = .true.
         toscale = .false.
         scalf = 1.0_rp
         
-        j_mm = polar_mm(j)
-        
-        if((amoeba .and. field == 'P') .or. (.not. amoeba)) then
-            ! P field, screening rules only based on connectivity
-            ! this applies with very tiny differences on the calculation of
-            ! scale factor to both WANG and AMOEBA FF
+        if((.not. amoeba) .or. &
+           (amoeba .and. interaction == 'M' .and. field == 'P') .or. &
+           (amoeba .and. interaction == 'S')) then
+            ! Screening rules based on connectivity matrix: 
+            ! 1. all the ones of non-amoeba FF, 
+            ! 2. the static to IPD polarization field
+            ! 3. the static-static interaction of AMOEBA
             do ineigh=1,4
-                if(any(conn(ineigh)%ci(conn(ineigh)%ri(i): &
-                                       conn(ineigh)%ri(i+1)-1) == j_mm)) then
-                    ! This is a bit a wired way to compute the actual scale
-                    ! factor for the interaction
-                    if(ineigh == 3 .and. amoeba) then
-                        if(mmat_polgrp(i) == mmat_polgrp(j_mm)) then
-                            scalf = pscale(3) * pscale(5)
+                ! Look if j is at distance ineigh from i
+                if(any(conn(ineigh)%ci(conn(ineigh)%ri(i_mm): &
+                                       conn(ineigh)%ri(i_mm+1)-1) == j_mm)) then
+                    
+                    if(ineigh == 3 .and. amoeba .and. interaction == 'M') then
+                        ! This is a bit a wired way to compute the actual scale
+                        ! factor for the interaction in the case of AMOEBA 
+                        ! polarization field that also takes into account
+                        if(mmat_polgrp(i_mm) == mmat_polgrp(j_mm)) then
+                            scalf = myscale(3) * myscale(5)
                         else
-                            scalf = pscale(3)
+                            scalf = myscale(3)
                         end if
                     else
-                        scalf = pscale(ineigh)
+                        ! In any other case just use the scale factor for this
+                        ! distance
+                        scalf = myscale(ineigh)
                     end if
                     
-                    if(abs(scalf) < eps_rp) then 
-                        ! Scaling factor is 0.0 so interaction should not be
-                        ! computed
-                        tocompute = .false.
-                        return
-                    else if(abs(scalf - 1.0_rp) < eps_rp) then
-                        ! Scaling factor is 1.0 so it's just a normal 
-                        ! interaction
-                        return
-                    else
-                        toscale = .true.
-                        return
-                    end if
+                    ! Exit the loop
+                    exit 
+
                 end if
             end do
-        else if(amoeba .and. field == 'D') then
-            ! D field, this only applies to AMOEBA
-            pg_i = mmat_polgrp(i)
+        else if((amoeba .and. interaction == 'M' .and. field == 'D') .or. &
+                (amoeba .and. interaction == 'P')) then
+            ! Screening rules based on polarization groups: 
+            ! 1. the static to IPD direct field
+            ! 2. the IPD to IPD interaction of AMOEBA
+            pg_i = mmat_polgrp(i_mm)
 
-            do ineigh=1,4
+            outer: do ineigh=1,4
                 do igrp=pg_conn(ineigh)%ri(pg_i), &
                         pg_conn(ineigh)%ri(pg_i+1)-1
                     ! Indexes of groups at distance ineigh from group pg_i
@@ -279,27 +370,27 @@ module mod_electrostatics
                                           polgrp_mmat%ri(grp+1)-1) == j_mm)) then
                         ! If atom j is in a group at distance ineigh from the 
                         ! one of atom i, the field is scaled according to dscale
-                        scalf = dscale(ineigh)
-                        if(abs(scalf) < eps_rp) then 
-                            ! Scaling factor is 0.0 so interaction should not be
-                            ! computed
-                            tocompute = .false.
-                            return
-                        else if(abs(scalf - 1.0_rp) < eps_rp) then
-                            ! Scaling factor is 1.0 so it's just a normal 
-                            ! interaction
-                            return
-                        else
-                            toscale = .true.
-                            return
-                        end if
+                        scalf = myscale(ineigh)
+                        exit outer
                     end if
                 end do
-            end do
+            end do outer
         else 
             ! Unexpected error
-            call fatal_error("Unexpected combination of parameter for screening_rules_M2D")
+            call fatal_error("Unexpected combination of parameter for screening_rules")
         end if
-    end subroutine screening_rules_M2D
+                    
+        if(abs(scalf) < eps_rp) then 
+            ! Scaling factor is 0.0 so interaction should not be
+            ! computed
+            tocompute = .false.
+        else if(abs(scalf - 1.0_rp) < eps_rp) then
+            ! Scaling factor is 1.0 so it's just a normal 
+            ! interaction
+        else
+            toscale = .true.
+        end if
+
+    end subroutine screening_rules
 
 end module mod_electrostatics
