@@ -9,6 +9,7 @@ module mod_interface
 
     public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
     public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
+    public :: get_polar_mm
     public :: w_mmpol_init, do_mm, do_qmmm, restart, get_energy, &
               write_hdf5
 
@@ -37,6 +38,12 @@ module mod_interface
 
             get_ipd = c_loc(ipd)
         end function get_ipd
+        
+        function get_polar_mm() bind(c, name='get_polar_mm')
+            type(c_ptr) :: get_polar_mm
+
+            get_polar_mm = c_loc(polar_mm)
+        end function get_polar_mm
 
         function get_mm_atoms() bind(c, name='get_mm_atoms')
             implicit none

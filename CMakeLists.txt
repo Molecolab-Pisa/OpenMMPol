@@ -174,6 +174,26 @@ add_test(NAME NMA_ipd1_AMOEBA_DIIS_comp
          Testing/output 
          ${RTOL} ${ATOL})
 
+add_test(NAME NMA_ipd0_AMOEBA_CUT
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA_CUT.mmp 
+         Testing/output cg)
+add_test(NAME NMA_ipd0_AMOEBA_CUT_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA_CUT.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ipd1_AMOEBA_CUT
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA_CUT.mmp 
+         Testing/output cg
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt) 
+add_test(NAME NMA_ipd1_AMOEBA_CUT_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA_CUT.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+
 add_test(NAME NMA_ipd0_WANG_AL
          COMMAND  bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
@@ -192,6 +212,26 @@ add_test(NAME NMA_ipd1_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL.ref
+         ${RTOL} ${ATOL})
+
+add_test(NAME NMA_ipd0_WANG_AL_CUT
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL_CUT.mmp 
+         Testing/output cg)
+     add_test(NAME NMA_ipd0_WANG_AL_CUT_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL_CUT.ref 
+         ${RTOL} ${ATOL})
+     add_test(NAME NMA_ipd1_WANG_AL_CUT
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL_CUT.mmp 
+         Testing/output cg
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt) 
+     add_test(NAME NMA_ipd1_WANG_AL_CUT_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL_CUT.ref
+         Testing/output 
          ${RTOL} ${ATOL})
 
 add_test(NAME 1crn_ipd0_AMOEBA

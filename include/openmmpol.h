@@ -37,6 +37,7 @@ extern void *get_cmm(void);
 extern void *get_cpol(void);
 extern void *get_q(void);
 extern void *get_ipd(void);
+extern void *get_polar_mm(void);
 
 extern bool is_amoeba(void);
 

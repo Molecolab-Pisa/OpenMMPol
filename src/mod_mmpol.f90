@@ -81,7 +81,7 @@ module mod_mmpol
     integer(ip), allocatable :: mm_polar(:)
     !! indices of the MM atoms that are polarizable
 
-    integer(ip), allocatable :: polar_mm(:)
+    integer(ip), allocatable, target :: polar_mm(:)
     !! positions of a polarizable atom in the mm atoms list
     
     type(yale_sparse), allocatable :: conn(:)

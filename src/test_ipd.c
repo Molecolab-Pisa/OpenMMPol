@@ -50,6 +50,7 @@ int main(int argc, char **argv){
     double *_ipd;
     double ***ipd, *electric_field, *electric_potential;
     double **external_ef;
+    int32_t *polar_mm;
 
     w_mmpol_init(argv[1]);
     set_verbose(OMMP_VERBOSE_DEBUG);
@@ -75,6 +76,8 @@ int main(int argc, char **argv){
     }
     
     electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
+    polar_mm = (int32_t *) get_polar_mm();
+   
     if(argc == 5)
         external_ef = read_ef(argv[4]);
 
@@ -82,7 +85,7 @@ int main(int argc, char **argv){
         for(int j = 0; j < pol_atoms; j++)
             for(int k = 0; k < 3; k++)
                 if(argc == 5)
-                    electric_field[i*pol_atoms*3+j*3+k] = external_ef[j][k];
+                    electric_field[i*pol_atoms*3+j*3+k] = external_ef[polar_mm[j]-1][k];
                 else
                     electric_field[i*pol_atoms*3+j*3+k] = 0.0;
 
