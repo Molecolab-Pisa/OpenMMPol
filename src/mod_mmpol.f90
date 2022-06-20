@@ -20,20 +20,8 @@ module mod_mmpol
     integer(ip), protected :: ff_rules
     !! Force field exclusion rules (0 for Wang AL, 1 for Wang DL)
 
-    integer(ip) :: matrix_vector !TODO remove
-    !! Selection flag for the matrix-vectror product routine
-    !! 1 = assemble the matrix using O(n^2) storage and use dgemv
-    !! 2 = compute the matrix vector products in a direct fashion (default)
-    !! 3 = use a fast multiplication technique (TODO)
-  
-    integer(ip) :: nmax !TODO remove
-    !! maximum number of steps for iterative solvers
-    
-    real(rp) :: convergence !TODO remove
-    !! convergence threshold (rms norm of the residual/increment) for 
-    !! iterative solvers
-  
     logical, protected :: amoeba
+    !! AMOEBA FF = True; WANG-AMBER = False
     
     integer(ip), protected :: mm_atoms !! number of MM atoms
     integer(ip), protected :: pol_atoms !! number of polarizable atoms
@@ -258,9 +246,6 @@ module mod_mmpol
         call mallocate('mmpol_init [def_dd]', 6_ip, pol_atoms, n_ipd, def_dd)
         def_dd = 0.0_rp
 
-        nmax = 200
-        convergence = 1e-8
-      
     end subroutine mmpol_init
 
     subroutine mmpol_prepare()
@@ -279,6 +264,7 @@ module mod_mmpol
         !!   * performs multipoles rotation   
 
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
+        use mod_constants, only: OMMP_VERBOSE_DEBUG
 
         implicit none
 
@@ -287,23 +273,35 @@ module mod_mmpol
         
         type(yale_sparse) :: adj, pg_adj
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Building connectivity lists"
+        end if
         ! compute connectivity lists from connected atoms
         call matcpy(conn(1), adj)
         deallocate(conn)
-
+        
         call build_conn_upto_n(adj, 4, conn, .false.)
         
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Creating MM->polar and polar->MM lists"
+        end if
         ! invert mm_polar list creating mm_polar
         mm_polar(:) = 0
         do i = 1, pol_atoms
             mm_polar(polar_mm(i)) = i
         end do
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Populating coordinates of polarizable atoms"
+        end if
         ! populate cpol list of coordinates
         do i = 1, pol_atoms
             cpol(:,i) = cmm(:, polar_mm(i))
         end do
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Setting Thole factors"
+        end if
         ! compute factors for thole damping
         call thole_init()
 

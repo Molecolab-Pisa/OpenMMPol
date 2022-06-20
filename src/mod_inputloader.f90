@@ -34,7 +34,7 @@ module mod_inputloader
         !! and initialize all the quantities need to describe the environment
         !! within this library.
 
-        use mod_mmpol, only: cmm, q, pol
+        use mod_mmpol, only: verbose, cmm, q, pol
         use mod_mmpol, only: mm_atoms, amoeba, &
                              polar_mm, conn, mmat_polgrp
         use mod_mmpol, only: mol_frame, iz, ix, iy
@@ -42,7 +42,7 @@ module mod_inputloader
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: mmpol_print_summary, iof_mmpinp
-        use mod_constants, only: angstrom2au
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG
         use mod_adjacency_mat, only: adj_mat_from_conn
 
         implicit none
@@ -55,12 +55,13 @@ module mod_inputloader
         integer(ip) :: my_mm_atoms, my_pol_atoms, my_ff_type, my_ff_rules
         integer(ip) :: my_ld_cart
         
-        integer(ip) :: i
+        integer(ip) :: i, ist
         
         real(rp), allocatable :: my_pol(:), my_cmm(:,:), my_q(:,:)
         integer(ip), allocatable :: pol_atoms_list(:), my_ip11(:,:)
         
         integer(ip), parameter :: maxn12 = 8
+        !! maximum number of neighbour atoms
         integer(ip), parameter :: maxpgp = 120
         !! maximum number of members for the same polarization group
         real(rp), parameter :: thres = 1e-8
@@ -68,12 +69,25 @@ module mod_inputloader
         ! TODO why we do not use eps_rp directly?
 
         integer(ip), allocatable :: i12(:,:)
-        
+       
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Reading MMP file: ", input_file(1:len(trim(input_file)))
+        end if
+
         ! open the (formatted) input file
         open (unit=iof_mmpinp, &
               file=input_file(1:len(trim(input_file))), &
               form='formatted', &
-              access='sequential')
+              access='sequential', &
+              iostat=ist)
+
+        if(ist /= 0) then
+            call fatal_error('Error while opening MMP input file')
+        end if
+
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Reading input parameters"
+        end if
 
         ! Read input revision, supported revisions are 2 and 3.
         read(iof_mmpinp,*) input_revision
@@ -101,6 +115,10 @@ module mod_inputloader
             my_ld_cart = 1
         end if
         
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Allocating memory"
+        end if
+
         call mallocate('mmpol_init_from_mmp [my_cmm]', 3_ip, my_mm_atoms, my_cmm)
         call mallocate('mmpol_init_from_mmp [my_q]', my_ld_cart, my_mm_atoms, my_q)
         call mallocate('mmpol_init_from_mmp [my_pol]', my_mm_atoms, my_pol)
@@ -108,7 +126,10 @@ module mod_inputloader
         call mallocate('mmpol_init_from_mmp [my_ip11]', maxpgp, my_mm_atoms, my_ip11)
        
         call skip_lines(iof_mmpinp, my_mm_atoms+1) ! Skip a zero and the section of atomic numbers
-
+        
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Reading coordinates"
+        end if
         ! coordinates:
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_cmm(1:3,i)
@@ -116,17 +137,26 @@ module mod_inputloader
 
         call skip_lines(iof_mmpinp, my_mm_atoms) ! Skip section of residues number
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Reading fixed multipoles"
+        end if
         ! charges/multipoles:
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_q(1:my_ld_cart,i)
         end do
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Reading polarizabilities"
+        end if
         ! polarizabilities:
         my_pol = 0.0_rp
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_pol(i)
         end do
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Processing polarizabilities"
+        end if
         ! count how many atoms are polarizable:
         ! TODO this is more efficiently done with pack and count
         my_pol_atoms = 0
@@ -143,9 +173,15 @@ module mod_inputloader
             my_pol(i) = my_pol(pol_atoms_list(i))
         end do
         
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Initializing open mmpol module"
+        end if
         ! mmpol module initialization
-        call mmpol_init(my_ff_type, my_ff_rules, my_pol_atoms, my_mm_atoms)
+        call mmpol_init(my_ff_type, my_ff_rules, my_mm_atoms, my_pol_atoms)
         
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Converting input units to A.U."
+        end if
         ! Copy data in the correct units (this means AU)
         cmm = my_cmm * angstrom2au
         q = my_q
@@ -159,6 +195,10 @@ module mod_inputloader
         call mfree('mmpol_init_from_mmp [my_q]', my_q)
         call mfree('mmpol_init_from_mmp [pol]', my_pol)
 
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Processing connectivity informations"
+        end if
+
         ! 1-2 connectivity:
         call mallocate('mmpol_init_from_mmp [i12]', maxn12, mm_atoms, i12)
         do i = 1, mm_atoms
@@ -166,7 +206,7 @@ module mod_inputloader
         end do
         
         ! Writes the adjacency matrix in Yale sparse format in conn(1)
-        call adj_mat_from_conn(i12, conn(1)) 
+        call adj_mat_from_conn(i12, conn(1))
         call mfree('mmpol_init_from_mmp [i12]', i12)
          
         if(amoeba) then
@@ -188,7 +228,15 @@ module mod_inputloader
         ! now, process the input, create all the required arrays 
         ! and the correspondence lists:
      
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Populating utility arrays"
+        end if
+        
         call mmpol_prepare()
+        
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Initialization from MMP file done."
+        end if
 
     end subroutine mmpol_init_from_mmp
 
