@@ -125,33 +125,67 @@ module mod_electrostatics
     !subroutine quad_grdE(...)
     !end subroutine quad_grdE
 
-    ! subroutine new_field_D2D(E)
-    !     !! Computes the electric field of indued dipoles at induced dipoles
-    !     !! sites.
-    !     
-    !     use mod_mmpol, only: pol_atoms, amoeba
-
-    !     implicit none
-
-    !     real(rp), intent(out) :: E(3, pol_atoms, n_ipd)
-    !     !! Electric field (results will be added)
-
-    !     integer(ip) :: i, j
-
-    !     if(amoeba) then
-    !         do i=1, pol_atoms
-    !             do j=1, pol_atoms
-    !             end do
-    !         end do
-    !     else
-    !         do i=1, pol_atoms
-    !             do j=1, pol_atoms
-    !             end do
-    !         end do
-    !     end if
-
-
-    ! end subroutine new_field_D2D
+!    subroutine new_field_D2D(E)
+!        !! Computes the electric field of indued dipoles at induced dipoles
+!        !! sites.
+!        
+!        use mod_mmpol, only: pol_atoms, amoeba
+!
+!        implicit none
+!
+!        real(rp), intent(out) :: E(3, pol_atoms, n_ipd)
+!        !! Electric field (results will be added)
+!
+!        integer(ip) :: i, j
+!        logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale
+!        real(rp) :: kernel(5), dr(3), tmpE(3), scalf_p, scalf_d, scalf
+!
+!        if(amoeba) then
+!            do i=1, pol_atoms
+!                do j=1, pol_atoms
+!                    if(j == i) cycle
+!                    !loop on target
+!                    call screening_rules(i, 'P', j, 'P', 'P', &
+!                                         to_do_p, to_scale_p, scalf_p)
+!                    call screening_rules(i, 'P', j, 'P', 'D', &
+!                                         to_do_d, to_scale_d, scalf_d)
+!                    
+!                    if(to_do_p .or. to_do_d) then
+!                        call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), 3, kernel(1:4), dr) !TODO
+!                        
+!                        tmpE = 0.0_rp
+!                        call q_E(q(1,i), dr, kernel, tmpE)
+!                        call mu_E(q(2:4,i), dr, kernel, tmpE)
+!                        call quad_E(q(5:10,i), dr, kernel, tmpE)
+!
+!                        ! TODO review asign of P/D 1/2
+!                        if(to_do_p) then
+!                            if(to_scale_p) then
+!                                E(:, j, 2) = E(:, j, 2) + tmpE * scalf_p
+!                            else
+!                                E(:, j, 2) = E(:, j, 2) + tmpE
+!                            end if
+!                        end if
+!
+!                        if(to_do_d) then
+!                            if(to_scale_d) then
+!                                E(:, j, 1) = E(:, j, 1) + tmpE * scalf_d
+!                            else
+!                                E(:, j, 1) = E(:, j, 1) + tmpE
+!                            end if
+!                        end if
+!                    end if
+!                end do
+!            end do
+!        else
+!            do i=1, pol_atoms
+!                do j=1, pol_atoms
+!                end do
+!            end do
+!        end if
+!
+!
+!    end subroutine new_field_D2D
     
     subroutine new_field_M2D(E)
         !! Computes the electric field of static multipoles at induced dipoles
@@ -160,6 +194,7 @@ module mod_electrostatics
         !! damped kernels and by the connectivity-based screening rules.
 
         use mod_mmpol, only: amoeba, polar_mm, mm_atoms, pol_atoms, n_ipd, q
+        use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
 
         implicit none
 
@@ -189,20 +224,19 @@ module mod_electrostatics
                         call mu_E(q(2:4,i), dr, kernel, tmpE)
                         call quad_E(q(5:10,i), dr, kernel, tmpE)
 
-                        ! TODO review asign of P/D 1/2
                         if(to_do_p) then
                             if(to_scale_p) then
-                                E(:, j, 2) = E(:, j, 2) + tmpE * scalf_p
+                                E(:, j, OMMP_AMOEBA_P) = E(:, j, OMMP_AMOEBA_P) + tmpE * scalf_p
                             else
-                                E(:, j, 2) = E(:, j, 2) + tmpE
+                                E(:, j, OMMP_AMOEBA_P) = E(:, j, OMMP_AMOEBA_P) + tmpE
                             end if
                         end if
 
                         if(to_do_d) then
                             if(to_scale_d) then
-                                E(:, j, 1) = E(:, j, 1) + tmpE * scalf_d
+                                E(:, j, OMMP_AMOEBA_D) = E(:, j, OMMP_AMOEBA_D) + tmpE * scalf_d
                             else
-                                E(:, j, 1) = E(:, j, 1) + tmpE
+                                E(:, j, OMMP_AMOEBA_D) = E(:, j, OMMP_AMOEBA_D) + tmpE
                             end if
                         end if
                     end if
@@ -237,10 +271,12 @@ module mod_electrostatics
                                tocompute, toscale, scalf)
         !! Utility function used to decide if an interaction between sites i and j
         !! should be computed and eventually scaled by a factor.
+        !! This function is intended to be used in \(\mathcalO(n^2)\) code, for
+        !! linear scaling code lists should be built.
         !! This is written to minimize code repetitions, all the screening rules
         !! are handled in two possible cases: 
         !! 1. rules based on adjacency matrix
-        !! 2. rules based on AMOEBA polarizability groups
+        !! 2. rules based on AMOEBA polarization groups
 
         use mod_mmpol, only: amoeba, conn, pg_conn, polgrp_mmat, polar_mm, &
                              mmat_polgrp, mscale, pscale, dscale, uscale, &

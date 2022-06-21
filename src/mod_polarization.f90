@@ -70,7 +70,9 @@ module mod_polarization
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
                                  OMMP_SOLVER_INVERSION, &
-                                 OMMP_VERBOSE_DEBUG
+                                 OMMP_VERBOSE_DEBUG, &
+                                 OMMP_AMOEBA_P, &
+                                 OMMP_AMOEBA_D 
       
         implicit none
 
@@ -86,7 +88,7 @@ module mod_polarization
         !! Flag for the matrix-vector method to be used; optional, should be one of
         !! OMMP_MATV_ if not provided [[mod_constants:OMMP_MATV_DEFAULT]] is used.
         
-        real(rp), dimension(3*pol_atoms) :: ep_vec, ed_vec, ipd0_p, ipd0_d
+        real(rp), dimension(3*pol_atoms, n_ipd) :: e_vec, ipd0
         integer(ip) :: n, solver, mvmethod
 
         abstract interface
@@ -123,18 +125,25 @@ module mod_polarization
 
         ! Reshape electric field matrix into a vector
         ! direct field for Wang and Amoeba
-        ed_vec = reshape(e(:,:,1), (/ n /))
         ! polarization field just for Amoeba
-        if(amoeba) ep_vec = reshape(e(:,:,2), (/ n /))
+        if(amoeba) then
+            e_vec(:, OMMP_AMOEBA_D) = reshape(e(:,:,OMMP_AMOEBA_D), (/ n /))
+            e_vec(:, OMMP_AMOEBA_P) = reshape(e(:,:,OMMP_AMOEBA_P), (/ n /))
+        else
+            e_vec(:, 1) = reshape(e(:,:, 1), (/ n /))
+        end if
         
-        ! Initial guess for iterative solvers (zero for matrix inversion)
-
-        ipd0_p = 0.0_rp   ! Initial guess for amoeba p dipoles
-        ipd0_d = 0.0_rp   ! Initial guess for wang or amoeba d dipoles
+        ! Initialization of dipoles
+        ipd0 = 0.0_rp
         
         if(solver /= OMMP_SOLVER_INVERSION) then
-            call PolVec(3*pol_atoms, ed_vec, ipd0_d)
-            if(amoeba) call PolVec(3*pol_atoms, ep_vec, ipd0_p)
+            ! Create a guess for dipoles
+            if(amoeba) then
+                call PolVec(3*pol_atoms, e_vec(:, OMMP_AMOEBA_D), ipd0(:, OMMP_AMOEBA_D))
+                call PolVec(3*pol_atoms, e_vec(:, OMMP_AMOEBA_P), ipd0(:, OMMP_AMOEBA_P))
+            else
+                call PolVec(3*pol_atoms, e_vec(:,1), ipd0(:,1))
+            end if
 
             select case(mvmethod)
                 case(OMMP_MATV_INCORE) 
@@ -152,10 +161,10 @@ module mod_polarization
         
         if(verbose == OMMP_VERBOSE_DEBUG) then
             if(amoeba) then
-                call print_matrix(.false., 'RHS (D)', n, 1, n, 1, ed_vec)
-                call print_matrix(.false., 'RHS (P)', n, 1, n, 1, ep_vec)
+                call print_matrix(.false., 'RHS (D)', n, 1, n, 1, e_vec(:, OMMP_AMOEBA_D))
+                call print_matrix(.false., 'RHS (P)', n, 1, n, 1, e_vec(:, OMMP_AMOEBA_P))
             else
-                call print_matrix(.false., 'RHS', n, 1, n, 1, ed_vec)
+                call print_matrix(.false., 'RHS', n, 1, n, 1, e_vec)
             end if
             if(allocated(tmat)) &
                 call print_matrix(.false., 'LHS', n, n, n, n, tmat)
@@ -163,24 +172,35 @@ module mod_polarization
 
         select case (solver)
             case(OMMP_SOLVER_CG)
-                call conjugate_gradient_solver(n, ed_vec, ipd0_d, matvec, PolVec)
-                if(amoeba) call conjugate_gradient_solver(n, ep_vec, ipd0_p, matvec, PolVec)
+                if(amoeba) then
+                    call conjugate_gradient_solver(n, e_vec(:,OMMP_AMOEBA_D), ipd0(:,OMMP_AMOEBA_D), matvec, PolVec)
+                    call conjugate_gradient_solver(n, e_vec(:,OMMP_AMOEBA_P), ipd0(:,OMMP_AMOEBA_P), matvec, PolVec)
+                else
+                    call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), matvec, PolVec)
+                end if
 
             case(OMMP_SOLVER_DIIS)
-                call jacobi_diis_solver(n, ed_vec, ipd0_d, TMatVec_offdiag, PolVec)
-                if(amoeba) call jacobi_diis_solver(n, ep_vec, ipd0_p, TMatVec_offdiag, PolVec)
+                if(amoeba) then
+                    call jacobi_diis_solver(n, e_vec(:,OMMP_AMOEBA_D), ipd0(:,OMMP_AMOEBA_D), TMatVec_offdiag, PolVec)
+                    call jacobi_diis_solver(n, e_vec(:,OMMP_AMOEBA_P), ipd0(:,OMMP_AMOEBA_P), TMatVec_offdiag, PolVec)
+                else
+                    call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), TMatVec_offdiag, PolVec)
+                end if
 
             case(OMMP_SOLVER_INVERSION)
-                call inversion_solver(n, ed_vec, ipd0_d, TMat)  
-                if(amoeba) call inversion_solver(n, ep_vec, ipd0_p, TMat)
+                if(amoeba) then
+                    call inversion_solver(n, e_vec(:,OMMP_AMOEBA_D), ipd0(:,OMMP_AMOEBA_D), TMat)
+                    call inversion_solver(n, e_vec(:,OMMP_AMOEBA_P), ipd0(:,OMMP_AMOEBA_P), TMat)
+                else
+                    call inversion_solver(n, e_vec(:,1), ipd0(:,1), TMat)
+                end if
                 
             case default
                 call fatal_error("Unknown solver for calculation of the induced point dipoles") 
         end select
         
         ! Reshape dipole vector into the matrix 
-        ipds(:,:,1) = reshape(ipd0_d, (/3_ip, pol_atoms/)) 
-        if(amoeba) ipds(:,:,2) = reshape(ipd0_p, (/3_ip, pol_atoms/)) 
+        ipds = reshape(ipd0, (/3_ip, pol_atoms, n_ipd/)) 
         
         if(allocated(TMat)) call mfree('polarization [TMat]',TMat)
 

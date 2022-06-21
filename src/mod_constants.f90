@@ -57,6 +57,11 @@ module mod_constants
     integer(ip), parameter :: OMMP_MATV_DEFAULT = OMMP_MATV_INCORE
     !! Default value for matrix vector multiplication
 
+    integer(ip), parameter :: OMMP_AMOEBA_D = 1
+    !! Index of direct (D) field and dipoles in AMOEBA FF
+    integer(ip), parameter :: OMMP_AMOEBA_P = 2
+    !! Index of polarization (P) field and dipoles in AMOEBA FF
+
     integer(ip), parameter :: OMMP_VERBOSE_DEBUG = 3_ip
     integer(ip), parameter :: OMMP_VERBOSE_HIGH = 2_ip
     integer(ip), parameter :: OMMP_VERBOSE_LOW = 1_ip
