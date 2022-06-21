@@ -58,17 +58,19 @@ module mod_polarization
         !! field and induced dipoles are stored in e(:,:,1)/ipds(:,:,1) while
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
-        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, fatal_error
+        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, fatal_error, verbose
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
+        use mod_io, only: print_matrix
         use mod_constants, only: OMMP_MATV_DEFAULT, &
                                  OMMP_MATV_DIRECT, &
                                  OMMP_MATV_INCORE, &
                                  OMMP_SOLVER_DEFAULT, &
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
-                                 OMMP_SOLVER_INVERSION
+                                 OMMP_SOLVER_INVERSION, &
+                                 OMMP_VERBOSE_DEBUG
       
         implicit none
 
@@ -146,6 +148,17 @@ module mod_polarization
                     call fatal_error("Unknown matrix-vector method requested")
                 
             end select
+        end if
+        
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            if(amoeba) then
+                call print_matrix(.false., 'RHS (D)', n, 1, n, 1, ed_vec)
+                call print_matrix(.false., 'RHS (P)', n, 1, n, 1, ep_vec)
+            else
+                call print_matrix(.false., 'RHS', n, 1, n, 1, ed_vec)
+            end if
+            if(allocated(tmat)) &
+                call print_matrix(.false., 'LHS', n, n, n, n, tmat)
         end if
 
         select case (solver)

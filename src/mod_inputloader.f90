@@ -172,6 +172,7 @@ module mod_inputloader
         do i = 1, my_pol_atoms
             my_pol(i) = my_pol(pol_atoms_list(i))
         end do
+        my_pol(my_pol_atoms+1:my_mm_atoms) = 0.0_rp
         
         if(verbose == OMMP_VERBOSE_DEBUG) then
             write(6, *) "Initializing open mmpol module"

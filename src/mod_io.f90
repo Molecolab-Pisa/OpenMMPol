@@ -263,6 +263,7 @@ module mod_io
         integer(ip) :: of_unit
 
         integer(ip) :: i, j, grp, igrp, lst(1000), ilst
+        real(rp), dimension(mm_atoms) :: polar ! Polarizabilities of all atoms
         character(len=120) :: str
 
         if(present(of_name)) then
@@ -273,6 +274,11 @@ module mod_io
         else
             of_unit = iof_mmpol
         end if
+
+        polar = 0.0_rp
+        do i=1, pol_atoms
+            polar(polar_mm(i)) = pol(i)
+        end do
 
         call print_matrix(.true.,'coordinates:', &
                           3,mm_atoms,3,mm_atoms,cmm,of_unit)
@@ -285,13 +291,13 @@ module mod_io
         call print_matrix(.true.,'coordinates of polarizable atoms:', &
                           3,pol_atoms,3,pol_atoms,cpol,of_unit)
         call print_matrix(.false.,'polarizabilities:', &
-                          mm_atoms,1,mm_atoms,1,pol,of_unit)
+                          mm_atoms,1,mm_atoms,1,polar,of_unit)
         call print_matrix(.false.,'thole factors:', &
                           mm_atoms,1,mm_atoms,1,thole,of_unit)
         call print_int_vec('mm_polar list:', &
-                           mm_atoms,0,0,mm_polar,.true., of_unit)
+                           mm_atoms,0,0,mm_polar,.false., of_unit)
         call print_int_vec('polar_mm list:', &
-                           pol_atoms,0,0,polar_mm, .true.,of_unit)
+                           pol_atoms,0,0,polar_mm, .false.,of_unit)
 
         ! write the connectivity information for each atom:
   1000  format(t3,'connectivity information for the ',i8,'-th atom:')

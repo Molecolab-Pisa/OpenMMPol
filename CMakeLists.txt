@@ -112,6 +112,14 @@ add_test(1ao6_loading_WANG_AL
          bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL.mmp Testing/output)
 add_test(NAME 1ao6_loading_WANG_AL_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_WANG_AL.ref)
+add_test(1ao6_loading_AMOEBA_CUT10
+         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA_CUT10.mmp Testing/output)
+add_test(NAME 1ao6_loading_AMOEBA_CUT10_comp 
+    COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA_CUT10.ref)
+add_test(1ao6_loading_WANG_AL_CUT10
+    bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL_CUT10.mmp Testing/output)
+add_test(NAME 1ao6_loading_WANG_AL_CUT10_comp 
+    COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_WANG_AL_CUT10.ref)
 
 # Tests on calculation of IPD
 add_test(NAME NMA_ipd0_AMOEBA_CG
@@ -312,6 +320,45 @@ add_test(NAME 1ubq_ipd1_WANG_AL_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_WANG_AL.ref
+         ${RTOL} ${ATOL})
+
+add_test(NAME 1ao6_ipd0_WANG_AL_CUT10
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL_CUT10.mmp 
+         Testing/output cg)
+add_test(NAME 1a06_ipd0_WANG_AL_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_0_WANG_AL_CUT10.ref
+         ${RTOL} ${ATOL})
+add_test(NAME 1ao6_ipd1_WANG_AL_CUT10
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL_CUT10.mmp 
+         Testing/output cg
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/EF_1.txt)
+add_test(NAME 1ao6_ipd1_WANG_AL_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_1_WANG_AL_CUT10.ref
+         ${RTOL} ${ATOL})
+add_test(NAME 1ao6_ipd0_AMOEBA_CUT10
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA_CUT10.mmp 
+         Testing/output cg)
+add_test(NAME 1a06_ipd0_AMOEBA_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_0_AMOEBA_CUT10.ref
+         ${RTOL} ${ATOL})
+add_test(NAME 1ao6_ipd1_AMOEBA_CUT10
+         COMMAND  bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA_CUT10.mmp 
+         Testing/output cg
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/EF_1.txt)
+add_test(NAME 1ao6_ipd1_AMOEBA_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_1_AMOEBA_CUT10.ref
          ${RTOL} ${ATOL})
 
 # Tests on calculation of energy
