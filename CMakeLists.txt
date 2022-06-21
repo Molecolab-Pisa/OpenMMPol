@@ -476,3 +476,42 @@ add_test(NAME 1ubq_ene1_WANG_AL_comp
          ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_WANG_AL.ref
          Testing/output 
          ${RTOL} ${ATOL})
+
+add_test(NAME 1ao6_ene0_AMOEBA_CUT10
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA_CUT10.mmp 
+         Testing/output)
+add_test(NAME 1ao6_ene0_AMOEBA_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_AMOEBA_CUT10.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ao6_ene1_AMOEBA_CUT10
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA_CUT10.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/EF_1.txt) 
+add_test(NAME 1ao6_ene1_AMOEBA_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_AMOEBA_CUT10.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ao6_ene0_WANG_AL_CUT10
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL_CUT10.mmp 
+         Testing/output)
+add_test(NAME 1ao6_ene0_WANG_AL_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         Testing/output 
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_WANG_AL_CUT10.ref 
+         ${RTOL} ${ATOL})
+add_test(NAME 1ao6_ene1_WANG_AL_CUT10
+         COMMAND  bin/C_test_energy
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL_CUT10.mmp 
+         Testing/output
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/EF_1.txt) 
+add_test(NAME 1ao6_ene1_WANG_AL_CUT10_comp
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
+         ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_WANG_AL_CUT10.ref
+         Testing/output 
+         ${RTOL} ${ATOL})
