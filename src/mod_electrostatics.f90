@@ -171,7 +171,7 @@ module mod_electrostatics
         !! Computes the electric field of indued dipoles at induced dipoles
         !! sites.
         
-        use mod_mmpol, only: amoeba, ipd
+        use mod_mmpol, only: amoeba, ipd, pol_atoms, n_ipd
         use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
 
         implicit none

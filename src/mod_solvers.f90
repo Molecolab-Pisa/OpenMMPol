@@ -145,21 +145,20 @@ module mod_solvers
 
         ! compute a guess, if required:
         rms_norm = dot_product(x,x)
-        if(rms_norm < eps_rp) call precnd(n, rhs, x)
+        if(rms_norm < eps_rp) call precnd(rhs, x)
 
         ! compute the residual:
-        call matvec(n, x, z)
+        call matvec(x, z, .true.)
         r = rhs - z
-
         ! apply the preconditioner and get the first direction:
-        call precnd(n, r, z)
+        call precnd(r, z)
         p = z
         gold = dot_product(r, z)
         gama = 0.0_rp
 
         do it = 1, n_iter
             ! compute the step:
-            call matvec(n, p, h)
+            call matvec(p, h, .true.)
             gama = dot_product(h, p)
 
             ! unlikely quick return:
@@ -173,7 +172,7 @@ module mod_solvers
             r = r - alpha * h
 
             ! apply the preconditioner:
-            call precnd(n, r, z)
+            call precnd(r, z)
             gnew = dot_product(r, z)
             rms_norm = sqrt(gnew/dble(n))
 
@@ -205,7 +204,7 @@ module mod_solvers
 
     end subroutine conjugate_gradient_solver
 
-    subroutine jacobi_diis_solver(n, rhs, x, matvec, precnd, arg_tol, &
+    subroutine jacobi_diis_solver(n, rhs, x, matvec, inv_diag, arg_tol, &
                                   arg_n_iter, arg_diis_max)
     
         use mod_constants, only: eps_rp
@@ -238,10 +237,10 @@ module mod_solvers
         !! Right hand side of the linear system
         real(rp), dimension(n), intent(inout) :: x
         !! In input, initial guess for the solver, in output the solution
+        real(rp), dimension(n), intent(in) :: inv_diag
+        !! Element-wise inverse of diagonal of LHS matrix
         external :: matvec
         !! Routine to perform matrix-vector product
-        external :: precnd
-        !! Preconditioner routine
         
         integer(ip) :: it, nmat
         real(rp) :: rms_norm, max_norm
@@ -292,16 +291,17 @@ module mod_solvers
         
         ! if required, compute a guess
         rms_norm = dot_product(x, x)
-        if(rms_norm < eps_rp ) call precnd(n, rhs, x)
+        if(rms_norm < eps_rp ) x = inv_diag * rhs !call precnd(rhs, x)
         
         ! Jacobi iterations
         do it = 1, n_iter
             ! y = rhs - O x
-            call matvec(n, x, y)
+            call matvec(x, y, .false.)
             y = rhs - y
 
             ! x_new = D^-1 y
-            call precnd(n, y, x_new)
+            x_new = inv_diag * y
+            !call precnd(y, x_new)
             
             ! DIIS extrapolation
             if(do_diis) then

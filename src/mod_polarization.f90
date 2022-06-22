@@ -58,7 +58,7 @@ module mod_polarization
         !! field and induced dipoles are stored in e(:,:,1)/ipds(:,:,1) while
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
-        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, fatal_error, verbose
+        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, pol, fatal_error, verbose
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
@@ -88,18 +88,30 @@ module mod_polarization
         !! Flag for the matrix-vector method to be used; optional, should be one of
         !! OMMP_MATV_ if not provided [[mod_constants:OMMP_MATV_DEFAULT]] is used.
         
-        real(rp), dimension(3*pol_atoms, n_ipd) :: e_vec, ipd0
-        integer(ip) :: n, solver, mvmethod
+        real(rp), dimension(:, :), allocatable :: e_vec, ipd0
+        real(rp), dimension(:), allocatable :: inv_diag
+        integer(ip) :: i, n, solver, mvmethod
 
         abstract interface
-            subroutine mv(n, x, y)
+        subroutine mv(x, y, dodiag)
                 use mod_memory, only: rp, ip
-                integer(ip), intent(in) :: n
-                real(rp), dimension(n), intent(in) :: x
-                real(rp), dimension(n), intent(out) :: y
+                use mod_mmpol, only: pol_atoms
+                real(rp), dimension(3*pol_atoms), intent(in) :: x
+                real(rp), dimension(3*pol_atoms), intent(out) :: y
+                logical, intent(in) :: dodiag
             end subroutine mv
         end interface
-        procedure(mv), pointer :: precnd, matvec
+        procedure(mv), pointer :: matvec
+        
+        abstract interface
+        subroutine pc(x, y)
+                use mod_memory, only: rp, ip
+                use mod_mmpol, only: pol_atoms
+                real(rp), dimension(3*pol_atoms), intent(in) :: x
+                real(rp), dimension(3*pol_atoms), intent(out) :: y
+            end subroutine pc
+        end interface
+        procedure(pc), pointer :: precond
         
         ! Handling of optional arguments
         if(present(arg_solver)) then
@@ -117,7 +129,10 @@ module mod_polarization
         ! Dimension of the system
         n = 3*pol_atoms
 
-        ! Allocate and compute dipole polarization tensor
+        call mallocate('polarization [ipd0]', n, n_ipd, ipd0)
+        call mallocate('polarization [e_vec]', n, n_ipd, e_vec)
+
+        ! Allocate and compute dipole polarization tensor, if needed
         if(mvmethod == OMMP_MATV_INCORE .or. &
            solver == OMMP_SOLVER_INVERSION) then
             call mallocate('polarization [TMat]',n,n,TMat)
@@ -140,14 +155,12 @@ module mod_polarization
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
             if(amoeba) then
-                call PolVec(3*pol_atoms, &
-                            e_vec(:, OMMP_AMOEBA_D), &
+                call PolVec(e_vec(:, OMMP_AMOEBA_D), &
                             ipd0(:, OMMP_AMOEBA_D))
-                call PolVec(3*pol_atoms, &
-                            e_vec(:, OMMP_AMOEBA_P), &
+                call PolVec(e_vec(:, OMMP_AMOEBA_P), &
                             ipd0(:, OMMP_AMOEBA_P))
             else
-                call PolVec(3*pol_atoms, e_vec(:,1), ipd0(:,1))
+                call PolVec(e_vec(:,1), ipd0(:,1))
             end if
 
             select case(mvmethod)
@@ -165,8 +178,10 @@ module mod_polarization
         
         if(verbose == OMMP_VERBOSE_DEBUG) then
             if(amoeba) then
-                call print_matrix(.false., 'RHS (D)', n, 1, n, 1, e_vec(:, OMMP_AMOEBA_D))
-                call print_matrix(.false., 'RHS (P)', n, 1, n, 1, e_vec(:, OMMP_AMOEBA_P))
+                call print_matrix(.false., 'RHS (D)', n, 1, n, 1, &
+                                  e_vec(:, OMMP_AMOEBA_D))
+                call print_matrix(.false., 'RHS (P)', n, 1, n, 1, &
+                                  e_vec(:, OMMP_AMOEBA_P))
             else
                 call print_matrix(.false., 'RHS', n, 1, n, 1, e_vec)
             end if
@@ -176,25 +191,53 @@ module mod_polarization
 
         select case (solver)
             case(OMMP_SOLVER_CG)
+                ! For now we do not have any other option.
+                precond => PolVec
+
                 if(amoeba) then
-                    call conjugate_gradient_solver(n, e_vec(:,OMMP_AMOEBA_D), ipd0(:,OMMP_AMOEBA_D), matvec, PolVec)
-                    call conjugate_gradient_solver(n, e_vec(:,OMMP_AMOEBA_P), ipd0(:,OMMP_AMOEBA_P), matvec, PolVec)
+                    call conjugate_gradient_solver(n, &
+                                                   e_vec(:,OMMP_AMOEBA_D), &
+                                                   ipd0(:,OMMP_AMOEBA_D), &
+                                                   matvec, precond)
+                    call conjugate_gradient_solver(n, &
+                                                   e_vec(:,OMMP_AMOEBA_P), &
+                                                   ipd0(:,OMMP_AMOEBA_P), &
+                                                   matvec, precond)
                 else
-                    call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), matvec, PolVec)
+                    call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), &
+                                                   matvec, precond)
                 end if
 
             case(OMMP_SOLVER_DIIS)
+                ! Create a vector containing inverse of diagonal of T matrix
+                call mallocate('polarization [inv_diag]', n, inv_diag)
+                do i=1, pol_atoms
+                    inv_diag(3*(i-1)+1:3*(i-1)+3) = pol(i) 
+                end do
+
                 if(amoeba) then
-                    call jacobi_diis_solver(n, e_vec(:,OMMP_AMOEBA_D), ipd0(:,OMMP_AMOEBA_D), TMatVec_offdiag, PolVec)
-                    call jacobi_diis_solver(n, e_vec(:,OMMP_AMOEBA_P), ipd0(:,OMMP_AMOEBA_P), TMatVec_offdiag, PolVec)
+                    call jacobi_diis_solver(n, &
+                                            e_vec(:,OMMP_AMOEBA_D), &
+                                            ipd0(:,OMMP_AMOEBA_D), &
+                                            matvec, inv_diag)
+                    call jacobi_diis_solver(n, &
+                                            e_vec(:,OMMP_AMOEBA_P), &
+                                            ipd0(:,OMMP_AMOEBA_P), &
+                                            matvec, inv_diag)
                 else
-                    call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), TMatVec_offdiag, PolVec)
+                    call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), &
+                                            matvec, inv_diag)
                 end if
+                call mfree('polarization [inv_diag]', inv_diag)
 
             case(OMMP_SOLVER_INVERSION)
                 if(amoeba) then
-                    call inversion_solver(n, e_vec(:,OMMP_AMOEBA_D), ipd0(:,OMMP_AMOEBA_D), TMat)
-                    call inversion_solver(n, e_vec(:,OMMP_AMOEBA_P), ipd0(:,OMMP_AMOEBA_P), TMat)
+                    call inversion_solver(n, &
+                                          e_vec(:,OMMP_AMOEBA_D), &
+                                          ipd0(:,OMMP_AMOEBA_D), TMat)
+                    call inversion_solver(n, &
+                                          e_vec(:,OMMP_AMOEBA_P), &
+                                          ipd0(:,OMMP_AMOEBA_P), TMat)
                 else
                     call inversion_solver(n, e_vec(:,1), ipd0(:,1), TMat)
                 end if
@@ -206,6 +249,8 @@ module mod_polarization
         ! Reshape dipole vector into the matrix 
         ipds = reshape(ipd0, (/3_ip, pol_atoms, n_ipd/)) 
         
+        call mfree('polarization [ipd0]', ipd0)
+        call mfree('polarization [e_vec]', e_vec)
         if(allocated(TMat)) call mfree('polarization [TMat]',TMat)
 
     end subroutine polarization
@@ -347,42 +392,46 @@ module mod_polarization
         
     end subroutine create_TMat
 
-    subroutine TMatVec_incore(n, x, y)
+    subroutine TMatVec_incore(x, y, dodiag)
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
+        use mod_mmpol, only: pol_atoms
         implicit none
         
-        integer(ip), intent(in) :: n
-        !! Size of TMat
-        real(rp), dimension(n), intent(in) :: x
+        real(rp), dimension(3*pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(n), intent(out) :: y
+        real(rp), dimension(3*pol_atoms), intent(out) :: y
         !! Output vector
+        logical, intent(in) :: dodiag
+        !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
+        !! skipped)
         
-        call TMatVec_offdiag(n, x, y)
-        call TMatVec_diag(x, y)
+        call TMatVec_offdiag(x, y)
+        if(dodiag) call TMatVec_diag(x, y)
     
     end subroutine TMatVec_incore
     
-    subroutine TMatVec_otf(n, x, y)
+    subroutine TMatVec_otf(x, y, dodiag)
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
         use mod_electrostatics, only: new_field_extD2D
+        use mod_mmpol, only: pol_atoms
         implicit none
         
-        integer(ip), intent(in) :: n
-        !! Size of TMat
-        real(rp), dimension(n), intent(in) :: x
+        real(rp), dimension(3*pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(n), intent(out) :: y
+        real(rp), dimension(3*pol_atoms), intent(out) :: y
         !! Output vector
+        logical, intent(in) :: dodiag
+        !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
+        !! skipped)
         
         y = 0.0_rp
         call new_field_extD2D(y, x)
         y = -1.0_rp * y ! Why? TODO
-        call TMatVec_diag(x, y)
+        if(dodiag) call TMatVec_diag(x, y)
     
     end subroutine TMatVec_otf
        
@@ -407,21 +456,25 @@ module mod_polarization
         end do
     end subroutine TMatVec_diag
 
-    subroutine TMatVec_offdiag(n,x,y)
+    subroutine TMatVec_offdiag(x, y)
         !! Perform matrix vector multiplication y = [TMat-diag(TMat)]*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
+        use mod_mmpol, only: pol_atoms
+        use mod_memory, only: mallocate, mfree
+        
         implicit none
         
-        integer(ip), intent(in) :: n
-        !! Size of TMat
-        real(rp), dimension(n), intent(in) :: x
+        real(rp), dimension(:), intent(in) :: x
         !! Input vector
-        real(rp), dimension(n), intent(out) :: y
+        real(rp), dimension(:), intent(out) :: y
         !! Output vector
         
-        real(rp), dimension(n) :: d
-        integer(ip) :: i
+        real(rp), dimension(:), allocatable :: d
+        integer(ip) :: i, n
+
+        n = 3*pol_atoms
+        call mallocate('TMatVec_offdiag [d]', n, d)
         
         ! Subtract the diagonal from the T matrix
         do i = 1, n
@@ -434,26 +487,26 @@ module mod_polarization
         do i = 1, n
             tmat(i,i) = d(i)
         end do
+
+        call mfree('TMatVec_offdiag [d]', d)
     end subroutine TMatVec_offdiag
 
-    subroutine PolVec(n,x,y)
+    subroutine PolVec(x,y)
         !! Perform matrix vector multiplication y = pol*x,
-        !! where pol polarizability vector (stored in memory) x and y are 
+        !! where pol is polarizability vector, x and y are 
         !! column vectors
-        use mod_mmpol, only : pol
+        use mod_mmpol, only : pol, pol_atoms
         
         implicit none
         
-        integer(ip), intent(in) :: n
-        !! Size of input vector (number of polarizable sites)
-        real(rp), dimension(n),intent(in)   :: x
+        real(rp), dimension(3*pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(n), intent(out) :: y
+        real(rp), dimension(3*pol_atoms), intent(out) :: y
         !! Output vector
         
         integer(ip) :: i, indx
         
-        do i = 1, n
+        do i = 1, 3*pol_atoms
             indx = (i+2)/3
             y(i) = pol(indx)*x(i)   
         enddo
