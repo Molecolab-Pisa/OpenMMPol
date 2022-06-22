@@ -262,7 +262,7 @@ module mod_polarization
         use mod_mmpol, only : thole, cpol, pol, polar_mm, conn, &
                               amoeba, uscale, fatal_error
         use mod_constants, only : eps_rp
-        use mod_electrostatics, only: screening_rules
+        use mod_electrostatics, only: screening_rules, new_damped_coulomb_kernel
 
         implicit none
         !                      

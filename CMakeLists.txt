@@ -13,7 +13,6 @@ add_compile_options($<$<CONFIG:RELEASE>:-O3>
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_library(openmmpol SHARED 
-            src/coulomb_kernel.f90 
             src/electrostatics.f90
             src/mod_adjacency_mat.f90
             src/mod_constants.f90
