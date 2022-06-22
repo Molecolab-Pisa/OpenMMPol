@@ -118,7 +118,8 @@ module mod_polarization
         n = 3*pol_atoms
 
         ! Allocate and compute dipole polarization tensor
-        if(mvmethod == OMMP_MATV_INCORE .or. solver == OMMP_SOLVER_INVERSION) then
+        if(mvmethod == OMMP_MATV_INCORE .or. &
+           solver == OMMP_SOLVER_INVERSION) then
             call mallocate('polarization [TMat]',n,n,TMat)
             call create_TMat(TMat)
         end if
@@ -139,19 +140,22 @@ module mod_polarization
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
             if(amoeba) then
-                call PolVec(3*pol_atoms, e_vec(:, OMMP_AMOEBA_D), ipd0(:, OMMP_AMOEBA_D))
-                call PolVec(3*pol_atoms, e_vec(:, OMMP_AMOEBA_P), ipd0(:, OMMP_AMOEBA_P))
+                call PolVec(3*pol_atoms, &
+                            e_vec(:, OMMP_AMOEBA_D), &
+                            ipd0(:, OMMP_AMOEBA_D))
+                call PolVec(3*pol_atoms, &
+                            e_vec(:, OMMP_AMOEBA_P), &
+                            ipd0(:, OMMP_AMOEBA_P))
             else
                 call PolVec(3*pol_atoms, e_vec(:,1), ipd0(:,1))
             end if
 
             select case(mvmethod)
                 case(OMMP_MATV_INCORE) 
-                   matvec => TMatVec_incore
+                    matvec => TMatVec_incore
 
                 case(OMMP_MATV_DIRECT)
-                    ! TODO
-                    call fatal_error("This method is still to be implemented") 
+                    matvec => TMatVec_otf
 
                 case default
                     call fatal_error("Unknown matrix-vector method requested")
@@ -243,6 +247,7 @@ module mod_polarization
             tens(2, 2) = 1.0_rp / pol(i)
             tens(3, 3) = 1.0_rp / pol(i)
         else
+            ! TODO Rewrite this with mod_electrostatics
             ! Check if the interaction should be screened for some reason
             ! connected to the connectivity
             if(.not. amoeba) then
@@ -355,12 +360,53 @@ module mod_polarization
         real(rp), dimension(n), intent(out) :: y
         !! Output vector
         
-        ! initialize solution vector TODO needed?
-        y = 0.0_rp
-        ! Compute the matrix vector product
-        call dgemm('N', 'N', n, 1, n, 1.0_rp, TMat, n, x, n, 0.0_rp, y, n)
+        call TMatVec_offdiag(n, x, y)
+        call TMatVec_diag(x, y)
+    
     end subroutine TMatVec_incore
+    
+    subroutine TMatVec_otf(n, x, y)
+        !! Perform matrix vector multiplication y = TMat*x,
+        !! where TMat is polarization matrix (precomputed and stored in memory)
+        !! and x and y are column vectors
+        use mod_electrostatics, only: new_field_extD2D
+        implicit none
         
+        integer(ip), intent(in) :: n
+        !! Size of TMat
+        real(rp), dimension(n), intent(in) :: x
+        !! Input vector
+        real(rp), dimension(n), intent(out) :: y
+        !! Output vector
+        
+        y = 0.0_rp
+        call new_field_extD2D(y, x)
+        y = -1.0_rp * y ! Why? TODO
+        call TMatVec_diag(x, y)
+    
+    end subroutine TMatVec_otf
+       
+    subroutine TMatVec_diag(x, y)
+        !! This routine compute the product between the diagonal of T matrix
+        !! with x, and add it to y. The product is simply computed by 
+        !! each element of x for its inverse polarizability.
+        use mod_mmpol, only: pol, pol_atoms
+
+        implicit none
+
+        real(rp), dimension(3*pol_atoms), intent(in) :: x
+        !! Input vector
+        real(rp), dimension(3*pol_atoms), intent(out) :: y
+        !! Output vector
+
+        integer(ip) :: i, ii
+
+        do i=1, 3*pol_atoms
+            ii = (i+2)/3
+            y(i) = y(i) + x(i) / pol(ii)
+        end do
+    end subroutine TMatVec_diag
+
     subroutine TMatVec_offdiag(n,x,y)
         !! Perform matrix vector multiplication y = [TMat-diag(TMat)]*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
@@ -369,23 +415,25 @@ module mod_polarization
         
         integer(ip), intent(in) :: n
         !! Size of TMat
-        real(rp), dimension(n), intent(in)   :: x
+        real(rp), dimension(n), intent(in) :: x
         !! Input vector
         real(rp), dimension(n), intent(out) :: y
         !! Output vector
         
-        real(rp), dimension(n,n) :: O
+        real(rp), dimension(n) :: d
         integer(ip) :: i
         
-        ! initialize solution vector and matrix
-        y = 0.0_rp
-        O = TMat
-        ! Subtract the diagonal from the O matrix
+        ! Subtract the diagonal from the T matrix
         do i = 1, n
-            O(I,I) = 0.0_rp
+            d(i) = tmat(i,i)
+            tmat(i,i) = 0
         end do
         ! Compute the matrix vector product
-        call dgemm('N', 'N', n, 1, n, 1.0_rp, O, n, x, n, 0.0_rp, y, n)
+        call dgemm('N', 'N', n, 1, n, 1.0_rp, tmat, n, x, n, 0.0_rp, y, n)
+        
+        do i = 1, n
+            tmat(i,i) = d(i)
+        end do
     end subroutine TMatVec_offdiag
 
     subroutine PolVec(n,x,y)

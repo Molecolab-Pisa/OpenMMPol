@@ -4,7 +4,7 @@ module mod_electrostatics
     implicit none 
     private
 
-    public :: new_field_M2D
+    public :: new_field_M2D, new_field_extD2D
 
     contains
 
@@ -124,68 +124,68 @@ module mod_electrostatics
 
     !subroutine quad_grdE(...)
     !end subroutine quad_grdE
+    
+    subroutine new_field_extD2D(E, ext_ipd)
+        !! Computes the electric field of a trial set of induced point dipoles
+        !! at polarizable sites. This is intended to be used as matrix-vector
+        !! routine in the solution of the linear system.
+        
+        use mod_mmpol, only: pol_atoms, polar_mm
 
-!    subroutine new_field_D2D(E)
-!        !! Computes the electric field of indued dipoles at induced dipoles
-!        !! sites.
-!        
-!        use mod_mmpol, only: pol_atoms, amoeba
-!
-!        implicit none
-!
-!        real(rp), intent(out) :: E(3, pol_atoms, n_ipd)
-!        !! Electric field (results will be added)
-!
-!        integer(ip) :: i, j
-!        logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale
-!        real(rp) :: kernel(5), dr(3), tmpE(3), scalf_p, scalf_d, scalf
-!
-!        if(amoeba) then
-!            do i=1, pol_atoms
-!                do j=1, pol_atoms
-!                    if(j == i) cycle
-!                    !loop on target
-!                    call screening_rules(i, 'P', j, 'P', 'P', &
-!                                         to_do_p, to_scale_p, scalf_p)
-!                    call screening_rules(i, 'P', j, 'P', 'D', &
-!                                         to_do_d, to_scale_d, scalf_d)
-!                    
-!                    if(to_do_p .or. to_do_d) then
-!                        call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), 3, kernel(1:4), dr) !TODO
-!                        
-!                        tmpE = 0.0_rp
-!                        call q_E(q(1,i), dr, kernel, tmpE)
-!                        call mu_E(q(2:4,i), dr, kernel, tmpE)
-!                        call quad_E(q(5:10,i), dr, kernel, tmpE)
-!
-!                        ! TODO review asign of P/D 1/2
-!                        if(to_do_p) then
-!                            if(to_scale_p) then
-!                                E(:, j, 2) = E(:, j, 2) + tmpE * scalf_p
-!                            else
-!                                E(:, j, 2) = E(:, j, 2) + tmpE
-!                            end if
-!                        end if
-!
-!                        if(to_do_d) then
-!                            if(to_scale_d) then
-!                                E(:, j, 1) = E(:, j, 1) + tmpE * scalf_d
-!                            else
-!                                E(:, j, 1) = E(:, j, 1) + tmpE
-!                            end if
-!                        end if
-!                    end if
-!                end do
-!            end do
-!        else
-!            do i=1, pol_atoms
-!                do j=1, pol_atoms
-!                end do
-!            end do
-!        end if
-!
-!
-!    end subroutine new_field_D2D
+        implicit none
+
+        real(rp), intent(in) :: ext_ipd(3, pol_atoms)
+        !! External induced point dipoles at polarizable sites
+        real(rp), intent(inout) :: E(3, pol_atoms)
+        !! Electric field (results will be added)
+
+        integer(ip) :: i, j
+        logical :: to_scale, to_do
+        real(rp) :: kernel(5), dr(3), tmpE(3), scalf
+
+        do i=1, pol_atoms
+            do j=1, pol_atoms
+                if(j == i) cycle
+                !loop on target
+                call screening_rules(i, 'P', j, 'P', '-', &
+                                     to_do, to_scale, scalf)
+                
+                if(to_do) then
+                    call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j),& 
+                                                   2, kernel(1:3), dr)
+                    
+                    tmpE = 0.0_rp
+
+                    call mu_E(ext_ipd(:,i), dr, kernel, tmpE)
+                    if(to_scale) then
+                        E(:, j) = E(:, j) + tmpE * scalf
+                    else
+                        E(:, j) = E(:, j) + tmpE
+                    end if
+                end if
+            end do
+        end do
+    end subroutine new_field_extD2D
+
+    subroutine new_field_D2D(E)
+        !! Computes the electric field of indued dipoles at induced dipoles
+        !! sites.
+        
+        use mod_mmpol, only: amoeba, ipd
+        use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
+
+        implicit none
+
+        real(rp), intent(out) :: E(3, pol_atoms, n_ipd)
+        !! Electric field (results will be added)
+
+        if(amoeba) then
+            call new_field_extD2D(E(:,:,OMMP_AMOEBA_P), ipd(:,:,OMMP_AMOEBA_P))
+            call new_field_extD2D(E(:,:,OMMP_AMOEBA_D), ipd(:,:,OMMP_AMOEBA_D))
+        else
+            call new_field_extD2D(E(:,:,1), ipd(:,:,1))
+        end if
+    end subroutine new_field_D2D
     
     subroutine new_field_M2D(E)
         !! Computes the electric field of static multipoles at induced dipoles

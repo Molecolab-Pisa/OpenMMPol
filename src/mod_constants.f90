@@ -54,7 +54,7 @@ module mod_constants
     integer(ip), parameter :: OMMP_MATV_DIRECT = 2_ip
     !! Vector matrix multiplication in iterative solvers are done in a direct
     !! fashion
-    integer(ip), parameter :: OMMP_MATV_DEFAULT = OMMP_MATV_INCORE
+    integer(ip), parameter :: OMMP_MATV_DEFAULT = OMMP_MATV_DIRECT
     !! Default value for matrix vector multiplication
 
     integer(ip), parameter :: OMMP_AMOEBA_D = 1

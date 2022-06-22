@@ -17,7 +17,10 @@
 
 #define OMMP_MATV_INCORE 1
 #define OMMP_MATV_DIRECT 2
-#define OMMP_MATV_DEFAULT OMMP_MATV_INCORE
+#define OMMP_MATV_DEFAULT OMMP_MATV_DIRECT
+
+#define OMMP_AMOEBA_D 1
+#define OMMP_AMOEBA_P 2
 
 extern void w_mmpol_init(char *);
 extern void do_mm(void);
