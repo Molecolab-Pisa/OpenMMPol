@@ -262,6 +262,7 @@ module mod_polarization
         use mod_mmpol, only : thole, cpol, pol, polar_mm, conn, &
                               amoeba, uscale, fatal_error
         use mod_constants, only : eps_rp
+        use mod_electrostatics, only: screening_rules
 
         implicit none
         !                      
@@ -281,9 +282,10 @@ module mod_polarization
         !! Interaction tensor between sites i and j
         
         real(rp) :: dr(3)
-        real(rp) ::  coul_k(3), s
+        real(rp) ::  kernel(3), scalf
+        logical :: to_do, to_scale
 
-        integer(ip) :: ii, jj, ineigh, i_mm, j_mm
+        integer(ip) :: ii, jj
          
         tens = 0.0_rp
         
@@ -292,56 +294,23 @@ module mod_polarization
             tens(2, 2) = 1.0_rp / pol(i)
             tens(3, 3) = 1.0_rp / pol(i)
         else
-            ! TODO Rewrite this with mod_electrostatics
-            ! Check if the interaction should be screened for some reason
-            ! connected to the connectivity
-            if(.not. amoeba) then
-                s = 1.0_rp
-                
-                ! Convert index of i and j from polarizable to MM
-                j_mm = polar_mm(j)
-                i_mm = polar_mm(i)
-                    
-                do ineigh=1, 4
-                    ! Possibly interaction between polarizable sites separated
-                    ! by 1, 2, 3 or 4 bonds are screened using uscale parameter
-                    
-                    ! Check if j_mm is in the connectivity list of i_mm at distance
-                    ! ineigh
-                    if(any(conn(ineigh)%ci(conn(ineigh)%ri(i_mm): &
-                                           conn(ineigh)%ri(i_mm+1)-1) == j_mm)) &
-                        s = uscale(ineigh)
+            call screening_rules(i, 'P', j, 'P', '-', to_do, to_scale, scalf)
+            if(to_do) then
+                call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), &
+                                               2, kernel, dr)
+                ! Fill the matrix elemets
+                do ii=1, 3
+                    do jj=1, 3
+                        if(ii == jj) then
+                            tens(ii, ii) = kernel(2) - 3.0_rp * kernel(3) * dr(ii) ** 2
+                        else
+                            tens(jj, ii) = -3.0_rp * kernel(3) * dr(ii) * dr(jj)
+                        end if
+                    end do
                 end do
-            else
-                ! Amoeba should have uscale = 1.0_rp, so the dipole-dipole
-                ! interaction are not screened on connectivity base
-                s = 1.0_rp
-            end if
-
-            if(abs(s) < eps_rp) then
-                ! The scale factor is zero, and so is the interaction tensor
-                ! nothing should be computed
-                return
-            end if
+                ! Scale if needed
+                if(to_scale) tens = tens * scalf
             
-            ! If the scale factor is not zero, the interaction tensor should
-            ! be computed
-            call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), 2, coul_k, dr)
-
-            ! Fill the matrix elemets
-            do ii=1, 3
-                do jj=1, 3
-                    if(ii == jj) then
-                        tens(ii, ii) = coul_k(2) - 3.0_rp * coul_k(3) * dr(ii) ** 2
-                    else
-                        tens(jj, ii) = -3.0_rp * coul_k(3) * dr(ii) * dr(jj)
-                    end if
-                end do
-            end do
-            
-            if(abs(s-1.0_rp) > eps_rp) then
-                ! If the scale factor is not one, then apply it
-                tens = tens * s
             end if
         end if
     end subroutine dipole_T

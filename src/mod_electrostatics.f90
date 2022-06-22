@@ -4,7 +4,7 @@ module mod_electrostatics
     implicit none 
     private
 
-    public :: new_field_M2D, new_field_extD2D
+    public :: screening_rules, new_field_M2D, new_field_extD2D
 
     contains
 
