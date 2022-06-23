@@ -13,7 +13,6 @@ add_compile_options($<$<CONFIG:RELEASE>:-O3>
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_library(openmmpol SHARED 
-            src/electrostatics.f90
             src/mod_adjacency_mat.f90
             src/mod_constants.f90
             src/mod_electrostatics.f90
@@ -24,7 +23,6 @@ add_library(openmmpol SHARED
             src/mod_mmpol.f90
             src/mod_polarization.f90
             src/mod_solvers.f90
-            src/elstat.f90
             src/energy.f90
             src/rotate_multipoles.f90)
 

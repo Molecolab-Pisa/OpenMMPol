@@ -4,7 +4,8 @@ module mod_electrostatics
     implicit none 
     private
 
-    public :: screening_rules, new_field_M2D, new_field_extD2D
+    public :: screening_rules, new_field_M2D, new_field_extD2D, &
+              new_potential_M2M, new_potential_field_fieldgr_M2M
     public :: new_damped_coulomb_kernel
 
     contains
@@ -144,8 +145,32 @@ module mod_electrostatics
         E = E + q * kernel(2) * dr
     end subroutine q_E
 
-    !subroutine q_grdE(...)
-    !end subroutine q_grdE
+    subroutine q_grdE(q, dr, kernel, grdE)
+        implicit none
+
+        real(rp), intent(in) :: q
+        !! Charge
+        real(rp), intent(in) :: dr(3)
+        !! Distance vector
+        real(rp), intent(in) :: kernel(:)
+        !! Array of coulomb kernel (either damped or undamped)
+        real(rp), intent(out) :: grdE(6)
+        !! Electric field gradient (results will be added)
+
+        ! xx
+        grdE(1) = grdE(1) + q * 3.0_rp * kernel(3) * dr(1) * dr(1) - q * kernel(2)
+        ! xy
+        grdE(2) = grdE(2) + q * 3.0_rp * kernel(3) * dr(1) * dr(2)
+        ! yy
+        grdE(3) = grdE(3) + q * 3.0_rp * kernel(3) * dr(2) * dr(2) - q * kernel(2)
+        ! xz
+        grdE(4) = grdE(4) + q * 3.0_rp * kernel(3) * dr(1) * dr(3)
+        ! yz
+        grdE(5) = grdE(5) + q * 3.0_rp * kernel(3) * dr(2) * dr(3)
+        ! zz
+        grdE(6) = grdE(6) + q * 3.0_rp * kernel(3) * dr(3) * dr(3) - q * kernel(2)
+
+    end subroutine q_grdE
 
     subroutine mu_V(mu, dr, kernel, V)
         implicit none
@@ -177,8 +202,41 @@ module mod_electrostatics
         E = E + 3.0_rp * dot_product(mu, dr) * dr * kernel(3) - mu * kernel(2)
     end subroutine mu_E
 
-    !subroutine mu_grdE(...)
-    !end subroutine mu_grdE
+    subroutine mu_grdE(mu, dr, kernel, grdE)
+        implicit none
+
+        real(rp), intent(in) :: mu(3)
+        !! Point dipole
+        real(rp), intent(in) :: dr(3)
+        !! Distance vector
+        real(rp), intent(in) :: kernel(:)
+        !! Array of coulomb kernel (either damped or undamped)
+        real(rp), intent(out) :: grdE(6)
+        !! Electric field gradient (results will be added)
+
+        real(rp) :: mu_dot_dr
+
+        mu_dot_dr = dot_product(mu, dr)
+
+        ! xx
+        grdE(1) = grdE(1) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(1) - &
+                          (mu_dot_dr + 2.0 * mu(1) * dr(1)) * 3.0 * kernel(3)
+        ! xy
+        grdE(2) = grdE(2) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(2) - &
+                          (mu(1)*dr(2) + mu(2)*dr(1)) * 3.0 * kernel(3)
+        ! yy
+        grdE(3) = grdE(3) + mu_dot_dr * kernel(4) * 15.0 * dr(2) * dr(2) - &
+                          (mu_dot_dr + 2.0 * mu(2) * dr(2)) * 3.0 * kernel(3)
+        ! xz
+        grdE(4) = grdE(4) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(3) - &
+                          (mu(1)*dr(3) + mu(3)*dr(1)) * 3.0 * kernel(3)
+        ! yz
+        grdE(5) = grdE(5) + mu_dot_dr * kernel(4) * 15.0 * dr(2) * dr(3) - &
+                          (mu(2)*dr(3) + mu(3)*dr(2)) * 3.0 * kernel(3)
+        ! zz
+        grdE(6) = grdE(6) + mu_dot_dr * kernel(4) * 15.0 * dr(3) * dr(3) - &
+                          (mu_dot_dr + 2.0 * mu(3) * dr(3)) * 3.0 * kernel(3)
+    end subroutine mu_grdE
 
     subroutine quad_V(quad, dr, kernel, V)
         implicit none
@@ -223,9 +281,219 @@ module mod_electrostatics
             - 6.0_rp * quadxr * kernel(3)
     end subroutine quad_E
 
-    !subroutine quad_grdE(...)
-    !end subroutine quad_grdE
+    subroutine quad_grdE(quad, dr, kernel, grdE)
+        implicit none
+        
+        real(rp), intent(in) :: quad(6)
+        !! point quadrupole stored as (xx, xy, yy, xz, yz, zz)
+        real(rp), intent(in) :: dr(3)
+        !! Distance vector
+        real(rp), intent(in) :: kernel(:)
+        !! Array of coulomb kernel (either damped or undamped)
+        real(rp), intent(out) :: grdE(6)
+        !! Electric field gradient (results will be added)
+
+        real(rp) :: quadxr(3), quadxr_dot_r
+
+        quadxr(1) = quad(1)*dr(1) + quad(2)*dr(2) + quad(4)*dr(3)
+        quadxr(2) = quad(2)*dr(1) + quad(3)*dr(2) + quad(5)*dr(3)
+        quadxr(3) = quad(4)*dr(1) + quad(5)*dr(2) + quad(6)*dr(3)
+
+        quadxr_dot_r = dot_product(quadxr, dr)
+
+        ! xx
+        grdE(1) = grdE(1) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(1) + &
+                          6.0 * kernel(3) * quad(1) - &
+                          15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(1)*dr(1))
+        ! xy
+        grdE(2) = grdE(2) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(2) + &
+                          6.0 * kernel(3) * quad(2) - &
+                          30.0*kernel(4)*(quadxr(1)*dr(2)+quadxr(2)*dr(1))
+        ! yy
+        grdE(3) = grdE(3) + 105.0 * kernel(5) * quadxr_dot_r * dr(2)*dr(2) + &
+                          6.0 * kernel(3) * quad(3) - &
+                          15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(2)*dr(2))
+        ! xz
+        grdE(4) = grdE(4) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(3) + &
+                          6.0 * kernel(3) * quad(4) - &
+                          30.0*kernel(4)*(quadxr(1)*dr(3)+quadxr(3)*dr(1))
+        ! yz
+        grdE(5) = grdE(5) + 105.0 * kernel(5) * quadxr_dot_r * dr(2)*dr(3) + &
+                          6.0 * kernel(3) * quad(5) - &
+                          30.0*kernel(4)*(quadxr(2)*dr(3)+quadxr(3)*dr(2))
+        ! zz
+        grdE(6) = grdE(6) + 105.0 * kernel(5) * quadxr_dot_r * dr(3)*dr(3) + &
+                          6.0 * kernel(3) * quad(6) - &
+                          15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(3)*dr(3))
+    end subroutine quad_grdE
+  
+    subroutine new_potential_field_fieldgr_M2M(V, E, Egr)
+        !! Computes the electric potential, field and field gradients of 
+        !! static multipoles at all sites (polarizable sites are a 
+        !! subset of static ones)
+        use mod_mmpol, only: amoeba, mm_atoms, cmm, q
+        implicit none
+        
+        real(rp), intent(inout) :: V(mm_atoms)
+        !! Potential on MM sites, results will be added
+        real(rp), intent(inout) :: E(3, mm_atoms)
+        !! Electric field on MM sites, order [x,y,z] results will be added
+        real(rp), intent(inout) :: Egr(6, mm_atoms)
+        !! Electric field gradients on MM sites, order [xx,xy,yy,xz,yz,zz]
+        !! results will be added
+
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), scalf
+        integer(ip) :: i, j
+        logical :: to_do, to_scale
+
+        if(amoeba) then
+            do i=1, mm_atoms
+                ! loop on sources
+                do j=1, mm_atoms
+                    if(j == i) cycle
+                    !loop on target
+                    call screening_rules(i, 'S', j, 'S', '-', &
+                                         to_do, to_scale, scalf)
+                    
+                    if(to_do) then
+                        dr = cmm(:,j) - cmm(:, i)
+                        call new_coulomb_kernel(dr, 4, kernel)
+                        
+                        tmpV = 0.0_rp
+                        tmpE = 0.0_rp
+                        tmpEgr = 0.0_rp
+
+                        call q_V(q(1,i), dr, kernel, tmpV)
+                        call mu_V(q(2:4,i), dr, kernel, tmpV)
+                        call quad_V(q(5:10,i), dr, kernel, tmpV)
+
+                        call q_E(q(1,i), dr, kernel, tmpE)
+                        call mu_E(q(2:4,i), dr, kernel, tmpE)
+                        call quad_E(q(5:10,i), dr, kernel, tmpE)
+                        
+                        call q_grdE(q(1,i), dr, kernel, tmpEgr)
+                        call mu_grdE(q(2:4,i), dr, kernel, tmpEgr)
+                        call quad_grdE(q(5:10,i), dr, kernel, tmpEgr)
+
+                        if(to_scale) then
+                            V(j) = V(j) + tmpV * scalf
+                            E(:,j) = E(:,j) + tmpE * scalf
+                            Egr(:,j) = Egr(:,j) + tmpEgr * scalf
+                        else
+                            V(j) = V(j) + tmpV
+                            E(:,j) = E(:,j) + tmpE 
+                            Egr(:,j) = Egr(:,j) + tmpEgr
+                        end if
+
+                    end if
+                end do
+            end do
+        else
+            do i=1, mm_atoms
+                ! loop on sources
+                do j=1, mm_atoms
+                    if(j == i) cycle
+                    !loop on target
+                    call screening_rules(i, 'S', j, 'S', '-', &
+                                         to_do, to_scale, scalf)
+                    
+                    if(to_do) then
+                        dr = cmm(:,j) - cmm(:, i)
+                        call new_coulomb_kernel(dr, 3, kernel)
+                        
+                        tmpV = 0.0_rp
+                        tmpE = 0.0_rp
+                        tmpEgr = 0.0_rp
+
+                        call q_V(q(1,i), dr, kernel, tmpV)
+                        call q_E(q(1,i), dr, kernel, tmpE)
+                        call q_grdE(q(1,i), dr, kernel, tmpEgr)
+
+                        if(to_scale) then
+                            V(j) = V(j) + tmpV * scalf
+                            E(:,j) = E(:,j) + tmpE * scalf
+                            Egr(:,j) = Egr(:,j) + tmpEgr * scalf
+                        else
+                            V(j) = V(j) + tmpV
+                            E(:,j) = E(:,j) + tmpE 
+                            Egr(:,j) = Egr(:,j) + tmpEgr
+                        end if
+
+                    end if
+                end do
+            end do
+        end if
+    end subroutine new_potential_field_fieldgr_M2M
     
+    subroutine new_potential_M2M(V)
+        !! Computes the electric potential of static multipoles at all sites
+        !! (polarizable sites are a subset of static ones)
+        use mod_mmpol, only: amoeba, mm_atoms, cmm, q
+        implicit none
+        
+        real(rp), intent(inout) :: V(mm_atoms)
+        !! Potential on MM sites, results will be added
+
+        real(rp) :: kernel(3), dr(3), tmpV, scalf
+        integer(ip) :: i, j
+        logical :: to_do, to_scale
+
+        if(amoeba) then
+            do i=1, mm_atoms
+                ! loop on sources
+                do j=1, mm_atoms
+                    if(j == i) cycle
+                    !loop on target
+                    call screening_rules(i, 'S', j, 'S', '-', &
+                                         to_do, to_scale, scalf)
+                    
+                    if(to_do) then
+                        dr = cmm(:,j) - cmm(:, i)
+                        call new_coulomb_kernel(dr, 2, kernel)
+                        
+                        tmpV = 0.0_rp
+                        call q_V(q(1,i), dr, kernel, tmpV)
+                        call mu_V(q(2:4,i), dr, kernel, tmpV)
+                        call quad_V(q(5:10,i), dr, kernel, tmpV)
+
+                        if(to_scale) then
+                            V(j) = V(j) + tmpV * scalf
+                        else
+                            V(j) = V(j) + tmpV
+                        end if
+
+                    end if
+                end do
+            end do
+        else
+            do i=1, mm_atoms
+                ! loop on sources
+                do j=1, mm_atoms
+                    if(j == i) cycle
+                    !loop on target
+                    call screening_rules(i, 'S', j, 'S', '-', &
+                                         to_do, to_scale, scalf)
+                    
+                    if(to_do) then
+                        dr = cmm(:,j) - cmm(:, i)
+                        call new_coulomb_kernel(dr, 0, kernel)
+                        
+                        tmpV = 0.0_rp
+                        call q_V(q(1,i), dr, kernel, tmpV)
+
+                        if(to_scale) then
+                            V(j) = V(j) + tmpV * scalf
+                        else
+                            V(j) = V(j) + tmpV
+                        end if
+
+                    end if
+                end do
+            end do
+        end if
+        
+    end subroutine new_potential_M2M
+
     subroutine new_field_extD2D(E, ext_ipd)
         !! Computes the electric field of a trial set of induced point dipoles
         !! at polarizable sites. This is intended to be used as matrix-vector
