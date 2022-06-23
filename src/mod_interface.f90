@@ -158,21 +158,18 @@ module mod_interface
             implicit none
   
             ! Initialize variables
-            v_qq   = 0.0_rp
-            ef_qd  = 0.0_rp
-            dv_qq  = 0.0_rp
-            def_qd = 0.0_rp
+            v_m2m   = 0.0_rp
+            e_m2m  = 0.0_rp
+            egrd_m2m  = 0.0_rp
+            e_m2d = 0.0_rp
     
             if(amoeba) then
-                call potential_field_fieldgr_M2M(v_qq(1,:), &
-                                                 v_qq(2:4,:), &
-                                                 v_qq(5:10,:))
-
+                call potential_field_fieldgr_M2M(v_m2m, e_m2m, egrd_m2m)
             else
-                call potential_M2M(v_qq)
+                call potential_M2M(v_m2m)
             end if
 
-            call field_M2D(ef_qd)
+            call field_M2D(e_m2d)
 
         end subroutine 
 
@@ -195,7 +192,7 @@ module mod_interface
 
             ! Compute polarization
             !write(6, *) "Calling polarization"
-            call polarization(ef_qd+ef_qmd, ipd, solver)
+            call polarization(e_m2d+ef_qmd, ipd, solver)
             !write(6, *) "Called polarization"
 
         end subroutine
@@ -203,11 +200,10 @@ module mod_interface
         subroutine restart() bind(c, name='restart')
             implicit none
 
-            v_qq   = 0.0_rp 
-            ef_qd  = 0.0_rp
-            dv_qq  = 0.0_rp
-            def_qd = 0.0_rp
-            ipd    = 0.0_rp
+            v_m2m = 0.0_rp 
+            e_m2m = 0.0_rp
+            egrd_m2m = 0.0_rp
+            e_m2d = 0.0_rp
 
         end subroutine
 

@@ -56,6 +56,9 @@ module mod_mmpol
 
     ! allocatable arrays which describe the polarizable system
     
+    real(rp), allocatable :: thole(:)
+    !! array to store the thole factors for computing damping functions
+    
     real(rp), allocatable, target :: cmm(:,:)
     !! Coordinates of MM atoms (3:mm_atoms)
     
@@ -74,6 +77,7 @@ module mod_mmpol
     
     real(rp), allocatable, target :: ipd(:,:,:)
     !! induced point dipoles (3:pol_atoms:ipd) 
+    logical :: ipd_done
     
     real(rp), allocatable :: pol(:)
     !! Polarizabilities for each polarizable atom
@@ -117,32 +121,15 @@ module mod_mmpol
     ! then removed.
 
     ! scalars and arrays for various useful intermediates and results
-    
-    real(rp) :: e_ele, e_pol, e_qd, e_dd
-    !! electrostatic and polarization energies, including 
-    !! their breakdown into contributoins
 
-    real(rp), allocatable :: v_qq(:,:)
+    real(rp), allocatable :: V_M2M(:), E_M2M(:,:), Egrd_M2M(:,:)
     !! potential of MM permanent multipoles at MM sites; 
     !! shaped (ld_cart, mm_atoms).
-    real(rp), allocatable :: dv_qq(:,:)
-    !! derivative of v_qq TODO; shaped (ld_cder, mm_atoms)
+    logical :: M2M_done
   
-    real(rp), allocatable :: ef_qd(:,:,:)
+    real(rp), allocatable :: E_M2D(:,:,:)
     !! electric field of MM permanent multipoles at POL sites; 
-    !! shaped (3, pol_atoms, n_ipd)
-    real(rp), allocatable :: def_qd(:,:,:)
-    !! derivative of ef_qd TODO; shaped (3, pol_atoms, n_ipd)
-  
-    real(rp), allocatable :: v_dq(:,:), dv_dq(:,:)
-    !! potential (and higher order terms) of the induced point 
-    !! dipoles at the charges (multipoles) and its derivatives
-    
-    real(rp), allocatable :: ef_dd(:,:,:), def_dd(:,:,:)
-    !! field of the ipd at the ipd and its derivatives
-    
-    real(rp), allocatable :: thole(:)
-    !! array to store the thole factors for computing damping functions
+    logical :: M2D_done
     
     contains
 
@@ -207,8 +194,11 @@ module mod_mmpol
         call mallocate('mmpol_init [polar_mm]', pol_atoms, polar_mm)
         call mallocate('mmpol_init [mm_polar]', mm_atoms, mm_polar)
         call mallocate('mmpol_init [thole]', mm_atoms, thole)
+        
         call mallocate('mmpol_init [idp]', 3_ip, pol_atoms, n_ipd, ipd) 
+        ipd_done = .false.
         ipd = 0.0_rp
+
         allocate(conn(1)) 
         ! Temporary allocation, it should be allocated of the proper
         ! size when all the connectivity matricies are built, now
@@ -227,24 +217,17 @@ module mod_mmpol
             call mallocate('mmpol_init [iz]', mm_atoms, iz)
         end if
   
-        call mallocate('mmpol_init [v_qq]', ld_cart, mm_atoms, v_qq)
-        v_qq = 0.0_rp
-        call mallocate('mmpol_init [dv_qq]', ld_cder, mm_atoms, dv_qq)
-        dv_qq = 0.0_rp
-        
-        call mallocate('mmpol_init [v_dq]', ld_cart, mm_atoms, v_dq)
-        v_dq = 0.0_rp
-        call mallocate('mmpol_init [dv_dq]', ld_cder, mm_atoms, dv_dq)
-        dv_dq = 0.0_rp
-        call mallocate('mmpol_init [ef_qd]', 3_ip, pol_atoms, n_ipd, ef_qd)
-        ef_qd = 0.0_rp
-        call mallocate('mmpol_init [def_qd]', 3_ip, pol_atoms, n_ipd, def_qd)
-        def_qd = 0.0_rp
-        
-        call mallocate('mmpol_init [ef_dd]', 3_ip, pol_atoms, n_ipd, ef_dd)
-        ef_dd = 0.0_rp
-        call mallocate('mmpol_init [def_dd]', 6_ip, pol_atoms, n_ipd, def_dd)
-        def_dd = 0.0_rp
+        call mallocate('mmpol_init [V_M2M]', mm_atoms, V_M2M)
+        call mallocate('mmpol_init [E_M2M]', 3, mm_atoms, E_M2M)
+        call mallocate('mmpol_init [Egrd_M2M]', 6, mm_atoms, Egrd_M2M)
+        M2M_done = .false.
+        V_M2M = 0.0_rp
+        E_M2M = 0.0_rp
+        Egrd_M2M = 0.0_rp
+
+        call mallocate('mmpol_init [E_M2D]', 3, pol_atoms, n_ipd, E_M2D)
+        M2D_done = .false.
+        E_M2D = 0.0_rp
 
     end subroutine mmpol_init
 
@@ -344,14 +327,10 @@ module mod_mmpol
         call mfree('mmpol_terminate [mm_polar]', mm_polar)
         call mfree('mmpol_terminate [thole]', thole)
         call mfree('mmpol_terminate [idp]', ipd) 
-        call mfree('mmpol_terminate [v_qq]', v_qq)
-        call mfree('mmpol_terminate [ef_qd]', ef_qd)
-        call mfree('mmpol_terminate [dv_qq]',  dv_qq)
-        call mfree('mmpol_terminate [def_qd]', def_qd)
-        call mfree('mmpol_terminate [v_dq]', v_dq)
-        call mfree('mmpol_terminate [ef_dd]', ef_dd)
-        call mfree('mmpol_terminate [dv_dq]', dv_dq)
-        call mfree('mmpol_terminate [def_dd]', def_dd)
+        call mfree('mmpol_terminate [V_M2M]', V_M2M)
+        call mfree('mmpol_terminate [E_M2M]', E_M2M)
+        call mfree('mmpol_terminate [Egrd_M2M]', Egrd_M2M)
+        call mfree('mmpol_terminate [E_M2D]', E_M2D)
         
         do i=1, size(conn)
             call matfree(conn(i))
