@@ -6,9 +6,70 @@ module mod_electrostatics
 
     public :: screening_rules, field_M2D, field_extD2D, &
               potential_M2M, potential_field_fieldgr_M2M
-    public :: damped_coulomb_kernel
+    public :: damped_coulomb_kernel, energy_MM_MM
 
     contains
+
+    subroutine energy_MM_MM(ene)
+        !! This function computes the interaction energy of 
+        !! static electric multipoles
+        use mod_mmpol, only: amoeba, q, mm_atoms
+        use mod_memory, only: mallocate, mfree
+
+        implicit none
+
+        real(rp), intent(inout) :: ene
+        !! Energy (results will be added)
+        real(rp), allocatable :: V(:), E(:,:), grdE(:,:)
+        real(rp) :: eMM
+
+        integer(ip) :: i
+
+        eMM = 0.0
+
+        if(amoeba) then
+            call mallocate('energy_MM_MM', mm_atoms, V)
+            call mallocate('energy_MM_MM', 3, mm_atoms, E)
+            call mallocate('energy_MM_MM', 6, mm_atoms, grdE)
+            
+            V = 0.0
+            E = 0.0
+            grdE = 0.0
+            call potential_field_fieldgr_M2M(V, E, grdE)
+
+            eMM = eMM + dot_product(q(1,:), V)
+            do i=1, 3
+                eMM = eMM - dot_product(q(i+1,:), E(i,:))
+            end do
+
+            do i=1,6
+                if(i == 1 .or. i == 3 .or. i == 6) then
+                    ! diagonal elements
+                    eMM = eMM + dot_product(q(i+4,:), grdE(i,:))
+                else
+                    ! off-diagonal elements (are stored once, but 
+                    ! should be counted twice
+                    eMM = eMM + 2.0 * dot_product(q(i+4,:), grdE(i,:))
+                end if
+            end do
+        else
+            call mallocate('energy_MM_MM', mm_atoms, V)
+            
+            V = 0.0
+            call potential_M2M(V)
+            
+            eMM = eMM + dot_product(q(1,:), V)
+        end if
+
+        ! Since potential is computed using all the sites each 
+        ! interaction is counted twice
+        ene = ene + 0.5_rp * eMM
+
+        if(allocated(V)) call mfree('energy_MM_MM', V)
+        if(allocated(E)) call mfree('energy_MM_MM', E)
+        if(allocated(grdE)) call mfree('energy_MM_MM', grdE)
+    
+    end subroutine energy_MM_MM
 
     subroutine coulomb_kernel(dr, maxder, res)
         !! This function compute the coulomb kernel for the distance vector dr and 

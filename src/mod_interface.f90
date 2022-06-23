@@ -213,12 +213,16 @@ module mod_interface
 
         subroutine get_energy(EMM,EPol) bind(c, name='get_energy')
             ! Get the energy
+            use mod_electrostatics, only: energy_MM_MM
+            use mod_polarization, only: energy_MM_pol
 
             implicit none
             real(kind=rp), intent(out) :: EMM, EPol
 
-            call energy(0_ip,EMM)
-            call energy(1_ip,EPol)
+            emm = 0.0_rp
+            epol = 0.0_rp
+            call energy_MM_MM(emm)
+            call energy_MM_pol(epol)
 
         end subroutine
 

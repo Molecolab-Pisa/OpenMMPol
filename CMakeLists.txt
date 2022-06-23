@@ -23,7 +23,6 @@ add_library(openmmpol SHARED
             src/mod_mmpol.f90
             src/mod_polarization.f90
             src/mod_solvers.f90
-            src/energy.f90
             src/rotate_multipoles.f90)
 
 # LAPACK

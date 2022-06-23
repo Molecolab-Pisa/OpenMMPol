@@ -42,9 +42,48 @@ module mod_polarization
     !! Interaction tensor, only allocated for the methods that explicitly 
     !! requires it.
 
-    public :: polarization
+    public :: polarization, energy_MM_pol
     
     contains
+    
+    subroutine energy_MM_pol(ene)
+        !! This function computes the interaction energy of 
+        !! static electric multipoles
+        use mod_mmpol, only: amoeba, ipd, pol_atoms, n_ipd
+        use mod_memory, only: mallocate, mfree
+        use mod_electrostatics, only: field_M2D
+        use mod_constants, only: OMMP_AMOEBA_D, OMMP_AMOEBA_P
+
+        implicit none
+
+        real(rp), intent(inout) :: ene
+        !! Energy (results will be added)
+        real(rp), allocatable :: E(:,:,:)
+        real(rp) :: eMM
+
+        integer(ip) :: i
+
+        eMM = 0.0
+        
+        call mallocate('energy_MM_pol', 3, pol_atoms, n_ipd, E)
+        E = 0.0
+        call field_M2D(E)
+
+        if(amoeba) then
+            do i=1, 3
+                eMM = eMM - dot_product(ipd(i,:,OMMP_AMOEBA_D), &
+                                        E(i,:,OMMP_AMOEBA_P))
+            end do
+        else
+            do i=1, 3
+                eMM = eMM - dot_product(ipd(i,:,1), E(i,:,1))
+            end do
+        end if
+
+        ! Since potential is computed using all the sites each 
+        ! interaction is counted twice
+        ene = ene + 0.5_rp * eMM
+    end subroutine energy_MM_pol
     
     subroutine polarization(e, ipds, arg_solver, arg_mvmethod)
         !! Main driver for the calculation of induced dipoles. 
