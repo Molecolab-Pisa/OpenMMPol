@@ -152,8 +152,8 @@ module mod_interface
             ! Perform the MM-only calculations of pot and field
             ! and return EMM
             use mod_io, only: print_matrix
-            use mod_electrostatics, only: new_field_M2D, new_potential_M2M, &
-                                          new_potential_field_fieldgr_M2M
+            use mod_electrostatics, only: field_M2D, potential_M2M, &
+                                          potential_field_fieldgr_M2M
             
             implicit none
   
@@ -164,22 +164,15 @@ module mod_interface
             def_qd = 0.0_rp
     
             if(amoeba) then
-                !call electrostatics(0_ip,0_ip,0_ip,v_qq,ef_qd,dv_qq,def_qd)
-                v_qq = 0.0_rp
-                call new_potential_field_fieldgr_M2M(v_qq(1,:), &
-                                                     v_qq(2:4,:), &
-                                                     v_qq(5:10,:))
+                call potential_field_fieldgr_M2M(v_qq(1,:), &
+                                                 v_qq(2:4,:), &
+                                                 v_qq(5:10,:))
 
             else
-                call new_potential_M2M(v_qq)
+                call potential_M2M(v_qq)
             end if
 
-            !  call print_matrix(.true.,'VMM:',mm_atoms,ld_cart,mm_atoms,ld_cart,transpose(v_qq))               
-            !call print_matrix(.true.,'EMM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,1)))               
-            !call print_matrix(.true.,'EMM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,2)))               
-            call new_field_M2D(ef_qd)
-            ! call print_matrix(.true.,'EMM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,1)))               
-            ! call print_matrix(.true.,'EMM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qd(:,:,2)))               
+            call field_M2D(ef_qd)
 
         end subroutine 
 

@@ -4,13 +4,13 @@ module mod_electrostatics
     implicit none 
     private
 
-    public :: screening_rules, new_field_M2D, new_field_extD2D, &
-              new_potential_M2M, new_potential_field_fieldgr_M2M
-    public :: new_damped_coulomb_kernel
+    public :: screening_rules, field_M2D, field_extD2D, &
+              potential_M2M, potential_field_fieldgr_M2M
+    public :: damped_coulomb_kernel
 
     contains
 
-    subroutine new_coulomb_kernel(dr, maxder, res)
+    subroutine coulomb_kernel(dr, maxder, res)
         !! This function compute the coulomb kernel for the distance vector dr and 
         !! its derivative up to the value required by maxder.
         use mod_memory, only: ip, rp
@@ -40,9 +40,9 @@ module mod_electrostatics
             res(ii+1) = res(ii) * inv_norm_sq
         end do
         
-    end subroutine new_coulomb_kernel
+    end subroutine coulomb_kernel
 
-    subroutine new_damped_coulomb_kernel(i, j, maxder, res, dr)
+    subroutine damped_coulomb_kernel(i, j, maxder, res, dr)
         !! This subroutine computes the damped coulomb kernel between two atoms.
         !! Note that this only makes sense between two MM atoms, as it is only used
         !! to compute the field that induces the point dipoles!
@@ -69,7 +69,7 @@ module mod_electrostatics
         
         ! Compute undamped kernels
         dr = cmm(:,j) - cmm(:,i)
-        call new_coulomb_kernel(dr, maxder, res)
+        call coulomb_kernel(dr, maxder, res)
 
         if(abs(s) < eps_rp) then
             ! either thole(i) or thole(j) are zero, so the damped kernel
@@ -108,7 +108,7 @@ module mod_electrostatics
                 call fatal_error("Damped Coulomb kernel (WANG) only supports up to the 4th derivative")
             end if
         end if
-    end subroutine new_damped_coulomb_kernel
+    end subroutine damped_coulomb_kernel
 
     subroutine q_V(q, dr, kernel, V)
         !! Computes the electric potential of a charge \(q\) at position
@@ -327,7 +327,7 @@ module mod_electrostatics
                           15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(3)*dr(3))
     end subroutine quad_grdE
   
-    subroutine new_potential_field_fieldgr_M2M(V, E, Egr)
+    subroutine potential_field_fieldgr_M2M(V, E, Egr)
         !! Computes the electric potential, field and field gradients of 
         !! static multipoles at all sites (polarizable sites are a 
         !! subset of static ones)
@@ -357,7 +357,7 @@ module mod_electrostatics
                     
                     if(to_do) then
                         dr = cmm(:,j) - cmm(:, i)
-                        call new_coulomb_kernel(dr, 4, kernel)
+                        call coulomb_kernel(dr, 4, kernel)
                         
                         tmpV = 0.0_rp
                         tmpE = 0.0_rp
@@ -399,7 +399,7 @@ module mod_electrostatics
                     
                     if(to_do) then
                         dr = cmm(:,j) - cmm(:, i)
-                        call new_coulomb_kernel(dr, 3, kernel)
+                        call coulomb_kernel(dr, 3, kernel)
                         
                         tmpV = 0.0_rp
                         tmpE = 0.0_rp
@@ -423,9 +423,9 @@ module mod_electrostatics
                 end do
             end do
         end if
-    end subroutine new_potential_field_fieldgr_M2M
+    end subroutine potential_field_fieldgr_M2M
     
-    subroutine new_potential_M2M(V)
+    subroutine potential_M2M(V)
         !! Computes the electric potential of static multipoles at all sites
         !! (polarizable sites are a subset of static ones)
         use mod_mmpol, only: amoeba, mm_atoms, cmm, q
@@ -449,7 +449,7 @@ module mod_electrostatics
                     
                     if(to_do) then
                         dr = cmm(:,j) - cmm(:, i)
-                        call new_coulomb_kernel(dr, 2, kernel)
+                        call coulomb_kernel(dr, 2, kernel)
                         
                         tmpV = 0.0_rp
                         call q_V(q(1,i), dr, kernel, tmpV)
@@ -476,7 +476,7 @@ module mod_electrostatics
                     
                     if(to_do) then
                         dr = cmm(:,j) - cmm(:, i)
-                        call new_coulomb_kernel(dr, 0, kernel)
+                        call coulomb_kernel(dr, 0, kernel)
                         
                         tmpV = 0.0_rp
                         call q_V(q(1,i), dr, kernel, tmpV)
@@ -492,9 +492,9 @@ module mod_electrostatics
             end do
         end if
         
-    end subroutine new_potential_M2M
+    end subroutine potential_M2M
 
-    subroutine new_field_extD2D(E, ext_ipd)
+    subroutine field_extD2D(E, ext_ipd)
         !! Computes the electric field of a trial set of induced point dipoles
         !! at polarizable sites. This is intended to be used as matrix-vector
         !! routine in the solution of the linear system.
@@ -520,8 +520,8 @@ module mod_electrostatics
                                      to_do, to_scale, scalf)
                 
                 if(to_do) then
-                    call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j),& 
-                                                   2, kernel(1:3), dr)
+                    call damped_coulomb_kernel(polar_mm(i), polar_mm(j),& 
+                                               2, kernel(1:3), dr)
                     
                     tmpE = 0.0_rp
 
@@ -534,9 +534,9 @@ module mod_electrostatics
                 end if
             end do
         end do
-    end subroutine new_field_extD2D
+    end subroutine field_extD2D
 
-    subroutine new_field_D2D(E)
+    subroutine field_D2D(E)
         !! Computes the electric field of indued dipoles at induced dipoles
         !! sites.
         
@@ -549,14 +549,14 @@ module mod_electrostatics
         !! Electric field (results will be added)
 
         if(amoeba) then
-            call new_field_extD2D(E(:,:,OMMP_AMOEBA_P), ipd(:,:,OMMP_AMOEBA_P))
-            call new_field_extD2D(E(:,:,OMMP_AMOEBA_D), ipd(:,:,OMMP_AMOEBA_D))
+            call field_extD2D(E(:,:,OMMP_AMOEBA_P), ipd(:,:,OMMP_AMOEBA_P))
+            call field_extD2D(E(:,:,OMMP_AMOEBA_D), ipd(:,:,OMMP_AMOEBA_D))
         else
-            call new_field_extD2D(E(:,:,1), ipd(:,:,1))
+            call field_extD2D(E(:,:,1), ipd(:,:,1))
         end if
-    end subroutine new_field_D2D
+    end subroutine field_D2D
     
-    subroutine new_field_M2D(E)
+    subroutine field_M2D(E)
         !! Computes the electric field of static multipoles at induced dipoles
         !! sites. This is only intended to be used to build the RHS of the 
         !! linear system. This field is modified by the indroduction of the 
@@ -586,7 +586,7 @@ module mod_electrostatics
                                          to_do_d, to_scale_d, scalf_d)
                     
                     if(to_do_p .or. to_do_d) then
-                        call new_damped_coulomb_kernel(i, polar_mm(j), 3, kernel(1:4), dr)
+                        call damped_coulomb_kernel(i, polar_mm(j), 3, kernel(1:4), dr)
                         
                         tmpE = 0.0_rp
                         call q_E(q(1,i), dr, kernel, tmpE)
@@ -620,7 +620,7 @@ module mod_electrostatics
                     call screening_rules(i, 'S', j, 'P', 'P', &
                                          to_do, to_scale, scalf)
                     if(to_do) then
-                        call new_damped_coulomb_kernel(i, polar_mm(j), 1, kernel(1:2), dr)
+                        call damped_coulomb_kernel(i, polar_mm(j), 1, kernel(1:2), dr)
                         
                         tmpE = 0.0_rp
                         call q_E(q(1,i), dr, kernel, tmpE)
@@ -634,7 +634,7 @@ module mod_electrostatics
             end do
         end if
 
-    end subroutine new_field_M2D
+    end subroutine field_M2D
 
     subroutine screening_rules(i, kind_i, j, kind_j, in_field, &
                                tocompute, toscale, scalf)

@@ -259,10 +259,8 @@ module mod_polarization
         !! This subroutine compute the interaction tensor (rank 3) between
         !! two polarizable sites i and j.
         !! This tensor is built according to the following rules: ... TODO
-        use mod_mmpol, only : thole, cpol, pol, polar_mm, conn, &
-                              amoeba, uscale, fatal_error
-        use mod_constants, only : eps_rp
-        use mod_electrostatics, only: screening_rules, new_damped_coulomb_kernel
+        use mod_mmpol, only : pol, polar_mm, fatal_error
+        use mod_electrostatics, only: screening_rules, damped_coulomb_kernel
 
         implicit none
         !                      
@@ -296,8 +294,8 @@ module mod_polarization
         else
             call screening_rules(i, 'P', j, 'P', '-', to_do, to_scale, scalf)
             if(to_do) then
-                call new_damped_coulomb_kernel(polar_mm(i), polar_mm(j), &
-                                               2, kernel, dr)
+                call damped_coulomb_kernel(polar_mm(i), polar_mm(j), &
+                                           2, kernel, dr)
                 ! Fill the matrix elemets
                 do ii=1, 3
                     do jj=1, 3
@@ -385,7 +383,7 @@ module mod_polarization
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
-        use mod_electrostatics, only: new_field_extD2D
+        use mod_electrostatics, only: field_extD2D
         use mod_mmpol, only: pol_atoms
         implicit none
         
@@ -398,7 +396,7 @@ module mod_polarization
         !! skipped)
         
         y = 0.0_rp
-        call new_field_extD2D(y, x)
+        call field_extD2D(y, x)
         y = -1.0_rp * y ! Why? TODO
         if(dodiag) call TMatVec_diag(x, y)
     
