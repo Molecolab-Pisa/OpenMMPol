@@ -200,12 +200,16 @@ module mod_electrostatics
         end if
     end subroutine damped_coulomb_kernel
 
-    subroutine q_V(q, dr, kernel, V)
+    subroutine q_elec_prop(q, dr, kernel, &
+                           do_V, V, do_E, E, do_grdE, grdE, do_HE, HE)
+        !! TODO
         !! Computes the electric potential of a charge \(q\) at position
         !! \(\mathbf{dr}\) from the charge itself. Pre-computed kernel should
-        !! be provided as input. TODO
+        !! be provided as input. 
         !! The result is added to \(V\).
         !! $$ V_q = q \frac{f(r)}{||\mathbf{dr}||} $$
+        use mod_mmpol, only: fatal_error
+
         implicit none
 
         real(rp), intent(in) :: q
@@ -214,55 +218,47 @@ module mod_electrostatics
         !! Distance vector
         real(rp), intent(in) :: kernel(:)
         !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: V
+        logical, intent(in) :: do_V, do_E, do_grdE, do_HE
+        !! Flags to enable/disable calculation of different electrostatic 
+        !! properties
+        real(rp), intent(out) :: V, E(3), grdE(6), HE(9)
         !! Electric potential
+        
+        if(do_V) then
+            V =  V + kernel(1) * q
+        end if
+        
+        if(do_E) then
+            E = E + q * kernel(2) * dr
+        end if
 
-        V =  V + kernel(1) * q
-    end subroutine q_V
+        if(do_grdE) then
+            ! xx
+            grdE(1) = grdE(1) + q * 3.0_rp * kernel(3) * dr(1) * dr(1) - q * kernel(2)
+            ! xy
+            grdE(2) = grdE(2) + q * 3.0_rp * kernel(3) * dr(1) * dr(2)
+            ! yy
+            grdE(3) = grdE(3) + q * 3.0_rp * kernel(3) * dr(2) * dr(2) - q * kernel(2)
+            ! xz
+            grdE(4) = grdE(4) + q * 3.0_rp * kernel(3) * dr(1) * dr(3)
+            ! yz
+            grdE(5) = grdE(5) + q * 3.0_rp * kernel(3) * dr(2) * dr(3)
+            ! zz
+            grdE(6) = grdE(6) + q * 3.0_rp * kernel(3) * dr(3) * dr(3) - q * kernel(2)
+        end if
 
-    subroutine q_E(q, dr, kernel, E)
-        implicit none
+        if(do_HE) then
+            HE = 0.0
+            call fatal_error("Field Hessian not implemented")
+        end if
 
-        real(rp), intent(in) :: q
-        !! Charge
-        real(rp), intent(in) :: dr(3)
-        !! Distance vector
-        real(rp), intent(in) :: kernel(:)
-        !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: E(3)
-        !! Electric field
+    end subroutine q_elec_prop
+    
+    subroutine mu_elec_prop(mu, dr, kernel, &
+                            do_V, V, do_E, E, do_grdE, grdE, do_HE, HE)
+        
+        use mod_mmpol, only: fatal_error
 
-        E = E + q * kernel(2) * dr
-    end subroutine q_E
-
-    subroutine q_grdE(q, dr, kernel, grdE)
-        implicit none
-
-        real(rp), intent(in) :: q
-        !! Charge
-        real(rp), intent(in) :: dr(3)
-        !! Distance vector
-        real(rp), intent(in) :: kernel(:)
-        !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: grdE(6)
-        !! Electric field gradient (results will be added)
-
-        ! xx
-        grdE(1) = grdE(1) + q * 3.0_rp * kernel(3) * dr(1) * dr(1) - q * kernel(2)
-        ! xy
-        grdE(2) = grdE(2) + q * 3.0_rp * kernel(3) * dr(1) * dr(2)
-        ! yy
-        grdE(3) = grdE(3) + q * 3.0_rp * kernel(3) * dr(2) * dr(2) - q * kernel(2)
-        ! xz
-        grdE(4) = grdE(4) + q * 3.0_rp * kernel(3) * dr(1) * dr(3)
-        ! yz
-        grdE(5) = grdE(5) + q * 3.0_rp * kernel(3) * dr(2) * dr(3)
-        ! zz
-        grdE(6) = grdE(6) + q * 3.0_rp * kernel(3) * dr(3) * dr(3) - q * kernel(2)
-
-    end subroutine q_grdE
-
-    subroutine mu_V(mu, dr, kernel, V)
         implicit none
 
         real(rp), intent(in) :: mu(3)
@@ -271,118 +267,70 @@ module mod_electrostatics
         !! Distance vector
         real(rp), intent(in) :: kernel(:)
         !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: V
-        !! Electric potential (result will be added)
-
-        V = V + dot_product(mu, dr) * kernel(2)
-    end subroutine mu_V
-
-    subroutine mu_E(mu, dr, kernel, E)
-        implicit none
-
-        real(rp), intent(in) :: mu(3)
-        !! Point dipole
-        real(rp), intent(in) :: dr(3)
-        !! Distance vector
-        real(rp), intent(in) :: kernel(:)
-        !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: E(3)
-        !! Electric potential (result will be added)
-
-        E = E + 3.0_rp * dot_product(mu, dr) * dr * kernel(3) - mu * kernel(2)
-    end subroutine mu_E
-
-    subroutine mu_grdE(mu, dr, kernel, grdE)
-        implicit none
-
-        real(rp), intent(in) :: mu(3)
-        !! Point dipole
-        real(rp), intent(in) :: dr(3)
-        !! Distance vector
-        real(rp), intent(in) :: kernel(:)
-        !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: grdE(6)
-        !! Electric field gradient (results will be added)
-
+        logical, intent(in) :: do_V, do_E, do_grdE, do_HE
+        !! Flags to enable/disable calculation of different electrostatic 
+        !! properties
+        real(rp), intent(out) :: V, E(3), grdE(6), HE(9)
+        !! Electric potential
+        
         real(rp) :: mu_dot_dr
-
+        
         mu_dot_dr = dot_product(mu, dr)
 
-        ! xx
-        grdE(1) = grdE(1) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(1) - &
-                          (mu_dot_dr + 2.0 * mu(1) * dr(1)) * 3.0 * kernel(3)
-        ! xy
-        grdE(2) = grdE(2) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(2) - &
-                          (mu(1)*dr(2) + mu(2)*dr(1)) * 3.0 * kernel(3)
-        ! yy
-        grdE(3) = grdE(3) + mu_dot_dr * kernel(4) * 15.0 * dr(2) * dr(2) - &
-                          (mu_dot_dr + 2.0 * mu(2) * dr(2)) * 3.0 * kernel(3)
-        ! xz
-        grdE(4) = grdE(4) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(3) - &
-                          (mu(1)*dr(3) + mu(3)*dr(1)) * 3.0 * kernel(3)
-        ! yz
-        grdE(5) = grdE(5) + mu_dot_dr * kernel(4) * 15.0 * dr(2) * dr(3) - &
-                          (mu(2)*dr(3) + mu(3)*dr(2)) * 3.0 * kernel(3)
-        ! zz
-        grdE(6) = grdE(6) + mu_dot_dr * kernel(4) * 15.0 * dr(3) * dr(3) - &
-                          (mu_dot_dr + 2.0 * mu(3) * dr(3)) * 3.0 * kernel(3)
-    end subroutine mu_grdE
-
-    subroutine quad_V(quad, dr, kernel, V)
-        implicit none
-
-        real(rp), intent(in) :: quad(6)
-        !! point quadrupole stored as (xx, xy, yy, xz, yz, zz)
-        real(rp), intent(in) :: dr(3)
-        !! Distance vector
-        real(rp), intent(in) :: kernel(:)
-        !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: V
-        !! Eectric potential
-
-        real(rp) :: quadxr(3)
-
-        quadxr(1) = quad(1)*dr(1) + quad(2)*dr(2) + quad(4)*dr(3)
-        quadxr(2) = quad(2)*dr(1) + quad(3)*dr(2) + quad(5)*dr(3)
-        quadxr(3) = quad(4)*dr(1) + quad(5)*dr(2) + quad(6)*dr(3)
-
-        V = V + 3.0_rp * dot_product(quadxr, dr) * kernel(3)
-    end subroutine quad_V
-
-    subroutine quad_E(quad, dr, kernel, E)
-        implicit none
-
-        real(rp), intent(in) :: quad(6)
-        !! point quadrupole stored as (xx, xy, yy, xz, yz, zz)
-        real(rp), intent(in) :: dr(3)
-        !! Distance vector
-        real(rp), intent(in) :: kernel(:)
-        !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: E(3)
-        !! Electric potential
-
-        real(rp) :: quadxr(3)
-
-        quadxr(1) = quad(1)*dr(1) + quad(2)*dr(2) + quad(4)*dr(3)
-        quadxr(2) = quad(2)*dr(1) + quad(3)*dr(2) + quad(5)*dr(3)
-        quadxr(3) = quad(4)*dr(1) + quad(5)*dr(2) + quad(6)*dr(3)
-
-        E = E + 15.0_rp * dot_product(quadxr, dr) * dr * kernel(4) &
-            - 6.0_rp * quadxr * kernel(3)
-    end subroutine quad_E
-
-    subroutine quad_grdE(quad, dr, kernel, grdE)
-        implicit none
+        if(do_V) then
+            V = V + mu_dot_dr * kernel(2)
+        end if
         
+        if(do_E) then
+            E = E + 3.0_rp * mu_dot_dr * dr * kernel(3) - mu * kernel(2)
+        end if
+
+        if(do_grdE) then
+            ! xx
+            grdE(1) = grdE(1) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(1) - &
+                              (mu_dot_dr + 2.0 * mu(1) * dr(1)) * 3.0 * kernel(3)
+            ! xy
+            grdE(2) = grdE(2) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(2) - &
+                              (mu(1)*dr(2) + mu(2)*dr(1)) * 3.0 * kernel(3)
+            ! yy
+            grdE(3) = grdE(3) + mu_dot_dr * kernel(4) * 15.0 * dr(2) * dr(2) - &
+                              (mu_dot_dr + 2.0 * mu(2) * dr(2)) * 3.0 * kernel(3)
+            ! xz
+            grdE(4) = grdE(4) + mu_dot_dr * kernel(4) * 15.0 * dr(1) * dr(3) - &
+                              (mu(1)*dr(3) + mu(3)*dr(1)) * 3.0 * kernel(3)
+            ! yz
+            grdE(5) = grdE(5) + mu_dot_dr * kernel(4) * 15.0 * dr(2) * dr(3) - &
+                              (mu(2)*dr(3) + mu(3)*dr(2)) * 3.0 * kernel(3)
+            ! zz
+            grdE(6) = grdE(6) + mu_dot_dr * kernel(4) * 15.0 * dr(3) * dr(3) - &
+                              (mu_dot_dr + 2.0 * mu(3) * dr(3)) * 3.0 * kernel(3)
+        end if
+
+        if(do_HE) then
+            HE = 0.0
+            call fatal_error("Field Hessian not implemented")
+        end if
+    end subroutine mu_elec_prop
+    
+    subroutine quad_elec_prop(quad, dr, kernel, &
+                              do_V, V, do_E, E, do_grdE, grdE, do_HE, HE)
+        
+        use mod_mmpol, only: fatal_error
+
+        implicit none
+
         real(rp), intent(in) :: quad(6)
         !! point quadrupole stored as (xx, xy, yy, xz, yz, zz)
         real(rp), intent(in) :: dr(3)
         !! Distance vector
         real(rp), intent(in) :: kernel(:)
         !! Array of coulomb kernel (either damped or undamped)
-        real(rp), intent(out) :: grdE(6)
-        !! Electric field gradient (results will be added)
-
+        logical, intent(in) :: do_V, do_E, do_grdE, do_HE
+        !! Flags to enable/disable calculation of different electrostatic 
+        !! properties
+        real(rp), intent(out) :: V, E(3), grdE(6), HE(9)
+        !! Electric potential
+        
         real(rp) :: quadxr(3), quadxr_dot_r
 
         quadxr(1) = quad(1)*dr(1) + quad(2)*dr(2) + quad(4)*dr(3)
@@ -391,32 +339,48 @@ module mod_electrostatics
 
         quadxr_dot_r = dot_product(quadxr, dr)
 
-        ! xx
-        grdE(1) = grdE(1) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(1) + &
-                          6.0 * kernel(3) * quad(1) - &
-                          15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(1)*dr(1))
-        ! xy
-        grdE(2) = grdE(2) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(2) + &
-                          6.0 * kernel(3) * quad(2) - &
-                          30.0*kernel(4)*(quadxr(1)*dr(2)+quadxr(2)*dr(1))
-        ! yy
-        grdE(3) = grdE(3) + 105.0 * kernel(5) * quadxr_dot_r * dr(2)*dr(2) + &
-                          6.0 * kernel(3) * quad(3) - &
-                          15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(2)*dr(2))
-        ! xz
-        grdE(4) = grdE(4) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(3) + &
-                          6.0 * kernel(3) * quad(4) - &
-                          30.0*kernel(4)*(quadxr(1)*dr(3)+quadxr(3)*dr(1))
-        ! yz
-        grdE(5) = grdE(5) + 105.0 * kernel(5) * quadxr_dot_r * dr(2)*dr(3) + &
-                          6.0 * kernel(3) * quad(5) - &
-                          30.0*kernel(4)*(quadxr(2)*dr(3)+quadxr(3)*dr(2))
-        ! zz
-        grdE(6) = grdE(6) + 105.0 * kernel(5) * quadxr_dot_r * dr(3)*dr(3) + &
-                          6.0 * kernel(3) * quad(6) - &
-                          15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(3)*dr(3))
-    end subroutine quad_grdE
-    
+        if(do_V) then
+            V = V + 3.0_rp * quadxr_dot_r * kernel(3)
+        end if
+        
+        if(do_E) then
+            E = E + 15.0_rp * quadxr_dot_r * dr * kernel(4) &
+                - 6.0_rp * quadxr * kernel(3)
+        end if
+
+        if(do_grdE) then
+            ! xx
+            grdE(1) = grdE(1) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(1) + &
+                              6.0 * kernel(3) * quad(1) - &
+                              15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(1)*dr(1))
+            ! xy
+            grdE(2) = grdE(2) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(2) + &
+                              6.0 * kernel(3) * quad(2) - &
+                              30.0*kernel(4)*(quadxr(1)*dr(2)+quadxr(2)*dr(1))
+            ! yy
+            grdE(3) = grdE(3) + 105.0 * kernel(5) * quadxr_dot_r * dr(2)*dr(2) + &
+                              6.0 * kernel(3) * quad(3) - &
+                              15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(2)*dr(2))
+            ! xz
+            grdE(4) = grdE(4) + 105.0 * kernel(5) * quadxr_dot_r * dr(1)*dr(3) + &
+                              6.0 * kernel(3) * quad(4) - &
+                              30.0*kernel(4)*(quadxr(1)*dr(3)+quadxr(3)*dr(1))
+            ! yz
+            grdE(5) = grdE(5) + 105.0 * kernel(5) * quadxr_dot_r * dr(2)*dr(3) + &
+                              6.0 * kernel(3) * quad(5) - &
+                              30.0*kernel(4)*(quadxr(2)*dr(3)+quadxr(3)*dr(2))
+            ! zz
+            grdE(6) = grdE(6) + 105.0 * kernel(5) * quadxr_dot_r * dr(3)*dr(3) + &
+                              6.0 * kernel(3) * quad(6) - &
+                              15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(3)*dr(3))
+        end if
+
+        if(do_HE) then
+            HE = 0.0
+            call fatal_error("Field Hessian not implemented")
+        end if
+    end subroutine quad_elec_prop
+
     subroutine prepare_M2M() 
         !! This function allocate and populate array of electrostatic 
         !! properties of static multipoles at static multipoles sites.
@@ -494,7 +458,7 @@ module mod_electrostatics
         !! Electric field gradients on MM sites, order [xx,xy,yy,xz,yz,zz]
         !! results will be added
 
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), scalf
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
         integer(ip) :: i, j
         logical :: to_do, to_scale
 
@@ -515,17 +479,23 @@ module mod_electrostatics
                         tmpE = 0.0_rp
                         tmpEgr = 0.0_rp
 
-                        call q_V(q(1,i), dr, kernel, tmpV)
-                        call mu_V(q(2:4,i), dr, kernel, tmpV)
-                        call quad_V(q(5:10,i), dr, kernel, tmpV)
+                        call q_elec_prop(q(1,i), dr, kernel, &
+                                         .true., tmpV, & 
+                                         .true., tmpE, &
+                                         .true., tmpEgr, &
+                                         .false., tmpHE)
 
-                        call q_E(q(1,i), dr, kernel, tmpE)
-                        call mu_E(q(2:4,i), dr, kernel, tmpE)
-                        call quad_E(q(5:10,i), dr, kernel, tmpE)
-                        
-                        call q_grdE(q(1,i), dr, kernel, tmpEgr)
-                        call mu_grdE(q(2:4,i), dr, kernel, tmpEgr)
-                        call quad_grdE(q(5:10,i), dr, kernel, tmpEgr)
+                        call mu_elec_prop(q(2:4,i), dr, kernel, &
+                                          .true., tmpV, & 
+                                          .true., tmpE, &
+                                          .true., tmpEgr, &
+                                          .false., tmpHE)
+
+                        call quad_elec_prop(q(5:10,i), dr, kernel, &
+                                          .true., tmpV, & 
+                                          .true., tmpE, &
+                                          .true., tmpEgr, &
+                                          .false., tmpHE)
 
                         if(to_scale) then
                             V(j) = V(j) + tmpV * scalf
@@ -557,9 +527,11 @@ module mod_electrostatics
                         tmpE = 0.0_rp
                         tmpEgr = 0.0_rp
 
-                        call q_V(q(1,i), dr, kernel, tmpV)
-                        call q_E(q(1,i), dr, kernel, tmpE)
-                        call q_grdE(q(1,i), dr, kernel, tmpEgr)
+                        call q_elec_prop(q(1,i), dr, kernel, &
+                                         .true., tmpV, &
+                                         .true., tmpE, &
+                                         .true., tmpEgr, &
+                                         .false., tmpHE)
 
                         if(to_scale) then
                             V(j) = V(j) + tmpV * scalf
@@ -586,7 +558,7 @@ module mod_electrostatics
         real(rp), intent(inout) :: V(mm_atoms)
         !! Potential on MM sites, results will be added
 
-        real(rp) :: kernel(3), dr(3), tmpV, scalf
+        real(rp) :: kernel(3), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
         integer(ip) :: i, j
         logical :: to_do, to_scale
 
@@ -604,9 +576,17 @@ module mod_electrostatics
                         call coulomb_kernel(dr, 2, kernel)
                         
                         tmpV = 0.0_rp
-                        call q_V(q(1,i), dr, kernel, tmpV)
-                        call mu_V(q(2:4,i), dr, kernel, tmpV)
-                        call quad_V(q(5:10,i), dr, kernel, tmpV)
+                        call q_elec_prop(q(1,i), dr, kernel, .true., tmpV, &
+                                         .false., tmpE, .false., tmpEgr, &
+                                         .false., tmpHE)
+                        
+                        call mu_elec_prop(q(2:4,i), dr, kernel, .true., tmpV, &
+                                          .false., tmpE, .false., tmpEgr, &
+                                          .false., tmpHE)
+                        
+                        call quad_elec_prop(q(5:10,i), dr, kernel, .true., tmpV, &
+                                          .false., tmpE, .false., tmpEgr, &
+                                          .false., tmpHE)
 
                         if(to_scale) then
                             V(j) = V(j) + tmpV * scalf
@@ -631,7 +611,9 @@ module mod_electrostatics
                         call coulomb_kernel(dr, 0, kernel)
                         
                         tmpV = 0.0_rp
-                        call q_V(q(1,i), dr, kernel, tmpV)
+                        call q_elec_prop(q(1,i), dr, kernel, .true., tmpV, &
+                                         .false., tmpE, .false., tmpEgr, &
+                                         .false., tmpHE)
 
                         if(to_scale) then
                             V(j) = V(j) + tmpV * scalf
@@ -662,7 +644,7 @@ module mod_electrostatics
 
         integer(ip) :: i, j
         logical :: to_scale, to_do
-        real(rp) :: kernel(5), dr(3), tmpE(3), scalf
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
 
         do i=1, pol_atoms
             do j=1, pol_atoms
@@ -677,7 +659,9 @@ module mod_electrostatics
                     
                     tmpE = 0.0_rp
 
-                    call mu_E(ext_ipd(:,i), dr, kernel, tmpE)
+                    call mu_elec_prop(ext_ipd(:,i), dr, kernel, .false., tmpV, &
+                                      .true., tmpE, .false., tmpEgr, & 
+                                      .false., tmpHE)
                     if(to_scale) then
                         E(:, j) = E(:, j) + tmpE * scalf
                     else
@@ -724,7 +708,8 @@ module mod_electrostatics
 
         integer(ip) :: i, j
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale
-        real(rp) :: kernel(5), dr(3), tmpE(3), scalf_p, scalf_d, scalf
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), &
+                    scalf_p, scalf_d, scalf
 
         if(amoeba) then
             do i=1, mm_atoms
@@ -741,9 +726,15 @@ module mod_electrostatics
                         call damped_coulomb_kernel(i, polar_mm(j), 3, kernel(1:4), dr)
                         
                         tmpE = 0.0_rp
-                        call q_E(q(1,i), dr, kernel, tmpE)
-                        call mu_E(q(2:4,i), dr, kernel, tmpE)
-                        call quad_E(q(5:10,i), dr, kernel, tmpE)
+                        call q_elec_prop(q(1,i), dr, kernel, .false., tmpV, &
+                                         .true., tmpE, .false., tmpEgr, & 
+                                         .false., tmpHE)
+                        call mu_elec_prop(q(2:4,i), dr, kernel, .false., tmpV, &
+                                          .true., tmpE, .false., tmpEgr, & 
+                                          .false., tmpHE)
+                        call quad_elec_prop(q(5:10,i), dr, kernel, .false., tmpV, &
+                                            .true., tmpE, .false., tmpEgr, & 
+                                            .false., tmpHE)
 
                         if(to_do_p) then
                             if(to_scale_p) then
@@ -775,7 +766,9 @@ module mod_electrostatics
                         call damped_coulomb_kernel(i, polar_mm(j), 1, kernel(1:2), dr)
                         
                         tmpE = 0.0_rp
-                        call q_E(q(1,i), dr, kernel, tmpE)
+                        call q_elec_prop(q(1,i), dr, kernel, .false., tmpV, &
+                                         .true., tmpE, .false., tmpEgr, &
+                                         .false., tmpHE)
                         if(to_scale) then
                             E(:, j, 1) = E(:, j, 1) + tmpE * scalf
                         else
@@ -787,6 +780,12 @@ module mod_electrostatics
         end if
 
     end subroutine field_M2D
+
+    !subroutine field_M2E(cpt, E)
+        !! This subroutine computes the electric field generated by the static
+        !! multipoles to a set of arbitrary coordinates, without applying
+        !! any screening rules.
+    !end subroutine field_M2E
 
     subroutine screening_rules(i, kind_i, j, kind_j, in_field, &
                                tocompute, toscale, scalf)
