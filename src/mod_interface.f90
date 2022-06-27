@@ -10,7 +10,7 @@ module mod_interface
     public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
     public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
     public :: get_polar_mm
-    public :: w_mmpol_init, do_mm, do_qmmm, restart, get_energy, &
+    public :: w_mmpol_init, do_mm, do_qmmm, get_energy, &
               write_hdf5
 
     contains
@@ -152,24 +152,12 @@ module mod_interface
             ! Perform the MM-only calculations of pot and field
             ! and return EMM
             use mod_io, only: print_matrix
-            use mod_electrostatics, only: field_M2D, potential_M2M, &
-                                          potential_field_fieldgr_M2M
+            use mod_electrostatics, only: prepare_M2M, prepare_M2D
             
             implicit none
   
-            ! Initialize variables
-            v_m2m   = 0.0_rp
-            e_m2m  = 0.0_rp
-            egrd_m2m  = 0.0_rp
-            e_m2d = 0.0_rp
-    
-            if(amoeba) then
-                call potential_field_fieldgr_M2M(v_m2m, e_m2m, egrd_m2m)
-            else
-                call potential_M2M(v_m2m)
-            end if
-
-            call field_M2D(e_m2d)
+            call prepare_M2M()
+            call prepare_M2D()
 
         end subroutine 
 
@@ -177,6 +165,7 @@ module mod_interface
         subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4,solver) bind(c, name='do_qmmm')
             ! Compute polarization and QM-MM energy
             use mod_polarization, only: polarization
+            use mod_electrostatics, only: e_m2d
 
             implicit none
             ! real(kind=rp), intent(in) :: v_qmm(ld_cart,mm_atoms), ef_qmd(3,pol_atoms,n_ipd)
@@ -197,20 +186,9 @@ module mod_interface
 
         end subroutine
 
-        subroutine restart() bind(c, name='restart')
-            implicit none
-
-            v_m2m = 0.0_rp 
-            e_m2m = 0.0_rp
-            egrd_m2m = 0.0_rp
-            e_m2d = 0.0_rp
-
-        end subroutine
-
         subroutine get_energy(EMM,EPol) bind(c, name='get_energy')
             ! Get the energy
-            use mod_electrostatics, only: energy_MM_MM
-            use mod_polarization, only: energy_MM_pol
+            use mod_electrostatics, only: energy_MM_MM, energy_MM_pol
 
             implicit none
             real(kind=rp), intent(out) :: EMM, EPol

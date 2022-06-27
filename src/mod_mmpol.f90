@@ -120,17 +120,6 @@ module mod_mmpol
     ! TODO those quantities could probably be used only at need and
     ! then removed.
 
-    ! scalars and arrays for various useful intermediates and results
-
-    real(rp), allocatable :: V_M2M(:), E_M2M(:,:), Egrd_M2M(:,:)
-    !! potential of MM permanent multipoles at MM sites; 
-    !! shaped (ld_cart, mm_atoms).
-    logical :: M2M_done
-  
-    real(rp), allocatable :: E_M2D(:,:,:)
-    !! electric field of MM permanent multipoles at POL sites; 
-    logical :: M2D_done
-    
     contains
 
     subroutine set_verbosity(v)
@@ -217,18 +206,6 @@ module mod_mmpol
             call mallocate('mmpol_init [iz]', mm_atoms, iz)
         end if
   
-        call mallocate('mmpol_init [V_M2M]', mm_atoms, V_M2M)
-        call mallocate('mmpol_init [E_M2M]', 3, mm_atoms, E_M2M)
-        call mallocate('mmpol_init [Egrd_M2M]', 6, mm_atoms, Egrd_M2M)
-        M2M_done = .false.
-        V_M2M = 0.0_rp
-        E_M2M = 0.0_rp
-        Egrd_M2M = 0.0_rp
-
-        call mallocate('mmpol_init [E_M2D]', 3, pol_atoms, n_ipd, E_M2D)
-        M2D_done = .false.
-        E_M2D = 0.0_rp
-
     end subroutine mmpol_init
 
     subroutine mmpol_prepare()
@@ -327,10 +304,6 @@ module mod_mmpol
         call mfree('mmpol_terminate [mm_polar]', mm_polar)
         call mfree('mmpol_terminate [thole]', thole)
         call mfree('mmpol_terminate [idp]', ipd) 
-        call mfree('mmpol_terminate [V_M2M]', V_M2M)
-        call mfree('mmpol_terminate [E_M2M]', E_M2M)
-        call mfree('mmpol_terminate [Egrd_M2M]', Egrd_M2M)
-        call mfree('mmpol_terminate [E_M2D]', E_M2D)
         
         do i=1, size(conn)
             call matfree(conn(i))

@@ -3,10 +3,21 @@ module mod_electrostatics
 
     implicit none 
     private
+    
+    real(rp), allocatable :: V_M2M(:), E_M2M(:,:), Egrd_M2M(:,:)
+    !! potential of MM permanent multipoles at MM sites; 
+    !! shaped (ld_cart, mm_atoms).
+    logical :: M2M_done
+  
+    real(rp), allocatable :: E_M2D(:,:,:)
+    !! electric field of MM permanent multipoles at POL sites; 
+    logical :: M2D_done
+    
 
-    public :: screening_rules, field_M2D, field_extD2D, &
-              potential_M2M, potential_field_fieldgr_M2M
-    public :: damped_coulomb_kernel, energy_MM_MM
+    public :: screening_rules, damped_coulomb_kernel, field_extD2D
+    public :: energy_MM_MM, energy_MM_pol
+    public :: electrostatics_terminate, prepare_M2M, prepare_M2D
+    public :: e_m2d
 
     contains
 
@@ -20,56 +31,75 @@ module mod_electrostatics
 
         real(rp), intent(inout) :: ene
         !! Energy (results will be added)
-        real(rp), allocatable :: V(:), E(:,:), grdE(:,:)
         real(rp) :: eMM
 
         integer(ip) :: i
 
+        call prepare_M2M()
+        
         eMM = 0.0
 
         if(amoeba) then
-            call mallocate('energy_MM_MM', mm_atoms, V)
-            call mallocate('energy_MM_MM', 3, mm_atoms, E)
-            call mallocate('energy_MM_MM', 6, mm_atoms, grdE)
-            
-            V = 0.0
-            E = 0.0
-            grdE = 0.0
-            call potential_field_fieldgr_M2M(V, E, grdE)
-
-            eMM = eMM + dot_product(q(1,:), V)
+            eMM = eMM + dot_product(q(1,:), V_M2M)
             do i=1, 3
-                eMM = eMM - dot_product(q(i+1,:), E(i,:))
+                eMM = eMM - dot_product(q(i+1,:), E_M2M(i,:))
             end do
 
             do i=1,6
                 if(i == 1 .or. i == 3 .or. i == 6) then
                     ! diagonal elements
-                    eMM = eMM + dot_product(q(i+4,:), grdE(i,:))
+                    eMM = eMM + dot_product(q(i+4,:), Egrd_M2M(i,:))
                 else
                     ! off-diagonal elements (are stored once, but 
                     ! should be counted twice
-                    eMM = eMM + 2.0 * dot_product(q(i+4,:), grdE(i,:))
+                    eMM = eMM + 2.0 * dot_product(q(i+4,:), Egrd_M2M(i,:))
                 end if
             end do
         else
-            call mallocate('energy_MM_MM', mm_atoms, V)
-            
-            V = 0.0
-            call potential_M2M(V)
-            
-            eMM = eMM + dot_product(q(1,:), V)
+            eMM = eMM + dot_product(q(1,:), V_M2M)
+        end if
+
+        ! Since potential is computed using all the sites each 
+        ! interaction is counted twice
+        ene = ene + 0.5_rp * eMM
+    
+    end subroutine energy_MM_MM
+    
+    subroutine energy_MM_pol(ene)
+        !! This function computes the interaction energy of 
+        !! static electric multipoles
+        use mod_mmpol, only: amoeba, ipd, pol_atoms, n_ipd
+        use mod_memory, only: mallocate, mfree
+        use mod_constants, only: OMMP_AMOEBA_D, OMMP_AMOEBA_P
+
+        implicit none
+
+        real(rp), intent(inout) :: ene
+        !! Energy (results will be added)
+        real(rp) :: eMM
+
+        integer(ip) :: i
+
+        call prepare_M2D()
+        eMM = 0.0
+        
+        if(amoeba) then
+            do i=1, 3
+                eMM = eMM - dot_product(ipd(i,:,OMMP_AMOEBA_D), &
+                                        E_M2D(i,:,OMMP_AMOEBA_P))
+            end do
+        else
+            do i=1, 3
+                eMM = eMM - dot_product(ipd(i,:,1), E_M2D(i,:,1))
+            end do
         end if
 
         ! Since potential is computed using all the sites each 
         ! interaction is counted twice
         ene = ene + 0.5_rp * eMM
 
-        if(allocated(V)) call mfree('energy_MM_MM', V)
-        if(allocated(E)) call mfree('energy_MM_MM', E)
-        if(allocated(grdE)) call mfree('energy_MM_MM', grdE)
+    end subroutine energy_MM_pol
     
-    end subroutine energy_MM_MM
 
     subroutine coulomb_kernel(dr, maxder, res)
         !! This function compute the coulomb kernel for the distance vector dr and 
@@ -387,6 +417,68 @@ module mod_electrostatics
                           6.0 * kernel(3) * quad(6) - &
                           15.0*kernel(4)*(quadxr_dot_r+4.0*quadxr(3)*dr(3))
     end subroutine quad_grdE
+    
+    subroutine prepare_M2M() 
+        !! This function allocate and populate array of electrostatic 
+        !! properties of static multipoles at static multipoles sites.
+        !! It should be called blindly before any calculation that requires
+        !! V_M2M etc.
+
+        use mod_mmpol, only: mm_atoms, amoeba
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        if(M2M_done) return
+
+        if(amoeba) then
+            if(.not. allocated(V_M2M)) then
+                call mallocate('prepare_m2m [V_M2M]', mm_atoms, V_M2M)
+            end if
+
+            if(.not. allocated(E_M2M)) then
+                call mallocate('prepare_m2m [E_M2M]', 3, mm_atoms, E_M2M)
+            end if
+
+            if(.not. allocated(Egrd_M2M)) then
+                call mallocate('prepare_m2m [Egrd_M2M]', 6, mm_atoms, Egrd_M2M)
+            end if
+            
+            V_M2M = 0.0_rp
+            E_M2M = 0.0_rp
+            Egrd_M2M = 0.0_rp
+            call potential_field_fieldgr_M2M(V_M2M, E_M2M, Egrd_M2M)
+        else
+            if(.not. allocated(V_M2M)) then
+                call mallocate('prepare_m2m [V_M2M]', mm_atoms, V_M2M)
+            end if
+            
+            V_M2M = 0.0_rp
+            call potential_M2M(V_M2M)
+        end if
+        
+        M2M_done = .true.
+
+    end subroutine prepare_M2M
+
+    subroutine prepare_M2D
+        use mod_mmpol, only: n_ipd, pol_atoms
+        use mod_memory, only: mallocate
+        implicit none
+
+        if(M2D_done) return
+
+        if(.not. allocated(E_M2D)) then
+            call mallocate('prepare_m2d [E_M2D]', 3, pol_atoms, n_ipd, E_M2D)
+        end if
+
+        E_M2D = 0.0_rp
+        call field_M2D(E_M2D)
+
+        M2D_done = .true.
+
+    end subroutine prepare_M2D
+
   
     subroutine potential_field_fieldgr_M2M(V, E, Egr)
         !! Computes the electric potential, field and field gradients of 
@@ -858,5 +950,16 @@ module mod_electrostatics
         end if
 
     end subroutine screening_rules
+
+    subroutine electrostatics_terminate()
+        use mod_memory, only: mfree
+        implicit none
+
+        call mfree('electrostatics_terminate [V_M2M]', V_M2M)
+        call mfree('electrostatics_terminate [E_M2M]', E_M2M)
+        call mfree('electrostatics_terminate [Egrd_M2M]', Egrd_M2M)
+        call mfree('electrostatics_terminate [E_M2D]', E_M2D)
+
+    end subroutine electrostatics_terminate
 
 end module mod_electrostatics
