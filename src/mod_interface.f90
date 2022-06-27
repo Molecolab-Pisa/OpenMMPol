@@ -10,7 +10,7 @@ module mod_interface
     public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
     public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
     public :: get_polar_mm
-    public :: w_mmpol_init, do_mm, do_qmmm, get_energy, &
+    public :: mmpol_init_mmp, do_mm, do_qmmm, get_energy, &
               write_hdf5
 
     contains
@@ -136,7 +136,7 @@ module mod_interface
             f_str = trim(f_str)
         end subroutine c2f_string
         
-        subroutine w_mmpol_init(filename) bind(c, name='w_mmpol_init')
+        subroutine mmpol_init_mmp(filename) bind(c, name='mmpol_init_mmp')
             use mod_inputloader, only : mmpol_init_from_mmp
             
             implicit none
@@ -162,31 +162,22 @@ module mod_interface
         end subroutine 
 
 
-        subroutine do_qmmm(v_qmm,ef_qmd,n1,n2,n3,n4,solver) bind(c, name='do_qmmm')
+        subroutine do_qmmm(ef_qmd, solver) bind(c, name='do_qmmm')
             ! Compute polarization and QM-MM energy
             use mod_polarization, only: polarization
-            use mod_electrostatics, only: e_m2d
+            use mod_mmpol, only: pol_atoms, n_ipd
+            use mod_electrostatics, only: e_m2d, prepare_M2D
 
             implicit none
-            ! real(kind=rp), intent(in) :: v_qmm(ld_cart,mm_atoms), ef_qmd(3,pol_atoms,n_ipd)
-            integer(kind=ip), intent(in), value :: n1,n2,n3,n4
-            real(kind=rp), intent(in) :: v_qmm(n1,n2), ef_qmd(3,n3,n4)
+            
+            real(kind=rp), intent(in) :: ef_qmd(3, pol_atoms, n_ipd)
             integer(ip), intent(in), value :: solver
 
-            !call print_matrix(.true.,'VQM:',ld_cart,mm_atoms,ld_cart,mm_atoms,v_qmm)
-            !call print_matrix(.true.,'EQM 1:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,1))) 
-            !call print_matrix(.true.,'EQM 2:',pol_atoms,3,pol_atoms,3,transpose(ef_qmd(:,:,2)))
-            ! Initialize variables
-            ipd = 0.0_rp 
-
-            ! Compute polarization
-            !write(6, *) "Calling polarization"
+            call prepare_M2D()
             call polarization(e_m2d+ef_qmd, ipd, solver)
-            !write(6, *) "Called polarization"
-
         end subroutine
 
-        subroutine get_energy(EMM,EPol) bind(c, name='get_energy')
+        subroutine get_energy(EMM, EPol) bind(c, name='get_energy')
             ! Get the energy
             use mod_electrostatics, only: energy_MM_MM, energy_MM_pol
 
@@ -195,6 +186,7 @@ module mod_interface
 
             emm = 0.0_rp
             epol = 0.0_rp
+            
             call energy_MM_MM(emm)
             call energy_MM_pol(epol)
 

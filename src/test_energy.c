@@ -48,11 +48,11 @@ int main(int argc, char **argv){
     
     int n_ipd, pol_atoms;
     double E_MMMM, E_MMPOL;
-    double *electric_field, *electric_potential;
+    double *electric_field;
     double **external_ef;
     int32_t *polar_mm;
 
-    w_mmpol_init(argv[1]);
+    mmpol_init_mmp(argv[1]);
     set_verbose(OMMP_VERBOSE_NONE);
     n_ipd = get_n_ipd();
     pol_atoms = get_pol_atoms();
@@ -71,10 +71,7 @@ int main(int argc, char **argv){
                 else
                     electric_field[i*pol_atoms*3+j*3+k] = 0.0;
 
-    electric_potential = (double *) malloc(sizeof(double) * pol_atoms);
-
-    do_mm(); // Compute the EF of the MM part...
-    do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd, OMMP_SOLVER_DEFAULT);
+    do_qmmm(electric_field, OMMP_SOLVER_DEFAULT);
 
     get_energy(&E_MMMM, &E_MMPOL); 
 

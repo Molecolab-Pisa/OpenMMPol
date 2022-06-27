@@ -24,7 +24,7 @@ module mod_electrostatics
     subroutine energy_MM_MM(ene)
         !! This function computes the interaction energy of 
         !! static electric multipoles
-        use mod_mmpol, only: amoeba, q, mm_atoms
+        use mod_mmpol, only: amoeba, q
         use mod_memory, only: mallocate, mfree
 
         implicit none
@@ -68,7 +68,7 @@ module mod_electrostatics
     subroutine energy_MM_pol(ene)
         !! This function computes the interaction energy of 
         !! static electric multipoles
-        use mod_mmpol, only: amoeba, ipd, pol_atoms, n_ipd
+        use mod_mmpol, only: amoeba, ipd
         use mod_memory, only: mallocate, mfree
         use mod_constants, only: OMMP_AMOEBA_D, OMMP_AMOEBA_P
 
@@ -99,7 +99,6 @@ module mod_electrostatics
         ene = ene + 0.5_rp * eMM
 
     end subroutine energy_MM_pol
-    
 
     subroutine coulomb_kernel(dr, maxder, res)
         !! This function compute the coulomb kernel for the distance vector dr and 

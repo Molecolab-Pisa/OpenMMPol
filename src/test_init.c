@@ -20,7 +20,7 @@ int main(int argc, char **argv){
     // printf("Input file: '%s'\n", infile);
 
     set_verbose(OMMP_VERBOSE_DEBUG);
-    w_mmpol_init(infile);
+    mmpol_init_mmp(infile);
     
     if(argc == 3)
         print_summary_to_file(outfile);

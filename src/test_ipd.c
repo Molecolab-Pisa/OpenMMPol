@@ -48,11 +48,11 @@ int main(int argc, char **argv){
     
     int n_ipd, pol_atoms, solver;
     double *_ipd;
-    double ***ipd, *electric_field, *electric_potential;
+    double ***ipd, *electric_field;
     double **external_ef;
     int32_t *polar_mm;
 
-    w_mmpol_init(argv[1]);
+    mmpol_init_mmp(argv[1]);
     set_verbose(OMMP_VERBOSE_DEBUG);
 
     n_ipd = get_n_ipd();
@@ -89,10 +89,7 @@ int main(int argc, char **argv){
                 else
                     electric_field[i*pol_atoms*3+j*3+k] = 0.0;
 
-    electric_potential = (double *) malloc(sizeof(double) * pol_atoms);
-
-    do_mm(); // Compute the EF of the MM part...
-    do_qmmm(electric_potential, electric_field, 0, 0, pol_atoms, n_ipd, solver);
+    do_qmmm(electric_field, solver);
 
     // Get induced point dipoles
     _ipd = (double *) get_ipd();
