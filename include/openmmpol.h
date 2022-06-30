@@ -23,6 +23,7 @@
 #define OMMP_AMOEBA_P 2
 
 extern void mmpol_init_mmp(char *);
+extern void mmpol_init_xyz(char *, char *);
 extern void do_mm(void);
 extern void do_qmmm(double *, int32_t);
 extern void get_energy(double *, double *);

@@ -136,6 +136,19 @@ module mod_interface
             f_str = trim(f_str)
         end subroutine c2f_string
         
+        subroutine mmpol_init_xyz(xyzfile, prmfile) bind(c, name='mmpol_init_xyz')
+            use mod_inputloader, only : mmpol_init_from_xyz
+            
+            implicit none
+            
+            character(kind=c_char), intent(in) :: xyzfile(120), prmfile(120)
+            character(len=120) :: xyz_file, prm_file
+
+            call c2f_string(prmfile, prm_file)
+            call c2f_string(xyzfile, xyz_file)
+            call mmpol_init_from_xyz(xyz_file, prm_file)
+        end subroutine 
+        
         subroutine mmpol_init_mmp(filename) bind(c, name='mmpol_init_mmp')
             use mod_inputloader, only : mmpol_init_from_mmp
             

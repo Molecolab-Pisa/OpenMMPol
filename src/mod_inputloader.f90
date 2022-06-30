@@ -2,7 +2,7 @@ module mod_inputloader
     implicit none
     private
 
-    public :: mmpol_init_from_mmp
+    public :: mmpol_init_from_mmp, mmpol_init_from_xyz
 
     contains
     
@@ -278,5 +278,164 @@ module mod_inputloader
         if( any(mm2pol == 0) ) write(*, *) "MB22 2 unexpected error" !TODO
 
     end subroutine polgroup11_to_mm2pg
+
+    subroutine mmpol_init_from_xyz(xyz_file, prm_file)
+        !! This function read a .mmp file (revision 2 and 3) are supported
+        !! and initialize all the quantities need to describe the environment
+        !! within this library.
+        
+        use mod_mmpol, only: verbose, cmm, q, pol
+        use mod_mmpol, only: mm_atoms, amoeba, &
+                             polar_mm, conn, mmat_polgrp
+        use mod_mmpol, only: mol_frame, iz, ix, iy
+        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
+        
+        use mod_memory, only: ip, rp, mfree, mallocate, memory_init
+        use mod_io, only: mmpol_print_summary, iof_mmpinp
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
+        use mod_adjacency_mat, only: adj_mat_from_conn
+
+        implicit none
+
+        character(len=*), intent(in) :: xyz_file
+        !! name of the input XYZ file
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_xyzinp = 200, &
+                                  iof_prminp = 201, &
+                                  maxn12 = 8
+
+        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke 
+        integer(ip), allocatable :: i12(:,:), attype(:)
+        character(len=120) :: line
+        
+        if(verbose == OMMP_VERBOSE_DEBUG) then
+            write(6, *) "Reading XYZ file: ", xyz_file(1:len(trim(xyz_file)))
+        end if
+
+        ! open tinker xyz file
+        open (unit=iof_xyzinp, &
+              file=xyz_file(1:len(trim(xyz_file))), &
+              form='formatted', &
+              access='sequential', &
+              iostat=ist)
+
+        if(ist /= 0) then
+            call fatal_error('Error while opening XYZ input file')
+        end if
+
+        ! First line contains as first word the number of atoms and
+        ! then a comment that could be ignored.
+        read(iof_xyzinp, *) my_mm_atoms
+        
+        ! Initialize the mmpol module
+        ! TODO I'm assuming that it is AMOEBA and fully polarizable
+        call mmpol_init(OMMP_FF_AMOEBA, 0_ip, my_mm_atoms, my_mm_atoms)        
+        
+        ! Temporary quantities that are only used during the initialization
+        call mallocate('mmpol_init_from_xyz [attype]', my_mm_atoms, attype)
+        call mallocate('mmpol_init_from_xyz [i12]', maxn12, my_mm_atoms, i12)
+
+        do i=1, my_mm_atoms
+            write(*, *) 'Reading line', i
+            read(iof_xyzinp, '(A)') line
+            write(*, *) 'Read line', line
+
+            ! First token contains an atom ID. Only sequential numbering is
+            ! currently supported.
+            tokb = tokenize(line)
+            toke = tokenize(line, tokb)
+
+            read(line(tokb:toke), *) atom_id
+            if(atom_id /= i) then
+                call fatal_error('Non-sequential atom ids in xyz cannot be handled')
+            end if
+            
+            ! This token should contain an atom name, so it should start
+            ! with a letter. If this is not true, an unexpected error should
+            ! be raised.
+            tokb=toke+1
+            toke = tokenize(line, tokb)
+            !TODO 
+
+            tokb=toke+1
+            toke = tokenize(line, tokb, 3)
+            ! The remaining part contains cartesian coordinates, atom type
+            ! and connectivity for the current atom.
+            read(line(tokb:toke), *) cmm(1,i), cmm(2,i), cmm(3,i)
+            
+            tokb=toke+1
+            toke = tokenize(line, tokb)
+            read(line(tokb:toke), *) attype(i)
+
+            do j=1, maxn12
+                tokb=toke+1
+                toke = tokenize(line, tokb)
+                if(toke < 0) exit
+                read(line(tokb:toke), *) i12(j,i)
+            end do
+
+        end do
+
+        call mfree('mmpol_init_from_xyz [attype]', attype)
+        call mfree('mmpol_init_from_xyz [i12]', i12)
+
+    end subroutine mmpol_init_from_xyz
+
+    function tokenize(s, ib, ntok)
+        ! This function, given a string returns the first printable character
+        ! if ib is absent or the last printable character after s(ib) if ib is 
+        ! present. It's used to subdivide a string in tokens.
+
+        use mod_memory, only: ip
+        implicit none
+
+        character(len=120), intent(in) :: s
+        integer(ip), intent(inout), optional :: ib
+        integer(ip), intent(in), optional :: ntok
+        integer(ip) :: tokenize
+
+        integer(ip) :: i, slen, ich, itok
+
+        slen = len(s)
+        ! Default return for end of string
+        tokenize = -1
+        if(present(ib)) then
+
+            ! This is a very unreasonable case
+            if(ib > slen) return
+        
+            do i=ib, slen
+                ! Search the first valid char and save it in ib
+                ich = iachar(s(i:i))
+                if(ich > 32 .and. ich /= 127) exit
+            end do
+            ib = i
+            if(ib >= slen) return
+            
+            if(present(ntok)) then
+                itok = ntok
+            else
+                itok = 1
+            end if
+
+            do i=ib+1, slen
+                ich = iachar(s(i:i))
+                if(ich <= 32 .or. ich == 127) then 
+                    ich = iachar(s(i-1:i-1))
+                    if(ich > 32 .and. ich /= 127) itok = itok - 1
+                end if
+                if(itok == 0) exit
+            end do
+            tokenize = i-1
+        else 
+            do i=1, slen
+                ich = iachar(s(i:i))
+                if(ich > 32 .and. ich /= 127) exit
+            end do
+            tokenize = i
+        end if
+    end function
 
 end module mod_inputloader
