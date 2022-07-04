@@ -101,7 +101,7 @@ module mod_adjacency_mat
 
                 do j = 1, size(tmp, 1)
                     if(tmp(j) /= 0) then
-                        sparse%ci(sparse%ri(i+1)) = i12(j,i)
+                        sparse%ci(sparse%ri(i+1)) = tmp(j)
                         sparse%ri(i+1) = sparse%ri(i+1) + 1
                     end if
                 end do
