@@ -471,6 +471,7 @@ module mod_io
     !
     subroutine print_int_vec(label, n, ibeg, iend, vec, dosort, ofunit)
         use mod_memory, only: ip
+        use mod_utils, only: sort_ivec
         
         implicit none
         
@@ -513,34 +514,5 @@ module mod_io
         return
 
     end subroutine print_int_vec
-
-    subroutine sort_ivec(iv, ov)
-        !! This is a simple -- and unefficient -- routine to sort a vector of int
-        !! it is just used during some output to simplify comparisons with older 
-        !! version of the code
-        use mod_memory, only: ip, mallocate
-
-        implicit none
-
-        !! Input vector
-        integer(ip), dimension(:), intent(in) :: iv
-        !! Output, sorted vector
-        integer(ip), allocatable, intent(out) :: ov(:)
-        integer(ip) :: i, imin(1)
-        logical, allocatable :: mask(:)
-
-        call mallocate('sort_ivec', size(iv), ov)
-        allocate(mask(size(iv)))
-        mask = .true.
-
-        do i = 1, size(iv)
-            imin = minloc(iv, mask)
-            ov(i) = iv(imin(1))
-            mask(imin(1)) = .false.
-        end do
-
-        deallocate(mask)
-
-    end subroutine sort_ivec
 
 end module mod_io

@@ -292,7 +292,7 @@ module mod_inputloader
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: mmpol_print_summary, iof_mmpinp
-        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA, angstrom2au
         use mod_adjacency_mat, only: adj_mat_from_conn
 
         implicit none
@@ -305,21 +305,21 @@ module mod_inputloader
         integer(ip), parameter :: iof_xyzinp = 200, &
                                   iof_prminp = 201, &
                                   maxn12 = 8
-
-        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke 
+        integer(ip) :: my_mm_atoms, ist, i, j, l, atom_id, tokb, toke
         integer(ip), allocatable :: i12(:,:), attype(:)
-        character(len=120) :: line
+        character(len=120) :: line, errstring
+
         
         if(verbose == OMMP_VERBOSE_DEBUG) then
             write(6, *) "Reading XYZ file: ", xyz_file(1:len(trim(xyz_file)))
         end if
 
         ! open tinker xyz file
-        open (unit=iof_xyzinp, &
-              file=xyz_file(1:len(trim(xyz_file))), &
-              form='formatted', &
-              access='sequential', &
-              iostat=ist)
+        open(unit=iof_xyzinp, &
+             file=xyz_file(1:len(trim(xyz_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
 
         if(ist /= 0) then
             call fatal_error('Error while opening XYZ input file')
@@ -332,15 +332,18 @@ module mod_inputloader
         ! Initialize the mmpol module
         ! TODO I'm assuming that it is AMOEBA and fully polarizable
         call mmpol_init(OMMP_FF_AMOEBA, 0_ip, my_mm_atoms, my_mm_atoms)        
-        
+        do i=1, my_mm_atoms
+           polar_mm(i) = i 
+        end do
+
         ! Temporary quantities that are only used during the initialization
         call mallocate('mmpol_init_from_xyz [attype]', my_mm_atoms, attype)
         call mallocate('mmpol_init_from_xyz [i12]', maxn12, my_mm_atoms, i12)
+        attype = 0_ip
+        i12 = 0_ip
 
         do i=1, my_mm_atoms
-            write(*, *) 'Reading line', i
             read(iof_xyzinp, '(A)') line
-            write(*, *) 'Read line', line
 
             ! First token contains an atom ID. Only sequential numbering is
             ! currently supported.
@@ -357,7 +360,9 @@ module mod_inputloader
             ! be raised.
             tokb=toke+1
             toke = tokenize(line, tokb)
-            !TODO 
+            if(scan(line(tokb:tokb), 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM') == 0) then
+                call fatal_error('Atom symbol missing or PBC string present in XYZ')
+            end if
 
             tokb=toke+1
             toke = tokenize(line, tokb, 3)
@@ -375,13 +380,382 @@ module mod_inputloader
                 if(toke < 0) exit
                 read(line(tokb:toke), *) i12(j,i)
             end do
-
+            
         end do
+        ! Close XYZ file after reading
+        close(iof_xyzinp)
 
-        call mfree('mmpol_init_from_xyz [attype]', attype)
+        cmm = cmm * angstrom2au
+        
+        ! Writes the adjacency matrix in Yale sparse format in conn(1)
+        call adj_mat_from_conn(i12, conn(1))
         call mfree('mmpol_init_from_xyz [i12]', i12)
+        
+        call read_prm(prm_file, attype)
+        call mfree('mmpol_init_from_xyz [attype]', attype)
+        
+        call mmpol_prepare()
 
     end subroutine mmpol_init_from_xyz
+
+    subroutine read_prm(prm_file, my_attype)
+
+        use mod_memory, only: mallocate, mfree, ip, rp
+        use mod_mmpol, only: fatal_error, pol, q, mol_frame, iz, ix, iy, &
+                             mmat_polgrp, conn, mm_atoms
+        use mod_constants, only: AMOEBA_ROT_NONE, &
+                                 AMOEBA_ROT_Z_THEN_X, &
+                                 AMOEBA_ROT_BISECTOR, &
+                                 AMOEBA_ROT_Z_ONLY, &
+                                 AMOEBA_ROT_Z_BISECT, &
+                                 AMOEBA_ROT_3_FOLD, &
+                                 angstrom2au
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, k, l, iat, tokb, toke
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: polat(:), pgspec(:,:), multat(:), &
+                                    multax(:,:), multframe(:)
+        real(rp), allocatable :: thf(:), isopol(:), cmult(:,:)
+        integer(ip) :: npolarize, ipolarize, nmult, imult, iax(3)
+        logical :: ax_found(3)
+
+
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated 
+        ist = 0
+        npolarize = 0
+        nmult = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:9) == 'polarize ') npolarize = npolarize + 1
+            if(line(:11) == 'multipole ') nmult = nmult + 1
+        end do
+        ! POLARIZE
+        call mallocate('read_prm [polat]', npolarize, polat)
+        call mallocate('read_prm [isopol]', npolarize, isopol)
+        call mallocate('read_prm [thf]', npolarize, thf)
+        call mallocate('read_prm [pgspec]', 8, npolarize, pgspec)
+        pgspec = 0
+        ipolarize = 1
+        
+        ! MULTIPOLE
+        call mallocate('read_prm [multat]', nmult, multat)
+        call mallocate('read_prm [multframe]', nmult, multframe)
+        call mallocate('read_prm [multax]', 3, nmult, multax)
+        call mallocate('read_prm [cmult]', 10, nmult, cmult)
+        multax = 0
+        imult = 1
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            
+            if(line(:11) == 'multipole ') then
+                tokb = 12 ! len of keyword + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MULTIPOLE card"
+                    call fatal_error(errstring)
+                endif
+                read(line(tokb:toke), *) multat(imult)
+                if(multat(ipolarize) < 0) then
+                    write(errstring, *) "Wrong MULTIPOLE card (specific atom not supported)"
+                    call fatal_error(errstring)
+                end if
+                
+                ! Rotation axis information
+                tokb = toke+1
+                toke = tokenize(line, tokb, 2)
+                read(line(tokb:toke), *) multax(1:2,imult)
+                ! TODO maybe some check here is not bad.
+
+                ! For some centers also y axis is specified (integer) otherwise
+                ! this is the zeroth-order multipole (charge)
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(isint(line(tokb:toke))) then
+                    ! Read the y axis
+                    read(line(tokb:toke), *) multax(3,imult)
+                    ! Get another token, this should be the charge.
+                    tokb = toke+1 
+                    toke = tokenize(line, tokb)
+                end if
+
+                ! The type of rotation is encoded in the sign/nullness of 
+                ! of the axis specification
+                if(multax(1,imult) == 0) then
+                    multframe(imult) = AMOEBA_ROT_NONE
+                else if(multax(2, imult) == 0) then
+                    multframe(imult) = AMOEBA_ROT_Z_ONLY
+                else if(multax(1,imult) < 0 .and. multax(2,imult) < 0 &
+                        .and. multax(3,imult) < 0) then
+                    multframe(imult) = AMOEBA_ROT_3_FOLD
+                else if(multax(1,imult) < 0 .or. multax(2,imult) < 0) then
+                    multframe(imult) = AMOEBA_ROT_BISECTOR
+                else if(multax(2,imult) < 0 .and. multax(3,imult) < 0) then
+                    multframe(imult) = AMOEBA_ROT_Z_BISECT
+                else
+                    multframe(imult) = AMOEBA_ROT_Z_THEN_X
+                end if
+                ! Remove the encoded information after saving it in a reasonable
+                ! way
+                multax(:,imult) = abs(multax(:,imult))
+
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MULTIPOLE card"
+                    call fatal_error(errstring)
+                end if
+
+                read(line(tokb:toke), *) cmult(1, imult)
+
+                read(iof_prminp, '(A)', iostat=ist) line
+                read(line, *) cmult(2:4, imult)
+                
+                read(iof_prminp, '(A)', iostat=ist) line
+                read(line, *) cmult(5, imult)
+                
+                read(iof_prminp, '(A)', iostat=ist) line
+                read(line, *) cmult(6:7, imult)
+
+                read(iof_prminp, '(A)', iostat=ist) line
+                read(line, *) cmult(8:10, imult)
+
+                imult = imult + 1
+            else if(line(:9) == 'polarize ') then
+                tokb = 10 ! len of keyword + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLARIZE card"
+                    call fatal_error(errstring)
+                endif
+                read(line(tokb:toke), *) polat(ipolarize)
+                if(polat(ipolarize) < 0) then
+                    write(errstring, *) "Wrong POLARIZE card (specific atom not supported)"
+                    call fatal_error(errstring)
+                end if
+                
+                ! Isotropic polarizability
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLARIZE card"
+                    call fatal_error(errstring)
+                endif
+                read(line(tokb:toke), *) isopol(ipolarize)
+
+                ! Thole dumping factor
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(isint(line(tokb:toke))) then
+                    ! If this card is skipped then it is HIPPO
+                    write(errstring, *) "HIPPO FF is not currently supported"
+                    call fatal_error(errstring)
+                else if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLARIZE card"
+                    call fatal_error(errstring)
+                endif
+                read(line(tokb:toke), *) thf(ipolarize)
+                
+                ! Polarization group information
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(isreal(line(tokb:toke))) then
+                    ! If there is an additional real modifier then it is AMOEBA+
+                    write(errstring, *) "AMOEBA+ FF is not currently supported"
+                    call fatal_error(errstring)
+                end if
+                j = 1
+                do while(toke > 0) 
+                    if(.not. isint(line(tokb:toke))) then
+                        write(errstring, *) "Wrong POLARIZE card"
+                        call fatal_error(errstring)
+                    endif
+                    read(line(tokb:toke), *) pgspec(j,ipolarize)
+
+                    tokb = toke+1
+                    toke = tokenize(line, tokb)
+                    j = j + 1
+                end do
+                ipolarize = ipolarize + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        mmat_polgrp = 0
+        mol_frame = 0
+        ix = 0
+        iy = 0
+        iz = 0
+
+        do i=1, size(my_attype)
+            ! Polarization
+            do j=1, npolarize
+                if(polat(j) == my_attype(i)) then
+                    pol(i) = isopol(j) * angstrom2au**3
+                    !TODO Thole factors.
+                    ! Assign a polgroup label to each atom
+                    if(mmat_polgrp(i) == 0) &
+                        mmat_polgrp(i) = maxval(mmat_polgrp) + 1
+                    
+                    ! loop over the atoms connected to ith atom
+                    do k=conn(1)%ri(i), conn(1)%ri(i+1)-1
+                        iat = conn(1)%ci(k)
+                        if(any(my_attype(iat) == pgspec(:,j))) then
+                            ! The two atoms are in the same group
+                            if(mmat_polgrp(iat) == 0) then
+                                mmat_polgrp(iat) = mmat_polgrp(i)
+                            else if(mmat_polgrp(iat) /= mmat_polgrp(i)) then
+                                ! TODO This code have never been tested, as no
+                                ! suitable case have been found
+                                do l=1, mm_atoms
+                                    if(mmat_polgrp(l) == 0) then
+                                        continue
+                                    else if(mmat_polgrp(l) == mmat_polgrp(iat) &
+                                            .or. mmat_polgrp(l) == mmat_polgrp(i)) then
+                                        mmat_polgrp(l) = min(mmat_polgrp(iat), mmat_polgrp(i))
+                                    else if(mmat_polgrp(l) > max(mmat_polgrp(iat),mmat_polgrp(i))) then
+                                        mmat_polgrp(l) = mmat_polgrp(l) - 1
+                                    else
+                                        continue
+                                    end if
+                                end do
+                            end if
+                        end if
+                    end do
+                end if
+            end do
+
+            ! Multipoles
+            do j=1, nmult
+                if(multat(j) == my_attype(i)) then
+                    ! For each center different multipoles are defined for 
+                    ! different environment. So first check if the environment
+                    ! is the correct one
+                    ! write(*, *) "ATOM", i, "MULTIPOLE", j
+                    
+                    ! Assignament with only 1,2-neighbours.
+                    ax_found = .false.
+                    iax = 0_ip
+
+                    if(multframe(j) == AMOEBA_ROT_NONE) then
+                        ! No axis needed
+                        ax_found = .true.
+                        ! if(all(ax_found)) write(*, *) ">>> NOAX"
+                    else if(multframe(j) == AMOEBA_ROT_Z_ONLY) then
+                        ! Assignament with only-z
+                        ax_found(2:3) = .true.
+                        do k=conn(1)%ri(i), conn(1)%ri(i+1)-1
+                            iat = conn(1)%ci(k)
+                            if(my_attype(iat) == multax(1,j) &
+                               .and. .not. ax_found(1)) then
+                                ax_found(1) = .true.
+                                iax(1) = iat
+                            end if
+                        end do
+                        ! if(all(ax_found)) write(*, *) ">>> ONLYZ"
+                    else
+                        ! 2 or 3 axis needed
+                        if(multax(3,j) == 0) ax_found(3) = .true.
+                        
+                        ! Using only 1,2 connectivity
+                        do k=conn(1)%ri(i), conn(1)%ri(i+1)-1
+                            iat = conn(1)%ci(k)
+                            if(my_attype(iat) == multax(1,j) &
+                               .and. .not. ax_found(1)) then
+                                ax_found(1) = .true.
+                                iax(1) = iat
+                            else if(my_attype(iat) == multax(2,j) &
+                                    .and. .not. ax_found(2)) then
+                                ax_found(2) = .true.
+                                iax(2) = iat
+                            else if(my_attype(iat) == multax(3,j) &
+                                    .and. .not. ax_found(3)) then
+                                ax_found(3) = .true.
+                                iax(3) = iat
+                            end if
+                        end do
+                        !if(all(ax_found)) write(*, *) ">>> ONLY12"
+
+                        ! Using also 1,3 connectivity
+                        if(ax_found(1) .and. .not. ax_found(2)) then
+                            do k=conn(1)%ri(iax(1)), conn(1)%ri(iax(1)+1)-1
+                                iat = conn(1)%ci(k)
+                                if(iat == i .or. iat == iax(1)) cycle
+                                if(my_attype(iat) == multax(2,j) &
+                                   .and. .not. ax_found(2) &
+                                   .and. iat /= iax(1)) then
+                                    ax_found(2) = .true.
+                                    iax(2) = iat
+                                else if(my_attype(iat) == multax(3,j) &
+                                        .and. .not. ax_found(3) & 
+                                        .and. iat /= iax(1) &
+                                        .and. iat /= iax(2)) then
+                                    ax_found(3) = .true.
+                                    iax(3) = iat
+                                end if
+                            end do
+                            !if(all(ax_found)) write(*, *) ">>> ONLY13"
+                        end if
+                    end if
+
+                    ! Everything is done, do the assignament
+                    if(all(ax_found)) then
+                        ix(i) = iax(2)
+                        iy(i) = iax(3)
+                        iz(i) = iax(1)
+                        mol_frame(i) = multframe(j)
+                        q(:,i) = cmult(:,j) 
+                        exit
+                    end if
+                end if
+            end do
+        end do
+    end subroutine read_prm
+
+    function isint(s)
+        implicit none
+
+        character(len=*), intent(in) :: s
+        logical :: isint
+        
+        isint = (verify(s, '+-1234567890') == 0)
+        return
+    end function
+
+    function isreal(s)
+        implicit none
+
+        character(len=*), intent(in) :: s
+        logical :: isreal
+
+        isreal = (verify(s, '+-1234567890.') == 0)
+        isreal = isreal .and. (scan(s, '.') /= 0)
+        return
+    end function
 
     function tokenize(s, ib, ntok)
         ! This function, given a string returns the first printable character

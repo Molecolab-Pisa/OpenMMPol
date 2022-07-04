@@ -67,4 +67,11 @@ module mod_constants
     integer(ip), parameter :: OMMP_VERBOSE_LOW = 1_ip
     integer(ip), parameter :: OMMP_VERBOSE_NONE = 0_ip
 
+    integer(ip), parameter :: AMOEBA_ROT_NONE = 0_ip 
+    integer(ip), parameter :: AMOEBA_ROT_Z_THEN_X = 1_ip 
+    integer(ip), parameter :: AMOEBA_ROT_BISECTOR = 2_ip
+    integer(ip), parameter :: AMOEBA_ROT_Z_ONLY = 3_ip
+    integer(ip), parameter :: AMOEBA_ROT_Z_BISECT = 4_ip
+    integer(ip), parameter :: AMOEBA_ROT_3_FOLD = 5_ip 
+
 end module mod_constants

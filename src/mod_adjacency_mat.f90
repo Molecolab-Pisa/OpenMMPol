@@ -76,6 +76,7 @@ module mod_adjacency_mat
             !! format: i12(0:n(j),j) contains the index of all the atoms connected
             !! to atom with index j.
 
+            use mod_utils, only: sort_ivec
             implicit none
 
             integer(ip), intent(in) :: i12(:,:)
@@ -84,6 +85,7 @@ module mod_adjacency_mat
             !! Adjacency matrix in Yale format (\(\mathbb C_1\))
 
             integer(ip) :: i, j, nnz
+            integer(ip), allocatable :: tmp(:)
 
             sparse%n = size(i12, 2)
             nnz = count(i12 /= 0)
@@ -95,9 +97,10 @@ module mod_adjacency_mat
             sparse%ri(1) = 1
             do i = 1, sparse%n
                 sparse%ri(i+1) = sparse%ri(i)
+                call sort_ivec(i12(:,i), tmp)
 
-                do j = 1, size(i12, 1)
-                    if(i12(j,i) /= 0) then
+                do j = 1, size(tmp, 1)
+                    if(tmp(j) /= 0) then
                         sparse%ci(sparse%ri(i+1)) = i12(j,i)
                         sparse%ri(i+1) = sparse%ri(i+1) + 1
                     end if
