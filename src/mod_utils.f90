@@ -5,8 +5,99 @@ module mod_utils
     private
 
     public :: sort_ivec, sort_ivec_inplace
+    public :: starts_with_alpha, isreal, isint, tokenize
 
     contains
+   
+    function starts_with_alpha(s)
+        ! Decide if a string starts with a letter
+        implicit none
+
+        character(len=*), intent(in) :: s
+        logical :: starts_with_alpha
+
+        starts_with_alpha = (scan(s(1:1), &
+        'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM') /= 0)
+        return
+    end function
+
+    function isint(s)
+        ! Decide if a string contains an integer
+        implicit none
+
+        character(len=*), intent(in) :: s
+        logical :: isint
+        
+        isint = (verify(s, '+-1234567890') == 0)
+        return
+    end function
+
+    function isreal(s)
+        ! Decide if a string contains a real
+        implicit none
+
+        character(len=*), intent(in) :: s
+        logical :: isreal
+
+        isreal = (verify(s, '+-1234567890.') == 0)
+        isreal = isreal .and. (scan(s, '.') /= 0)
+        return
+    end function
+
+    function tokenize(s, ib, ntok)
+        ! This function, given a string returns the first printable character
+        ! if ib is absent or the last printable character after s(ib) if ib is 
+        ! present. It's used to subdivide a string in tokens.
+
+        use mod_memory, only: ip
+        implicit none
+
+        character(len=120), intent(in) :: s
+        integer(ip), intent(inout), optional :: ib
+        integer(ip), intent(in), optional :: ntok
+        integer(ip) :: tokenize
+
+        integer(ip) :: i, slen, ich, itok
+
+        slen = len(s)
+        ! Default return for end of string
+        tokenize = -1
+        if(present(ib)) then
+
+            ! This is a very unreasonable case
+            if(ib > slen) return
+        
+            do i=ib, slen
+                ! Search the first valid char and save it in ib
+                ich = iachar(s(i:i))
+                if(ich > 32 .and. ich /= 127) exit
+            end do
+            ib = i
+            if(ib >= slen) return
+            
+            if(present(ntok)) then
+                itok = ntok
+            else
+                itok = 1
+            end if
+
+            do i=ib+1, slen
+                ich = iachar(s(i:i))
+                if(ich <= 32 .or. ich == 127) then 
+                    ich = iachar(s(i-1:i-1))
+                    if(ich > 32 .and. ich /= 127) itok = itok - 1
+                end if
+                if(itok == 0) exit
+            end do
+            tokenize = i-1
+        else 
+            do i=1, slen
+                ich = iachar(s(i:i))
+                if(ich > 32 .and. ich /= 127) exit
+            end do
+            tokenize = i
+        end if
+    end function
 
     subroutine sort_ivec(iv, ov)
         !! This is a simple -- and unefficient -- routine to sort a vector of int

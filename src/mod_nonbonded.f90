@@ -7,13 +7,17 @@ module mod_nonbonded
     private
 
     real(rp), allocatable, dimension(:) :: vdw_r, vdw_e, vdw_f
+    
     type(yale_sparse) :: vdw_pair
     real(rp), allocatable :: vdw_pair_r(:), vdw_pair_e(:)
     integer(ip), parameter :: pair_allocation_chunk = 20
     
     real(rp), dimension(4) :: vdw_screening
+
+    logical :: initialized = .false.
+    
     public :: vdw_init, vdw_potential, vdw_set_pair
-    public :: vdw_r, vdw_e, vdw_f
+    public :: vdw_r, vdw_e, vdw_f, vdw_screening 
 
     contains
 
@@ -25,18 +29,20 @@ module mod_nonbonded
 
         implicit none
 
-        call mallocate('vdw_init [vdw_r]', mm_atoms, vdw_r)
-        call mallocate('vdw_init [vdw_e]', mm_atoms, vdw_e)
-        call mallocate('vdw_init [vdw_f]', mm_atoms, vdw_f)
-        call mallocate('vdw_init [vdw_pair%ri]', mm_atoms+1, vdw_pair%ri)
-        vdw_pair%ri = 1 ! The matrix is empty for now
-        call mallocate('vdw_init [vdw_pair%ci]', pair_allocation_chunk, vdw_pair%ci)
-        call mallocate('vdw_init [vdw_pair_r]', pair_allocation_chunk, vdw_pair_r)
-        call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, vdw_pair_e)
+        if(.not. initialized) then
+            call mallocate('vdw_init [vdw_r]', mm_atoms, vdw_r)
+            call mallocate('vdw_init [vdw_e]', mm_atoms, vdw_e)
+            call mallocate('vdw_init [vdw_f]', mm_atoms, vdw_f)
+            call mallocate('vdw_init [vdw_pair%ri]', mm_atoms+1, vdw_pair%ri)
+            vdw_pair%ri = 1 ! The matrix is empty for now
+            call mallocate('vdw_init [vdw_pair%ci]', pair_allocation_chunk, vdw_pair%ci)
+            call mallocate('vdw_init [vdw_pair_r]', pair_allocation_chunk, vdw_pair_r)
+            call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, vdw_pair_e)
 
-        vdw_f = 1.0_rp
-        vdw_screening(:) = [0.0, 0.0, 1.0, 1.0]
-
+            vdw_f = 1.0_rp
+            vdw_screening(:) = [1.0, 1.0, 1.0, 1.0]
+            initialized = .true.
+        end if
     end subroutine vdw_init
 
     subroutine vdw_set_pair(ia, ib, r, e)
