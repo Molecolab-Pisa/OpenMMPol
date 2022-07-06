@@ -6,7 +6,9 @@ module mod_constants
                               four = 4.0_rp, five = 5.0_rp, six = 6.0_rp, seven = 7.0_rp, nine = 9.0_rp, &
                               ten = 10.0_rp, f15 = 15.0_rp, f105 = 105.0_rp
     ! Physical constants
-    real(rp), parameter :: angstrom2au = 1.8897261245650_rp 
+    real(rp), parameter :: angstrom2au = 1.8897261245650_rp, &
+                           kcalmol2au = 1.59360109742136e-3_rp, &
+                           au2kcalmol = 627.5096080306_rp
     !! Conversion factor Angstrom -> Bohr
 
     ! Force Field parameters

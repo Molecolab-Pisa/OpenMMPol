@@ -290,6 +290,7 @@ module mod_inputloader
         use mod_mmpol, only: mol_frame, iz, ix, iy
         use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
         
+        use mod_nonbonded, only: vdw_init
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: mmpol_print_summary, iof_mmpinp
         use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA, angstrom2au
@@ -332,6 +333,7 @@ module mod_inputloader
         ! Initialize the mmpol module
         ! TODO I'm assuming that it is AMOEBA and fully polarizable
         call mmpol_init(OMMP_FF_AMOEBA, 0_ip, my_mm_atoms, my_mm_atoms)        
+        call vdw_init()
         do i=1, my_mm_atoms
            polar_mm(i) = i 
         end do
@@ -403,13 +405,14 @@ module mod_inputloader
         use mod_memory, only: mallocate, mfree, ip, rp
         use mod_mmpol, only: fatal_error, pol, q, mol_frame, iz, ix, iy, &
                              mmat_polgrp, conn, mm_atoms
+        use mod_nonbonded, only: vdw_e, vdw_f, vdw_r, vdw_set_pair
         use mod_constants, only: AMOEBA_ROT_NONE, &
                                  AMOEBA_ROT_Z_THEN_X, &
                                  AMOEBA_ROT_BISECTOR, &
                                  AMOEBA_ROT_Z_ONLY, &
                                  AMOEBA_ROT_Z_BISECT, &
                                  AMOEBA_ROT_3_FOLD, &
-                                 angstrom2au
+                                 angstrom2au, kcalmol2au
         
         implicit none
         
@@ -423,10 +426,14 @@ module mod_inputloader
         integer(ip) :: ist, i, j, k, l, iat, tokb, toke
         character(len=120) :: line, errstring
         integer(ip), allocatable :: polat(:), pgspec(:,:), multat(:), &
-                                    multax(:,:), multframe(:)
-        real(rp), allocatable :: thf(:), isopol(:), cmult(:,:)
-        integer(ip) :: npolarize, ipolarize, nmult, imult, iax(3)
-        logical :: ax_found(3)
+                                    multax(:,:), multframe(:), atclass(:), &
+                                    vdwat(:), vdwpr_a(:), vdwpr_b(:)
+        real(rp), allocatable :: thf(:), isopol(:), cmult(:,:), &
+                                 vdw_e_prm(:), vdw_r_prm(:), vdw_f_prm(:), &
+                                 vdwpr_r(:), vdwpr_e(:)
+        integer(ip) :: natype, npolarize, ipolarize, nmult, imult, iax(3), &
+                       nvdw, ivdw, atc, nvdwpr, ivdwpr
+        logical :: ax_found(3), done
 
 
         ! open tinker xyz file
@@ -443,13 +450,23 @@ module mod_inputloader
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
         ist = 0
+        natype = 0
         npolarize = 0
         nmult = 0
+        nvdw = 0
+        nvdwpr = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:5) == 'atom ') natype = natype + 1
             if(line(:9) == 'polarize ') npolarize = npolarize + 1
             if(line(:11) == 'multipole ') nmult = nmult + 1
+            if(line(:4) == 'vdw ') nvdw = nvdw + 1
+            if(line(:6) == 'vdwpr ') nvdwpr = nvdwpr + 1
         end do
+        ! ATOM 
+        call mallocate('read_prm [atclass]', natype, atclass)
+        atclass = 0
+
         ! POLARIZE
         call mallocate('read_prm [polat]', npolarize, polat)
         call mallocate('read_prm [isopol]', npolarize, isopol)
@@ -466,6 +483,21 @@ module mod_inputloader
         multax = 0
         imult = 1
 
+        ! VDW
+        call mallocate('read_prm [vdwat]', nvdw, vdwat)
+        call mallocate('read_prm [vdw_r_prm]', nvdw, vdw_r_prm)
+        call mallocate('read_prm [vdw_e_prm]', nvdw, vdw_e_prm)
+        call mallocate('read_prm [vdw_f_prm]', nvdw, vdw_f_prm)
+        vdw_f_prm = 1.0_rp
+        ivdw = 1
+
+        ! VDWPR
+        call mallocate('read_prm [vdwpr_a]', nvdwpr, vdwpr_a)
+        call mallocate('read_prm [vdwpr_b]', nvdwpr, vdwpr_b)
+        call mallocate('read_prm [vdwpr_e]', nvdwpr, vdwpr_e)
+        call mallocate('read_prm [vdwpr_r]', nvdwpr, vdwpr_r)
+        ivdwpr = 1
+
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
         ist = 0
@@ -473,7 +505,21 @@ module mod_inputloader
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             
-            if(line(:11) == 'multipole ') then
+            if(line(:5) == 'atom ') then
+                tokb = 6
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ATOM card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) iat
+
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) atclass(iat)
+                ! Only partial reading of ATOM card is needed for now.
+
+            else if(line(:11) == 'multipole ') then
                 tokb = 12 ! len of keyword + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
@@ -600,11 +646,81 @@ module mod_inputloader
                     j = j + 1
                 end do
                 ipolarize = ipolarize + 1
+            else if(line(:4) == 'vdw ') then
+                tokb = 5
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwat(ivdw)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw_r_prm(ivdw)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw_e_prm(ivdw)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(toke > 0) then
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong VDW card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) vdw_f_prm(ivdw)
+                endif
+
+                ivdw = ivdw + 1
+            else if(line(:6) == 'vdwpr ') then
+                tokb = 7
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_a(ivdwpr)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_b(ivdwpr)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_r(ivdwpr)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_e(ivdwpr)
+
+                ivdwpr = ivdwpr + 1
             end if
             i = i+1
         end do
         close(iof_prminp)
-
+        
         mmat_polgrp = 0
         mol_frame = 0
         ix = 0
@@ -612,6 +728,9 @@ module mod_inputloader
         iz = 0
 
         do i=1, size(my_attype)
+            ! Atom class for current atom
+            atc = atclass(my_attype(i))
+            
             ! Polarization
             do j=1, npolarize
                 if(polat(j) == my_attype(i)) then
@@ -731,6 +850,42 @@ module mod_inputloader
                         q(:,i) = cmult(:,j) 
                         exit
                     end if
+                end if
+            end do
+
+            ! VdW parameters
+            done = .false.
+            do j=1, nvdw
+                if(vdwat(j) == atc) then
+                    done = .true.
+                    vdw_e(i) = vdw_e_prm(j) * kcalmol2au
+                    vdw_r(i) = vdw_r_prm(j) * angstrom2au
+                    vdw_f(i) = vdw_f_prm(j)
+                    exit
+                end if
+            end do
+            if(.not. done) then
+                call fatal_error("VdW parameter not found!")
+            end if
+
+            ! VdW pair parameters
+            do l=1, nvdwpr
+                if(vdwpr_a(l) == atc) then
+                    do j=i+1, mm_atoms
+                        if(atclass(my_attype(j)) == vdwpr_b(l)) then
+                            call vdw_set_pair(i, j, &
+                                              vdwpr_r(l) * angstrom2au, &
+                                              vdwpr_e(l) * kcalmol2au)
+                        end if
+                    end do
+                else if(vdwpr_b(l) == atc) then
+                    do j=i+1, mm_atoms
+                        if(atclass(my_attype(j)) == vdwpr_a(l)) then
+                            call vdw_set_pair(i, j, &
+                                              vdwpr_r(l) * angstrom2au, &
+                                              vdwpr_e(l) * kcalmol2au)
+                        end if
+                    end do
                 end if
             end do
         end do

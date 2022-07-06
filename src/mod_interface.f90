@@ -174,7 +174,6 @@ module mod_interface
 
         end subroutine 
 
-
         subroutine do_qmmm(ef_qmd, solver) bind(c, name='do_qmmm')
             ! Compute polarization and QM-MM energy
             use mod_polarization, only: polarization
@@ -203,6 +202,17 @@ module mod_interface
             call energy_MM_MM(emm)
             call energy_MM_pol(epol)
 
+        end subroutine
+
+        subroutine get_vdw_energy(evdw) bind(c, name='get_vdw_energy')
+            
+            use mod_nonbonded, only: vdw_potential
+
+            implicit none
+            real(rp), intent(inout) :: evdw
+
+            evdw = 0.0_rp
+            call vdw_potential(evdw)
         end subroutine
 
 #ifdef USE_HDF5

@@ -22,11 +22,14 @@
 #define OMMP_AMOEBA_D 1
 #define OMMP_AMOEBA_P 2
 
+#define AU2KCALMOL 627.5096080306
+
 extern void mmpol_init_mmp(char *);
 extern void mmpol_init_xyz(char *, char *);
 extern void do_mm(void);
 extern void do_qmmm(double *, int32_t);
 extern void get_energy(double *, double *);
+extern void get_vdw_energy(double *);
 extern void write_hdf5(char *);
 extern void print_summary(void);
 extern void print_summary_to_file(char *);
