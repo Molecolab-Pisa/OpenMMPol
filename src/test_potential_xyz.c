@@ -47,7 +47,7 @@ int main(int argc, char **argv){
     }
     
     int n_ipd, pol_atoms;
-    double E_MMMM, E_MMPOL, E_VDW;
+    double E_MMMM, E_MMPOL, E_VDW, E_BND;
     double *electric_field;
     double **external_ef;
     int32_t *polar_mm;
@@ -76,16 +76,19 @@ int main(int argc, char **argv){
 
     get_energy(&E_MMMM, &E_MMPOL); 
     get_vdw_energy(&E_VDW);
+    get_bond_energy(&E_BND);
 
     FILE *fp = fopen(argv[3], "w+");
 
     E_MMMM *= AU2KCALMOL;
     E_MMPOL *= AU2KCALMOL;
     E_VDW *= AU2KCALMOL;
+    E_BND *= AU2KCALMOL;
 
     fprintf(fp, "MM-MM:  %20.12e\n", E_MMMM);
     fprintf(fp, "MM-Pol: %20.12e\n", E_MMPOL);
     fprintf(fp, "VDW:    %20.12e\n", E_VDW);
+    fprintf(fp, "BOND:   %20.12e\n", E_BND);
     
     fclose(fp);
     

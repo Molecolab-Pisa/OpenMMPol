@@ -304,7 +304,7 @@ module mod_inputloader
         use mod_memory, only: ip, mfree, mallocate, memory_init
         use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
         use mod_adjacency_mat, only: adj_mat_from_conn
-        use mod_prm, only: assign_vdw, assign_pol, assign_mpoles
+        use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -405,6 +405,7 @@ module mod_inputloader
         call assign_pol(prm_file, attype)
         call assign_mpoles(prm_file, attype)
         call assign_vdw(prm_file, attype)
+        call assign_bond(prm_file, attype)
 
         call mfree('mmpol_init_from_xyz [attype]', attype)
         

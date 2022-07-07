@@ -9,7 +9,7 @@ module mod_prm
 
     integer(ip), allocatable :: atclass(:)
 
-    public :: assign_vdw, assign_pol, assign_mpoles
+    public :: assign_vdw, assign_pol, assign_mpoles, assign_bond
 
     contains 
 
@@ -74,6 +74,168 @@ module mod_prm
         end do
         close(iof_prminp)
     end subroutine read_atom_cards
+
+    subroutine assign_bond(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: bond_init, bond_potential, bonda, &
+                              bondb, kbond, l0bond, bond_cubic, &
+                              bond_quartic
+        use mod_constants, only: angstrom2au, kcalmol2au
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, l, jat, tokb, toke, ibnd, nbnd, &
+                       cla, clb
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:)
+        real(rp), allocatable :: kbnd(:), l0bnd(:)
+        logical :: done
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! We assume that all pair of bonded atoms have a bonded 
+        ! parameter
+        call bond_init((conn(1)%ri(mm_atoms+1)-1) / 2)
+        kbond = 0
+        l0bond = 0
+        l=1
+        do i=1, mm_atoms
+            do j=conn(1)%ri(i), conn(1)%ri(i+1)-1
+                jat = conn(1)%ci(j)
+                if(i > jat) then
+                    bonda(l) = i
+                    bondb(l) = jat
+                    l = l+1
+                end if
+            end do
+        end do
+
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated 
+        ist = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:5) == 'bond ') nbnd = nbnd + 1
+        end do
+
+        call mallocate('assign_bond [classa]', nbnd, classa)
+        call mallocate('assign_bond [classb]', nbnd, classb)
+        call mallocate('assign_bond [l0bnd]', nbnd, l0bnd)
+        call mallocate('assign_bond [kbnd]', nbnd, kbnd)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        ibnd = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+           
+            if(line(:11) == 'bond-cubic ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong BOND-CUBIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) bond_cubic
+                ! This parameter is 1/Angstrom
+                bond_cubic = bond_cubic / angstrom2au
+            
+            else if(line(:13) == 'bond-quartic ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong BOND-QUARTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) bond_quartic
+                bond_quartic = bond_quartic / (angstrom2au**2)
+            
+            else if(line(:5) == 'bond ') then
+                tokb = 6
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong BOND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(ibnd)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong BOND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(ibnd)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong BOND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) kbnd(ibnd)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong BOND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) l0bnd(ibnd)
+                
+                ibnd = ibnd + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+        
+        do i=1, size(bonda)
+            ! Atom class for current pair
+            cla = atclass(my_attype(bonda(i)))
+            clb = atclass(my_attype(bondb(i)))
+            
+            done = .false.
+            do j=1, nbnd
+                if((classa(j)==cla .and. classb(j)==clb) .or. &
+                   (classa(j)==clb .and. classb(j)==cla)) then
+                    done = .true.
+                    kbond(i) = kbnd(j) * kcalmol2au / (angstrom2au**2)
+                    l0bond(i) = l0bnd(j) * angstrom2au
+                    exit
+                end if
+            end do
+            if(.not. done) then
+                call fatal_error("Bond parameter not found!")
+            end if
+        end do
+        
+        call mfree('assign_bond [classa]', classa)
+        call mfree('assign_bond [classb]', classb)
+        call mfree('assign_bond [l0bnd]', l0bnd)
+        call mfree('assign_bond [kbnd]', kbnd)
+    
+    end subroutine assign_bond
 
     subroutine assign_vdw(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
