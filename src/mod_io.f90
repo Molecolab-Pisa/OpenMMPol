@@ -335,9 +335,7 @@ module mod_io
 
     subroutine print_header
       implicit none
-    !
-      character (len=20) ffprt
-    !
+      
       9000 format(t3,' .d88888b.                             888b     d888 888b     d888 8888888b.          888 ',/,&
                   t3,'d88P" "Y88b                            8888b   d8888 8888b   d8888 888   Y88b         888 ',/,&
                   t3,'888     888                            88888b.d88888 88888b.d88888 888    888         888 ',/,&
