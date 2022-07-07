@@ -313,6 +313,7 @@ module mod_prm
     subroutine assign_pol(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree, ip, rp
         use mod_mmpol, only: fatal_error, pol, mmat_polgrp, conn, mm_atoms
+        use mod_mmpol, only: mscale, set_screening_parameters
         use mod_constants, only: angstrom2au
         
         implicit none
@@ -329,6 +330,7 @@ module mod_prm
         
         integer(ip), allocatable :: polat(:), pgspec(:,:) 
         real(rp), allocatable :: thf(:), isopol(:)
+        real(rp) :: usc(4), psc(4), pisc(4), dsc(4)
 
         integer(ip) :: npolarize, ipolarize
 
@@ -367,7 +369,150 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
            
-            if(line(:9) == 'polarize ') then
+            if(line(:15) == 'polar-12-intra ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-12-INTRA card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) pisc(1)
+
+            else if(line(:15) == 'polar-13-intra ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-13-INTRA card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) pisc(2)
+
+            else if(line(:15) == 'polar-14-intra ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-14-INTRA card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) pisc(3)
+
+            else if(line(:15) == 'polar-15-intra ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-15-INTRA card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) pisc(4)
+
+            else if(line(:15) == 'polar-12-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) psc(1)
+
+            else if(line(:15) == 'polar-13-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-13-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) psc(2)
+
+            else if(line(:15) == 'polar-14-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-14-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) psc(3)
+
+            else if(line(:15) == 'polar-15-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong POLAR-15-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) psc(4)
+
+            else if(line(:16) == 'direct-11-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong DIRECT-11-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) dsc(1)
+
+            else if(line(:16) == 'direct-12-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong DIRECT-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) dsc(2)
+
+            else if(line(:16) == 'direct-13-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong DIRECT-13-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) dsc(3)
+
+            else if(line(:16) == 'direct-14-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong DIRECT-14-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) dsc(4)
+            
+            else if(line(:16) == 'mutual-11-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MUTUAL-11-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) usc(1)
+            else if(line(:16) == 'mutual-12-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MUTUAL-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) usc(2)
+
+            else if(line(:16) == 'mutual-13-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MUTUAL-13-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) usc(3)
+
+            else if(line(:16) == 'mutual-14-scale ') then
+                tokb = 17
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MUTUAL-14-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) usc(4)
+            
+            else if(line(:9) == 'polarize ') then
                 tokb = 10 ! len of keyword + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
@@ -428,6 +573,8 @@ module mod_prm
         end do
         close(iof_prminp)
         
+        call set_screening_parameters(mscale, psc, dsc, usc, pisc)
+
         ! Now assign the parameters to the atoms
         mmat_polgrp = 0
         do i=1, size(my_attype)
@@ -480,6 +627,8 @@ module mod_prm
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, q, mol_frame, iz, ix, iy, &
                              conn
+        use mod_mmpol, only: pscale, dscale, uscale, pscale_intra, &
+                             set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
                                  AMOEBA_ROT_Z_THEN_X, &
                                  AMOEBA_ROT_BISECTOR, &
@@ -500,8 +649,9 @@ module mod_prm
         character(len=120) :: line, errstring
         integer(ip), allocatable :: multat(:), multax(:,:), multframe(:)
         real(rp), allocatable :: cmult(:,:)
+        real(rp) :: msc(4)
         integer(ip) :: nmult, imult, iax(3)
-        logical :: ax_found(3)
+        logical :: ax_found(3), found13, only12
 
 
         ! open tinker xyz file
@@ -537,8 +687,44 @@ module mod_prm
         ist = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
-           
-            if(line(:11) == 'multipole ') then
+            
+            if(line(:15) == 'mpole-12-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MPOLE-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) msc(1)
+            
+            else if(line(:15) == 'mpole-13-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MPOLE-13-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) msc(2)
+            
+            else if(line(:15) == 'mpole-14-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MPOLE-14-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) msc(3)
+            
+            else if(line(:15) == 'mpole-15-scale ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MPOLE-15-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) msc(4)
+
+            else if(line(:11) == 'multipole ') then
                 tokb = 12 ! len of keyword + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
@@ -613,6 +799,8 @@ module mod_prm
         end do
         close(iof_prminp)
         
+        call set_screening_parameters(msc, pscale, dscale, uscale, pscale_intra)
+
         mol_frame = 0
         ix = 0
         iy = 0
@@ -620,7 +808,10 @@ module mod_prm
 
         do i=1, size(my_attype)
             ! Multipoles
+            only12 = .false. ! Only search for params based on 12 connectivity
+
             do j=1, nmult
+                found13 = .false. ! Parameter found is based on 13 connectivity
                 if(multat(j) == my_attype(i)) then
                     ! For each center different multipoles are defined for 
                     ! different environment. So first check if the environment
@@ -634,7 +825,6 @@ module mod_prm
                     if(multframe(j) == AMOEBA_ROT_NONE) then
                         ! No axis needed
                         ax_found = .true.
-                        ! if(all(ax_found)) write(*, *) ">>> NOAX"
                     else if(multframe(j) == AMOEBA_ROT_Z_ONLY) then
                         ! Assignament with only-z
                         ax_found(2:3) = .true.
@@ -646,7 +836,6 @@ module mod_prm
                                 iax(1) = iat
                             end if
                         end do
-                        ! if(all(ax_found)) write(*, *) ">>> ONLYZ"
                     else
                         ! 2 or 3 axis needed
                         if(multax(3,j) == 0) ax_found(3) = .true.
@@ -668,7 +857,6 @@ module mod_prm
                                 iax(3) = iat
                             end if
                         end do
-                        !if(all(ax_found)) write(*, *) ">>> ONLY12"
 
                         ! Using also 1,3 connectivity
                         if(ax_found(1) .and. .not. ax_found(2)) then
@@ -688,18 +876,22 @@ module mod_prm
                                     iax(3) = iat
                                 end if
                             end do
-                            !if(all(ax_found)) write(*, *) ">>> ONLY13"
+                            if(all(ax_found)) found13 = .true.
                         end if
                     end if
 
-                    ! Everything is done, do the assignament
-                    if(all(ax_found)) then
+                    ! Everything is done, no further improvement is possible
+                    if(all(ax_found) .and. .not. (only12 .and. found13)) then
                         ix(i) = iax(2)
                         iy(i) = iax(3)
                         iz(i) = iax(1)
                         mol_frame(i) = multframe(j)
                         q(:,i) = cmult(:,j) 
-                        exit
+                        if(.not. found13) then
+                            exit ! No further improvement is possible
+                        else
+                            only12 = .true.
+                        end if
                     end if
                 end if
             end do

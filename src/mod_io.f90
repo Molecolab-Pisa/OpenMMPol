@@ -274,6 +274,12 @@ module mod_io
             polar(polar_mm(i)) = pol(i)
         end do
 
+        write(of_unit, '(A, 4F8.4)') 'mscale: ', mscale
+        write(of_unit, '(A, 4F8.4)') 'pscale: ', pscale
+        if(amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', pscale_intra
+        write(of_unit, '(A, 4F8.4)') 'dscale: ', dscale
+        write(of_unit, '(A, 4F8.4)') 'uscale: ', uscale
+
         call print_matrix(.true.,'coordinates:', &
                           3,mm_atoms,3,mm_atoms,cmm,of_unit)
         if (amoeba) then
