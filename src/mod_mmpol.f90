@@ -16,9 +16,6 @@ module mod_mmpol
     
     integer(ip), protected :: ff_type
     !! Force field type selection flag (0 for AMBER, 1 for AMOEBA)
-    
-    integer(ip), protected :: ff_rules
-    !! Force field exclusion rules (0 for Wang AL, 1 for Wang DL)
 
     logical, protected :: amoeba
     !! AMOEBA FF = True; WANG-AMBER = False
@@ -40,10 +37,14 @@ module mod_mmpol
     real(rp), protected :: mscale(4)
     !! factors for charge-charge (or multipole-multipole) interactions
 
-    real(rp), protected :: pscale(5)
+    real(rp), protected :: pscale(4)
     !! factors for chrage-ipd (or multipole-ipd) interactions.
     !! in AMOEBA, this is used to define the polarization field, i.e., the right-hand
     !! side to the polarization equations, and depends on the connectivity.
+
+    real(rp), protected :: pscale_intra(4)
+    !! Only used for AMOEBA, same as pscale but for atoms that belong to the 
+    !! same polarization group
     
     real(rp), protected :: dscale(4)
     !! factors for multipoles-ipd interactions used to compute the direct field,
@@ -58,6 +59,10 @@ module mod_mmpol
     
     real(rp), allocatable :: thole(:)
     !! array to store the thole factors for computing damping functions
+    
+    real(rp) :: thole_scale
+    !! Scale factor for thole damping (only used by non-AMOEBA FF); all
+    !! the element of thole(:) are multiplied by thole_scale ** 0.5
     
     real(rp), allocatable, target :: cmm(:,:)
     !! Coordinates of MM atoms (3:mm_atoms)
@@ -135,7 +140,7 @@ module mod_mmpol
 
     end subroutine set_verbosity
 
-    subroutine mmpol_init(l_ff_type, l_ff_rules, l_mm_atoms, l_pol_atoms)
+    subroutine mmpol_init(l_ff_type, l_mm_atoms, l_pol_atoms)
         !! Performs all the memory allocation and vector initialization
         !! needed to run the openMMPol library
         
@@ -146,9 +151,6 @@ module mod_mmpol
         integer(ip), intent(in) :: l_ff_type
         !! Force field type used in initialization
         
-        integer(ip), intent(in) :: l_ff_rules
-        !! Exclusion rules type used in initialization
-        
         integer(ip), intent(in) :: l_mm_atoms
         !! Number of MM atoms used in initialization
         
@@ -157,7 +159,6 @@ module mod_mmpol
         
         ! FF related settings
         ff_type = l_ff_type
-        ff_rules = l_ff_rules
         mm_atoms = l_mm_atoms
         pol_atoms = l_pol_atoms
 
@@ -173,8 +174,6 @@ module mod_mmpol
             n_ipd = 1_ip
         end if
   
-        call set_screening_parameters()
-        
         ! Memory allocation
         call mallocate('mmpol_init [cmm]', 3_ip, mm_atoms, cmm)
         call mallocate('mmpol_init [q]', ld_cart, mm_atoms, q)
@@ -263,7 +262,12 @@ module mod_mmpol
             write(6, *) "Setting Thole factors"
         end if
         ! compute factors for thole damping
-        call thole_init()
+        
+        if(amoeba) then
+            call thole_init()
+        else
+            call thole_init(thole_scale)
+        end if
 
         if(amoeba) then
             ! Copy multipoles from q to q0
@@ -348,12 +352,13 @@ module mod_mmpol
         stop '   error termination for open_mmpol.'
     end subroutine fatal_error
 
-    subroutine thole_init()
+    subroutine thole_init(asc)
         ! This routine compute the thole factors and stores
         ! them in a vector. TODO add reference
-        use mod_constants, only: a_wal, a_wdl
         
         implicit none
+
+        real(rp), optional, intent(in) :: asc
         
         integer(ip) :: i, j
         
@@ -365,10 +370,17 @@ module mod_mmpol
         end do
         
         if(.not. amoeba) then
-            if(ff_rules == 0) &
-                thole = thole * sqrt(a_wal)
-            if(ff_rules == 1) &
-                thole = thole * sqrt(a_wdl)
+            if(present(asc)) then
+                thole = thole * sqrt(asc)
+            else
+                call fatal_error("Scale factor for Thole damping should be passed &
+                                 &to thole_init() when non-AMOEBA FF are used")
+            end if
+        else
+            if(present(asc)) then
+                write(*,*) "Scale factor passed to thole_init is ignored because &
+                           &AMOEBA FF is used"
+            end if
         end if
     end subroutine thole_init
 
@@ -465,44 +477,32 @@ module mod_mmpol
 
     end subroutine build_pg_adjacency_matrix
     
-    subroutine set_screening_parameters()
+    subroutine set_screening_parameters(m, p, d, u, i)
         !! Subroutine to initialize the screening parameters
-        use mod_constants, only: mscale_wang_al, &
-                                 pscale_wang_al, &
-                                 dscale_wang_al, &
-                                 uscale_wang_al, & 
-                                 mscale_wang_dl, &
-                                 pscale_wang_dl, &
-                                 dscale_wang_dl, &
-                                 uscale_wang_dl, & 
-                                 mscale_amoeba, &
-                                 pscale_amoeba, &
-                                 dscale_amoeba, &
-                                 uscale_amoeba  
-        
+       
         implicit none
-        
-        if (ff_type.eq.0 .and. ff_rules.eq.0) then
-            mscale = mscale_wang_al
-            pscale = pscale_wang_al
-            dscale = dscale_wang_al
-            uscale = uscale_wang_al
-        
-        else if (ff_type.eq.0 .and. ff_rules.eq.1) then
-            mscale = mscale_wang_dl
-            pscale = pscale_wang_dl
-            dscale = dscale_wang_dl
-            uscale = uscale_wang_dl
 
-        else if (ff_type.eq.1) then
-            mscale = mscale_amoeba
-            pscale = pscale_amoeba
-            dscale = dscale_amoeba
-            uscale = uscale_amoeba
+        real(rp), intent(in) :: m(4), p(4), d(4), u(4)
+        real(rp), optional, intent(in) :: i(4)
         
+        mscale = m
+        pscale = p
+        dscale = d
+        uscale = u
+        
+        if(present(i)) then
+            if(amoeba) then
+                pscale_intra = i
+            else
+                call fatal_error("Scale factors for atoms of the same group &
+                                 &cannot be set outside AMOEBA FF")
+            end if
         else
-            call fatal_error('Unexpected error in force-field settings.')
+            if(amoeba) &
+                call fatal_error("Scale factors for atoms of the same group &
+                                 &should be defined in AMOEBA FF")
         end if
+        
     end subroutine set_screening_parameters
 
 end module mod_mmpol

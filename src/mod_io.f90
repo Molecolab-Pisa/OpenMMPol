@@ -33,7 +33,7 @@ module mod_io
         use hdf5
         use mod_memory, only: ip
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
-                             amoeba, pol, conn, ff_rules, ff_type, &
+                             amoeba, pol, conn, ff_type, &
                              ix, iy, iz, mol_frame, mmat_polgrp
 
         implicit none
@@ -98,12 +98,6 @@ module mod_io
                          cur_dsp, cur_dst, eflag)
         call H5Awrite_f(cur_dst, H5T_IP, ff_type, dims(:1), eflag)
         
-        call H5Acreate_f(hg_sysfund, &
-                         "FF rules", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call H5Awrite_f(cur_dst, H5T_IP, ff_rules, dims(:1), eflag)
-
         ! Dataset
         ! coordinates
         dims = (/3, mm_atoms, 0, 0/)
@@ -340,8 +334,6 @@ module mod_io
     end subroutine mmpol_print_summary
 
     subroutine print_header
-      use mod_mmpol, only: ff_rules, ff_type
-      use mod_mmpol, only: mm_atoms, pol_atoms
       implicit none
     !
       character (len=20) ffprt
@@ -361,26 +353,9 @@ module mod_io
                   t5,'by Vladislav Slama, Lorenzo Cupellini, Benedetta Mennucci, ..., Filippo Lipparini',/, &
                   t5,'MoLECoLab Pisa')
 
-      1000 format(t3,'parameters:     ',/, &
-                  t3,'=============================================',/, &
-                  t5,'force field:           ',a,/, &
-                  t5,'# mm atoms:            ',i18,/, &
-                  t5,'# polarizable atoms:   ',i18,/, &
-                  t3,'=============================================')
-    !
       write(iof_mmpol,9000)
       write(iof_mmpol,9100)
       write(iof_mmpol,*)
-      if (ff_type.eq.0) then
-        if (ff_rules.eq.0) ffprt = '    AMBER (WangAL)'
-        if (ff_rules.eq.1) ffprt = '    AMBER (WangDL)'
-      else
-        ffprt = '            AMOEBA'
-      end if
-    
-      write(iof_mmpol,1000) ffprt, mm_atoms, pol_atoms
-      write(iof_mmpol,*)
-    !
       return
     end subroutine print_header
 

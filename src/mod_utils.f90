@@ -4,7 +4,7 @@ module mod_utils
     implicit none
     private
 
-    public :: sort_ivec, sort_ivec_inplace
+    public :: sort_ivec, sort_ivec_inplace, skip_lines
     public :: starts_with_alpha, isreal, isint, tokenize
 
     contains
@@ -98,6 +98,30 @@ module mod_utils
             tokenize = i
         end if
     end function
+    
+    subroutine skip_lines(f, n)
+        !! This subroutine just skip lines while reading an input
+        !! file
+        use mod_memory, only: ip
+        
+        implicit none
+
+        !! unit file
+        integer(ip), intent(in) :: f
+        !! number of line to be skipped
+        integer(ip), intent(in) :: n
+
+        integer(ip) :: i
+        ! character(len=512) :: s
+
+        do i=1, n
+            read(f, *)
+            ! read(f, *) s
+            ! write(6, *) "SKIPPING ", i, "/", n, "  '", trim(s),"'"
+        end do
+
+    end subroutine skip_lines
+
 
     subroutine sort_ivec(iv, ov)
         !! This is a simple -- and unefficient -- routine to sort a vector of int

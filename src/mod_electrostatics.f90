@@ -800,7 +800,7 @@ module mod_electrostatics
 
         use mod_mmpol, only: amoeba, conn, pg_conn, polgrp_mmat, polar_mm, &
                              mmat_polgrp, mscale, pscale, dscale, uscale, &
-                             fatal_error
+                             pscale_intra, fatal_error
         use mod_constants, only: eps_rp
 
         integer(ip), intent(in) :: i
@@ -827,7 +827,7 @@ module mod_electrostatics
         integer(ip) :: j_mm, i_mm
         character :: field, interaction
 
-        real(rp) :: myscale(5)
+        real(rp) :: myscale(4), myscale_intra(4)
 
         ! Decide which kind of rule should be used
         if(kind_i == 'P') then
@@ -851,20 +851,21 @@ module mod_electrostatics
         myscale = 0.0_rp
         if(kind_j == 'P' .and. kind_i == 'P') then
             ! Use IPD-IPD screening rules
-            myscale(1:4) = uscale
+            myscale = uscale
             interaction = 'P' !Pol-pol interaction is named P
         else if(kind_j == 'S' .and. kind_i == 'S') then
             ! Use static multipoles-static multipoles screening rules
-            myscale(1:4) = mscale
+            myscale = mscale
             field = '-'
             interaction = 'S' !Static-static interaction is named S
         else
             ! Use static multipoles-IPD screening rules
             if(in_field == 'P') then
-                myscale(1:5) = pscale
+                myscale = pscale
+                if(amoeba) myscale_intra = pscale_intra
                 field = 'P'
             else if(in_field == 'D' .and. amoeba) then
-                myscale(1:4) = dscale
+                myscale = dscale
                 field = 'D'
             else
                 call fatal_error('Unexpected value of field in screening rules')
@@ -889,15 +890,11 @@ module mod_electrostatics
                 if(any(conn(ineigh)%ci(conn(ineigh)%ri(i_mm): &
                                        conn(ineigh)%ri(i_mm+1)-1) == j_mm)) then
                     
-                    if(ineigh == 3 .and. amoeba .and. interaction == 'M') then
-                        ! This is a bit a wired way to compute the actual scale
-                        ! factor for the interaction in the case of AMOEBA 
-                        ! polarization field that also takes into account
-                        if(mmat_polgrp(i_mm) == mmat_polgrp(j_mm)) then
-                            scalf = myscale(3) * myscale(5)
-                        else
-                            scalf = myscale(3)
-                        end if
+                    if(interaction == 'M' .and. amoeba .and. &
+                       mmat_polgrp(i_mm) == mmat_polgrp(j_mm)) then
+                        ! Amoeba uses two different screening rules for atoms 
+                        ! of the same group and for atoms of different group
+                        scalf = myscale_intra(ineigh)
                     else
                         ! In any other case just use the scale factor for this
                         ! distance

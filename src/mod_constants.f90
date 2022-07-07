@@ -9,25 +9,28 @@ module mod_constants
     real(rp), parameter :: angstrom2au = 1.8897261245650_rp, &
                            kcalmol2au = 1.59360109742136e-3_rp, &
                            au2kcalmol = 627.5096080306_rp
-    !! Conversion factor Angstrom -> Bohr
 
     ! Force Field parameters
-    real(rp), parameter :: mscale_wang_al(4) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: pscale_wang_al(5) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: dscale_wang_al(4) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: uscale_wang_al(4) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: mscale_wang_al(4) = [0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: pscale_wang_al(4) = [0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: dscale_wang_al(4) = [0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: uscale_wang_al(4) = [0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp]
     
-    real(rp), parameter :: mscale_wang_dl(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: pscale_wang_dl(5) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: dscale_wang_dl(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: uscale_wang_dl(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: mscale_wang_dl(4) = [1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: pscale_wang_dl(4) = [1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: dscale_wang_dl(4) = [1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: uscale_wang_dl(4) = [1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp]
     
-    real(rp), parameter :: mscale_amoeba(4) = (/0.0_rp, 0.0_rp, 0.4_rp, 0.8_rp/)
-    real(rp), parameter :: pscale_amoeba(5) = (/0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp, 0.5_rp/)
-    real(rp), parameter :: dscale_amoeba(4) = (/0.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
-    real(rp), parameter :: uscale_amoeba(4) = (/1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp/)
+    real(rp), parameter :: mscale_amoeba(4) = [0.0_rp, 0.0_rp, 0.4_rp, 0.8_rp]
+    real(rp), parameter :: pscale_amoeba(4) = [0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: dscale_amoeba(4) = [0.0_rp, 1.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: uscale_amoeba(4) = [1.0_rp, 1.0_rp, 1.0_rp, 1.0_rp]
+    real(rp), parameter :: pscale_intra_amoeba(4) = &
+                                              [0.0_rp, 0.0_rp, 0.5_rp, 1.0_rp]
+
             
-    real(rp),   parameter   :: a_wal = 2.5874_rp, a_wdl = 2.0580_rp
+    real(rp), parameter :: thole_scale_wang_al = 2.5874_rp, &
+                           thole_scale_wang_dl = 2.0580_rp
     
     ! Code constants
     real(rp), parameter :: eps_rp = epsilon(0.0_rp) * 100

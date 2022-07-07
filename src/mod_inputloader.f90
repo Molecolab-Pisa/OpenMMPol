@@ -6,29 +6,6 @@ module mod_inputloader
 
     contains
     
-    subroutine skip_lines(f, n)
-        !! This subroutine just skip lines while reading an input
-        !! file
-        use mod_memory, only: ip
-        
-        implicit none
-
-        !! unit file
-        integer(ip), intent(in) :: f
-        !! number of line to be skipped
-        integer(ip), intent(in) :: n
-
-        integer(ip) :: i
-        ! character(len=512) :: s
-
-        do i=1, n
-            read(f, *)
-            ! read(f, *) s
-            ! write(6, *) "SKIPPING ", i, "/", n, "  '", trim(s),"'"
-        end do
-
-    end subroutine skip_lines
-
     subroutine mmpol_init_from_mmp(input_file)
         !! This function read a .mmp file (revision 2 and 3) are supported
         !! and initialize all the quantities need to describe the environment
@@ -36,14 +13,31 @@ module mod_inputloader
 
         use mod_mmpol, only: verbose, cmm, q, pol
         use mod_mmpol, only: mm_atoms, amoeba, &
-                             polar_mm, conn, mmat_polgrp
+                             polar_mm, conn, mmat_polgrp, thole_scale
         use mod_mmpol, only: mol_frame, iz, ix, iy
-        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
+        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init, &
+                             set_screening_parameters
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: iof_mmpinp
-        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG
         use mod_adjacency_mat, only: adj_mat_from_conn
+        use mod_utils, only: skip_lines
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG
+        use mod_constants, only: mscale_wang_al, &
+                                 pscale_wang_al, &
+                                 dscale_wang_al, &
+                                 uscale_wang_al, & 
+                                 mscale_wang_dl, &
+                                 pscale_wang_dl, &
+                                 dscale_wang_dl, &
+                                 uscale_wang_dl, & 
+                                 mscale_amoeba, &
+                                 pscale_amoeba, &
+                                 dscale_amoeba, &
+                                 uscale_amoeba, &
+                                 pscale_intra_amoeba, &
+                                 thole_scale_wang_dl, &
+                                 thole_scale_wang_al
 
         implicit none
 
@@ -178,7 +172,28 @@ module mod_inputloader
             write(6, *) "Initializing open mmpol module"
         end if
         ! mmpol module initialization
-        call mmpol_init(my_ff_type, my_ff_rules, my_mm_atoms, my_pol_atoms)
+        call mmpol_init(my_ff_type, my_mm_atoms, my_pol_atoms)
+        if(amoeba) then
+            call set_screening_parameters(mscale_amoeba, &
+                                          pscale_amoeba, &
+                                          dscale_amoeba, &
+                                          uscale_amoeba, &
+                                          pscale_intra_amoeba)
+        else
+            if(my_ff_rules == 1) then
+                call set_screening_parameters(mscale_wang_dl, &
+                                              pscale_wang_dl, &
+                                              dscale_wang_dl, &
+                                              uscale_wang_dl)
+                thole_scale = thole_scale_wang_dl
+            else if(my_ff_rules == 0) then
+                call set_screening_parameters(mscale_wang_al, &
+                                              pscale_wang_al, &
+                                              dscale_wang_al, &
+                                              uscale_wang_al)
+                thole_scale = thole_scale_wang_al
+            end if
+        end if 
         
         if(verbose == OMMP_VERBOSE_DEBUG) then
             write(6, *) "Converting input units to A.U."
@@ -327,7 +342,7 @@ module mod_inputloader
         
         ! Initialize the mmpol module
         ! TODO I'm assuming that it is AMOEBA and fully polarizable
-        call mmpol_init(OMMP_FF_AMOEBA, 0_ip, my_mm_atoms, my_mm_atoms)        
+        call mmpol_init(OMMP_FF_AMOEBA, my_mm_atoms, my_mm_atoms)        
         do i=1, my_mm_atoms
            polar_mm(i) = i 
         end do
