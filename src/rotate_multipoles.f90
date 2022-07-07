@@ -1,7 +1,6 @@
 subroutine rotate_multipoles(doder,def,fx)
   use mod_memory, only: ip, rp
   use mod_mmpol, only: ld_cder, mm_atoms, q, q0, verbose, ix, iy, iz
-  use mod_constants, only: zero,  two
   use mod_io, only: print_matrix
   implicit none
 !
@@ -92,9 +91,9 @@ subroutine rotate_multipoles(doder,def,fx)
 !
 !     contributions to the forces on the j-th atoms:
 !
-      ddip = zero
-      dqua = zero
-      dtmp = zero
+      ddip = 0.0_rp
+      dqua = 0.0_rp
+      dtmp = 0.0_rp
 !
 !     compute the differentiated multipoles:
 ! 
@@ -135,12 +134,12 @@ subroutine rotate_multipoles(doder,def,fx)
 !     ... and for the quadrupoles:
 !
       fx(:,j) = fx(:,j) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
-                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+                        + 2.0_rp*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
       !                  
       ! do jx
-      ddip = zero
-      dqua = zero
-      dtmp = zero
+      ddip = 0.0_rp
+      dqua = 0.0_rp
+      dtmp = 0.0_rp
       do k = 1, 3
         do l = 1, 3
           ddip(:,k) = ddip(:,k) + drix(:,k,l)*dip(l)
@@ -177,12 +176,12 @@ subroutine rotate_multipoles(doder,def,fx)
 !     ... and for the quadrupoles:
 !
       fx(:,jx) = fx(:,jx) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
-                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+                        + 2.0_rp*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
       !                  
       ! do jy
-      ddip = zero
-      dqua = zero
-      dtmp = zero
+      ddip = 0.0_rp
+      dqua = 0.0_rp
+      dtmp = 0.0_rp
       do k = 1, 3
         do l = 1, 3
           ddip(:,k) = ddip(:,k) + driy(:,k,l)*dip(l)
@@ -220,12 +219,12 @@ subroutine rotate_multipoles(doder,def,fx)
 !     ... and for the quadrupoles:
 !
       fx(:,jy) = fx(:,jy) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
-                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+                        + 2.0_rp*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
       !           
       ! Do jz
-      ddip = zero
-      dqua = zero
-      dtmp = zero
+      ddip = 0.0_rp
+      dqua = 0.0_rp
+      dtmp = 0.0_rp
       do k = 1, 3
         do l = 1, 3
           ddip(:,k) = ddip(:,k) + driz(:,k,l)*dip(l)
@@ -263,7 +262,7 @@ subroutine rotate_multipoles(doder,def,fx)
 !     ... and for the quadrupoles:
 !
       fx(:,jz) = fx(:,jz) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + dqua(:,3,3)*gzz       &
-                        + two*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+                        + 2.0_rp*(dqua(:,1,2)*gxy + dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
                         
                         
     
@@ -321,7 +320,6 @@ end subroutine rotate_multipoles
 subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
   use mod_mmpol, only: cmm, verbose, mol_frame, fatal_error
   use mod_memory, only: ip, rp
-  use mod_constants, only: zero, one
   use mod_io, only: print_matrix
   implicit none
 !
@@ -379,7 +377,7 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !
   real(rp),    parameter :: zofac = 0.866_rp
 !
-  r  = zero
+  r  = 0.0_rp
 !
 ! get the xi, eta and zeta vectors and their norms:
 !
@@ -397,20 +395,20 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 ! build the u and v vectors, that span the xz plane according to the specific
 ! convention:
 !
-  u = zero
-  v = zero
+  u = 0.0_rp
+  v = 0.0_rp
   if (mol_frame(j).eq.0) then
 !
 !   do nothing.
 !
-    r(1,1) = one
-    r(2,2) = one
-    r(3,3) = one
+    r(1,1) = 1.0_rp
+    r(2,2) = 1.0_rp
+    r(3,3) = 1.0_rp
     if (doder) then
-      dri  = zero
-      driz = zero
-      drix = zero
-      driy = zero
+      dri  = 0.0_rp
+      driz = 0.0_rp
+      drix = 0.0_rp
+      driy = 0.0_rp
     end if
     return
 !
@@ -435,9 +433,9 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
     u = xi
     dot = u(3)/xi_norm
     if (dot.le.zofac) then
-      v(1) = one
+      v(1) = 1.0_rp
     else
-      v(2) = one
+      v(2) = 1.0_rp
     end if
 !
   else if (mol_frame(j).eq.4) then
@@ -494,25 +492,25 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !
 ! clean interemediates:
 !
-  ez_u  = zero
-  ex_v  = zero
-  ex_ez = zero
-  ey_ez = zero
-  ey_ex = zero
-  u_ri  = zero
-  u_riz = zero
-  u_rix = zero
-  u_riy = zero
-  v_ri  = zero
-  v_rix = zero
-  v_riy = zero
+  ez_u  = 0.0_rp
+  ex_v  = 0.0_rp
+  ex_ez = 0.0_rp
+  ey_ez = 0.0_rp
+  ey_ex = 0.0_rp
+  u_ri  = 0.0_rp
+  u_riz = 0.0_rp
+  u_rix = 0.0_rp
+  u_riy = 0.0_rp
+  v_ri  = 0.0_rp
+  v_rix = 0.0_rp
+  v_riy = 0.0_rp
 !
 ! start by assembling the intermediates that do not depend on the sepcific convention:
 !
   u_cube = u_sq*u_norm
   do k = 1, 3
-    ez_u(k,k)  = one/u_norm
-    ex_v(k,k)  = one/ex_nrm
+    ez_u(k,k)  = 1.0_rp/u_norm
+    ex_v(k,k)  = 1.0_rp/ex_nrm
     ex_ez(k,k) = - vez/ex_nrm
   end do
   do k = 1, 3
@@ -521,25 +519,25 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
     ex_ez(:,k) = ex_ez(:,k) + ex(:)*vez*v(k)/ex_sq - ez(:)*v(k)/ex_nrm
   end do
 !
-  ey_ez(1,1) =   zero
+  ey_ez(1,1) =   0.0_rp
   ey_ez(1,2) =   ex(3)
   ey_ez(1,3) = - ex(2)
   ey_ez(2,1) = - ex(3)
-  ey_ez(2,2) =   zero
+  ey_ez(2,2) =   0.0_rp
   ey_ez(2,3) =   ex(1)
   ey_ez(3,1) =   ex(2)
   ey_ez(3,2) = - ex(1)
-  ey_ez(3,3) =   zero
+  ey_ez(3,3) =   0.0_rp
 !
-  ey_ex(1,1) =   zero
+  ey_ex(1,1) =   0.0_rp
   ey_ex(1,2) = - ez(3)
   ey_ex(1,3) =   ez(2)
   ey_ex(2,1) =   ez(3)
-  ey_ex(2,2) =   zero
+  ey_ex(2,2) =   0.0_rp
   ey_ex(2,3) = - ez(1)
   ey_ex(3,1) = - ez(2)
   ey_ex(3,2) =   ez(1)
-  ey_ex(3,3) =   zero
+  ey_ex(3,3) =   0.0_rp
 !
 ! now compute the convention-specific terms:
 !
@@ -548,10 +546,10 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !   z-then-x:
 !
     do k = 1, 3
-      u_ri(k,k)  = - one
-      u_riz(k,k) =   one
-      v_ri(k,k)  = - one
-      v_rix(k,k) =   one
+      u_ri(k,k)  = - 1.0_rp
+      u_riz(k,k) =   1.0_rp
+      v_ri(k,k)  = - 1.0_rp
+      v_rix(k,k) =   1.0_rp
     end do
 !
   else if (mol_frame(j).eq.2) then
@@ -562,8 +560,8 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
       u_ri(k,k)  = - xi_norm - eta_norm
       u_riz(k,k) =   eta_norm
       u_rix(k,k) =   xi_norm
-      v_ri(k,k)  = - one
-      v_rix(k,k) =   one
+      v_ri(k,k)  = - 1.0_rp
+      v_rix(k,k) =   1.0_rp
     end do
 !
     do k = 1, 3
@@ -577,8 +575,8 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !   z-only:
 !
     do k = 1, 3
-      u_ri(k,k)  = - one
-      u_riz(k,k) =   one
+      u_ri(k,k)  = - 1.0_rp
+      u_riz(k,k) =   1.0_rp
     end do
 !
   else if (mol_frame(j).eq.4) then
@@ -586,8 +584,8 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !   z-bisector:
 !
     do k = 1, 3
-      u_ri(k,k)  = - one
-      u_riz(k,k) =   one
+      u_ri(k,k)  = - 1.0_rp
+      u_riz(k,k) =   1.0_rp
       v_ri(k,k)  = - eta_norm - zeta_norm
       v_rix(k,k) =   zeta_norm
       u_riy(k,k) =   eta_norm
@@ -608,8 +606,8 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
       u_riz(k,k) =   eta_norm*zeta_norm
       u_rix(k,k) =   xi_norm*zeta_norm
       u_riy(k,k) =   xi_norm*eta_norm
-      v_ri(k,k)  = - one
-      v_rix(k,k) =   one
+      v_ri(k,k)  = - 1.0_rp
+      v_rix(k,k) =   1.0_rp
     end do
 !
     do k = 1, 3
