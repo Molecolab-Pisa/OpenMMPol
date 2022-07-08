@@ -204,6 +204,17 @@ module mod_interface
 
         end subroutine
 
+        subroutine get_urey_energy(eub) bind(c, name='get_urey_energy')
+            
+            use mod_bonded, only: urey_potential
+
+            implicit none
+            real(rp), intent(inout) :: eub
+
+            eub = 0.0_rp
+            call urey_potential(eub)
+        end subroutine
+        
         subroutine get_bond_energy(ebnd) bind(c, name='get_bond_energy')
             
             use mod_bonded, only: bond_potential

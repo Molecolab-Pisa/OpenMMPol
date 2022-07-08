@@ -9,7 +9,7 @@ module mod_prm
 
     integer(ip), allocatable :: atclass(:)
 
-    public :: assign_vdw, assign_pol, assign_mpoles, assign_bond
+    public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, assign_urey
 
     contains 
 
@@ -236,6 +236,196 @@ module mod_prm
         call mfree('assign_bond [kbnd]', kbnd)
     
     end subroutine assign_bond
+    
+    subroutine assign_urey(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: urey_init, urey_potential, ureya, &
+                              ureyb, kurey, l0urey, urey_cubic, &
+                              urey_quartic
+        use mod_constants, only: angstrom2au, kcalmol2au
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, iub, nub, &
+                       cla, clb, clc, maxub, a, b, c, jc, jb 
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), ubtmp(:)
+        real(rp), allocatable :: kub(:), l0ub(:)
+        logical :: done
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nub = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:9) == 'ureybrad ') nub = nub + 1
+        end do
+
+        maxub = conn(2)%ri(mm_atoms+1)-1 
+        ! Maximum number of UB terms (each angle have an UB term)
+        call mallocate('assign_urey [classa]', nub, classa)
+        call mallocate('assign_urey [classb]', nub, classb)
+        call mallocate('assign_urey [classc]', nub, classc)
+        call mallocate('assign_urey [l0ub]', nub, l0ub)
+        call mallocate('assign_urey [kub]', nub, kub)
+        call mallocate('assign_urey [ubtmp]', maxub, ubtmp)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        iub = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+           
+            if(line(:11) == 'urey-cubic ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREY-CUBIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) urey_cubic
+                ! This parameter is 1/Angstrom
+                urey_cubic = urey_cubic / angstrom2au
+            
+            else if(line(:13) == 'urey-quartic ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREY-QUARTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) urey_quartic
+                urey_quartic = urey_quartic / (angstrom2au**2)
+            
+            else if(line(:9) == 'ureybrad ') then
+                tokb = 10
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREYBRAD card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(iub)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREYBRAD card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(iub)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREYBRAD card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(iub)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREYBRAD card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) kub(iub)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong UREYBRAD card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) l0ub(iub)
+                
+                iub = iub + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+        
+        ubtmp = -1
+        do a=1, mm_atoms
+            cla = atclass(my_attype(a))
+            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
+                b = conn(2)%ci(jb)
+                done = .false.
+                if(a < b) cycle
+                clb = atclass(my_attype(b))
+                
+                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                    c = conn(1)%ci(jc)
+                    if(all(conn(1)%ci(conn(1)%ri(b):conn(1)%ri(b+1)-1) /= c)) cycle
+                    ! There is an angle in the form A-C-B
+                    clc = atclass(my_attype(c))
+                    do j=1, nub
+                        if((cla == classa(j) &
+                            .and. clb == classc(j) &
+                            .and. clc == classb(j)) .or. &
+                           (clb == classa(j) &
+                            .and. cla == classc(j) &
+                            .and. clc == classb(j))) then
+
+                            ubtmp(jb) = j 
+                            ! Temporary assignament in a sparse matrix logic
+                            done = .true.
+                            exit
+                        end if
+                    end do
+                        
+                    if(done) exit 
+                    ! If we have already found a parameter for A-B pair, stop 
+                    ! the research
+                end do
+            end do
+        end do
+
+        call urey_init(count(ubtmp > 0))
+        iub = 1
+        do a=1, mm_atoms
+            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
+                if(ubtmp(jb) > 0) then
+                    ureya(iub) = a
+                    ureyb(iub) = conn(2)%ci(jb)
+                    kurey(iub) = kub(ubtmp(jb)) * kcalmol2au / (angstrom2au**2) 
+                    l0urey(iub) = l0ub(ubtmp(jb)) * angstrom2au
+                    iub = iub + 1
+                end if
+            end do
+        end do
+
+        call mfree('assign_urey [classa]', classa)
+        call mfree('assign_urey [classb]', classb)
+        call mfree('assign_urey [classc]', classc)
+        call mfree('assign_urey [l0ub]', l0ub)
+        call mfree('assign_urey [kub]', kub)
+        call mfree('assign_urey [ubtmp]', ubtmp)
+        
+    end subroutine assign_urey
 
     subroutine assign_vdw(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree

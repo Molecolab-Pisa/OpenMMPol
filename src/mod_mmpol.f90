@@ -235,11 +235,13 @@ module mod_mmpol
         if(verbose == OMMP_VERBOSE_DEBUG) then
             write(6, *) "Building connectivity lists"
         end if
-        ! compute connectivity lists from connected atoms
-        call matcpy(conn(1), adj)
-        deallocate(conn)
         
-        call build_conn_upto_n(adj, 4, conn, .false.)
+        ! compute connectivity lists from connected atoms
+        if(size(conn) < 4) then
+            call matcpy(conn(1), adj)
+            deallocate(conn)
+            call build_conn_upto_n(adj, 4, conn, .false.)
+        end if
         
         if(verbose == OMMP_VERBOSE_DEBUG) then
             write(6, *) "Creating MM->polar and polar->MM lists"
