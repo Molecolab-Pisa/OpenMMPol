@@ -10,7 +10,7 @@ add_compile_options($<$<CONFIG:RELEASE>:-O3>
                     $<$<CONFIG:DEBUG>:-Og>
                     $<$<CONFIG:DEBUG>:-g>)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_library(openmmpol SHARED 
             src/mod_adjacency_mat.f90

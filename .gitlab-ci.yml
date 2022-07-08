@@ -47,12 +47,14 @@ compile-C:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make C_test_init C_test_ipd C_test_energy
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
     artifacts:
         paths:
             - build/bin/C_test_init
             - build/bin/C_test_ipd
             - build/bin/C_test_energy
+            - build/bin/C_test_init_xyz
+            - build/bin/C_test_potential_xyz
     only:
         - pushes
 
