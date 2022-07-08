@@ -40,17 +40,18 @@ double **read_ef(char *fin){
 }
 
 int main(int argc, char **argv){
-    if(argc != 5 && argc != 4){
+    if(argc != 4){
         printf("Syntax expected\n");
-        printf("    $ test_init_xyz.exe <XYZ FILE> <PRM FILE> <OUTPUT FILE> [<ELECTRIC FIELD>]\n");
+        printf("    $ test_init_xyz.exe <XYZ FILE> <PRM FILE> <OUTPUT FILE>\n");
         return 0;
     }
     
     int n_ipd, pol_atoms;
-    double E_MMMM, E_MMPOL, E_VDW, E_BND;
+    double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, 
+           ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex;
+    
     double *electric_field;
     double **external_ef;
-    int32_t *polar_mm;
 
     set_verbose(OMMP_VERBOSE_DEBUG);
     mmpol_init_xyz(argv[1], argv[2]);
@@ -59,36 +60,29 @@ int main(int argc, char **argv){
     pol_atoms = get_pol_atoms();
     
     electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
-    polar_mm = (int32_t *) get_polar_mm();
     
-    if(argc == 5)
-        external_ef = read_ef(argv[4]);
-
     for(int i = 0; i < n_ipd; i++)
         for(int j = 0; j < pol_atoms; j++)
             for(int k = 0; k < 3; k++)
-                if(argc == 5)
-                    electric_field[i*pol_atoms*3+j*3+k] = external_ef[polar_mm[j]-1][k];
-                else
-                    electric_field[i*pol_atoms*3+j*3+k] = 0.0;
+                electric_field[i*pol_atoms*3+j*3+k] = 0.0;
 
     do_qmmm(electric_field, OMMP_SOLVER_DEFAULT);
 
-    get_energy(&E_MMMM, &E_MMPOL); 
-    get_vdw_energy(&E_VDW);
-    get_bond_energy(&E_BND);
+    get_energy(&em, &ep); 
+    get_vdw_energy(&ev);
+    get_bond_energy(&eb);
 
     FILE *fp = fopen(argv[3], "w+");
 
-    E_MMMM *= AU2KCALMOL;
-    E_MMPOL *= AU2KCALMOL;
-    E_VDW *= AU2KCALMOL;
-    E_BND *= AU2KCALMOL;
+    em *= AU2KCALMOL;
+    ep *= AU2KCALMOL;
+    ev *= AU2KCALMOL;
+    eb *= AU2KCALMOL;
 
-    fprintf(fp, "MM-MM:  %20.12e\n", E_MMMM);
-    fprintf(fp, "MM-Pol: %20.12e\n", E_MMPOL);
-    fprintf(fp, "VDW:    %20.12e\n", E_VDW);
-    fprintf(fp, "BOND:   %20.12e\n", E_BND);
+    fprintf(fp, "EM      %20.12e\n", em);
+    fprintf(fp, "EP      %20.12e\n", ep);
+    fprintf(fp, "EV      %20.12e\n", ev);
+    fprintf(fp, "EB      %20.12e\n", eb);
     
     fclose(fp);
     

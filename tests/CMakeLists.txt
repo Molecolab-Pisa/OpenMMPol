@@ -79,32 +79,6 @@ set_tests_properties(1ao6_xyzloading_AMOEBA PROPERTIES DEPENDS amoebabio18.prm)
 add_test(NAME 1ao6_xyzloading_AMOEBA_comp 
          COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA.ref)
 
-     #add_test(1crn_loading_AMOEBA 
-     #         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMOEBA.mmp Testing/output)
-     #add_test(NAME 1crn_loading_AMOEBA_comp 
-     #         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1crn/summary_AMOEBA.ref)
-     #add_test(1crn_loading_WANG_AL 
-     #         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1crn/input_WANG_AL.mmp Testing/output)
-     #add_test(NAME 1crn_loading_WANG_AL_comp 
-     #         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1crn/summary_WANG_AL.ref)
-     #
-     #add_test(1ubq_loading_AMOEBA 
-     #         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ubq/input_AMOEBA.mmp Testing/output)
-     #add_test(NAME 1ubq_loading_AMOEBA_comp 
-     #         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ubq/summary_AMOEBA.ref)
-     #add_test(1ubq_loading_WANG_AL 
-     #         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ubq/input_WANG_AL.mmp Testing/output)
-     #add_test(NAME 1ubq_loading_WANG_AL_comp 
-     #         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ubq/summary_WANG_AL.ref)
-     #
-     #add_test(1ao6_loading_AMOEBA
-     #         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA.mmp Testing/output)
-     #add_test(NAME 1ao6_loading_AMOEBA_comp 
-     #         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA.ref)
-     #add_test(1ao6_loading_WANG_AL 
-     #         bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL.mmp Testing/output)
-     #add_test(NAME 1ao6_loading_WANG_AL_comp 
-     #         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_WANG_AL.ref)
 # Tests on calculation of IPD
 add_test(NAME NMA_ipd0_AMOEBA_CG
          COMMAND  bin/C_test_ipd 
@@ -500,3 +474,93 @@ add_test(NAME 1ao6_ene1_WANG_AL_CUT10_comp
          Testing/output 
          ${RTOL} ${ATOL})
 
+# Tests on the full potential
+add_test(NAME NMA_ene_full_AMOEBA
+         COMMAND  bin/C_test_potential_xyz
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.xyz
+         amoeba09.prm
+         Testing/output)
+add_test(NAME NMA_ene_full_AMOEBA_comp_eb
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
+         Testing/output 
+         EB
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ene_full_AMOEBA_comp_ev
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
+         Testing/output 
+         EV
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ene_full_AMOEBA_comp_em
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
+         Testing/output 
+         EM
+         ${RTOL} ${ATOL})
+add_test(NAME NMA_ene_full_AMOEBA_comp_ep
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
+         Testing/output 
+         EP
+         ${RTOL} ${ATOL})
+
+add_test(NAME 1crn_ene_full_AMOEBA
+         COMMAND  bin/C_test_potential_xyz
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input.xyz
+         amoebabio18.prm
+         Testing/output)
+add_test(NAME 1crn_ene_full_AMOEBA_comp_eb
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+         Testing/output 
+         EB
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene_full_AMOEBA_comp_ev
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+         Testing/output 
+         EV
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene_full_AMOEBA_comp_em
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+         Testing/output 
+         EM
+         ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene_full_AMOEBA_comp_ep
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+         Testing/output 
+         EP
+         ${RTOL} ${ATOL})
+
+add_test(NAME 1ubq_ene_full_AMOEBA
+         COMMAND  bin/C_test_potential_xyz
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/input.xyz
+         amoebabio18.prm
+         Testing/output)
+add_test(NAME 1ubq_ene_full_AMOEBA_comp_eb
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+         Testing/output 
+         EB
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene_full_AMOEBA_comp_ev
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+         Testing/output 
+         EV
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene_full_AMOEBA_comp_em
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+         Testing/output 
+         EM
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene_full_AMOEBA_comp_ep
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+         Testing/output 
+         EP
+         ${RTOL} ${ATOL})
