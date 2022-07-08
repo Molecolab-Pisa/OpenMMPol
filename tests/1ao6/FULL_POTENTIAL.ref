@@ -1,0 +1,28 @@
+EB     (Bond stretch          ): 2752.48659672
+EA     (Angle bend            ): 3910.24433939
+EBA    (Stretch-bend          ): 136.05609055
+EUB    (Urey Bradley          ):  -0.08426604
+EAA    (Angle-Angle           ):   0.00000000
+EOPB   (Out of plane bend     ): 123.80881234
+EOPD   (Out of plane distance ):   0.00000000
+EID    (Improper dihedral     ):   0.00000000
+EIT    (Improper torsion      ):   0.00000000
+ET     (Torsional             ): 1105.41972591
+EPT    (Pi-system torsion     ):  29.93463321
+EBT    (Stretch-torsion       ):   0.00000000
+EAT    (Angle torsion         ):   0.00000000
+ETT    (Torsion-torsion       ): -82.15554924
+EV     (van der Waals         ): 32793.08440553
+ER     (Pauli Repulsion       ):   0.00000000
+EDSP   (dampled dispersion    ):   0.00000000
+EC     (charge-charge         ):   0.00000000
+ECD    (charge-dipole         ):   0.00000000
+ED     (dipole-dipole         ):   0.00000000
+EM     (atomic multipole      ): -30343.81968298
+EP     (polarization energy   ): -5625.48830246
+ECT    (Charge transfer       ):   0.00000000
+ERXF   (reaction field        ):   0.00000000
+ES     (solvation             ):   0.00000000
+ELF    (Metal ligand          ):   0.00000000
+EG     (Restraint             ):   0.00000000
+EX     (Extra                 ):   0.00000000
