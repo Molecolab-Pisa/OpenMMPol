@@ -9,19 +9,19 @@ module mod_bonded
 
     ! Bond section
     integer(ip) :: nbond
-    integer(ip), allocatable :: bonda(:), bondb(:)
+    integer(ip), allocatable :: bondat(:,:)
     real(rp) :: bond_cubic, bond_quartic
     real(rp), allocatable :: kbond(:), l0bond(:)
 
-    public :: bond_init, bond_potential, bonda, bondb, kbond, &
+    public :: bond_init, bond_potential, bondat, kbond, &
               l0bond, bond_cubic, bond_quartic
 
     ! Urey-Bradley
     integer(ip) :: nurey
-    integer(ip), allocatable ::ureya(:), ureyb(:)
+    integer(ip), allocatable :: ureyat(:,:)
     real(rp) :: urey_cubic, urey_quartic
     real(rp), allocatable :: kurey(:), l0urey(:)
-    public :: urey_init, urey_potential, ureya, ureyb, kurey, &
+    public :: urey_init, urey_potential, ureyat, kurey, &
               l0urey, urey_cubic, urey_quartic
 
     contains
@@ -37,8 +37,7 @@ module mod_bonded
         !! Number of bond stretching functions in the potential
         !! energy of the system
 
-        call mallocate('bond_init [bonda]', n, bonda)
-        call mallocate('bond_init [bondb]', n, bondb)
+        call mallocate('bond_init [bondat]', 2, n, bondat)
         call mallocate('bond_init [kbond]', n, kbond)
         call mallocate('bond_init [l0bond]', n, l0bond)
         nbond = n
@@ -68,14 +67,14 @@ module mod_bonded
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
             do i=1, nbond
-                dr = cmm(:,bonda(i)) - cmm(:,bondb(i))
+                dr = cmm(:,bondat(1,i)) - cmm(:,bondat(2,i))
                 l = sqrt(dot_product(dr, dr))
                 dl = l - l0bond(i)
                 V = V + kbond(i) * dl * dl
             end do
         else
             do i=1, nbond
-                dr = cmm(:,bonda(i)) - cmm(:,bondb(i))
+                dr = cmm(:,bondat(1,i)) - cmm(:,bondat(2,i))
                 l = sqrt(dot_product(dr, dr))
                 dl = l - l0bond(i)
                 dl2 = dl * dl
@@ -98,8 +97,7 @@ module mod_bonded
         !! Number of Urey-Bradley functions in the potential
         !! energy of the system
 
-        call mallocate('urey_init [ureya]', n, ureya)
-        call mallocate('urey_init [ureyb]', n, ureyb)
+        call mallocate('urey_init [ureya]', 2, n, ureyat)
         call mallocate('urey_init [kurey]', n, kurey)
         call mallocate('urey_init [l0urey]', n, l0urey)
         nurey = n
@@ -129,14 +127,14 @@ module mod_bonded
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
             do i=1, nurey
-                dr = cmm(:,ureya(i)) - cmm(:,ureyb(i))
+                dr = cmm(:,ureyat(1,i)) - cmm(:,ureyat(2,i))
                 l = sqrt(dot_product(dr, dr))
                 dl = l - l0urey(i)
                 V = V + kurey(i) * dl * dl
             end do
         else
             do i=1, nurey
-                dr = cmm(:,ureya(i)) - cmm(:,ureyb(i))
+                dr = cmm(:,ureyat(1,i)) - cmm(:,ureyat(2,i))
                 l = sqrt(dot_product(dr, dr))
                 dl = l - l0urey(i)
                 dl2 = dl * dl

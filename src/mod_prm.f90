@@ -78,9 +78,8 @@ module mod_prm
     subroutine assign_bond(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: bond_init, bond_potential, bonda, &
-                              bondb, kbond, l0bond, bond_cubic, &
-                              bond_quartic
+        use mod_bonded, only: bond_init, bond_potential, bondat, &
+                              kbond, l0bond, bond_cubic, bond_quartic
         use mod_constants, only: angstrom2au, kcalmol2au
         
         implicit none
@@ -111,8 +110,8 @@ module mod_prm
             do j=conn(1)%ri(i), conn(1)%ri(i+1)-1
                 jat = conn(1)%ci(j)
                 if(i > jat) then
-                    bonda(l) = i
-                    bondb(l) = jat
+                    bondat(1,l) = i
+                    bondat(2,l) = jat
                     l = l+1
                 end if
             end do
@@ -210,10 +209,10 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        do i=1, size(bonda)
+        do i=1, size(bondat,2)
             ! Atom class for current pair
-            cla = atclass(my_attype(bonda(i)))
-            clb = atclass(my_attype(bondb(i)))
+            cla = atclass(my_attype(bondat(1,i)))
+            clb = atclass(my_attype(bondat(2,i)))
             
             done = .false.
             do j=1, nbnd
@@ -240,9 +239,8 @@ module mod_prm
     subroutine assign_urey(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: urey_init, urey_potential, ureya, &
-                              ureyb, kurey, l0urey, urey_cubic, &
-                              urey_quartic
+        use mod_bonded, only: urey_init, urey_potential, ureyat, &
+                              kurey, l0urey, urey_cubic, urey_quartic
         use mod_constants, only: angstrom2au, kcalmol2au
         
         implicit none
@@ -409,8 +407,8 @@ module mod_prm
         do a=1, mm_atoms
             do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
                 if(ubtmp(jb) > 0) then
-                    ureya(iub) = a
-                    ureyb(iub) = conn(2)%ci(jb)
+                    ureyat(1,iub) = a
+                    ureyat(2,iub) = conn(2)%ci(jb)
                     kurey(iub) = kub(ubtmp(jb)) * kcalmol2au / (angstrom2au**2) 
                     l0urey(iub) = l0ub(ubtmp(jb)) * angstrom2au
                     iub = iub + 1
