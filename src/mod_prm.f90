@@ -10,7 +10,7 @@ module mod_prm
     integer(ip), allocatable :: atclass(:), atz(:)
 
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-              assign_angle, assign_urey
+              assign_angle, assign_urey, assign_strbnd
 
     contains 
 
@@ -130,7 +130,7 @@ module mod_prm
         do i=1, mm_atoms
             do j=conn(1)%ri(i), conn(1)%ri(i+1)-1
                 jat = conn(1)%ci(j)
-                if(i > jat) then
+                if(i < jat) then
                     bondat(1,l) = i
                     bondat(2,l) = jat
                     l = l+1
@@ -393,7 +393,7 @@ module mod_prm
             do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
                 b = conn(2)%ci(jb)
                 done = .false.
-                if(a < b) cycle
+                if(a > b) cycle
                 clb = atclass(my_attype(b))
                 
                 do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
@@ -445,6 +445,223 @@ module mod_prm
         call mfree('assign_urey [ubtmp]', ubtmp)
         
     end subroutine assign_urey
+    
+    subroutine assign_strbnd(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: strbnd_init, strbndat, strbndk1, strbndk2, &
+                              strbndl10, strbndl20, strbndthet0, &
+                              bondat, l0bond, angleat, eqangle 
+
+        use mod_constants, only: kcalmol2au, angstrom2au
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, isb, nstrbnd, &
+                       cla, clb, clc, a, b, c, jc, jb, k, maxsb, &
+                       l1a, l1b, l2a, l2b
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), sbtmp(:), &
+                                    sbattmp(:, :)
+        real(rp), allocatable :: k1(:), k2(:)
+        logical :: done, thet_done, l1_done, l2_done
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nstrbnd = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:7) == 'strbnd ') nstrbnd = nstrbnd + 1
+        end do
+
+        maxsb = (conn(2)%ri(mm_atoms+1)-1) / 2
+        call mallocate('assign_angle [classa]', nstrbnd, classa)
+        call mallocate('assign_angle [classb]', nstrbnd, classb)
+        call mallocate('assign_angle [classc]', nstrbnd, classc)
+        call mallocate('assign_angle [eqang]', nstrbnd, k1)
+        call mallocate('assign_angle [kang]', nstrbnd, k2)
+        call mallocate('assign_angle [sbtmp]', maxsb, sbtmp)
+        call mallocate('assign_angle [sbattmp]', 3, maxsb, sbattmp)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        isb = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+           
+            if(line(:7) == 'strbnd ') then
+                tokb = 8
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRBND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(isb)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRBND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(isb)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRBND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(isb)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRBND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) k1(isb)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRBND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) k2(isb)
+
+                isb = isb + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+        
+        isb = 1
+        do a=1, mm_atoms
+            cla = atclass(my_attype(a))
+            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
+                b = conn(2)%ci(jb)
+                if(a > b) cycle
+                clb = atclass(my_attype(b))
+                
+                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                    c = conn(1)%ci(jc)
+                    if(all(conn(1)%ci(conn(1)%ri(b):conn(1)%ri(b+1)-1) /= c)) cycle
+                    ! There is an angle in the form A-C-B
+                    clc = atclass(my_attype(c))
+                    done = .false.
+
+                    do j=1, nstrbnd
+                        if((cla == classa(j) &
+                            .and. clb == classc(j) &
+                            .and. clc == classb(j)) .or. &
+                           (clb == classa(j) &
+                            .and. cla == classc(j) &
+                            .and. clc == classb(j))) then
+                            sbattmp(1,isb) = a
+                            sbattmp(2,isb) = c
+                            sbattmp(3,isb) = b
+                            if(cla == classa(j)) then
+                                ! Assign the correct k to each bond stretching!
+                                sbtmp(isb) = j
+                            else
+                                sbtmp(isb) = -j
+                            end if
+                            isb = isb + 1
+                            exit
+                        end if
+                    end do
+                end do
+            end do
+        end do
+
+        call strbnd_init(isb-1)
+
+        do i=1, isb-1
+            ! First assign the parameters
+            strbndat(:,i) = sbattmp(:,i)
+            j = abs(sbtmp(i))
+            if(sbtmp(i) > 0) then
+                strbndk1(i) = k1(j) * kcalmol2au / angstrom2au
+                strbndk2(i) = k2(j) * kcalmol2au / angstrom2au
+                l1a = min(strbndat(1,i), strbndat(2,i))
+                l1b = max(strbndat(1,i), strbndat(2,i))
+                l2a = min(strbndat(3,i), strbndat(2,i))
+                l2b = max(strbndat(3,i), strbndat(2,i))
+            else
+                strbndk1(i) = k2(j) * kcalmol2au / angstrom2au
+                strbndk2(i) = k1(j) * kcalmol2au / angstrom2au
+                l1a = min(strbndat(3,i), strbndat(2,i))
+                l1b = max(strbndat(3,i), strbndat(2,i))
+                l2a = min(strbndat(1,i), strbndat(2,i))
+                l2b = max(strbndat(1,i), strbndat(2,i))
+            end if
+           
+            ! Now search for the corresponding bond and angle parameters to
+            ! set the equilibrium distances and angle
+            l1_done = .false.
+            l2_done = .false.
+            thet_done = .false.
+            
+
+            do j=1, size(bondat, 2)
+                if(l1a == bondat(1,j) .and. l1b == bondat(2,j)) then
+                    l1_done = .true.
+                    strbndl10(i) = l0bond(j)
+                else if(l2a == bondat(1,j) .and. l2b == bondat(2,j)) then
+                    l2_done = .true.
+                    strbndl20(i) = l0bond(j)
+                end if
+
+                if(l1_done .and. l2_done) exit
+            end do
+            
+            do j=1, size(angleat, 2)
+                if(all(strbndat(:,i) == angleat(:,j))) then
+                    thet_done = .true.
+                    strbndthet0(i) = eqangle(j)
+                    exit
+                end if
+            end do
+            
+            if(.not.(l1_done .and. l2_done .and. thet_done)) then
+                call fatal_error("Ill-defined stretch-bending cross term")
+            end if
+        end do
+
+        call mfree('assign_strbnd [classa]', classa)
+        call mfree('assign_strbnd [classb]', classb)
+        call mfree('assign_strbnd [classc]', classc)
+        call mfree('assign_strbnd [eqang]', k1)
+        call mfree('assign_strbnd [kang]', k2)
+        call mfree('assign_strbnd [sbtmp]', sbtmp)
+        call mfree('assign_strbnd [sbattmp]', sbattmp)
+    
+    end subroutine assign_strbnd
+    
     
     subroutine assign_angle(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
@@ -720,7 +937,7 @@ module mod_prm
             cla = atclass(my_attype(a))
             do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
                 b = conn(2)%ci(jb)
-                if(a < b) cycle
+                if(a > b) cycle
                 clb = atclass(my_attype(b))
                 
                 do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1

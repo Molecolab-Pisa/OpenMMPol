@@ -33,9 +33,10 @@ module mod_bonded
     ! Stretch-Bend
     integer(ip) :: nstrbnd
     integer(ip), allocatable :: strbndat(:,:)
-    real(rp), allocatable :: strbndk1(:), strbndk2(:) 
+    real(rp), allocatable :: strbndk1(:), strbndk2(:), strbndthet0(:), &
+                             strbndl10(:), strbndl20(:)
     public :: strbnd_init, strbnd_potential, strbndat, strbndk1, &
-              strbndk2
+              strbndk2, strbndl10, strbndl20, strbndthet0
 
     ! Urey-Bradley
     integer(ip) :: nurey
@@ -61,6 +62,7 @@ module mod_bonded
         call mallocate('bond_init [bondat]', 2, n, bondat)
         call mallocate('bond_init [kbond]', n, kbond)
         call mallocate('bond_init [l0bond]', n, l0bond)
+
         nbond = n
         bond_cubic = 0.0_rp
         bond_quartic = 0.0_rp
@@ -91,6 +93,7 @@ module mod_bonded
                 dr = cmm(:,bondat(1,i)) - cmm(:,bondat(2,i))
                 l = sqrt(dot_product(dr, dr))
                 dl = l - l0bond(i)
+                
                 V = V + kbond(i) * dl * dl
             end do
         else
@@ -154,6 +157,7 @@ module mod_bonded
                 thet = acos(dot_product(dr1, dr2)/(l1*l2))
                 
                 d_theta = thet-eqangle(i) 
+                
                 V = V + kangle(i) * d_theta**2 * (1.0 + angle_cubic*d_theta &
                     + angle_quartic*d_theta**2 + angle_pentic*d_theta**3 &
                     + angle_sextic*d_theta**4)
@@ -198,6 +202,7 @@ module mod_bonded
                 thet = acos(dot_product(dr1, dr2)/(l1*l2))
                 
                 d_theta = thet-eqangle(i) 
+                
                 V = V + kangle(i) * d_theta**2 * (1.0 + angle_cubic*d_theta &
                     + angle_quartic*d_theta**2 + angle_pentic*d_theta**3 &
                     + angle_sextic*d_theta**4)
@@ -217,6 +222,9 @@ module mod_bonded
         !! energy of the system
 
         call mallocate('strbnd_init [strbndat]', 3, n, strbndat)
+        call mallocate('strbnd_init [strbndl10]', n, strbndl10)
+        call mallocate('strbnd_init [strbndl20]', n, strbndl20)
+        call mallocate('strbnd_init [strbndthet0]', n, strbndthet0)
         call mallocate('strbnd_init [strbndk1]', n, strbndk1)
         call mallocate('strbnd_init [strbndk2]', n, strbndk2)
         nstrbnd = n
@@ -226,25 +234,31 @@ module mod_bonded
     subroutine strbnd_potential(V)
         !! Compute the stretch-bend cross term potential
 
-        use mod_constants, only : eps_rp
-        use mod_mmpol, only: cmm
+        use mod_constants!, only : eps_rp
+        use mod_mmpol, only: cmm, fatal_error
 
         implicit none
 
         real(rp), intent(inout) :: V
         !! Stretch-bend cross term potential, result will be added to V
 
-        integer(ip) :: i
-        real(rp) :: l1, l2, thet, dr1(3), dr2(3)
+        integer(ip) :: i, j, l1a, l1b, l2a, l2b
+        real(rp) :: d_l1, d_l2, d_thet, dr1(3), dr2(3), l1, l2, thet
+        logical :: l1_done, l2_done, thet_done
 
         do i=1, nstrbnd
-            dr1 = cmm(:, strbndat(1,i)) - cmm(:, strbndat(2,i))
-            dr2 = cmm(:, strbndat(3,i)) - cmm(:, strbndat(2,i))
-            l1 = sqrt(dot_product(dr1, dr1))
-            l2 = sqrt(dot_product(dr2, dr2))
+            dr1 = cmm(:, strbndat(2,i)) - cmm(:, strbndat(1,i))
+            l1 = norm2(dr1)
+            d_l1 = l1 - strbndl10(i)
+            
+            dr2 = cmm(:,strbndat(2,i)) - cmm(:, strbndat(3,i))
+            l2 = norm2(dr2)
+            d_l2 = l2 - strbndl20(i)
 
             thet = acos(dot_product(dr1, dr2)/(l1*l2))
-            !TODO ... to be completed ...
+            d_thet = thet - strbndthet0(i) 
+            
+            V = V + (d_l1*strbndk1(i) + d_l2*strbndk2(i)) * d_thet
         end do
     end subroutine strbnd_potential
     
