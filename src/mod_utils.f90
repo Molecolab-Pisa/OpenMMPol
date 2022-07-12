@@ -5,10 +5,30 @@ module mod_utils
     private
 
     public :: sort_ivec, sort_ivec_inplace, skip_lines
-    public :: starts_with_alpha, isreal, isint, tokenize
+    public :: starts_with_alpha, isreal, isint, tokenize, count_substr_occurence
 
     contains
    
+    function count_substr_occurence(s, c)
+        ! Count the number of occurence of substring c in string s
+        implicit none
+
+        character(len=*), intent(in) :: s, c
+        integer(ip) :: count_substr_occurence, i, lens, lenc
+        
+        count_substr_occurence = 0
+        lens = len(s)
+        lenc = len(c)
+
+        do i=1, lens-lenc+1
+            if(s(i:i+lenc-1) == c) then
+                count_substr_occurence = count_substr_occurence+1
+            end if
+        end do
+        
+        return
+    end function
+
     function starts_with_alpha(s)
         ! Decide if a string starts with a letter
         implicit none

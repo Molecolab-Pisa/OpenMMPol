@@ -215,6 +215,17 @@ module mod_interface
             call urey_potential(eub)
         end subroutine
         
+        subroutine get_angle_energy(eang) bind(c, name='get_angle_energy')
+            
+            use mod_bonded, only: angle_potential
+
+            implicit none
+            real(rp), intent(inout) :: eang
+
+            eang = 0.0_rp
+            call angle_potential(eang)
+        end subroutine
+        
         subroutine get_bond_energy(ebnd) bind(c, name='get_bond_energy')
             
             use mod_bonded, only: bond_potential

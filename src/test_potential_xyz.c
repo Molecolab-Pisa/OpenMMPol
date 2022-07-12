@@ -71,6 +71,7 @@ int main(int argc, char **argv){
     get_energy(&em, &ep); 
     get_vdw_energy(&ev);
     get_bond_energy(&eb);
+    get_angle_energy(&ea);
     get_urey_energy(&eub);
 
     FILE *fp = fopen(argv[3], "w+");
@@ -79,12 +80,14 @@ int main(int argc, char **argv){
     ep *= AU2KCALMOL;
     ev *= AU2KCALMOL;
     eb *= AU2KCALMOL;
+    ea *= AU2KCALMOL;
     eub *= AU2KCALMOL;
 
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);
     fprintf(fp, "EV      %20.12e\n", ev);
     fprintf(fp, "EB      %20.12e\n", eb);
+    fprintf(fp, "EA      %20.12e\n", ea);
     fprintf(fp, "EUB     %20.12e\n", eub);
     
     fclose(fp);

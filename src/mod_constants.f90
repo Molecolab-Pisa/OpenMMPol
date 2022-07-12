@@ -5,7 +5,10 @@ module mod_constants
     ! Physical constants
     real(rp), parameter :: angstrom2au = 1.8897261245650_rp, &
                            kcalmol2au = 1.59360109742136e-3_rp, &
-                           au2kcalmol = 627.5096080306_rp
+                           au2kcalmol = 627.5096080306_rp, &
+                           pi = 4.0 * atan(1.0), &
+                           deg2rad = pi / 180.0, &
+                           rad2deg = 180.0 / pi
 
     ! Force Field parameters
     real(rp), parameter :: mscale_wang_al(4) = [0.0_rp, 0.0_rp, 1.0_rp, 1.0_rp]

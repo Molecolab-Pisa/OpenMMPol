@@ -7,14 +7,35 @@ module mod_bonded
     implicit none
     private
 
-    ! Bond section
+    ! Bond
     integer(ip) :: nbond
     integer(ip), allocatable :: bondat(:,:)
     real(rp) :: bond_cubic, bond_quartic
     real(rp), allocatable :: kbond(:), l0bond(:)
-
     public :: bond_init, bond_potential, bondat, kbond, &
               l0bond, bond_cubic, bond_quartic
+
+    ! Angle
+    integer(ip) :: nangle
+    integer(ip), allocatable :: angleat(:,:), anglety(:), angauxat(:)
+    integer(ip), parameter, public :: OMMP_ANG_SIMPLE = 0, &
+                                      OMMP_ANG_H0 = 1, &
+                                      OMMP_ANG_H1 = 2, &
+                                      OMMP_ANG_H2 = 3, &
+                                      OMMP_ANG_INPLANE = 4, &
+                                      OMMP_ANG_INPLANE_H0 = 5, &
+                                      OMMP_ANG_INPLANE_H1 = 6
+    real(rp) :: angle_cubic, angle_quartic, angle_pentic, angle_sextic
+    real(rp), allocatable :: kangle(:), eqangle(:)
+    public :: angle_init, angle_potential, angleat, anglety, kangle, eqangle, &
+              angle_cubic, angle_quartic, angle_pentic, angle_sextic
+
+    ! Stretch-Bend
+    integer(ip) :: nstrbnd
+    integer(ip), allocatable :: strbndat(:,:)
+    real(rp), allocatable :: strbndk1(:), strbndk2(:) 
+    public :: strbnd_init, strbnd_potential, strbndat, strbndk1, &
+              strbndk2
 
     ! Urey-Bradley
     integer(ip) :: nurey
@@ -84,7 +105,148 @@ module mod_bonded
         end if
         
     end subroutine bond_potential
+
+    subroutine angle_init(n)
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of angle bending functions in the potential
+        !! energy of the system
+
+        call mallocate('angle_init [angleat]', 3, n, angleat)
+        call mallocate('angle_init [anglety]', n, anglety)
+        call mallocate('angle_init [angauxat]', n, angauxat)
+        call mallocate('angle_init [kangle]', n, kangle)
+        call mallocate('angle_init [eqangle]', n, eqangle)
+        
+        nangle = n
+        angauxat = 0
+        angle_cubic = 0.0_rp
+        angle_quartic = 0.0_rp
+        angle_pentic = 0.0_rp
+        angle_sextic = 0.0_rp
+
+    end subroutine angle_init
+
+    subroutine angle_potential(V)
+        use mod_mmpol, only: cmm, conn, fatal_error
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        
+        integer(ip) :: i, j
+        real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
+        real(rp), dimension(3) :: v_dist, plv1, plv2, pln, a, b, c, prj_b, aux
+
+        do i=1, nangle
+            if(anglety(i) == OMMP_ANG_SIMPLE .or. &
+               anglety(i) == OMMP_ANG_H0 .or. &
+               anglety(i) == OMMP_ANG_H1 .or. &
+               anglety(i) == OMMP_ANG_H2) then
+                dr1 = cmm(:, angleat(1,i)) - cmm(:, angleat(2,i))
+                dr2 = cmm(:, angleat(3,i)) - cmm(:, angleat(2,i))
+                l1 = sqrt(dot_product(dr1, dr1))
+                l2 = sqrt(dot_product(dr2, dr2))
+
+                thet = acos(dot_product(dr1, dr2)/(l1*l2))
+                
+                d_theta = thet-eqangle(i) 
+                V = V + kangle(i) * d_theta**2 * (1.0 + angle_cubic*d_theta &
+                    + angle_quartic*d_theta**2 + angle_pentic*d_theta**3 &
+                    + angle_sextic*d_theta**4)
+
+            else if(anglety(i) == OMMP_ANG_INPLANE .or. &
+                    anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
+                    anglety(i) == OMMP_ANG_INPLANE_H1) then
+                if(angauxat(i) < 1) then
+                    ! Find the auxiliary atom used to define the projection
+                    ! plane
+                    if(conn(1)%ri(angleat(2,i)+1) - conn(1)%ri(angleat(2,i)) /= 3) then
+                        call fatal_error("Angle IN-PLANE defined for a non-&
+                                         &trigonal center")
+                    end if 
+                    do j=conn(1)%ri(angleat(2,i)), conn(1)%ri(angleat(2,i)+1)-1
+                        if(conn(1)%ci(j) /= angleat(1,i) .and. &
+                           conn(1)%ci(j) /= angleat(3,i)) then
+                            angauxat(i) = conn(1)%ci(j)
+                        endif
+                    end do
+                end if
+                a = cmm(:, angleat(1,i))
+                b = cmm(:, angleat(2,i))
+                c = cmm(:, angleat(3,i))
+
+                aux = cmm(:, angauxat(i))
+                plv1 = a - aux
+                plv2 = c - aux
+                pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+                pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+                pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+                pln = pln / sqrt(dot_product(pln, pln))
+
+                v_dist = b - aux
+                prj_b = b - dot_product(v_dist, pln) * pln 
+
+                dr1 = cmm(:, angleat(1,i)) - prj_b
+                dr2 = cmm(:, angleat(3,i)) - prj_b
+                l1 = sqrt(dot_product(dr1, dr1))
+                l2 = sqrt(dot_product(dr2, dr2))
+
+                thet = acos(dot_product(dr1, dr2)/(l1*l2))
+                
+                d_theta = thet-eqangle(i) 
+                V = V + kangle(i) * d_theta**2 * (1.0 + angle_cubic*d_theta &
+                    + angle_quartic*d_theta**2 + angle_pentic*d_theta**3 &
+                    + angle_sextic*d_theta**4)
+            end if
+        end do
+    end subroutine angle_potential
     
+    subroutine strbnd_init(n)
+        !! Initialize Stretch-bend cross term potential
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of stretch-bend functions in the potential
+        !! energy of the system
+
+        call mallocate('strbnd_init [strbndat]', 3, n, strbndat)
+        call mallocate('strbnd_init [strbndk1]', n, strbndk1)
+        call mallocate('strbnd_init [strbndk2]', n, strbndk2)
+        nstrbnd = n
+
+    end subroutine strbnd_init
+
+    subroutine strbnd_potential(V)
+        !! Compute the stretch-bend cross term potential
+
+        use mod_constants, only : eps_rp
+        use mod_mmpol, only: cmm
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        !! Stretch-bend cross term potential, result will be added to V
+
+        integer(ip) :: i
+        real(rp) :: l1, l2, thet, dr1(3), dr2(3)
+
+        do i=1, nstrbnd
+            dr1 = cmm(:, strbndat(1,i)) - cmm(:, strbndat(2,i))
+            dr2 = cmm(:, strbndat(3,i)) - cmm(:, strbndat(2,i))
+            l1 = sqrt(dot_product(dr1, dr1))
+            l2 = sqrt(dot_product(dr2, dr2))
+
+            thet = acos(dot_product(dr1, dr2)/(l1*l2))
+            !TODO ... to be completed ...
+        end do
+    end subroutine strbnd_potential
     
     subroutine urey_init(n) 
         !! Initialize Urey-Bradley potential arrays
