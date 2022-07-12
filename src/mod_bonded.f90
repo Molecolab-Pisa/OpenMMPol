@@ -46,6 +46,14 @@ module mod_bonded
     public :: urey_init, urey_potential, ureyat, kurey, &
               l0urey, urey_cubic, urey_quartic
 
+    ! Out-of-Plane Bending
+    integer(ip) :: nopb
+    integer(ip), allocatable :: opbat(:,:)
+    real(rp) :: opb_cubic=0.0, opb_quartic=0.0, opb_pentic=0.0, opb_sextic=0.0
+    real(rp), allocatable :: kopb(:)
+    public :: opb_init, opb_potential, opbat, opb_cubic, opb_quartic, &
+              opb_pentic, opb_sextic, kopb
+
     contains
 
     subroutine bond_init(n) 
@@ -234,7 +242,7 @@ module mod_bonded
     subroutine strbnd_potential(V)
         !! Compute the stretch-bend cross term potential
 
-        use mod_constants!, only : eps_rp
+        use mod_constants, only : eps_rp
         use mod_mmpol, only: cmm, fatal_error
 
         implicit none
@@ -320,5 +328,68 @@ module mod_bonded
         end if
         
     end subroutine urey_potential
+
+    subroutine opb_init(n)
+        !! Initialize Out-of-Plane bending potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of out of plane Bending functions in the potential
+        !! energy of the system
+
+        call mallocate('opb_init [opbat]', 4, n, opbat)
+        call mallocate('opb_init [kopb]', n, kopb)
+        nopb = n
+
+    end subroutine opb_init
+
+    subroutine opb_potential(V)
+        ! TODO note this is the aligner formulation
+        !! Compute the out-of-plane bending potential
+
+        use mod_constants, only : rad2deg, pi
+        use mod_mmpol, only: cmm
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        !! out-of-plane potential, result will be added to V
+        real(rp), dimension(3) :: a, b, c, d, plv1, plv2, pln, vad
+        real(rp) :: lpln, lvad, thet, thet2, thet3, thet4
+        integer(ip) :: i
+
+        do i=1, nopb
+            !! A* -- D -- C
+            !!       |
+            !!       B 
+            a = cmm(:,opbat(2,i))
+            d = cmm(:,opbat(1,i))
+            c = cmm(:,opbat(3,i))
+            b = cmm(:,opbat(4,i))
+
+            ! Compute the normal vector of the plane
+            plv1 = a - b
+            plv2 = a - c
+            pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+            pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+            pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+            lpln = norm2(pln)
+
+            ! Vector from A to D
+            vad = a - d
+            lvad = norm2(vad)
+
+            thet = abs(pi/2.0 - acos(dot_product(vad, pln)/(lvad*lpln)))
+            thet2 = thet*thet
+            thet3 = thet2*thet
+            thet4 = thet3*thet
+            V = V +  kopb(i) * thet2 * (1 + opb_cubic*thet + opb_quartic*thet2 &
+                + opb_pentic*thet3 + opb_sextic*thet4)
+        end do
+
+    end subroutine opb_potential
 
 end module mod_bonded

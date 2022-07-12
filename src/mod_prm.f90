@@ -10,7 +10,7 @@ module mod_prm
     integer(ip), allocatable :: atclass(:), atz(:)
 
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-              assign_angle, assign_urey, assign_strbnd
+              assign_angle, assign_urey, assign_strbnd, assign_opb
 
     contains 
 
@@ -662,6 +662,226 @@ module mod_prm
     
     end subroutine assign_strbnd
     
+    subroutine assign_opb(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: opb_cubic, opb_quartic, &
+                              opb_pentic, opb_sextic, opbat, kopb, opb_init
+
+        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, iopb, nopb, &
+                       cla, clb, clc, maxopb, a, b, c, jc, jb, k, d1, d2, iprm
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
+                                    classd(:), tmpat(:,:)
+        real(rp), allocatable :: kopbend(:), tmpk(:)
+        logical :: done, dok, cok
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nopb = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:7) == 'opbend ') nopb = nopb + 1
+        end do
+
+        maxopb = mm_atoms
+        call mallocate('assign_opb [classa]', nopb, classa)
+        call mallocate('assign_opb [classb]', nopb, classb)
+        call mallocate('assign_opb [classc]', nopb, classc)
+        call mallocate('assign_opb [classd]', nopb, classd)
+        call mallocate('assign_opb [kopbend]', nopb, kopbend)
+        call mallocate('assign_opb [tmpat]', 4, maxopb, tmpat)
+        call mallocate('assign_opb [tmpk]', maxopb, tmpk)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        iopb = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+           
+            if(line(:13) == 'opbend-cubic ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND-CUBIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) opb_cubic
+                opb_cubic = opb_cubic * rad2deg
+            
+            else if(line(:15) == 'opbend-quartic ') then
+                tokb = 16
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND-QUARTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) opb_quartic
+                opb_quartic = opb_quartic * rad2deg**2
+            
+            else if(line(:14) == 'opbend-pentic ') then
+                tokb = 15
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND-PENTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) opb_pentic
+                opb_pentic = opb_pentic * rad2deg**3
+            
+            else if(line(:14) == 'opbend-sextic ') then
+                tokb = 15
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND-SEXTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) opb_sextic
+                opb_sextic = opb_sextic * rad2deg**4
+            
+            else if(line(:7) == 'opbend ') then
+                tokb = 8
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(iopb)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(iopb)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(iopb)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(iopb)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong OPBEND card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) kopbend(iopb)
+                
+                iopb = iopb + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+       
+        iopb = 1
+        do a=1, mm_atoms
+            ! Check if the center is trigonal
+            if(conn(1)%ri(a+1) - conn(1)%ri(a) /= 3) cycle
+            cla = atclass(my_attype(a))
+            ! Loop over the atoms connected to the trignonal center
+            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                b = conn(1)%ci(jb)
+                clb = atclass(my_attype(b))
+                
+                do iprm=1, nopb
+                    if((classa(iprm) == clb) .and. &
+                       (classb(iprm) == cla)) then
+                        ! The parameter seems suitable, let's check the other 
+                        ! two atoms
+                        if(classc(iprm) == 0) then
+                            cok = .true.
+                        end if
+                        if(classd(iprm) == 0) then
+                            dok = .true.
+                        end if
+                        do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                            c = conn(1)%ci(jc)
+                            clc = atclass(my_attype(c))
+                            if(c == b) cycle
+                            if(.not. cok .and. classc(iprm) == clc) then
+                                cok = .true.
+                            else if(.not. dok .and. classd(iprm) == clc) then
+                                dok = .true.
+                            end if
+                        end do
+
+                        if(cok .and. dok) then
+                            tmpat(1,iopb) = a
+                            tmpat(2,iopb) = b
+                            tmpat(3:4, iopb) = -1 
+                            do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                                c = conn(1)%ci(jc)
+                                if(c == b) cycle
+                                if(tmpat(3,iopb) < 0) then
+                                    tmpat(3,iopb) = c
+                                else if(tmpat(4,iopb) < 0) then
+                                    tmpat(4,iopb) = c
+                                end if
+                            end do
+                            tmpk(iopb) = kopbend(iprm)
+                            iopb = iopb + 1
+                        endif
+                    end if
+                end do
+            end do
+        end do
+
+        call opb_init(iopb-1)
+        
+        do i=1, iopb-1
+            kopb(i) = tmpk(i) * kcalmol2au
+            opbat(:,i) = tmpat(:,i)
+        end do
+
+        call mfree('assign_opb [classa]', classa)
+        call mfree('assign_opb [classb]', classb)
+        call mfree('assign_opb [classc]', classc)
+        call mfree('assign_opb [classd]', classd)
+        call mfree('assign_opb [kopbend]', kopbend)
+        call mfree('assign_opb [tmpat]', tmpat)
+        call mfree('assign_opb [tmpk]', tmpk)
+    
+    end subroutine assign_opb
     
     subroutine assign_angle(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree

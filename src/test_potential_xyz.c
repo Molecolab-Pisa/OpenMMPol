@@ -74,6 +74,7 @@ int main(int argc, char **argv){
     get_angle_energy(&ea);
     get_strbnd_energy(&eba);
     get_urey_energy(&eub);
+    get_opb_energy(&eopb);
 
     FILE *fp = fopen(argv[3], "w+");
 
@@ -84,6 +85,7 @@ int main(int argc, char **argv){
     ea *= AU2KCALMOL;
     eba *= AU2KCALMOL;
     eub *= AU2KCALMOL;
+    eopb *= AU2KCALMOL;
 
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);
@@ -92,6 +94,7 @@ int main(int argc, char **argv){
     fprintf(fp, "EA      %20.12e\n", ea);
     fprintf(fp, "EBA     %20.12e\n", eba);
     fprintf(fp, "EUB     %20.12e\n", eub);
+    fprintf(fp, "EOPB    %20.12e\n", eopb);
     
     fclose(fp);
     

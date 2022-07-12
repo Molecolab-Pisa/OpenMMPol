@@ -248,6 +248,17 @@ module mod_interface
             call bond_potential(ebnd)
         end subroutine
         
+        subroutine get_opb_energy(eopb) bind(c, name='get_opb_energy')
+            
+            use mod_bonded, only: opb_potential
+
+            implicit none
+            real(rp), intent(inout) :: eopb
+
+            eopb = 0.0_rp
+            call opb_potential(eopb)
+        end subroutine
+        
         subroutine get_vdw_energy(evdw) bind(c, name='get_vdw_energy')
             
             use mod_nonbonded, only: vdw_potential

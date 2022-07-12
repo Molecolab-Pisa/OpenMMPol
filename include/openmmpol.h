@@ -33,6 +33,7 @@ extern void get_vdw_energy(double *);
 extern void get_bond_energy(double *);
 extern void get_angle_energy(double *);
 extern void get_strbnd_energy(double *);
+extern void get_opb_energy(double *);
 extern void get_urey_energy(double *);
 extern void write_hdf5(char *);
 extern void print_summary(void);
