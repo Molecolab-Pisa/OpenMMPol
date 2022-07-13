@@ -306,7 +306,8 @@ module mod_inputloader
         use mod_adjacency_mat, only: adj_mat_from_conn, yale_sparse, &
                                      build_conn_upto_n
         use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-                           assign_angle, assign_urey, assign_strbnd, assign_opb
+                           assign_angle, assign_urey, assign_strbnd, &
+                           assign_opb, assign_pitors
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -417,6 +418,7 @@ module mod_inputloader
         call assign_urey(prm_file, attype)
         call assign_strbnd(prm_file, attype)
         call assign_opb(prm_file, attype)
+        call assign_pitors(prm_file, attype)
 
         call mfree('mmpol_init_from_xyz [attype]', attype)
         

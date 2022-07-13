@@ -53,6 +53,12 @@ module mod_bonded
     real(rp), allocatable :: kopb(:)
     public :: opb_init, opb_potential, opbat, opb_cubic, opb_quartic, &
               opb_pentic, opb_sextic, kopb
+    
+    ! Pi-torsion 
+    integer(ip) :: npitors
+    integer(ip), allocatable :: pitorsat(:,:)
+    real(rp), allocatable :: kpitors(:)
+    public :: pitors_init, pitors_potential, pitorsat, kpitors
 
     contains
 
@@ -391,5 +397,89 @@ module mod_bonded
         end do
 
     end subroutine opb_potential
+    
+    subroutine pitors_init(n)
+        !! Initialize pi-torsion potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of out of plane pi-torsion functions in the potential
+        !! energy of the system
+
+        call mallocate('opb_init [pitorsat]', 6, n, pitorsat)
+        call mallocate('opb_init [kpitors]', n, kpitors)
+        npitors = n
+
+    end subroutine pitors_init
+
+    subroutine pitors_potential(V)
+        !! Compute pi-torsion potential
+
+        use mod_constants, only : rad2deg, pi, angstrom2au
+        use mod_mmpol, only: cmm
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        !! pi-torsion potential, result will be added to V
+        real(rp), dimension(3) :: a, b, c, d, e, f, u, t, cd, plv1, plv2, pln1, pln2
+        real(rp) :: lpln1, lpln2, thet, costhet
+        integer(ip) :: i
+
+        do i=1, npitors
+            !
+            !  2(c)        5(e)         a => 1
+            !   \         /             b => 4
+            !    1(a) -- 4(b)  
+            !   /         \
+            !  3(d)        6(f)
+            
+            ! Atoms that defines the two planes
+            a = cmm(:,pitorsat(1,i))
+            c = cmm(:,pitorsat(2,i))
+            d = cmm(:,pitorsat(3,i))
+
+            b = cmm(:,pitorsat(4,i))
+            e = cmm(:,pitorsat(5,i))
+            f = cmm(:,pitorsat(6,i))
+
+
+            ! Compute the normal vector of the first plane
+            plv1 = d - b
+            plv2 = c - b
+            pln1(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+            pln1(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+            pln1(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+
+            ! Compute the normal vector of the second plane
+            plv1 = f - a
+            plv2 = e - a
+            pln2(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+            pln2(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+            pln2(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+
+            cd = b - a
+
+            t(1) = pln1(2)*cd(3) - pln1(3)*cd(2)
+            t(2) = pln1(3)*cd(1) - pln1(1)*cd(3)
+            t(3) = pln1(1)*cd(2) - pln1(2)*cd(1)
+            t = t / norm2(t)
+            
+            u(1) = cd(2)*pln2(3) - cd(3)*pln2(2)
+            u(2) = cd(3)*pln2(1) - cd(1)*pln2(3)
+            u(3) = cd(1)*pln2(2) - cd(2)*pln2(1)
+            u = u / norm2(u)
+            
+            costhet = dot_product(u,t)
+            
+            thet = acos(costhet)
+
+            V = V +  kpitors(i) * (1 + cos(2.0*thet+pi))
+        end do
+
+    end subroutine pitors_potential
 
 end module mod_bonded

@@ -259,6 +259,17 @@ module mod_interface
             call opb_potential(eopb)
         end subroutine
         
+        subroutine get_pitors_energy(epitors) bind(c, name='get_pitors_energy')
+            
+            use mod_bonded, only: pitors_potential
+
+            implicit none
+            real(rp), intent(inout) :: epitors
+
+            epitors = 0.0_rp
+            call pitors_potential(epitors)
+        end subroutine
+        
         subroutine get_vdw_energy(evdw) bind(c, name='get_vdw_energy')
             
             use mod_nonbonded, only: vdw_potential

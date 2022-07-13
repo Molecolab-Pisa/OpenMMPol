@@ -528,6 +528,12 @@ add_test(NAME NMA_ene_full_AMOEBA_comp_eopb
          Testing/output 
          EOPB
          ${RTOL} ${ATOL})
+add_test(NAME NMA_ene_full_AMOEBA_comp_ept
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
+         Testing/output 
+         EPT
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1crn_ene_full_AMOEBA
          COMMAND  bin/C_test_potential_xyz
@@ -582,6 +588,12 @@ add_test(NAME 1crn_ene_full_AMOEBA_comp_eopb
          Testing/output 
          EOPB
          ${RTOL} ${ATOL})
+add_test(NAME 1crn_ene_full_AMOEBA_comp_ept
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+         Testing/output 
+         EPT
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1ubq_ene_full_AMOEBA
          COMMAND  bin/C_test_potential_xyz
@@ -635,4 +647,10 @@ add_test(NAME 1ubq_ene_full_AMOEBA_comp_eopb
          ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
          Testing/output 
          EOPB
+         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_ene_full_AMOEBA_comp_ept
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+         Testing/output 
+         EPT
          ${RTOL} ${ATOL})

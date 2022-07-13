@@ -1,6 +1,7 @@
 module mod_prm
     !! This module handles the reading of a parameter file in .prm format and
     !! the asignament of parameters based on atom type and connectivity.
+
     use mod_memory, only: ip, rp
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence
 
@@ -10,7 +11,8 @@ module mod_prm
     integer(ip), allocatable :: atclass(:), atz(:)
 
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-              assign_angle, assign_urey, assign_strbnd, assign_opb
+              assign_angle, assign_urey, assign_strbnd, assign_opb, &
+              assign_pitors
 
     contains 
 
@@ -882,6 +884,171 @@ module mod_prm
         call mfree('assign_opb [tmpk]', tmpk)
     
     end subroutine assign_opb
+    
+    subroutine assign_pitors(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: kpitors, pitorsat, pitors_init
+        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, ipitors, npitors, &
+                       cla, clb, maxpi, a, b, c, jb, iprm
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), tmpat(:,:)
+        real(rp), allocatable :: kpi(:), tmpk(:)
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        npitors = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:7) == 'pitors ') npitors = npitors + 1
+        end do
+
+        maxpi = mm_atoms 
+        ! TODO This is maybe excessive, all trivalent atomso should be enough
+        call mallocate('assign_pitors [classa]', npitors, classa)
+        call mallocate('assign_pitors [classb]', npitors, classb)
+        call mallocate('assign_pitors [kpi]', npitors, kpi)
+        call mallocate('assign_pitors [tmpat]', 6, maxpi, tmpat)
+        call mallocate('assign_pitors [tmpk]', maxpi, tmpk)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        ipitors = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+           
+            if(line(:7) == 'pitors ') then
+                tokb = 8
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong PITORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(ipitors)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong PITORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(ipitors)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong PITORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) kpi(ipitors)
+                
+                ipitors = ipitors + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+       
+        ipitors = 1
+        do a=1, mm_atoms
+            ! Check if the center is trigonal
+            if(conn(1)%ri(a+1) - conn(1)%ri(a) /= 3) cycle
+            cla = atclass(my_attype(a))
+            ! Loop over the atoms connected to the trignonal center
+            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                b = conn(1)%ci(jb)
+                ! This avoid to compute the functions two times
+                if(a > b) cycle
+                
+                !Check if the second center is trigonal
+                if(conn(1)%ri(b+1) - conn(1)%ri(b) /= 3) cycle
+                clb = atclass(my_attype(b))
+
+                do iprm=1, npitors
+                    if((cla == classa(iprm) .and. clb == classb(iprm)) .or. &
+                       (clb == classa(iprm) .and. cla == classb(iprm))) then
+                        ! The parameter is the right one
+                        ! Save the atoms in the following way:
+                        !
+                        !  2        5            a => 1
+                        !   \      /             b => 4
+                        !    1 -- 4  
+                        !   /      \
+                        !  3        6
+                        
+                        tmpat(:,ipitors) = 0
+                        tmpat(1,ipitors) = a
+                        do i=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                            c = conn(1)%ci(i)
+                            if(c /= b) then
+                                if(tmpat(2,ipitors) == 0) then
+                                    tmpat(2,ipitors) = c
+                                else
+                                    tmpat(3,ipitors) = c
+                                end if
+                            end if
+                        end do
+
+                        tmpat(4,ipitors) = b
+                        do i=conn(1)%ri(b), conn(1)%ri(b+1)-1
+                            c = conn(1)%ci(i)
+                            if(c /= a) then
+                                if(tmpat(5,ipitors) == 0) then
+                                    tmpat(5,ipitors) = c
+                                else
+                                    tmpat(6,ipitors) = c
+                                end if
+                            end if
+                        end do
+                        tmpk(ipitors) = kpi(iprm)
+                        
+                        ipitors = ipitors+1
+                        exit
+                    end if
+                end do
+            end do
+        end do
+
+        call pitors_init(ipitors-1)
+        
+        do i=1, ipitors-1
+            kpitors(i) = tmpk(i) * kcalmol2au
+            pitorsat(:,i) = tmpat(:,i)
+        end do
+
+        call mfree('assign_pitors [classa]', classa)
+        call mfree('assign_pitors [classb]', classb)
+        call mfree('assign_pitors [kpi]', kpi)
+        call mfree('assign_pitors [tmpat]', tmpat)
+        call mfree('assign_pitors [tmpk]', tmpk)
+    
+    end subroutine assign_pitors
     
     subroutine assign_angle(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
