@@ -76,6 +76,7 @@ int main(int argc, char **argv){
     get_urey_energy(&eub);
     get_opb_energy(&eopb);
     get_pitors_energy(&ept);
+    get_torsion_energy(&et);
 
     FILE *fp = fopen(argv[3], "w+");
 
@@ -88,6 +89,7 @@ int main(int argc, char **argv){
     eub *= AU2KCALMOL;
     eopb *= AU2KCALMOL;
     ept *= AU2KCALMOL;
+    et *= AU2KCALMOL;
 
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);
@@ -98,6 +100,7 @@ int main(int argc, char **argv){
     fprintf(fp, "EUB     %20.12e\n", eub);
     fprintf(fp, "EOPB    %20.12e\n", eopb);
     fprintf(fp, "EPT     %20.12e\n", ept);
+    fprintf(fp, "ET      %20.12e\n", et);
     
     fclose(fp);
     

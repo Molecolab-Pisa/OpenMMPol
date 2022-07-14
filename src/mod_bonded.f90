@@ -60,6 +60,13 @@ module mod_bonded
     real(rp), allocatable :: kpitors(:)
     public :: pitors_init, pitors_potential, pitorsat, kpitors
 
+    ! Torsion
+    integer(ip) :: ntorsion
+    integer(ip), allocatable :: torsionat(:,:), torsn(:,:)
+    real(rp), allocatable :: torsamp(:,:), torsphase(:,:)
+    public :: torsionat, torsn, torsamp, torsphase, torsion_init, &
+              torsion_potential
+
     contains
 
     subroutine bond_init(n) 
@@ -481,5 +488,73 @@ module mod_bonded
         end do
 
     end subroutine pitors_potential
+    
+    subroutine torsion_init(n)
+        !! Initialize torsion potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of torsion functions in the potential
+        !! energy of the system
+
+        call mallocate('torsion_init [torsionat]', 4, n, torsionat)
+        call mallocate('torsion_init [torsamp]', 6, n, torsamp)
+        call mallocate('torsion_init [torsphase]', 6, n, torsphase)
+        call mallocate('torsion_init [torsn]', 6, n, torsn)
+
+        ntorsion = n
+
+    end subroutine torsion_init
+
+    subroutine torsion_potential(V)
+        !! Compute torsion potential
+
+        use mod_constants, only : rad2deg, pi, angstrom2au, kcalmol2au
+        use mod_mmpol, only: cmm
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        !! torsion potential, result will be added to V
+        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
+        real(rp) :: lpln1, lpln2, thet, costhet
+        integer(ip) :: i, j
+
+        do i=1, ntorsion
+            ! Atoms that defines the dihedral angle
+            a = cmm(:,torsionat(1,i))
+            b = cmm(:,torsionat(2,i))
+            c = cmm(:,torsionat(3,i))
+            d = cmm(:,torsionat(4,i))
+
+            ab = b - a
+            cd = d - c
+            cb = b - c
+
+            t(1) = ab(2)*cb(3) - ab(3)*cb(2)
+            t(2) = ab(3)*cb(1) - ab(1)*cb(3)
+            t(3) = ab(1)*cb(2) - ab(2)*cb(1)
+            t = t / norm2(t)
+            
+            u(1) = cb(2)*cd(3) - cb(3)*cd(2)
+            u(2) = cb(3)*cd(1) - cb(1)*cd(3)
+            u(3) = cb(1)*cd(2) - cb(2)*cd(1)
+            u = u / norm2(u)
+            
+            costhet = dot_product(u,t)
+            
+            thet = acos(costhet)
+            write(*, *) torsionat(:,i), thet * rad2deg
+            
+            do j=1, 6
+                if(torsn(j,i) < 1) exit
+                V = V + torsamp(j,i) * (1+cos(real(torsn(j,i))*thet - torsphase(j,i)))
+            end do
+        end do
+
+    end subroutine torsion_potential
 
 end module mod_bonded

@@ -12,7 +12,7 @@ module mod_prm
 
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
               assign_angle, assign_urey, assign_strbnd, assign_opb, &
-              assign_pitors
+              assign_pitors, assign_torsion
 
     contains 
 
@@ -1049,6 +1049,219 @@ module mod_prm
         call mfree('assign_pitors [tmpk]', tmpk)
     
     end subroutine assign_pitors
+    
+    subroutine assign_torsion(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: torsion_init, torsionat, torsamp, torsphase, torsn
+        use mod_constants, only: kcalmol2au, rad2deg, deg2rad, eps_rp
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    t_n(:,:), tmpat(:,:), tmpprm(:)
+        real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
+        real(rp) :: amp, phase, torsion_unit
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            if(line(:8) == 'torsion ') nt = nt + 1
+        end do
+
+        maxt = mm_atoms 
+        ! TODO This is maybe excessive, all trivalent atomso should be enough
+        call mallocate('assign_torsion [classa]', nt, classa)
+        call mallocate('assign_torsion [classb]', nt, classb)
+        call mallocate('assign_torsion [classc]', nt, classc)
+        call mallocate('assign_torsion [classd]', nt, classd)
+        call mallocate('assign_torsion [t_amp]', 6, nt, t_amp)
+        call mallocate('assign_torsion [t_pha]', 6, nt, t_pha)
+        call mallocate('assign_torsion [t_n]', 6, nt, t_n)
+        call mallocate('assign_torsion [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_torsion [tmpprm]', maxt, tmpprm)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+           
+            if(line(:12) == 'torsionunit ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSIONUNIT card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) torsion_unit
+
+            else if(line(:8) == 'torsion ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                ji = 1
+                t_n(:,it) = -1
+                do j=1, 6
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(toke < 0) exit
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORSION card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) amp
+                    
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORSION card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) phase
+                
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isint(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORSION card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) period
+
+                    if(abs(amp) > eps_rp) then
+                        t_amp(ji, it) = amp 
+                        t_pha(ji, it) = phase
+                        t_n(ji, it) = period
+                        ji = ji + 1
+                    end if
+                end do
+
+                if(j == 1) then
+                    ! No parameter found
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        do a=1, mm_atoms
+            cla = atclass(my_attype(a))
+            do jd=conn(3)%ri(a), conn(3)%ri(a+1)-1
+                d = conn(3)%ci(jd)
+                if(a > d) cycle
+                cld = atclass(my_attype(d))
+                do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                    b = conn(1)%ci(jb)
+                    clb = atclass(my_attype(b))
+                    do jc=conn(1)%ri(d), conn(1)%ri(d+1)-1
+                        c = conn(1)%ci(jc)
+                        clc = atclass(my_attype(c))
+                        if(all(conn(1)%ci(conn(1)%ri(c):conn(1)%ri(c+1)-1)/=b))&
+                            cycle
+                        ! There is a dihedral A-B-C-D
+                        do iprm=1, nt
+                            if((classa(iprm) == cla .and. &
+                                classb(iprm) == clb .and. &
+                                classc(iprm) == clc .and. &
+                                classd(iprm) == cld) .or. &
+                               (classa(iprm) == cld .and. &
+                                classb(iprm) == clc .and. &
+                                classc(iprm) == clb .and. &
+                                 classd(iprm) == cla)) then
+                                ! The parameter is ok
+                                tmpat(:,it) = [a, b, c, d]
+                                tmpprm(it) = iprm
+                                it = it+1
+                                exit
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+        call torsion_init(it-1)
+        do i=1, it-1
+           torsionat(:,i) = tmpat(:,i) 
+           torsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * torsion_unit
+           torsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
+           torsn(:,i) = t_n(:,tmpprm(i))
+        end do
+        
+        call mfree('assign_torsion [classa]', classa)
+        call mfree('assign_torsion [classb]', classb)
+        call mfree('assign_torsion [classc]', classc)
+        call mfree('assign_torsion [classd]', classd)
+        call mfree('assign_torsion [t_amp]', t_amp)
+        call mfree('assign_torsion [t_pha]', t_pha)
+        call mfree('assign_torsion [t_n]', t_n)
+        call mfree('assign_torsion [tmpat]', tmpat)
+        call mfree('assign_torsion [tmpprm]', tmpprm)
+       
+    end subroutine assign_torsion
     
     subroutine assign_angle(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree

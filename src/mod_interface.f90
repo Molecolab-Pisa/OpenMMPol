@@ -270,6 +270,17 @@ module mod_interface
             call pitors_potential(epitors)
         end subroutine
         
+        subroutine get_torsion_energy(et) bind(c, name='get_torsion_energy')
+            
+            use mod_bonded, only: torsion_potential
+
+            implicit none
+            real(rp), intent(inout) :: et
+
+            et = 0.0_rp
+            call torsion_potential(et)
+        end subroutine
+        
         subroutine get_vdw_energy(evdw) bind(c, name='get_vdw_energy')
             
             use mod_nonbonded, only: vdw_potential
