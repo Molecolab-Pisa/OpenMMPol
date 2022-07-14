@@ -50,7 +50,7 @@ target_compile_options(openmmpol PRIVATE -cpp)
 target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003) # Very strict check on code
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
-target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-fbacktrace>)
+target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
 
 include_directories(include) # Directory for .h files
 

@@ -545,10 +545,8 @@ module mod_bonded
             u = u / norm2(u)
             
             costhet = dot_product(u,t)
-            
             thet = acos(costhet)
-            write(*, *) torsionat(:,i), thet * rad2deg
-            
+
             do j=1, 6
                 if(torsn(j,i) < 1) exit
                 V = V + torsamp(j,i) * (1+cos(real(torsn(j,i))*thet - torsphase(j,i)))

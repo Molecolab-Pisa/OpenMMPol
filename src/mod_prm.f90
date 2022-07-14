@@ -1095,8 +1095,7 @@ module mod_prm
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
 
-        maxt = mm_atoms 
-        ! TODO This is maybe excessive, all trivalent atomso should be enough
+        maxt = conn(4)%ri(mm_atoms+1)-1 
         call mallocate('assign_torsion [classa]', nt, classa)
         call mallocate('assign_torsion [classb]', nt, classb)
         call mallocate('assign_torsion [classc]', nt, classc)
@@ -1209,18 +1208,18 @@ module mod_prm
         it = 1
         do a=1, mm_atoms
             cla = atclass(my_attype(a))
-            do jd=conn(3)%ri(a), conn(3)%ri(a+1)-1
-                d = conn(3)%ci(jd)
-                if(a > d) cycle
-                cld = atclass(my_attype(d))
-                do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                    b = conn(1)%ci(jb)
-                    clb = atclass(my_attype(b))
-                    do jc=conn(1)%ri(d), conn(1)%ri(d+1)-1
-                        c = conn(1)%ci(jc)
-                        clc = atclass(my_attype(c))
-                        if(all(conn(1)%ci(conn(1)%ri(c):conn(1)%ri(c+1)-1)/=b))&
-                            cycle
+            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                b = conn(1)%ci(jb)
+                clb = atclass(my_attype(b))
+                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
+                    c = conn(1)%ci(jc)
+                    if(c == a) cycle
+                    clc = atclass(my_attype(c))
+                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
+                        d = conn(1)%ci(jd)
+                        if(d == a .or. d == b) cycle
+                        if(a > d) cycle
+                        cld = atclass(my_attype(d))
                         ! There is a dihedral A-B-C-D
                         do iprm=1, nt
                             if((classa(iprm) == cla .and. &
