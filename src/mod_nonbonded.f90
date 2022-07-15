@@ -21,13 +21,59 @@ module mod_nonbonded
 
     contains
 
-    subroutine vdw_init()
+    subroutine vdw_init(vdw_type, radius_rule, radius_size, radius_type)
         !! Initialize the non-bonded module allocating the parameters vectors
         
         use mod_memory, only: mallocate
-        use mod_mmpol, only: mm_atoms
+        use mod_mmpol, only: mm_atoms, fatal_error
 
         implicit none
+
+        character(len=*) :: vdw_type, radius_rule, radius_size, radius_type
+
+        select case(trim(vdw_type))
+            case("lennard-jones")
+                call fatal_error("VdW type lennard-jones is not implemented")
+            case("buckingham")
+                call fatal_error("VdW type buckingham is not implemented")
+            case("buffered-14-7")
+                continue
+            case("mm3-hbond")
+                call fatal_error("VdW type mm3-hbond is not implemented")
+            case("gaussian")
+                call fatal_error("VdW type gaussian is not implemented")
+            case default
+                call fatal_error("VdW type specified is not understood")
+        end select
+        
+        select case(trim(radius_rule))
+            case("arithmetic")
+                call fatal_error("radiusrule arithmetic is not implemented")
+            case("geometric")
+                call fatal_error("radiusrule geometric is not implemented")
+            case("cubic-mean")
+                continue
+            case default
+                call fatal_error("radiusrule specified is not understood")
+        end select
+        
+        select case(trim(radius_size))
+            case("radius")
+                call fatal_error("radiussize radius is not implemented")
+            case("diameter")
+                continue
+            case default
+                call fatal_error("radiussize specified is not understood")
+        end select
+        
+        select case(trim(radius_type))
+            case("sigma")
+                call fatal_error("radiustype sigma is not implemented")
+            case("r-min")
+                continue
+            case default
+                call fatal_error("radiustype specified is not understood")
+        end select
 
         if(.not. initialized) then
             call mallocate('vdw_init [vdw_r]', mm_atoms, vdw_r)
@@ -40,9 +86,9 @@ module mod_nonbonded
             call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, vdw_pair_e)
 
             vdw_f = 1.0_rp
-            vdw_screening(:) = [1.0, 1.0, 1.0, 1.0]
             initialized = .true.
         end if
+
     end subroutine vdw_init
 
     subroutine vdw_set_pair(ia, ib, r, e)

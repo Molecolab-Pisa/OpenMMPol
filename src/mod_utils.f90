@@ -5,9 +5,32 @@ module mod_utils
     private
 
     public :: sort_ivec, sort_ivec_inplace, skip_lines
-    public :: starts_with_alpha, isreal, isint, tokenize, count_substr_occurence
+    public :: starts_with_alpha, isreal, isint, tokenize, &
+              count_substr_occurence, str_to_lower
 
     contains
+
+    function str_to_lower(s)
+        implicit none
+
+        character(len=*), intent(in) :: s
+        !! String to be converted in lowercase
+        character(len(s)) :: str_to_lower
+
+        integer :: ic, i
+
+        character(26), parameter :: capital = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        character(26), parameter :: lower = 'abcdefghijklmnopqrstuvwxyz'
+
+        str_to_lower = s
+        do i=1, len_trim(s)
+            ic = index(capital, s(i:i))
+            if(ic > 0) str_to_lower(i:i) = lower(ic:ic)
+        end do
+        
+        return
+
+    end function str_to_lower
    
     function count_substr_occurence(s, c)
         ! Count the number of occurence of substring c in string s

@@ -3,7 +3,8 @@ module mod_prm
     !! the asignament of parameters based on atom type and connectivity.
 
     use mod_memory, only: ip, rp
-    use mod_utils, only: isreal, isint, tokenize, count_substr_occurence
+    use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
+                         str_to_lower
 
     implicit none
     private
@@ -51,6 +52,7 @@ module mod_prm
         natype = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:5) == 'atom ') natype = natype + 1
         end do
         ! ATOM 
@@ -64,6 +66,7 @@ module mod_prm
         ist = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:5) == 'atom ') then
                 tokb = 6
@@ -159,6 +162,7 @@ module mod_prm
         ist = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:5) == 'bond ') nbnd = nbnd + 1
         end do
 
@@ -174,6 +178,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:11) == 'bond-cubic ') then
                 tokb = 12
@@ -304,6 +309,7 @@ module mod_prm
         nub = 1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:9) == 'ureybrad ') nub = nub + 1
         end do
 
@@ -323,6 +329,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:11) == 'urey-cubic ') then
                 tokb = 12
@@ -497,6 +504,7 @@ module mod_prm
         nstrbnd = 1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:7) == 'strbnd ') nstrbnd = nstrbnd + 1
         end do
 
@@ -516,6 +524,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:7) == 'strbnd ') then
                 tokb = 8
@@ -711,6 +720,7 @@ module mod_prm
         nopb = 1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
@@ -730,6 +740,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:13) == 'opbend-cubic ') then
                 tokb = 14
@@ -928,6 +939,7 @@ module mod_prm
         npitors = 1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:7) == 'pitors ') npitors = npitors + 1
         end do
 
@@ -946,6 +958,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:7) == 'pitors ') then
                 tokb = 8
@@ -1095,6 +1108,7 @@ module mod_prm
         nt = 1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
 
@@ -1116,6 +1130,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:12) == 'torsionunit ') then
                 tokb = 13
@@ -1316,6 +1331,7 @@ module mod_prm
         nang = 1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:6) == 'angle ') nang = nang + 3 
             ! One angle keyourd could stand for 3 parameters for different H-env
             if(line(:7) == 'anglep ') nang = nang + 2
@@ -1338,6 +1354,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:12) == 'angle-cubic ') then
                 tokb = 13
@@ -1634,6 +1651,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, l, tokb, toke
         character(len=120) :: line, errstring
+        character(len=20) :: radrule, radsize, radtype, vdwtype
         integer(ip), allocatable :: vdwat(:), vdwpr_a(:), vdwpr_b(:)
         real(rp), allocatable :: vdw_e_prm(:), vdw_r_prm(:), vdw_f_prm(:), &
                                  vdwpr_r(:), vdwpr_e(:)
@@ -1642,8 +1660,6 @@ module mod_prm
 
         if(.not. allocated(atclass)) call read_atom_cards(prm_file)
         
-        call vdw_init()
-
         ! open tinker xyz file
         open(unit=iof_prminp, &
              file=prm_file(1:len(trim(prm_file))), &
@@ -1662,6 +1678,7 @@ module mod_prm
         nvdwpr = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:4) == 'vdw ') nvdw = nvdw + 1
             if(line(:6) == 'vdwpr ') nvdwpr = nvdwpr + 1
         end do
@@ -1681,12 +1698,19 @@ module mod_prm
         call mallocate('read_prm [vdwpr_r]', nvdwpr, vdwpr_r)
         ivdwpr = 1
 
+        ! Default rules for VDW (from Tinker Manual)
+        radrule = "arithmetic"
+        radsize = "radius"
+        radtype = "r-min"
+        vdwtype = "lennard-jones"
+
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
         ist = 0
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:13) == 'vdw-12-scale ') then
                 tokb = 14
@@ -1723,6 +1747,27 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw_screening(4)
+
+            else if(line(:8) == 'vdwtype ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) vdwtype
+                write(*, *) "DIOCANE", vdwtype
+            
+            else if(line(:11) == 'radiusrule ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) radrule
+
+            else if(line(:11) == 'radiussize ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) radsize
+
+            else if(line(:11) == 'radiustype ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) radtype
 
             else if(line(:4) == 'vdw ') then
                 tokb = 5
@@ -1798,6 +1843,8 @@ module mod_prm
             i = i+1
         end do
         close(iof_prminp)
+        
+        call vdw_init(vdwtype, radrule, radsize, radtype)
         
         do i=1, size(my_attype)
             ! Atom class for current atom
@@ -1893,6 +1940,7 @@ module mod_prm
         npolarize = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:9) == 'polarize ') npolarize = npolarize + 1
         end do
         
@@ -1909,6 +1957,7 @@ module mod_prm
         i=1
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
            
             if(line(:15) == 'polar-12-intra ') then
                 tokb = 16
@@ -2212,6 +2261,7 @@ module mod_prm
         nmult = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             if(line(:11) == 'multipole ') nmult = nmult + 1
         end do
         
@@ -2228,6 +2278,7 @@ module mod_prm
         ist = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
             
             if(line(:15) == 'mpole-12-scale ') then
                 tokb = 16

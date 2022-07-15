@@ -1,7 +1,7 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(48) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(54) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
@@ -39,8 +39,12 @@ function keyword_is_implemented(kw)
                                                  "polar-15-intra      ", &
                                                  "polar-15-scale      ", &
                                                  "polarize            ", &
+                                                 "radiusrule          ", &
+                                                 "radiustype          ", &
+                                                 "radiussize          ", &
                                                  "strbnd              ", &
                                                  "torsion             ", &
+                                                 "torsionunit         ", &
                                                  "ureybrad            ", &
                                                  "urey-cubic          ", &
                                                  "urey-quartic        ", &
@@ -48,7 +52,9 @@ function keyword_is_implemented(kw)
                                                  "vdw-12-scale        ", &
                                                  "vdw-13-scale        ", &
                                                  "vdw-14-scale        ", &
-                                                 "vdw-15-scale        "]
+                                                 "vdw-15-scale        ", &
+                                                 "vdwtype             ", &
+                                                 "vdwpr               "]
     character(len=*) :: kw
     integer(ip) :: i, l 
     logical :: keyword_is_implemented
@@ -57,7 +63,7 @@ function keyword_is_implemented(kw)
 
     do i = 1, size(imp_kwd)
         l = len(trim(imp_kwd(i)))
-        if(imp_kwd(i)(1:l) == kw(1:l)) then
+        if(imp_kwd(i)(1:l) == kw) then
             keyword_is_implemented = .true.
             exit
         end if
@@ -68,13 +74,11 @@ end function
 function keyword_is_ignored(kw)
     implicit none
 
-    character(len=*), parameter :: ign_kwd(16) = [&
+    character(len=*), parameter :: ign_kwd(15) = [&
                                                  "biotype             ", &
                                                  "forcefield          ", &
                                                  "solute              ", &
-                                                 "radiusrule          ", & ! TODO ...
-                                                 "radiustype          ", &
-                                                 "radiussize          ", &
+                                                 ! TODO....
                                                  "epsilonrule         ", &
                                                  "dielectric          ", &
                                                  "polarization        ", &
@@ -84,7 +88,9 @@ function keyword_is_ignored(kw)
                                                  "mutual-14-scale     ", &
                                                  "strtors             ", &
                                                  "angtors             ", &
-                                                 "tortors             " &
+                                                 "tortors             ", &
+                                                 "anglef              ", &
+                                                 "opbendtype          "  &
                                                  ]
     character(len=*) :: kw
     integer(ip) :: i, l 
@@ -94,7 +100,7 @@ function keyword_is_ignored(kw)
 
     do i = 1, size(ign_kwd)
         l = len(trim(ign_kwd(i)))
-        if(ign_kwd(i)(1:l) == kw(1:l)) then
+        if(ign_kwd(i)(1:l) == kw) then
             keyword_is_ignored = .true.
             exit
         end if
@@ -282,7 +288,7 @@ function keyword_is_recognized(kw)
 
     do i = 1, size(rec_kwd)
         l = len(trim(rec_kwd(i)))
-        if(rec_kwd(i)(1:l) == kw(1:l)) then
+        if(rec_kwd(i)(1:l) == kw) then
             keyword_is_recognized = .true.
             exit
         end if
@@ -292,7 +298,7 @@ end function
 function check_keyword(prm_file)
     use mod_memory, only : ip
     use mod_mmpol, only : fatal_error
-    use mod_utils, only : starts_with_alpha
+    use mod_utils, only : starts_with_alpha, str_to_lower, tokenize
     
     implicit none
 
@@ -301,8 +307,8 @@ function check_keyword(prm_file)
     logical :: check_keyword
     
     integer(ip), parameter :: iof_prminp = 201
-    integer(ip) :: ist
-    character(len=120) :: line
+    integer(ip) :: ist, ibeg, iend
+    character(len=120) :: line, kw
     
     ! open tinker xyz file
     open(unit=iof_prminp, &
@@ -319,15 +325,20 @@ function check_keyword(prm_file)
 
     do while(ist == 0) 
         read(iof_prminp, '(A)', iostat=ist) line
+        line = str_to_lower(line)
+
         ! Only lines that start with a char do contain keyword
         if(starts_with_alpha(line)) then
-            if(keyword_is_recognized(line)) then
-                if(.not. keyword_is_implemented(line)) then
-                    if(keyword_is_ignored(line)) then
-                        write(*, *) "'", trim(line), "' - keyword&
+            ibeg = 1
+            iend = tokenize(line, ibeg)
+            kw = line(ibeg:iend)
+            if(keyword_is_recognized(kw)) then
+                if(.not. keyword_is_implemented(kw)) then
+                    if(keyword_is_ignored(kw)) then
+                        write(*, *) "'", trim(kw), "' - keyword&
                                    & ignored"
                     else
-                        write(*, *) "'", trim(line), "' - keyword&
+                        write(*, *) "'", trim(kw), "' - keyword&
                                    & is not implemented and &
                                    &cannot be ignored."
                         check_keyword = .false.
@@ -335,7 +346,7 @@ function check_keyword(prm_file)
                 end if
             else
                 ! TODO only with some debug value
-                write(*, *) "'", trim(line), "' - keyword&
+                write(*, *) "'", trim(kw), "' - keyword&
                            & is not recognized."
             end if
         end if
