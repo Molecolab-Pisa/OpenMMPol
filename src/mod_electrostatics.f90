@@ -889,12 +889,15 @@ module mod_electrostatics
                 ! Look if j is at distance ineigh from i
                 if(any(conn(ineigh)%ci(conn(ineigh)%ri(i_mm): &
                                        conn(ineigh)%ri(i_mm+1)-1) == j_mm)) then
-                    
-                    if(interaction == 'M' .and. amoeba .and. &
-                       mmat_polgrp(i_mm) == mmat_polgrp(j_mm)) then
+                   
+                    if(interaction == 'M' .and. amoeba) then
                         ! Amoeba uses two different screening rules for atoms 
                         ! of the same group and for atoms of different group
-                        scalf = myscale_intra(ineigh)
+                        if(mmat_polgrp(i_mm) == mmat_polgrp(j_mm)) then
+                            scalf = myscale_intra(ineigh)
+                        else
+                            scalf = myscale(ineigh)
+                        end if
                     else
                         ! In any other case just use the scale factor for this
                         ! distance
