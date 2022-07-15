@@ -307,7 +307,8 @@ module mod_inputloader
                                      build_conn_upto_n
         use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
                            assign_angle, assign_urey, assign_strbnd, &
-                           assign_opb, assign_pitors, assign_torsion
+                           assign_opb, assign_pitors, assign_torsion, &
+                           check_keyword
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -410,6 +411,10 @@ module mod_inputloader
 
         call mfree('mmpol_init_from_xyz [i12]', i12)
         
+        if( .not. check_keyword(prm_file)) then
+            call fatal_error("PRM file cannot be completely understood")
+        end if
+
         call assign_pol(prm_file, attype)
         call assign_mpoles(prm_file, attype)
         call assign_vdw(prm_file, attype)

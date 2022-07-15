@@ -13,8 +13,11 @@ module mod_prm
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
               assign_angle, assign_urey, assign_strbnd, assign_opb, &
               assign_pitors, assign_torsion
+    public :: check_keyword
 
     contains 
+    
+#include "prm_keywords.f90"
 
     subroutine read_atom_cards(prm_file)
         use mod_memory, only: mallocate
