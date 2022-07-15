@@ -1651,7 +1651,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, l, tokb, toke
         character(len=120) :: line, errstring
-        character(len=20) :: radrule, radsize, radtype, vdwtype
+        character(len=20) :: radrule, radsize, radtype, vdwtype, epsrule
         integer(ip), allocatable :: vdwat(:), vdwpr_a(:), vdwpr_b(:)
         real(rp), allocatable :: vdw_e_prm(:), vdw_r_prm(:), vdw_f_prm(:), &
                                  vdwpr_r(:), vdwpr_e(:)
@@ -1703,6 +1703,7 @@ module mod_prm
         radsize = "radius"
         radtype = "r-min"
         vdwtype = "lennard-jones"
+        epsrule = "geometric"
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -1748,11 +1749,15 @@ module mod_prm
                 end if
                 read(line(tokb:toke), *) vdw_screening(4)
 
+            else if(line(:12) == 'epsilonrule ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) epsrule
+            
             else if(line(:8) == 'vdwtype ') then
                 tokb = 9
                 toke = tokenize(line, tokb)
                 read(line(tokb:toke), *) vdwtype
-                write(*, *) "DIOCANE", vdwtype
             
             else if(line(:11) == 'radiusrule ') then
                 tokb = 12
@@ -1844,7 +1849,7 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call vdw_init(vdwtype, radrule, radsize, radtype)
+        call vdw_init(vdwtype, radrule, radsize, radtype, epsrule)
         
         do i=1, size(my_attype)
             ! Atom class for current atom

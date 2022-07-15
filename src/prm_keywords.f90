@@ -1,7 +1,7 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(54) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(55) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
@@ -15,6 +15,7 @@ function keyword_is_implemented(kw)
                                                  "direct-12-scale     ", &
                                                  "direct-13-scale     ", &
                                                  "direct-14-scale     ", &
+                                                 "epsilonrule         ", &
                                                  "induce-12-scale     ", &
                                                  "induce-13-scale     ", &
                                                  "induce-14-scale     ", &
@@ -74,12 +75,11 @@ end function
 function keyword_is_ignored(kw)
     implicit none
 
-    character(len=*), parameter :: ign_kwd(15) = [&
+    character(len=*), parameter :: ign_kwd(14) = [&
                                                  "biotype             ", &
                                                  "forcefield          ", &
                                                  "solute              ", &
                                                  ! TODO....
-                                                 "epsilonrule         ", &
                                                  "dielectric          ", &
                                                  "polarization        ", &
                                                  "mutual-11-scale     ", &

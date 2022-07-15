@@ -21,7 +21,7 @@ module mod_nonbonded
 
     contains
 
-    subroutine vdw_init(vdw_type, radius_rule, radius_size, radius_type)
+    subroutine vdw_init(vdw_type, radius_rule, radius_size, radius_type, epsrule)
         !! Initialize the non-bonded module allocating the parameters vectors
         
         use mod_memory, only: mallocate
@@ -29,7 +29,8 @@ module mod_nonbonded
 
         implicit none
 
-        character(len=*) :: vdw_type, radius_rule, radius_size, radius_type
+        character(len=*) :: vdw_type, radius_rule, radius_size, radius_type, &
+                            epsrule
 
         select case(trim(vdw_type))
             case("lennard-jones")
@@ -73,6 +74,21 @@ module mod_nonbonded
                 continue
             case default
                 call fatal_error("radiustype specified is not understood")
+        end select
+        
+        select case(trim(epsrule))
+            case("geometric")
+                call fatal_error("epsilonrule geometric is not implemented")
+            case("arithmetic")
+                call fatal_error("epsilonrule arithmetic is not implemented")
+            case("harmonic")
+                call fatal_error("epsilonrule harmonic is not implemented")
+            case("w-h")
+                call fatal_error("epsilonrule w-h is not implemented")
+            case("hhg")
+                continue
+            case default
+                call fatal_error("epsilonrule specified is not understood")
         end select
 
         if(.not. initialized) then
