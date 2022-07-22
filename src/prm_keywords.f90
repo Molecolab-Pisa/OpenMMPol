@@ -1,7 +1,7 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(55) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(56) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
@@ -46,6 +46,7 @@ function keyword_is_implemented(kw)
                                                  "strbnd              ", &
                                                  "torsion             ", &
                                                  "torsionunit         ", &
+                                                 "tortors             ", &
                                                  "ureybrad            ", &
                                                  "urey-cubic          ", &
                                                  "urey-quartic        ", &
@@ -75,22 +76,20 @@ end function
 function keyword_is_ignored(kw)
     implicit none
 
-    character(len=*), parameter :: ign_kwd(14) = [&
+    character(len=*), parameter :: ign_kwd(13) = [&
                                                  "biotype             ", &
                                                  "forcefield          ", &
                                                  "solute              ", &
-                                                 ! TODO....
-                                                 "dielectric          ", &
-                                                 "polarization        ", &
-                                                 "mutual-11-scale     ", &
-                                                 "mutual-12-scale     ", &
-                                                 "mutual-13-scale     ", &
-                                                 "mutual-14-scale     ", &
-                                                 "strtors             ", &
-                                                 "angtors             ", &
-                                                 "tortors             ", &
-                                                 "anglef              ", &
-                                                 "opbendtype          "  &
+                                                 "dielectric          ", & ! TODO
+                                                 "polarization        ", & ! TODO
+                                                 "mutual-11-scale     ", & ! TODO
+                                                 "mutual-12-scale     ", & ! TODO
+                                                 "mutual-13-scale     ", & ! TODO
+                                                 "mutual-14-scale     ", & ! TODO
+                                                 "strtors             ", & ! TODO
+                                                 "angtors             ", & ! TODO
+                                                 "anglef              ", & ! TODO
+                                                 "opbendtype          "  & ! TODO
                                                  ]
     character(len=*) :: kw
     integer(ip) :: i, l 

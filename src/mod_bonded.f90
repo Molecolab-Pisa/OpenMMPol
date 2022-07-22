@@ -67,6 +67,13 @@ module mod_bonded
     public :: torsionat, torsn, torsamp, torsphase, torsion_init, &
               torsion_potential
 
+    ! Torsion-torsion coupling (cmap)
+    integer(ip) :: ntortor
+    integer(ip), allocatable :: tortorat(:,:), tortorprm(:), ttmap_shape(:,:)
+    real(rp), allocatable :: ttmap_ang1(:), ttmap_ang2(:), ttmap_qz(:)
+    public :: tortorat, tortorprm, tortor_newmap, tortor_init, &
+              tortor_potential
+
     contains
 
     subroutine bond_init(n) 
@@ -513,7 +520,6 @@ module mod_bonded
         !! Compute torsion potential
 
         use mod_constants, only : rad2deg, pi, angstrom2au, kcalmol2au
-        use mod_mmpol, only: cmm
 
         implicit none
 
@@ -525,26 +531,7 @@ module mod_bonded
 
         do i=1, ntorsion
             ! Atoms that defines the dihedral angle
-            a = cmm(:,torsionat(1,i))
-            b = cmm(:,torsionat(2,i))
-            c = cmm(:,torsionat(3,i))
-            d = cmm(:,torsionat(4,i))
-
-            ab = b - a
-            cd = d - c
-            cb = b - c
-
-            t(1) = ab(2)*cb(3) - ab(3)*cb(2)
-            t(2) = ab(3)*cb(1) - ab(1)*cb(3)
-            t(3) = ab(1)*cb(2) - ab(2)*cb(1)
-            t = t / norm2(t)
-            
-            u(1) = cb(2)*cd(3) - cb(3)*cd(2)
-            u(2) = cb(3)*cd(1) - cb(1)*cd(3)
-            u(3) = cb(1)*cd(2) - cb(2)*cd(1)
-            u = u / norm2(u)
-            
-            costhet = dot_product(u,t)
+            costhet = cos_torsion(torsionat(:,i))
             thet = acos(costhet)
 
             do j=1, 6
@@ -554,5 +541,214 @@ module mod_bonded
         end do
 
     end subroutine torsion_potential
+    
+    subroutine tortor_init(n)
+        !! Initialize torsion-torsion correction potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of torsion-torsion 'map' functions in the potential
+        !! energy of the system
+
+        call mallocate('torsion_init [tortorprm]', n, tortorprm )
+        call mallocate('torsion_init [tortorat]', 5, n, tortorat)
+
+        ntortor = n
+
+    end subroutine tortor_init
+
+    subroutine tortor_newmap(d1, d2, ang1, ang2, v)
+        !! Store in module memory the data describing a new torsion-torsion 
+        !! map
+        use mod_memory, only: mallocate, mfree
+        use mod_bicubic_interp, only: control_points_sphere
+        use mod_constants, only: kcalmol2au
+
+        implicit none
+
+        integer(ip) :: d1, d2
+        !! Dimensions of the new map to be saved
+        real(rp) :: ang1(:)
+        !! Value of torsion1 for the new map 
+        real(rp) :: ang2(:)
+        !! Value of torsion2 for the new map 
+        real(rp) :: v(:)
+        !! Value of potential for the new map 
+        
+        real(rp), allocatable :: rtmp(:)
+        integer(ip), allocatable :: itmp(:,:)
+        integer(ip) :: n_data, n_map
+
+        if(allocated(ttmap_ang1)) then
+            ! Reallocate the arrays to make space for the new data
+            n_data = size(ttmap_ang1)
+            call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
+            
+            rtmp = ttmap_ang1
+            call mfree('torstors_newmap [ttmap_ang1]', ttmap_ang1)
+            call mallocate('torstors_newmap [ttmap_ang1]', &
+                           n_data+d1*d2,  ttmap_ang1)
+            ttmap_ang1(:n_data) = rtmp
+            
+            rtmp = ttmap_ang2
+            call mfree('torstors_newmap [ttmap_ang2]', ttmap_ang2)
+            call mallocate('torstors_newmap [ttmap_ang2]', &
+                           n_data+d1*d2,  ttmap_ang2)
+            ttmap_ang2(:n_data) = rtmp
+            
+            
+            call mfree('torstors_newmap [rtmp]', rtmp)
+            n_data = size(ttmap_qz)
+            call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
+            
+            rtmp = ttmap_qz
+            call mfree('torstors_newmap [ttmap_qz]', ttmap_qz)
+            call mallocate('torstors_newmap [ttmap_qz]', &
+                           n_data+(d1+2)*(d2+2),  ttmap_qz)
+            ttmap_qz(:n_data) = rtmp
+            call mfree('torstors_newmap [rtmp]', rtmp)
+
+            n_map = size(ttmap_shape, 2)
+            call mallocate('torstors_newmap [itmp]', 2, n_map, itmp)
+            itmp = ttmap_shape
+            call mfree('torstors_newmap [ttmap_shape]', ttmap_shape)
+            call mallocate('torstors_newmap [ttmap_shape]', &
+                           2, n_map+1, ttmap_shape)
+            ttmap_shape(:,:n_map) = itmp
+
+            call mfree('torstors_newmap [itmp]', itmp)
+        else 
+            ! First allocation, n_data and n_map are just set for consistency
+            n_data = 0
+            n_map = 0
+            call mallocate('torstors_newmap [ttmap_ang1]', d1*d2,  ttmap_ang1)
+            call mallocate('torstors_newmap [ttmap_ang2]', d1*d2,  ttmap_ang2)
+            call mallocate('torstors_newmap [ttmap_qz]', (d1+2)*(d2+2),  ttmap_qz)
+            call mallocate('torstors_newmap [ttmap_shape]', 2, 1, ttmap_shape)
+        end if
+
+        ! TODO check that the grid is regular and OKish
+        ttmap_ang1(n_data+1:) = ang1
+        ttmap_ang2(n_data+1:) = ang2
+        ttmap_shape(1,n_map+1) = d1
+        ttmap_shape(2,n_map+1) = d2
+        ! Save control points, not the actual values, this should speedup
+        ! all the subsequent evaluations
+        call control_points_sphere(v*kcalmol2au, ttmap_qz(n_data+1:), d1, d2)
+    
+    end subroutine tortor_newmap
+
+    subroutine tortor_potential(V)
+        !! Compute torsion potential
+
+        use mod_constants, only : rad2deg, pi, angstrom2au, kcalmol2au
+        use mod_bicubic_interp, only: evaluate_bicubic
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        !! torsion potential, result will be added to V
+        real(rp) :: thetx, thety, vtt
+
+        integer(ip) :: i, j, iprm, ibeg, iend
+
+        do i=1, ntortor
+           ! Atoms that defines the two angles
+           iprm = tortorprm(i)
+           ibeg = 1
+           do j=1, iprm-1
+               ibeg = ibeg + ttmap_shape(1,j)*ttmap_shape(2,j)
+           end do
+           iend = ibeg + ttmap_shape(1,iprm)*ttmap_shape(2,iprm) - 1
+           
+           thetx = ang_torsion(tortorat(1:4,i)) * rad2deg
+           thety = ang_torsion(tortorat(2:5,i)) * rad2deg
+
+           call evaluate_bicubic(thety, thetx, vtt, ttmap_ang1(ibeg), &
+                                 ttmap_ang1(iend), ttmap_shape(1, iprm), &
+                                 ttmap_ang2(ibeg), ttmap_ang2(iend), &
+                                 ttmap_shape(2, iprm), ttmap_qz(ibeg:iend))
+            V = V + vtt
+        end do
+
+
+    end subroutine tortor_potential
+
+    pure function cos_torsion(idx)
+        !! Compute the cosine of torsional angle between four atoms specified
+        !! with indices idx
+        use mod_mmpol, only: cmm
+        
+        implicit none
+
+        integer(ip), intent(in) :: idx(4)
+        real(rp) :: cos_torsion
+
+        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
+            
+        a = cmm(:,idx(1))
+        b = cmm(:,idx(2))
+        c = cmm(:,idx(3))
+        d = cmm(:,idx(4))
+
+        ab = b - a
+        cd = d - c
+        cb = b - c
+
+        t(1) = ab(2)*cb(3) - ab(3)*cb(2)
+        t(2) = ab(3)*cb(1) - ab(1)*cb(3)
+        t(3) = ab(1)*cb(2) - ab(2)*cb(1)
+        t = t / norm2(t)
+            
+        u(1) = cb(2)*cd(3) - cb(3)*cd(2)
+        u(2) = cb(3)*cd(1) - cb(1)*cd(3)
+        u(3) = cb(1)*cd(2) - cb(2)*cd(1)
+        u = u / norm2(u)
+            
+        cos_torsion = dot_product(u,t)
+        return 
+
+    end function
+    
+    pure function ang_torsion(idx)
+        !! Compute the torsional angle between four atoms specified
+        !! with indices idx; results are in range [-pi;pi]
+        use mod_mmpol, only: cmm
+        
+        implicit none
+
+        integer(ip), intent(in) :: idx(4)
+        real(rp) :: cos_torsion, sin_torsion, ang_torsion
+
+        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
+            
+        a = cmm(:,idx(1))
+        b = cmm(:,idx(2))
+        c = cmm(:,idx(3))
+        d = cmm(:,idx(4))
+
+        ab = b - a
+        cd = d - c
+        cb = b - c
+
+        t(1) = ab(2)*cb(3) - ab(3)*cb(2)
+        t(2) = ab(3)*cb(1) - ab(1)*cb(3)
+        t(3) = ab(1)*cb(2) - ab(2)*cb(1)
+        t = t / norm2(t)
+            
+        u(1) = cb(2)*cd(3) - cb(3)*cd(2)
+        u(2) = cb(3)*cd(1) - cb(1)*cd(3)
+        u(3) = cb(1)*cd(2) - cb(2)*cd(1)
+        u = u / norm2(u)
+            
+        cos_torsion = dot_product(u,t)
+        ang_torsion = acos(cos_torsion)
+        if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
+        return 
+
+    end function
 
 end module mod_bonded

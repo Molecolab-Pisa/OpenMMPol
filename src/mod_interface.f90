@@ -281,6 +281,17 @@ module mod_interface
             call torsion_potential(et)
         end subroutine
         
+        subroutine get_tortor_energy(ett) bind(c, name='get_tortor_energy')
+            
+            use mod_bonded, only: tortor_potential
+
+            implicit none
+            real(rp), intent(inout) :: ett
+
+            ett = 0.0_rp
+            call tortor_potential(ett)
+        end subroutine
+        
         subroutine get_vdw_energy(evdw) bind(c, name='get_vdw_energy')
             
             use mod_nonbonded, only: vdw_potential
