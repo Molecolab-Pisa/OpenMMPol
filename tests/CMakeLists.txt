@@ -1,3 +1,31 @@
+## Download of FF parameters from Tinker repository
+file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoebabio18.prm
+     amoebabio18.prm
+     EXPECTED_HASH MD5=6fd01814c88e6dd44d7de8be2eed2be0) 
+file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoeba09.prm
+     amoeba09.prm
+     EXPECTED_HASH MD5=65bdb55c901ea6c2c2e9fa759825dc12) 
+
+ #==== MEMORY TEST ====#
+set(VALGRINDOPT --track-origins=yes --leak-check=full --show-leak-kinds=all) 
+add_test(NAME memcheck_NMA_loading_AMOEBA
+         COMMAND valgrind ${VALGRINDOPT} bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp Testing/output)
+
+add_test(NAME memcheck_NMA_loading_WANG
+    COMMAND valgrind ${VALGRINDOPT} bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp Testing/output)
+
+add_test(NAME memcheck_NMA_ene_full_AMOEBA
+         COMMAND valgrind ${VALGRINDOPT} bin/C_test_potential_xyz
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.xyz
+         amoeba09.prm
+         Testing/output)
+add_test(NAME memcheck_NMA_ipd1_AMOEBA_CG
+         COMMAND valgrind ${VALGRINDOPT} bin/C_test_ipd 
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
+         Testing/output cg
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/EF_1.txt)
+
+#==== REGRESSION TEST ====#
 # Tests on parameters loading
 set(RTOL 1e-5)
 set(ATOL 1e-6)
@@ -47,13 +75,6 @@ add_test(NAME 1ao6_loading_WANG_AL_CUT10_comp
     COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_WANG_AL_CUT10.ref)
 
 # Tests on loading from xyz/prm files
-## Download of FF parameters from Tinker repository
-file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoebabio18.prm
-     amoebabio18.prm
-     EXPECTED_HASH MD5=6fd01814c88e6dd44d7de8be2eed2be0) 
-file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoeba09.prm
-     amoeba09.prm
-     EXPECTED_HASH MD5=65bdb55c901ea6c2c2e9fa759825dc12) 
 
 add_test(NMA_xyzloading_AMOEBA
     bin/C_test_init_xyz ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.xyz amoeba09.prm Testing/output)
