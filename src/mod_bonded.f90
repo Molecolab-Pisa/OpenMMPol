@@ -284,8 +284,6 @@ module mod_bonded
 
     subroutine strbnd_potential(V)
         !! Compute the stretch-bend cross term potential
-
-        use mod_constants, only : eps_rp
         use mod_mmpol, only: cmm, fatal_error
 
         implicit none
@@ -293,9 +291,8 @@ module mod_bonded
         real(rp), intent(inout) :: V
         !! Stretch-bend cross term potential, result will be added to V
 
-        integer(ip) :: i, j, l1a, l1b, l2a, l2b
+        integer(ip) :: i
         real(rp) :: d_l1, d_l2, d_thet, dr1(3), dr2(3), l1, l2, thet
-        logical :: l1_done, l2_done, thet_done
         
         if(.not. use_strbnd) return
 
@@ -403,7 +400,7 @@ module mod_bonded
         ! TODO note this is the aligner formulation
         !! Compute the out-of-plane bending potential
 
-        use mod_constants, only : rad2deg, pi
+        use mod_constants, only : pi
         use mod_mmpol, only: cmm
 
         implicit none
@@ -470,7 +467,7 @@ module mod_bonded
     subroutine pitors_potential(V)
         !! Compute pi-torsion potential
 
-        use mod_constants, only : rad2deg, pi, angstrom2au
+        use mod_constants, only : pi
         use mod_mmpol, only: cmm
 
         implicit none
@@ -478,7 +475,7 @@ module mod_bonded
         real(rp), intent(inout) :: V
         !! pi-torsion potential, result will be added to V
         real(rp), dimension(3) :: a, b, c, d, e, f, u, t, cd, plv1, plv2, pln1, pln2
-        real(rp) :: lpln1, lpln2, thet, costhet
+        real(rp) :: thet, costhet
         integer(ip) :: i
 
         if(.not. use_pitors) return
@@ -561,15 +558,11 @@ module mod_bonded
 
     subroutine torsion_potential(V)
         !! Compute torsion potential
-
-        use mod_constants, only : rad2deg, pi, angstrom2au, kcalmol2au
-
         implicit none
 
         real(rp), intent(inout) :: V
         !! torsion potential, result will be added to V
-        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
-        real(rp) :: lpln1, lpln2, thet, costhet
+        real(rp) :: thet, costhet
         integer(ip) :: i, j
         
         if(.not. use_torsion) return
@@ -692,7 +685,7 @@ module mod_bonded
     subroutine tortor_potential(V)
         !! Compute torsion potential
 
-        use mod_constants, only : rad2deg, pi, angstrom2au, kcalmol2au
+        use mod_constants, only : rad2deg 
         use mod_bicubic_interp, only: evaluate_bicubic
 
         implicit none
@@ -771,7 +764,7 @@ module mod_bonded
         implicit none
 
         integer(ip), intent(in) :: idx(4)
-        real(rp) :: cos_torsion, sin_torsion, ang_torsion
+        real(rp) :: cos_torsion, ang_torsion
 
         real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
             

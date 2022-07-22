@@ -488,7 +488,7 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, isb, nstrbnd, &
-                       cla, clb, clc, a, b, c, jc, jb, k, maxsb, &
+                       cla, clb, clc, a, b, c, jc, jb, maxsb, &
                        l1a, l1b, l2a, l2b
         character(len=120) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), sbtmp(:), &
@@ -693,7 +693,7 @@ module mod_prm
         use mod_bonded, only: opb_cubic, opb_quartic, &
                               opb_pentic, opb_sextic, opbat, kopb, opb_init
 
-        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
+        use mod_constants, only: kcalmol2au, rad2deg
         
         implicit none
         
@@ -704,13 +704,13 @@ module mod_prm
         !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, iopb, nopb, &
-                       cla, clb, clc, maxopb, a, b, c, jc, jb, k, d1, d2, iprm
+        integer(ip) :: ist, i, tokb, toke, iopb, nopb, &
+                       cla, clb, clc, maxopb, a, b, c, jc, jb, iprm
         character(len=120) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
                                     classd(:), tmpat(:,:)
         real(rp), allocatable :: kopbend(:), tmpk(:)
-        logical :: done, dok, cok
+        logical :: dok, cok
 
         if(.not. allocated(atclass)) call read_atom_cards(prm_file)
         
@@ -914,7 +914,7 @@ module mod_prm
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, mm_atoms, conn
         use mod_bonded, only: kpitors, pitorsat, pitors_init
-        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
+        use mod_constants, only: kcalmol2au
         
         implicit none
         
@@ -925,7 +925,7 @@ module mod_prm
         !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, ipitors, npitors, &
+        integer(ip) :: ist, i, tokb, toke, ipitors, npitors, &
                        cla, clb, maxpi, a, b, c, jb, iprm
         character(len=120) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), tmpat(:,:)
@@ -1081,7 +1081,7 @@ module mod_prm
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, mm_atoms, conn
         use mod_bonded, only: torsion_init, torsionat, torsamp, torsphase, torsn
-        use mod_constants, only: kcalmol2au, rad2deg, deg2rad, eps_rp
+        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
         
         implicit none
         
@@ -2516,8 +2516,6 @@ module mod_prm
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, mm_atoms, conn
         use mod_bonded, only: tortorat, tortorprm, tortor_newmap, tortor_init 
-
-        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
         
         implicit none
         
@@ -2528,12 +2526,11 @@ module mod_prm
         !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, iang, nang, iprm, jd, je, e, d, cle,it,cld,&
-                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv, itt, ndata, ntt, ibeg, iend, maxtt
+        integer(ip) :: ist, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
+                       cla, clb, clc, a, b, c, jc, jb, itt, ndata, ntt, ibeg, iend, maxtt
         character(len=120) :: line, errstring
         integer(ip), allocatable :: classx(:,:), map_dimension(:,:), tmpat(:,:), tmpprm(:), savedmap(:)
         real(rp), allocatable :: data_map(:), ang_map(:,:)
-        logical :: done
 
         if(.not. allocated(atclass)) call read_atom_cards(prm_file)
         

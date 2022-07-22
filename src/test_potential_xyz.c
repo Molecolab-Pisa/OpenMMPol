@@ -51,7 +51,6 @@ int main(int argc, char **argv){
            ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex;
     
     double *electric_field;
-    double **external_ef;
 
     set_verbose(OMMP_VERBOSE_DEBUG);
     mmpol_init_xyz(argv[1], argv[2]);
@@ -81,6 +80,24 @@ int main(int argc, char **argv){
 
     FILE *fp = fopen(argv[3], "w+");
 
+    eaa = 0.0;
+    eopd = 0.0;
+    eid = 0.0;  
+    eit = 0.0;
+    ebt = 0.0;
+    eat = 0.0; 
+    er = 0.0;
+    edsp = 0.0;
+    ec = 0.0;
+    ecd = 0.0;
+    ed = 0.0;
+    ect = 0.0;
+    erxf = 0.0;
+    es = 0.0;
+    elf = 0.0;
+    eg = 0.0;
+    ex = 0.0;
+    
     em *= AU2KCALMOL;
     ep *= AU2KCALMOL;
     ev *= AU2KCALMOL;
@@ -103,7 +120,25 @@ int main(int argc, char **argv){
     fprintf(fp, "EOPB    %20.12e\n", eopb);
     fprintf(fp, "EPT     %20.12e\n", ept);
     fprintf(fp, "ET      %20.12e\n", et);
-    fprintf(fp, "ETT      %20.12e\n", ett);
+    fprintf(fp, "ETT     %20.12e\n", ett);
+
+    fprintf(fp, "EAA     %20.12e\n", eaa); 
+    fprintf(fp, "EOPD    %20.12e\n", eopd);
+    fprintf(fp, "EID     %20.12e\n", eid); 
+    fprintf(fp, "EIT     %20.12e\n", eit); 
+    fprintf(fp, "EBT     %20.12e\n", ebt); 
+    fprintf(fp, "EAT     %20.12e\n", eat); 
+    fprintf(fp, "ER      %20.12e\n", er);
+    fprintf(fp, "EDSP    %20.12e\n", edsp);
+    fprintf(fp, "EC      %20.12e\n", ec);
+    fprintf(fp, "ECD     %20.12e\n", ecd);
+    fprintf(fp, "ED      %20.12e\n", ed);
+    fprintf(fp, "ECT     %20.12e\n", ect);
+    fprintf(fp, "ERXF    %20.12e\n", erxf);
+    fprintf(fp, "ES      %20.12e\n", es);
+    fprintf(fp, "ELF     %20.12e\n", elf);
+    fprintf(fp, "EG      %20.12e\n", eg);
+    fprintf(fp, "EX      %20.12e\n", ex);
     
     fclose(fp);
     free(electric_field);
