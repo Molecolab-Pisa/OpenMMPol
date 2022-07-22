@@ -15,5 +15,5 @@ RUN zypper --non-interactive in gcc \
                                 hdf5-devel \
                                 valgrind \
                                 zlib-devel
-RUN pip install ford
+RUN pip install -Iv ford==6.1.11
 RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py 
