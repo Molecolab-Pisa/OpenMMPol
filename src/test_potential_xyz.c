@@ -106,8 +106,8 @@ int main(int argc, char **argv){
     fprintf(fp, "ETT      %20.12e\n", ett);
     
     fclose(fp);
-    
     free(electric_field);
+    ommp_terminate();
     
     return 0;
 }

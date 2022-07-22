@@ -81,5 +81,8 @@ int main(int argc, char **argv){
     fprintf(fp, "%20.12e\n", E_MMPOL);
     
     fclose(fp);
+    free(electric_field);
+    ommp_terminate();
+    
     return 0;
 }

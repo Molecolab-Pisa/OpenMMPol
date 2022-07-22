@@ -11,7 +11,7 @@ module mod_interface
     public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
     public :: get_polar_mm
     public :: mmpol_init_mmp, do_mm, do_qmmm, get_energy, &
-              write_hdf5
+              write_hdf5, ommp_terminate
 
     contains
         
@@ -301,6 +301,21 @@ module mod_interface
 
             evdw = 0.0_rp
             call vdw_potential(evdw)
+        end subroutine
+
+        subroutine ommp_terminate() bind(c, name='ommp_terminate')
+            use mod_mmpol, only: mmpol_terminate
+            use mod_bonded, only: terminate_bonded
+            use mod_nonbonded, only: vdw_terminate
+            use mod_electrostatics, only: electrostatics_terminate
+
+            implicit none
+
+            call mmpol_terminate()
+            call terminate_bonded()
+            call vdw_terminate()
+            call electrostatics_terminate()
+
         end subroutine
 
 #ifdef USE_HDF5

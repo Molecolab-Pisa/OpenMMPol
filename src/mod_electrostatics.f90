@@ -21,6 +21,23 @@ module mod_electrostatics
 
     contains
 
+    subroutine electrostatics_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if(allocated(E_M2D)) &
+            call mfree('electrostatics_terminate [E_M2D]', E_M2D)
+        
+        if(allocated(V_M2M)) &
+            call mfree('electrostatics_terminate [V_M2M]', V_M2M)
+        if(allocated(E_M2M)) &
+            call mfree('electrostatics_terminate [E_M2M]', E_M2M)
+        if(allocated(Egrd_M2M)) &
+            call mfree('electrostatics_terminate [Egrd_M2M]', Egrd_M2M)
+
+    end subroutine electrostatics_terminate
+
     subroutine energy_MM_MM(ene)
         !! This function computes the interaction energy of 
         !! static electric multipoles
@@ -948,16 +965,5 @@ module mod_electrostatics
         end if
 
     end subroutine screening_rules
-
-    subroutine electrostatics_terminate()
-        use mod_memory, only: mfree
-        implicit none
-
-        call mfree('electrostatics_terminate [V_M2M]', V_M2M)
-        call mfree('electrostatics_terminate [E_M2M]', E_M2M)
-        call mfree('electrostatics_terminate [Egrd_M2M]', Egrd_M2M)
-        call mfree('electrostatics_terminate [E_M2D]', E_M2D)
-
-    end subroutine electrostatics_terminate
 
 end module mod_electrostatics

@@ -16,7 +16,7 @@ module mod_nonbonded
 
     logical :: initialized = .false.
     
-    public :: vdw_init, vdw_potential, vdw_set_pair
+    public :: vdw_init, vdw_terminate, vdw_potential, vdw_set_pair
     public :: vdw_r, vdw_e, vdw_f, vdw_screening 
 
     contains
@@ -106,6 +106,23 @@ module mod_nonbonded
         end if
 
     end subroutine vdw_init
+
+    subroutine vdw_terminate()
+        use mod_memory, only: mfree
+        use mod_adjacency_mat, only: matfree
+
+        implicit none
+        
+        if(.not. initialized) return
+
+        call mfree('vdw_terminate [vdw_r]', vdw_r)
+        call mfree('vdw_terminate [vdw_e]', vdw_e)
+        call mfree('vdw_terminate [vdw_f]', vdw_f)
+        call matfree(vdw_pair)
+        call mfree('vdw_terminate [vdw_pair_r]', vdw_pair_r)
+        call mfree('vdw_terminate [vdw_pair_e]', vdw_pair_e)
+
+    end subroutine
 
     subroutine vdw_set_pair(ia, ib, r, e)
         !! Set VdW interaction parameters for a specific atom pair, those

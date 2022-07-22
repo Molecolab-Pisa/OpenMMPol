@@ -27,5 +27,7 @@ int main(int argc, char **argv){
     else
         print_summary();
     
+    ommp_terminate();
+    
     return 0;
 }

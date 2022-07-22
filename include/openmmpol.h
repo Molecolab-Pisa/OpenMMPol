@@ -26,6 +26,7 @@
 
 extern void mmpol_init_mmp(char *);
 extern void mmpol_init_xyz(char *, char *);
+extern void ommp_terminate(void);
 extern void do_mm(void);
 extern void do_qmmm(double *, int32_t);
 extern void get_energy(double *, double *);

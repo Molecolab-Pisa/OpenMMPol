@@ -13,13 +13,23 @@ module mod_prm
 
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
               assign_angle, assign_urey, assign_strbnd, assign_opb, &
-              assign_pitors, assign_torsion, assign_tortors
+              assign_pitors, assign_torsion, assign_tortors, terminate_prm
     public :: check_keyword
 
     contains 
     
 #include "prm_keywords.f90"
 
+    subroutine terminate_prm()
+        use mod_memory, only: mfree
+        
+        implicit none
+        
+        if(allocated(atclass)) call mfree('terminate_prm [atclass]', atclass)
+        if(allocated(atz)) call mfree('terminate_prm [atz]', atz)
+
+    end subroutine terminate_prm
+    
     subroutine read_atom_cards(prm_file)
         use mod_memory, only: mallocate
         use mod_mmpol, only: fatal_error

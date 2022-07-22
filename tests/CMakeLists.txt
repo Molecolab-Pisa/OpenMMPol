@@ -689,4 +689,4 @@ add_test(NAME 1ubq_ene_full_AMOEBA_comp_ett
          ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
          Testing/output 
          ETT
-         ${RTOL} ${ATOL})
+         0.01 1.0e-3)

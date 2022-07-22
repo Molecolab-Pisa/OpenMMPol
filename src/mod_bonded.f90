@@ -12,6 +12,7 @@ module mod_bonded
     integer(ip), allocatable :: bondat(:,:)
     real(rp) :: bond_cubic, bond_quartic
     real(rp), allocatable :: kbond(:), l0bond(:)
+    logical :: use_bond = .false.
     public :: bond_init, bond_potential, bondat, kbond, &
               l0bond, bond_cubic, bond_quartic
 
@@ -27,6 +28,7 @@ module mod_bonded
                                       OMMP_ANG_INPLANE_H1 = 6
     real(rp) :: angle_cubic, angle_quartic, angle_pentic, angle_sextic
     real(rp), allocatable :: kangle(:), eqangle(:)
+    logical :: use_angle = .false.
     public :: angle_init, angle_potential, angleat, anglety, kangle, eqangle, &
               angle_cubic, angle_quartic, angle_pentic, angle_sextic
 
@@ -35,6 +37,7 @@ module mod_bonded
     integer(ip), allocatable :: strbndat(:,:)
     real(rp), allocatable :: strbndk1(:), strbndk2(:), strbndthet0(:), &
                              strbndl10(:), strbndl20(:)
+    logical :: use_strbnd = .false.
     public :: strbnd_init, strbnd_potential, strbndat, strbndk1, &
               strbndk2, strbndl10, strbndl20, strbndthet0
 
@@ -43,6 +46,7 @@ module mod_bonded
     integer(ip), allocatable :: ureyat(:,:)
     real(rp) :: urey_cubic, urey_quartic
     real(rp), allocatable :: kurey(:), l0urey(:)
+    logical :: use_urey = .false.
     public :: urey_init, urey_potential, ureyat, kurey, &
               l0urey, urey_cubic, urey_quartic
 
@@ -51,6 +55,7 @@ module mod_bonded
     integer(ip), allocatable :: opbat(:,:)
     real(rp) :: opb_cubic=0.0, opb_quartic=0.0, opb_pentic=0.0, opb_sextic=0.0
     real(rp), allocatable :: kopb(:)
+    logical :: use_opb = .false.
     public :: opb_init, opb_potential, opbat, opb_cubic, opb_quartic, &
               opb_pentic, opb_sextic, kopb
     
@@ -58,12 +63,14 @@ module mod_bonded
     integer(ip) :: npitors
     integer(ip), allocatable :: pitorsat(:,:)
     real(rp), allocatable :: kpitors(:)
+    logical :: use_pitors = .false.
     public :: pitors_init, pitors_potential, pitorsat, kpitors
 
     ! Torsion
     integer(ip) :: ntorsion
     integer(ip), allocatable :: torsionat(:,:), torsn(:,:)
     real(rp), allocatable :: torsamp(:,:), torsphase(:,:)
+    logical :: use_torsion = .false.
     public :: torsionat, torsn, torsamp, torsphase, torsion_init, &
               torsion_potential
 
@@ -71,9 +78,12 @@ module mod_bonded
     integer(ip) :: ntortor
     integer(ip), allocatable :: tortorat(:,:), tortorprm(:), ttmap_shape(:,:)
     real(rp), allocatable :: ttmap_ang1(:), ttmap_ang2(:), ttmap_qz(:)
+    logical :: use_tortor = .false.
     public :: tortorat, tortorprm, tortor_newmap, tortor_init, &
               tortor_potential
 
+    ! Global
+    public :: terminate_bonded
     contains
 
     subroutine bond_init(n) 
@@ -86,6 +96,9 @@ module mod_bonded
         integer(ip) :: n
         !! Number of bond stretching functions in the potential
         !! energy of the system
+        
+        if( n < 1 ) return
+        use_bond = .true.
 
         call mallocate('bond_init [bondat]', 2, n, bondat)
         call mallocate('bond_init [kbond]', n, kbond)
@@ -114,6 +127,8 @@ module mod_bonded
 
         use_cubic = (abs(bond_cubic) > eps_rp)
         use_quartic = (abs(bond_quartic) > eps_rp)
+        
+        if(.not. use_bond) return
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
@@ -146,6 +161,9 @@ module mod_bonded
         !! Number of angle bending functions in the potential
         !! energy of the system
 
+        if( n < 1 ) return
+        use_angle = .true.
+
         call mallocate('angle_init [angleat]', 3, n, angleat)
         call mallocate('angle_init [anglety]', n, anglety)
         call mallocate('angle_init [angauxat]', n, angauxat)
@@ -172,6 +190,8 @@ module mod_bonded
         real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
         real(rp), dimension(3) :: v_dist, plv1, plv2, pln, a, b, c, prj_b, aux
 
+        if(.not. use_angle) return
+        
         do i=1, nangle
             if(anglety(i) == OMMP_ANG_SIMPLE .or. &
                anglety(i) == OMMP_ANG_H0 .or. &
@@ -249,6 +269,9 @@ module mod_bonded
         !! Number of stretch-bend functions in the potential
         !! energy of the system
 
+        if( n < 1 ) return
+        use_strbnd = .true.
+
         call mallocate('strbnd_init [strbndat]', 3, n, strbndat)
         call mallocate('strbnd_init [strbndl10]', n, strbndl10)
         call mallocate('strbnd_init [strbndl20]', n, strbndl20)
@@ -273,6 +296,8 @@ module mod_bonded
         integer(ip) :: i, j, l1a, l1b, l2a, l2b
         real(rp) :: d_l1, d_l2, d_thet, dr1(3), dr2(3), l1, l2, thet
         logical :: l1_done, l2_done, thet_done
+        
+        if(.not. use_strbnd) return
 
         do i=1, nstrbnd
             dr1 = cmm(:, strbndat(2,i)) - cmm(:, strbndat(1,i))
@@ -300,6 +325,9 @@ module mod_bonded
         integer(ip) :: n
         !! Number of Urey-Bradley functions in the potential
         !! energy of the system
+        
+        if( n < 1 ) return
+        use_urey = .true.
 
         call mallocate('urey_init [ureya]', 2, n, ureyat)
         call mallocate('urey_init [kurey]', n, kurey)
@@ -324,6 +352,8 @@ module mod_bonded
         integer :: i
         logical :: use_cubic, use_quartic
         real(rp) :: dr(3), l, dl, dl2
+        
+        if(.not. use_urey) return
 
         use_cubic = (abs(urey_cubic) > eps_rp)
         use_quartic = (abs(urey_quartic) > eps_rp)
@@ -360,6 +390,9 @@ module mod_bonded
         !! Number of out of plane Bending functions in the potential
         !! energy of the system
 
+        if( n < 1 ) return
+        use_opb = .true.
+
         call mallocate('opb_init [opbat]', 4, n, opbat)
         call mallocate('opb_init [kopb]', n, kopb)
         nopb = n
@@ -381,6 +414,8 @@ module mod_bonded
         real(rp) :: lpln, lvad, thet, thet2, thet3, thet4
         integer(ip) :: i
 
+        if(.not. use_opb) return
+        
         do i=1, nopb
             !! A* -- D -- C
             !!       |
@@ -421,10 +456,13 @@ module mod_bonded
 
         integer(ip) :: n
         !! Number of out of plane pi-torsion functions in the potential
-        !! energy of the system
+        !! enerpgy of the system
+        
+        if( n < 1 ) return
+        use_pitors = .true.
 
-        call mallocate('opb_init [pitorsat]', 6, n, pitorsat)
-        call mallocate('opb_init [kpitors]', n, kpitors)
+        call mallocate('pitors_init [pitorsat]', 6, n, pitorsat)
+        call mallocate('pitors_init [kpitors]', n, kpitors)
         npitors = n
 
     end subroutine pitors_init
@@ -443,6 +481,8 @@ module mod_bonded
         real(rp) :: lpln1, lpln2, thet, costhet
         integer(ip) :: i
 
+        if(.not. use_pitors) return
+        
         do i=1, npitors
             !
             !  2(c)        5(e)         a => 1
@@ -506,6 +546,9 @@ module mod_bonded
         integer(ip) :: n
         !! Number of torsion functions in the potential
         !! energy of the system
+        
+        if( n < 1 ) return
+        use_torsion = .true.
 
         call mallocate('torsion_init [torsionat]', 4, n, torsionat)
         call mallocate('torsion_init [torsamp]', 6, n, torsamp)
@@ -528,6 +571,8 @@ module mod_bonded
         real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
         real(rp) :: lpln1, lpln2, thet, costhet
         integer(ip) :: i, j
+        
+        if(.not. use_torsion) return
 
         do i=1, ntorsion
             ! Atoms that defines the dihedral angle
@@ -553,6 +598,9 @@ module mod_bonded
         !! Number of torsion-torsion 'map' functions in the potential
         !! energy of the system
 
+        if( n < 1 ) return
+        use_tortor = .true.
+        
         call mallocate('torsion_init [tortorprm]', n, tortorprm )
         call mallocate('torsion_init [tortorat]', 5, n, tortorat)
 
@@ -655,6 +703,8 @@ module mod_bonded
 
         integer(ip) :: i, j, iprm, ibeg, iend
 
+        if(.not. use_tortor) return
+        
         do i=1, ntortor
            ! Atoms that defines the two angles
            iprm = tortorprm(i)
@@ -750,5 +800,136 @@ module mod_bonded
         return 
 
     end function
+
+    subroutine terminate_bonded()
+        !! Just terminate every "submodule" in bonded, 
+        !! deallocating arrays and disabling the potential terms
+        implicit none
+    
+        call bond_terminate()
+        call angle_terminate()
+        call strbnd_terminate()
+        call urey_terminate()
+        call opb_terminate()
+        call pitors_terminate()
+        call torsion_terminate()
+        call tortor_terminate()
+
+    end subroutine terminate_bonded
+    
+    subroutine bond_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_bond ) return
+
+        use_bond = .false.
+        call mfree('bond_terminate [bondat]', bondat)
+        call mfree('bond_terminate [kbond]', kbond)
+        call mfree('bond_terminate [l0bond]', l0bond)
+
+    end subroutine bond_terminate
+    
+    subroutine angle_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_angle ) return
+
+        use_angle = .false.
+        call mfree('angle_terminate [angleat]', angleat)
+        call mfree('angle_terminate [anglety]', anglety)
+        call mfree('angle_terminate [angauxat]', angauxat)
+        call mfree('angle_terminate [kangle]', kangle)
+        call mfree('angle_terminate [eqangle]', eqangle)
+
+    end subroutine angle_terminate
+    
+    subroutine strbnd_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_strbnd ) return
+
+        use_strbnd = .false.
+        call mfree('strbnd_terminate [strbndat]', strbndat)
+        call mfree('strbnd_terminate [strbndl10]', strbndl10)
+        call mfree('strbnd_terminate [strbndl20]', strbndl20)
+        call mfree('strbnd_terminate [strbndthet0]', strbndthet0)
+        call mfree('strbnd_terminate [strbndk1]', strbndk1)
+        call mfree('strbnd_terminate [strbndk2]', strbndk2)
+
+    end subroutine strbnd_terminate
+    
+    subroutine urey_terminate() 
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_urey ) return
+        
+        use_urey = .false.
+        call mfree('urey_terminate [ureya]',  ureyat)
+        call mfree('urey_terminate [kurey]',  kurey)
+        call mfree('urey_terminate [l0urey]', l0urey)
+
+    end subroutine urey_terminate
+    
+    subroutine opb_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_opb ) return
+        
+        use_opb = .false.
+        call mfree('opb_terminate [opbat]', opbat)
+        call mfree('opb_terminate [kopb]', kopb)
+
+    end subroutine opb_terminate
+
+    subroutine pitors_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_pitors ) return
+        
+        use_pitors = .false.
+        call mfree('pitors_terminate [pitorsat]', pitorsat)
+        call mfree('p_terminate [kpitors]', kpitors)
+
+    end subroutine pitors_terminate
+    
+    subroutine torsion_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_torsion ) return
+        
+        use_torsion = .false.
+        call mfree('torsion_terminate [torsionat]', torsionat)
+        call mfree('torsion_terminate [torsamp]', torsamp)
+        call mfree('torsion_terminate [torsphase]', torsphase)
+        call mfree('torsion_terminate [torsn]', torsn)
+
+    end subroutine torsion_terminate
+    
+    subroutine tortor_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_tortor ) return
+        
+        use_tortor = .false.
+        call mfree('torsion_terminate [tortorprm]', tortorprm )
+        call mfree('torsion_terminate [tortorat]', tortorat)
+
+    end subroutine tortor_terminate
 
 end module mod_bonded

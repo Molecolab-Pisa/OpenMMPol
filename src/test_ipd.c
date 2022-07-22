@@ -114,6 +114,17 @@ int main(int argc, char **argv){
             fprintf(fp, "\n");
         }
     }
+    
     fclose(fp);
+    free(electric_field);
+    
+    for(int i = 0; i < n_ipd; i++)
+        free(ipd[i]);
+    free(ipd);
+    
+    if(argc == 5)
+        free(external_ef);
+    ommp_terminate();
+    
     return 0;
 }
