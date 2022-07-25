@@ -1,7 +1,7 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(58) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(62) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
@@ -25,6 +25,10 @@ function keyword_is_implemented(kw)
                                                  "mpole-14-scale      ", &
                                                  "mpole-15-scale      ", &
                                                  "multipole           ", &
+                                                 "mutual-11-scale     ", &
+                                                 "mutual-12-scale     ", &
+                                                 "mutual-13-scale     ", &
+                                                 "mutual-14-scale     ", &
                                                  "opbend              ", &
                                                  "opbend-cubic        ", &
                                                  "opbend-pentic       ", &
@@ -78,15 +82,11 @@ end function
 function keyword_is_ignored(kw)
     implicit none
 
-    character(len=*), parameter :: ign_kwd(11) = [&
+    character(len=*), parameter :: ign_kwd(7) = [&
                                                  "biotype             ", &
                                                  "forcefield          ", &
                                                  "solute              ", &
                                                  "dielectric          ", & ! TODO
-                                                 "mutual-11-scale     ", & ! TODO
-                                                 "mutual-12-scale     ", & ! TODO
-                                                 "mutual-13-scale     ", & ! TODO
-                                                 "mutual-14-scale     ", & ! TODO
                                                  "strtors             ", & ! TODO
                                                  "angtors             ", & ! TODO
                                                  "anglef              "  & ! TODO
