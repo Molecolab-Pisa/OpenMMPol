@@ -706,7 +706,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, tokb, toke, iopb, nopb, &
                        cla, clb, clc, maxopb, a, b, c, jc, jb, iprm
-        character(len=120) :: line, errstring
+        character(len=120) :: line, errstring, opb_type
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
                                     classd(:), tmpat(:,:)
         real(rp), allocatable :: kopbend(:), tmpk(:)
@@ -753,7 +753,12 @@ module mod_prm
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
            
-            if(line(:13) == 'opbend-cubic ') then
+            if(line(:11) == 'opbendtype ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) opb_type
+            
+            else if(line(:13) == 'opbend-cubic ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
@@ -893,7 +898,7 @@ module mod_prm
             end do
         end do
 
-        call opb_init(iopb-1)
+        call opb_init(iopb-1, trim(opb_type))
         
         do i=1, iopb-1
             kopb(i) = tmpk(i) * kcalmol2au

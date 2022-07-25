@@ -376,9 +376,10 @@ module mod_bonded
         
     end subroutine urey_potential
 
-    subroutine opb_init(n)
+    subroutine opb_init(n, opbtype)
         !! Initialize Out-of-Plane bending potential arrays
 
+        use mod_mmpol, only: fatal_error
         use mod_memory, only: mallocate
 
         implicit none
@@ -386,6 +387,17 @@ module mod_bonded
         integer(ip) :: n
         !! Number of out of plane Bending functions in the potential
         !! energy of the system
+        character(len=*) :: opbtype
+
+        select case(opbtype)
+            case('allinger')
+                continue
+            case('w-d-c')
+                call fatal_error('Out-of-plane bend W-D-C is not implemented')
+            case default
+                write(*,*) "'",opbtype,"'"
+                call fatal_error('Out-of-plane type specified is not understood')
+        end select
 
         if( n < 1 ) return
         use_opb = .true.
@@ -397,7 +409,6 @@ module mod_bonded
     end subroutine opb_init
 
     subroutine opb_potential(V)
-        ! TODO note this is the aligner formulation
         !! Compute the out-of-plane bending potential
 
         use mod_constants, only : pi

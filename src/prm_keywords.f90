@@ -1,7 +1,7 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(57) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(58) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
@@ -30,6 +30,7 @@ function keyword_is_implemented(kw)
                                                  "opbend-pentic       ", &
                                                  "opbend-quartic      ", &
                                                  "opbend-sextic       ", &
+                                                 "opbendtype          ", & 
                                                  "pitors              ", &
                                                  "polar-12-intra      ", &
                                                  "polar-12-scale      ", &
@@ -77,7 +78,7 @@ end function
 function keyword_is_ignored(kw)
     implicit none
 
-    character(len=*), parameter :: ign_kwd(12) = [&
+    character(len=*), parameter :: ign_kwd(11) = [&
                                                  "biotype             ", &
                                                  "forcefield          ", &
                                                  "solute              ", &
@@ -88,8 +89,7 @@ function keyword_is_ignored(kw)
                                                  "mutual-14-scale     ", & ! TODO
                                                  "strtors             ", & ! TODO
                                                  "angtors             ", & ! TODO
-                                                 "anglef              ", & ! TODO
-                                                 "opbendtype          "  & ! TODO
+                                                 "anglef              "  & ! TODO
                                                  ]
     character(len=*) :: kw
     integer(ip) :: i, l 
