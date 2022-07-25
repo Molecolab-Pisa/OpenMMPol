@@ -1974,8 +1974,20 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
-           
-            if(line(:15) == 'polar-12-intra ') then
+          
+            if(line(:13) == 'polarization ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                select case(line(tokb:toke))
+                    case('mutual')
+                        continue
+                    case('direct')
+                        call fatal_error("Polarization DIRECT is not supported")
+                    case default
+                        call fatal_error("Wrong POLARIZATION card")
+                end select
+
+            else if(line(:15) == 'polar-12-intra ') then
                 tokb = 16
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
