@@ -705,12 +705,11 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, tokb, toke, iopb, nopb, &
-                       cla, clb, clc, maxopb, a, b, c, jc, jb, iprm
+                       cla, clb, clc, cld, maxopb, a, b, c, d, jc, jb, iprm
         character(len=120) :: line, errstring, opb_type
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
                                     classd(:), tmpat(:,:)
         real(rp), allocatable :: kopbend(:), tmpk(:)
-        logical :: dok, cok
 
         if(.not. allocated(atclass)) call read_atom_cards(prm_file)
         
@@ -735,7 +734,7 @@ module mod_prm
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
-        maxopb = mm_atoms
+        maxopb = mm_atoms*3
         call mallocate('assign_opb [classa]', nopb, classa)
         call mallocate('assign_opb [classb]', nopb, classb)
         call mallocate('assign_opb [classc]', nopb, classc)
@@ -854,46 +853,43 @@ module mod_prm
             do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
                 b = conn(1)%ci(jb)
                 clb = atclass(my_attype(b))
-                
+              
+                c = -1
+                d = -1
+                clc = 0
+                cld = 0
+                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                    if(conn(1)%ci(jc) == b) cycle
+                    if(c < 0) then
+                        c = conn(1)%ci(jc)
+                        clc = atclass(my_attype(c))
+                    else if(d < 0) then
+                        d = conn(1)%ci(jc)
+                        cld = atclass(my_attype(d))
+                    end if
+                end do
+
                 do iprm=1, nopb
                     if((classa(iprm) == clb) .and. &
-                       (classb(iprm) == cla)) then
-                        ! The parameter seems suitable, let's check the other 
-                        ! two atoms
-                        if(classc(iprm) == 0) then
-                            cok = .true.
-                        end if
-                        if(classd(iprm) == 0) then
-                            dok = .true.
-                        end if
-                        do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                            c = conn(1)%ci(jc)
-                            clc = atclass(my_attype(c))
-                            if(c == b) cycle
-                            if(.not. cok .and. classc(iprm) == clc) then
-                                cok = .true.
-                            else if(.not. dok .and. classd(iprm) == clc) then
-                                dok = .true.
-                            end if
-                        end do
-
-                        if(cok .and. dok) then
-                            tmpat(1,iopb) = a
-                            tmpat(2,iopb) = b
-                            tmpat(3:4, iopb) = -1 
-                            do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                                c = conn(1)%ci(jc)
-                                if(c == b) cycle
-                                if(tmpat(3,iopb) < 0) then
-                                    tmpat(3,iopb) = c
-                                else if(tmpat(4,iopb) < 0) then
-                                    tmpat(4,iopb) = c
-                                end if
-                            end do
-                            tmpk(iopb) = kopbend(iprm)
-                            iopb = iopb + 1
-                        endif
-                    end if
+                       (classb(iprm) == cla) .and. &
+                       ((classc(iprm) == clc .and. & 
+                         classd(iprm) == cld) .or. &
+                        (classd(iprm) == clc .and. &
+                         classc(iprm) == cld) .or. &
+                        (classd(iprm) == 0 .and. &
+                         (classc(iprm) == cld .or. classc(iprm) == clc)) .or. &
+                        (classc(iprm) == 0 .and. &
+                         (classd(iprm) == cld .or. classd(iprm) == clc)) .or. &
+                        (classc(iprm) == 0 .or. classd(iprm) == 0))) then
+                        ! The parameter is ok
+                        tmpat(1,iopb) = a
+                        tmpat(2,iopb) = b
+                        tmpat(3,iopb) = c
+                        tmpat(4,iopb) = d
+                        tmpk(iopb) = kopbend(iprm)
+                        iopb = iopb + 1
+                        exit
+                    endif
                 end do
             end do
         end do
