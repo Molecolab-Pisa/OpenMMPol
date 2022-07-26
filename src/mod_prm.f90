@@ -632,25 +632,21 @@ module mod_prm
             if(sbtmp(i) > 0) then
                 strbndk1(i) = k1(j) * kcalmol2au / angstrom2au
                 strbndk2(i) = k2(j) * kcalmol2au / angstrom2au
-                l1a = min(strbndat(1,i), strbndat(2,i))
-                l1b = max(strbndat(1,i), strbndat(2,i))
-                l2a = min(strbndat(3,i), strbndat(2,i))
-                l2b = max(strbndat(3,i), strbndat(2,i))
             else
                 strbndk1(i) = k2(j) * kcalmol2au / angstrom2au
                 strbndk2(i) = k1(j) * kcalmol2au / angstrom2au
-                l1a = min(strbndat(3,i), strbndat(2,i))
-                l1b = max(strbndat(3,i), strbndat(2,i))
-                l2a = min(strbndat(1,i), strbndat(2,i))
-                l2b = max(strbndat(1,i), strbndat(2,i))
             end if
+            
+            l1a = min(strbndat(1,i), strbndat(2,i))
+            l1b = max(strbndat(1,i), strbndat(2,i))
+            l2a = min(strbndat(3,i), strbndat(2,i))
+            l2b = max(strbndat(3,i), strbndat(2,i))
            
             ! Now search for the corresponding bond and angle parameters to
             ! set the equilibrium distances and angle
             l1_done = .false.
             l2_done = .false.
             thet_done = .false.
-            
 
             do j=1, size(bondat, 2)
                 if(l1a == bondat(1,j) .and. l1b == bondat(2,j)) then
