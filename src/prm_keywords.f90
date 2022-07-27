@@ -1,12 +1,13 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(62) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(64) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
                                                  "angle-quartic       ", &
                                                  "angle-sextic        ", &
+                                                 "angtors             ", & ! TODO
                                                  "atom                ", &
                                                  "bond                ", &
                                                  "bond-cubic          ", &
@@ -50,6 +51,7 @@ function keyword_is_implemented(kw)
                                                  "radiustype          ", &
                                                  "radiussize          ", &
                                                  "strbnd              ", &
+                                                 "strtors             ", & ! TODO
                                                  "torsion             ", &
                                                  "torsionunit         ", &
                                                  "tortors             ", &
@@ -82,13 +84,11 @@ end function
 function keyword_is_ignored(kw)
     implicit none
 
-    character(len=*), parameter :: ign_kwd(7) = [&
+    character(len=*), parameter :: ign_kwd(5) = [&
                                                  "biotype             ", &
                                                  "forcefield          ", &
                                                  "solute              ", &
                                                  "dielectric          ", & ! TODO
-                                                 "strtors             ", & ! TODO
-                                                 "angtors             ", & ! TODO
                                                  "anglef              "  & ! TODO
                                                  ]
     character(len=*) :: kw
