@@ -52,7 +52,7 @@ int main(int argc, char **argv){
     
     double *electric_field;
 
-    set_verbose(OMMP_VERBOSE_DEBUG);
+    set_verbose(OMMP_VERBOSE_LOW);
     mmpol_init_xyz(argv[1], argv[2]);
     
     n_ipd = get_n_ipd();

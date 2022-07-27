@@ -296,8 +296,9 @@ end function
 
 function check_keyword(prm_file)
     use mod_memory, only : ip
-    use mod_mmpol, only : fatal_error
+    use mod_mmpol, only : fatal_error, verbose
     use mod_utils, only : starts_with_alpha, str_to_lower, tokenize
+    use mod_constants, only: OMMP_VERBOSE_HIGH
     
     implicit none
 
@@ -334,6 +335,7 @@ function check_keyword(prm_file)
             if(keyword_is_recognized(kw)) then
                 if(.not. keyword_is_implemented(kw)) then
                     if(keyword_is_ignored(kw)) then
+                        if(verbose >= OMMP_VERBOSE_HIGH) &
                         write(*, *) "'", trim(kw), "' - keyword&
                                    & ignored"
                     else
@@ -344,7 +346,7 @@ function check_keyword(prm_file)
                     end if
                 end if
             else
-                ! TODO only with some debug value
+                if(verbose >= OMMP_VERBOSE_HIGH) &
                 write(*, *) "'", trim(kw), "' - keyword&
                            & is not recognized."
             end if
