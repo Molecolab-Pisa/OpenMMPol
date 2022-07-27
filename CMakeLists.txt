@@ -14,7 +14,6 @@ add_compile_options($<$<CONFIG:RELEASE>:-O3>
 
 add_library(openmmpol SHARED 
             src/mod_adjacency_mat.f90
-            src/mod_bicubic_interp.f90
             src/mod_bonded.f90
             src/mod_constants.f90
             src/mod_electrostatics.f90

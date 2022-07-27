@@ -77,7 +77,8 @@ module mod_bonded
     ! Torsion-torsion coupling (cmap)
     integer(ip) :: ntortor
     integer(ip), allocatable :: tortorat(:,:), tortorprm(:), ttmap_shape(:,:)
-    real(rp), allocatable :: ttmap_ang1(:), ttmap_ang2(:), ttmap_qz(:)
+    real(rp), allocatable :: ttmap_ang1(:), ttmap_ang2(:), ttmap_v(:), &
+                             ttmap_vx(:), ttmap_vy(:), ttmap_vxy(:)
     logical :: use_tortor = .false.
     public :: tortorat, tortorprm, tortor_newmap, tortor_init, &
               tortor_potential
@@ -616,19 +617,22 @@ module mod_bonded
         !! Store in module memory the data describing a new torsion-torsion 
         !! map
         use mod_memory, only: mallocate, mfree
-        use mod_bicubic_interp, only: control_points_sphere
         use mod_constants, only: kcalmol2au
+        use mod_utils, only: cyclic_spline
 
         implicit none
 
-        integer(ip) :: d1, d2
+        integer(ip), intent(in) :: d1, d2
         !! Dimensions of the new map to be saved
-        real(rp) :: ang1(:)
+        real(rp), intent(in) :: ang1(:)
         !! Value of torsion1 for the new map 
-        real(rp) :: ang2(:)
+        real(rp), intent(in) :: ang2(:)
         !! Value of torsion2 for the new map 
-        real(rp) :: v(:)
+        real(rp), intent(in) :: v(:)
         !! Value of potential for the new map 
+
+        integer :: i, j, ii
+        real(rp), allocatable, dimension(:) :: a, b, c, d, dx, dy, dxy, tmpx, tmpy
         
         real(rp), allocatable :: rtmp(:)
         integer(ip), allocatable :: itmp(:,:)
@@ -653,14 +657,32 @@ module mod_bonded
             
             
             call mfree('torstors_newmap [rtmp]', rtmp)
-            n_data = size(ttmap_qz)
+            n_data = size(ttmap_v)
             call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
             
-            rtmp = ttmap_qz
-            call mfree('torstors_newmap [ttmap_qz]', ttmap_qz)
-            call mallocate('torstors_newmap [ttmap_qz]', &
-                           n_data+(d1+2)*(d2+2),  ttmap_qz)
-            ttmap_qz(:n_data) = rtmp
+            rtmp = ttmap_v
+            call mfree('torstors_newmap [ttmap_v]', ttmap_v)
+            call mallocate('torstors_newmap [ttmap_v]', &
+                           n_data+d1*d2,  ttmap_v)
+            ttmap_v(:n_data) = rtmp
+            
+            rtmp = ttmap_vx
+            call mfree('torstors_newmap [ttmap_vx]', ttmap_vx)
+            call mallocate('torstors_newmap [ttmap_vx]', &
+                           n_data+d1*d2,  ttmap_vx)
+            ttmap_vx(:n_data) = rtmp
+
+            rtmp = ttmap_vy
+            call mfree('torstors_newmap [ttmap_vy]', ttmap_vy)
+            call mallocate('torstors_newmap [ttmap_vy]', &
+                           n_data+d1*d2,  ttmap_vy)
+            ttmap_vy(:n_data) = rtmp
+
+            rtmp = ttmap_vxy
+            call mfree('torstors_newmap [ttmap_vxy]', ttmap_vxy)
+            call mallocate('torstors_newmap [ttmap_vxy]', &
+                           n_data+d1*d2,  ttmap_vxy)
+            ttmap_vxy(:n_data) = rtmp
             call mfree('torstors_newmap [rtmp]', rtmp)
 
             n_map = size(ttmap_shape, 2)
@@ -678,26 +700,89 @@ module mod_bonded
             n_map = 0
             call mallocate('torstors_newmap [ttmap_ang1]', d1*d2,  ttmap_ang1)
             call mallocate('torstors_newmap [ttmap_ang2]', d1*d2,  ttmap_ang2)
-            call mallocate('torstors_newmap [ttmap_qz]', (d1+2)*(d2+2),  ttmap_qz)
+            call mallocate('torstors_newmap [ttmap_v]', d1*d2,  ttmap_v)
+            call mallocate('torstors_newmap [ttmap_vx]', d1*d2,  ttmap_vx)
+            call mallocate('torstors_newmap [ttmap_vy]', d1*d2,  ttmap_vy)
+            call mallocate('torstors_newmap [ttmap_vxy]', d1*d2,  ttmap_vxy)
             call mallocate('torstors_newmap [ttmap_shape]', 2, 1, ttmap_shape)
         end if
 
-        ! TODO check that the grid is regular and OKish
+        call mallocate('tortor_newmap [a]', max(d1,d2), a)
+        call mallocate('tortor_newmap [b]', max(d1,d2), b)
+        call mallocate('tortor_newmap [c]', max(d1,d2), c)
+        call mallocate('tortor_newmap [d]', max(d1,d2), d)
+        call mallocate('tortor_newmap [dx]', d1*d2, dx)
+        call mallocate('tortor_newmap [dy]', d1*d2, dy)
+        call mallocate('tortor_newmap [dxy]', d1*d2, dxy)
+
+        ! This part of the code computes df/dx, df/dy and d^2f/dxdy on the grid.
+        ! Since we are basically interpolating on a sphere, we extract the 
+        ! coordinate on a meridian, we interpolate it with a cubic spline, and
+        ! finally we compute the derivative of this curve at the grid intersection
+        ! The same is done in the second direction.
+        ! To compute the mixed derivative we apply the same procedure but using
+        ! the derivative data (basically we apply the procedure used to compute
+        ! df/dx but using  df/dy data instead of actual f values.
+        do i=1, d2
+            call cyclic_spline(d1, ang1((i-1)*d1+1:i*d1), v((i-1)*d1+1:i*d1), &
+                               a(1:d1), b(1:d1), c(1:d1), d(1:d1))
+            dx((i-1)*d1+1:i*d1) = b(1:d1)
+        end do
+        
+        ! df/dy since in this direction data are not contiguous, wa allocate 
+        ! temporary arrays
+        call mallocate('tortor_newmap [tmpx]', d2, tmpx)
+        call mallocate('tortor_newmap [tmpy]', d2, tmpy)
+        do i=1, d1
+            ii = 1
+            do j=i, (d2-1)*d1+i, d2
+                tmpx(ii) = ang2(j)
+                tmpy(ii) = v(j)
+                ii = ii + 1
+            end do
+            call cyclic_spline(d2, tmpx, tmpy, &
+                               a(1:d2), b(1:d2), c(1:d2), d(1:d2))
+            
+            ii = 1
+            do j=i, (d2-1)*d1+i, d2
+                dy(j) = b(ii)
+                ii = ii + 1
+            end do
+        end do
+        
+        ! d^2f/dxdy in this case we use df/dx procedure to exploit data contiguity.
+        do i=1, d2
+            call cyclic_spline(d1, ang1((i-1)*d1+1:i*d1), dy((i-1)*d1+1:i*d1), &
+                               a(1:d1), b(1:d1), c(1:d1), d(1:d1))
+            dxy((i-1)*d1+1:i*d1) = b(1:d1)
+        end do
+        call mfree('tortor_newmap [tmpx]', tmpx)
+        call mfree('tortor_newmap [tmpy]', tmpy)
+
         ttmap_ang1(n_data+1:) = ang1
         ttmap_ang2(n_data+1:) = ang2
         ttmap_shape(1,n_map+1) = d1
         ttmap_shape(2,n_map+1) = d2
-        ! Save control points, not the actual values, this should speedup
-        ! all the subsequent evaluations
-        call control_points_sphere(v*kcalmol2au, ttmap_qz(n_data+1:), d1, d2)
-    
+        ttmap_v(n_data+1:) = v
+        ttmap_vx(n_data+1:) = dx
+        ttmap_vy(n_data+1:) = dy
+        ttmap_vxy(n_data+1:) = dxy
+        
+        call mfree('tortor_newmap [a]', a)
+        call mfree('tortor_newmap [b]', b)
+        call mfree('tortor_newmap [c]', c)
+        call mfree('tortor_newmap [d]', d)
+        call mfree('tortor_newmap [dx]', dx)
+        call mfree('tortor_newmap [dy]', dy)
+        call mfree('tortor_newmap [dxy]', dxy)
+
     end subroutine tortor_newmap
 
     subroutine tortor_potential(V)
         !! Compute torsion potential
 
         use mod_constants, only : rad2deg 
-        use mod_bicubic_interp, only: evaluate_bicubic
+        use mod_utils, only: compute_bicubic_interp
 
         implicit none
 
@@ -710,24 +795,28 @@ module mod_bonded
         if(.not. use_tortor) return
         
         do i=1, ntortor
-           ! Atoms that defines the two angles
-           iprm = tortorprm(i)
-           ibeg = 1
-           do j=1, iprm-1
-               ibeg = ibeg + ttmap_shape(1,j)*ttmap_shape(2,j)
-           end do
-           iend = ibeg + ttmap_shape(1,iprm)*ttmap_shape(2,iprm) - 1
+            ! Atoms that defines the two angles
+            iprm = tortorprm(i)
+            ibeg = 1
+            do j=1, iprm-1
+                ibeg = ibeg + ttmap_shape(1,j)*ttmap_shape(2,j)
+            end do
+            iend = ibeg + ttmap_shape(1,iprm)*ttmap_shape(2,iprm) - 1
            
-           thetx = ang_torsion(tortorat(1:4,i)) * rad2deg
-           thety = ang_torsion(tortorat(2:5,i)) * rad2deg
-
-           call evaluate_bicubic(thety, thetx, vtt, ttmap_ang1(ibeg), &
-                                 ttmap_ang1(iend), ttmap_shape(1, iprm), &
-                                 ttmap_ang2(ibeg), ttmap_ang2(iend), &
-                                 ttmap_shape(2, iprm), ttmap_qz(ibeg:iend))
+            thetx = ang_torsion(tortorat(1:4,i))
+            thety = ang_torsion(tortorat(2:5,i))
+           
+            call compute_bicubic_interp(thetx, thety, vtt, &
+                                        ttmap_shape(1,iprm), &
+                                        ttmap_shape(2,iprm), &
+                                        ttmap_ang1(ibeg:iend), &
+                                        ttmap_ang2(ibeg:iend), &
+                                        ttmap_v(ibeg:iend), &
+                                        ttmap_vx(ibeg:iend), &
+                                        ttmap_vy(ibeg:iend), &
+                                        ttmap_vxy(ibeg:iend))
             V = V + vtt
         end do
-
 
     end subroutine tortor_potential
 

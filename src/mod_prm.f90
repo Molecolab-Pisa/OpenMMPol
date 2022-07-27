@@ -2524,7 +2524,8 @@ module mod_prm
     subroutine assign_tortors(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: tortorat, tortorprm, tortor_newmap, tortor_init 
+        use mod_bonded, only: tortorat, tortorprm, tortor_newmap, tortor_init
+        use mod_constants, only: deg2rad, kcalmol2au
         
         implicit none
         
@@ -2747,9 +2748,9 @@ module mod_prm
                 iend = ibeg + map_dimension(1,tmpprm(i))*map_dimension(2,tmpprm(i)) - 1
                 call tortor_newmap(map_dimension(1,tmpprm(i)), &
                                    map_dimension(2,tmpprm(i)), &
-                                   ang_map(1,ibeg:iend), &
-                                   ang_map(2,ibeg:iend), &
-                                   data_map(ibeg:iend))
+                                   ang_map(1,ibeg:iend) * deg2rad, &
+                                   ang_map(2,ibeg:iend) * deg2rad, &
+                                   data_map(ibeg:iend) * kcalmol2au)
                 savedmap(tmpprm(i)) = iprm
                 iprm = iprm + 1
             end if

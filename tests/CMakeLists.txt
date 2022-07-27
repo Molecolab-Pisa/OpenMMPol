@@ -638,7 +638,7 @@ add_test(NAME 1crn_ene_full_AMOEBA_comp_ett
          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
          Testing/output 
          ETT
-         0.01 1.0e-3)
+         ${RTOL} ${ATOL})
 
 add_test(NAME 1ubq_ene_full_AMOEBA
          COMMAND  bin/C_test_potential_xyz
@@ -710,7 +710,7 @@ add_test(NAME 1ubq_ene_full_AMOEBA_comp_ett
          ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
          Testing/output 
          ETT
-         0.01 1.0e-3)
+         ${RTOL} ${ATOL})
 
 add_test(NAME 2d94_ene_full_AMOEBA
          COMMAND  bin/C_test_potential_xyz
@@ -782,4 +782,4 @@ add_test(NAME 2d94_ene_full_AMOEBA_comp_ett
          ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref
          Testing/output 
          ETT
-         0.01 1.0e-3)
+         ${RTOL} ${ATOL})
