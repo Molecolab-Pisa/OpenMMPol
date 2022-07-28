@@ -13,7 +13,8 @@ module mod_prm
 
     public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
               assign_angle, assign_urey, assign_strbnd, assign_opb, &
-              assign_pitors, assign_torsion, assign_tortors, terminate_prm
+              assign_pitors, assign_torsion, assign_tortors, &
+              assign_angtor, terminate_prm
     public :: check_keyword
 
     contains 
@@ -1287,6 +1288,209 @@ module mod_prm
         call mfree('assign_torsion [tmpprm]', tmpprm)
        
     end subroutine assign_torsion
+    
+    subroutine assign_angtor(prm_file, my_attype)
+        use mod_memory, only: mallocate, mfree
+        use mod_mmpol, only: fatal_error, mm_atoms, conn
+        use mod_bonded, only: angtor_init, angtorat, angtork, &
+                              angtor_t, angtor_a, torsionat, angleat
+        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+        integer(ip), intent(in) :: my_attype(:)
+        !! List of atom types that shoukd be used to populate parameter
+        !! vectors
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+        character(len=120) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    tmpat(:,:), tmpprm(:)
+        real(rp), allocatable :: kat(:,:)
+        real(rp) :: amp, phase, torsion_unit
+        logical :: tor_done, ang1_done, ang2_done
+
+        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'angtors ') nt = nt + 1
+        end do
+
+        maxt = conn(4)%ri(mm_atoms+1)-1 
+        call mallocate('assign_angtor [classa]', nt, classa)
+        call mallocate('assign_angtor [classb]', nt, classb)
+        call mallocate('assign_angtor [classc]', nt, classc)
+        call mallocate('assign_angtor [classd]', nt, classd)
+        call mallocate('assign_angtor [kat]', 6, nt, kat)
+        call mallocate('assign_angtor [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_angtor [tmpprm]', maxt, tmpprm)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:8) == 'angtors ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGOTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                do j=1, 6
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong ANGTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) kat(j,it)
+                end do
+
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        do a=1, mm_atoms
+            cla = atclass(my_attype(a))
+            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
+                b = conn(1)%ci(jb)
+                clb = atclass(my_attype(b))
+                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
+                    c = conn(1)%ci(jc)
+                    if(c == a) cycle
+                    clc = atclass(my_attype(c))
+                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
+                        d = conn(1)%ci(jd)
+                        if(d == a .or. d == b) cycle
+                        if(a > d) cycle
+                        cld = atclass(my_attype(d))
+                        ! There is a dihedral A-B-C-D
+                        do iprm=1, nt
+                            if((classa(iprm) == cla .and. &
+                                classb(iprm) == clb .and. &
+                                classc(iprm) == clc .and. &
+                                classd(iprm) == cld) .or. &
+                               (classa(iprm) == cld .and. &
+                                classb(iprm) == clc .and. &
+                                classc(iprm) == clb .and. &
+                                 classd(iprm) == cla)) then
+                                ! The parameter is ok
+                                tmpat(:,it) = [a, b, c, d]
+                                tmpprm(it) = iprm
+                                it = it+1
+                                exit
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+        call angtor_init(it-1)
+        do i=1, it-1
+            angtorat(:,i) = tmpat(:,i) 
+            if(classa(tmpprm(i)) == atclass(my_attype(angtorat(1,i)))) then
+                angtork(:,i) = kat(:,tmpprm(i)) * kcalmol2au
+            else
+                angtork(1:3,i) = kat(4:6,tmpprm(i)) * kcalmol2au
+                angtork(4:6,i) = kat(1:3,tmpprm(i)) * kcalmol2au
+            end if
+
+            tor_done = .false.
+            do j=1, size(torsionat, 2)
+                if(all(angtorat(:,i) == torsionat(:,j))) then
+                    tor_done = .true.
+                    angtor_t(i) = j
+                    exit
+                end if
+            end do
+            
+            ang1_done = .false.
+            ang2_done = .false.
+            do j=1, size(angleat, 2)
+                if(all(angtorat(1:3,i) == angleat(:,j)) .or. &
+                   all(angtorat(1:3,i) == angleat(3:1:-1,j))) then
+                    ang1_done = .true.
+                    angtor_a(1,i) = j
+                else if(all(angtorat(2:4,i) == angleat(:,j)) .or. &
+                        all(angtorat(2:4,i) == angleat(3:1:-1,j))) then
+                    ang2_done = .true.
+                    angtor_a(2,i) = j
+                end if
+                if(ang1_done .and. ang2_done) exit
+            end do
+
+            if(.not. (tor_done .and. ang1_done .and. ang2_done)) then
+                call fatal_error('Ill defined angle-torsion coupling parameter')
+            end if
+            
+        end do
+        
+        call mfree('assign_angtor [classa]', classa)
+        call mfree('assign_angtor [classb]', classb)
+        call mfree('assign_angtor [classc]', classc)
+        call mfree('assign_angtor [classd]', classd)
+        call mfree('assign_angtor [kat]', kat)
+        call mfree('assign_angtor [tmpat]', tmpat)
+        call mfree('assign_angtor [tmpprm]', tmpprm)
+       
+    end subroutine assign_angtor
     
     subroutine assign_angle(prm_file, my_attype)
         use mod_memory, only: mallocate, mfree

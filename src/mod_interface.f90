@@ -237,6 +237,17 @@ module mod_interface
             call angle_potential(eang)
         end subroutine
         
+        subroutine get_angtor_energy(eat) bind(c, name='get_angtor_energy')
+            
+            use mod_bonded, only: angtor_potential
+
+            implicit none
+            real(rp), intent(inout) :: eat
+
+            eat = 0.0_rp
+            call angtor_potential(eat)
+        end subroutine
+        
         subroutine get_bond_energy(ebnd) bind(c, name='get_bond_energy')
             
             use mod_bonded, only: bond_potential

@@ -77,6 +77,7 @@ int main(int argc, char **argv){
     get_pitors_energy(&ept);
     get_torsion_energy(&et);
     get_tortor_energy(&ett);
+    get_angtor_energy(&eat);
 
     FILE *fp = fopen(argv[3], "w+");
 
@@ -85,7 +86,6 @@ int main(int argc, char **argv){
     eid = 0.0;  
     eit = 0.0;
     ebt = 0.0;
-    eat = 0.0; 
     er = 0.0;
     edsp = 0.0;
     ec = 0.0;
@@ -109,6 +109,7 @@ int main(int argc, char **argv){
     ept *= AU2KCALMOL;
     et *= AU2KCALMOL;
     ett *= AU2KCALMOL;
+    eat *= AU2KCALMOL;
 
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);

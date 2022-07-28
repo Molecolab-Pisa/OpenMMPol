@@ -40,6 +40,14 @@ module mod_bonded
     logical :: use_strbnd = .false.
     public :: strbnd_init, strbnd_potential, strbndat, strbndk1, &
               strbndk2, strbndl10, strbndl20, strbndthet0
+    
+    ! Angle-Torsion coupling
+    integer(ip) :: nangtor
+    integer(ip), allocatable :: angtorat(:,:), angtor_t(:), angtor_a(:,:)
+    real(rp), allocatable :: angtork(:,:)
+    logical :: use_angtor = .false.
+    public :: angtor_init, angtor_potential, angtor_t, angtor_a, angtorat, &
+              angtork
 
     ! Urey-Bradley
     integer(ip) :: nurey
@@ -592,6 +600,78 @@ module mod_bonded
 
     end subroutine torsion_potential
     
+    subroutine angtor_init(n)
+        !! Initialize angle-torsion coupling potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        !! Number of angle torsion coupling functions in the potential
+        !! energy of the system
+        
+        if( n < 1 ) return
+        use_angtor = .true.
+
+        call mallocate('angtor_init [angtorat]', 4, n, angtorat)
+        call mallocate('angtor_init [angtork]', 6, n, angtork)
+        call mallocate('angtor_init [angtor_t]', n, angtor_t)
+        call mallocate('angtor_init [angtor_a]', 2, n, angtor_a)
+
+        nangtor = n
+
+    end subroutine angtor_init
+    
+    subroutine angtor_potential(V)
+        use mod_mmpol, only: cmm
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        real(rp) :: thet, costhet, dihef(3), delta_a(2), vat, l1, l2, &
+                    dr1(3), dr2(3), angle1, angle2
+        integer(ip) :: i, j, k, ia1, ia2
+        
+        if(.not. use_torsion) return
+
+        do i=1, nangtor
+            ! Atoms that defines the dihedral angle
+            costhet = cos_torsion(angtorat(:,i))
+            thet = acos(costhet)
+            do j=1, 3
+                dihef(j) = 1.0 + cos(j*thet+torsphase(j,angtor_t(i)))
+            end do
+
+            ia1 = angtor_a(1,i)
+            ia2 = angtor_a(2,i)
+            
+            dr1 = cmm(:, angleat(1,ia1)) - cmm(:, angleat(2,ia1))
+            dr2 = cmm(:, angleat(3,ia1)) - cmm(:, angleat(2,ia1))
+            l1 = norm2(dr1)
+            l2 = norm2(dr2)
+            angle1 = acos(dot_product(dr1, dr2)/(l1*l2))
+
+            dr1 = cmm(:, angleat(1,ia2)) - cmm(:, angleat(2,ia2))
+            dr2 = cmm(:, angleat(3,ia2)) - cmm(:, angleat(2,ia2))
+            l1 = norm2(dr1)
+            l2 = norm2(dr2)
+            angle2 = acos(dot_product(dr1, dr2)/(l1*l2))
+           
+            delta_a(1) = angle1 - eqangle(angtor_a(1,i))
+            delta_a(2) = angle2 - eqangle(angtor_a(2,i))
+
+            do j=1,2
+                vat = 0.0
+                do k=1, 3
+                    vat = vat + angtork((j-1)*3+k,i) * dihef(k)
+                end do
+                V = V + vat * delta_a(j)
+            end do
+        end do
+
+    end subroutine angtor_potential
+    
     subroutine tortor_init(n)
         !! Initialize torsion-torsion correction potential arrays
 
@@ -617,7 +697,6 @@ module mod_bonded
         !! Store in module memory the data describing a new torsion-torsion 
         !! map
         use mod_memory, only: mallocate, mfree
-        use mod_constants, only: kcalmol2au
         use mod_utils, only: cyclic_spline
 
         implicit none
@@ -781,7 +860,6 @@ module mod_bonded
     subroutine tortor_potential(V)
         !! Compute torsion potential
 
-        use mod_constants, only : rad2deg 
         use mod_utils, only: compute_bicubic_interp
 
         implicit none
@@ -907,6 +985,7 @@ module mod_bonded
         call pitors_terminate()
         call torsion_terminate()
         call tortor_terminate()
+        call angtor_terminate()
 
     end subroutine terminate_bonded
     
@@ -1022,7 +1101,29 @@ module mod_bonded
         use_tortor = .false.
         call mfree('torsion_terminate [tortorprm]', tortorprm )
         call mfree('torsion_terminate [tortorat]', tortorat)
+        call mfree('torsion_terminate [ttmap_shape]', ttmap_shape)
+        call mfree('torsion_terminate [ttmap_ang1]', ttmap_ang1)
+        call mfree('torsion_terminate [ttmap_ang2]', ttmap_ang2)
+        call mfree('torsion_terminate [ttmap_v]', ttmap_v)
+        call mfree('torsion_terminate [ttmap_vx]', ttmap_vx)
+        call mfree('torsion_terminate [ttmap_vy]', ttmap_vy)
+        call mfree('torsion_terminate [ttmap_vxy]', ttmap_vxy)
 
     end subroutine tortor_terminate
+    
+    subroutine angtor_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_angtor ) return
+        
+        use_angtor = .false.
+        call mfree('angtor_terminate [angtorat]', angtorat)
+        call mfree('angtor_terminate [angtork]', angtork)
+        call mfree('angtor_terminate [angtor_t]', angtor_t)
+        call mfree('angtor_terminate [angtor_a]', angtor_a)
+
+    end subroutine angtor_terminate
 
 end module mod_bonded
