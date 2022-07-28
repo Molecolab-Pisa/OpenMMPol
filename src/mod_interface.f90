@@ -248,6 +248,17 @@ module mod_interface
             call angtor_potential(eat)
         end subroutine
         
+        subroutine get_strtor_energy(ebt) bind(c, name='get_strtor_energy')
+            
+            use mod_bonded, only: strtor_potential
+
+            implicit none
+            real(rp), intent(inout) :: ebt
+
+            ebt = 0.0_rp
+            call strtor_potential(ebt)
+        end subroutine
+        
         subroutine get_bond_energy(ebnd) bind(c, name='get_bond_energy')
             
             use mod_bonded, only: bond_potential

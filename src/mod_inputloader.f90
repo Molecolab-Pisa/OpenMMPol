@@ -308,7 +308,7 @@ module mod_inputloader
         use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
                            assign_angle, assign_urey, assign_strbnd, &
                            assign_opb, assign_pitors, assign_torsion, &
-                           assign_tortors, assign_angtor, &
+                           assign_tortors, assign_angtor, assign_strtor, &
                            check_keyword, terminate_prm
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
@@ -428,6 +428,7 @@ module mod_inputloader
         call assign_torsion(prm_file, attype)
         call assign_tortors(prm_file, attype)
         call assign_angtor(prm_file, attype)
+        call assign_strtor(prm_file, attype)
 
         call terminate_prm()
         call mfree('mmpol_init_from_xyz [attype]', attype)

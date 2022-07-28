@@ -49,6 +49,14 @@ module mod_bonded
     public :: angtor_init, angtor_potential, angtor_t, angtor_a, angtorat, &
               angtork
 
+    ! Bond-Torsion coupling
+    integer(ip) :: nstrtor
+    integer(ip), allocatable :: strtorat(:,:), strtor_t(:), strtor_b(:,:)
+    real(rp), allocatable :: strtork(:,:)
+    logical :: use_strtor = .false.
+    public :: strtor_init, strtor_potential, strtor_t, strtor_b, strtorat, &
+              strtork
+    
     ! Urey-Bradley
     integer(ip) :: nurey
     integer(ip), allocatable :: ureyat(:,:)
@@ -623,6 +631,26 @@ module mod_bonded
 
     end subroutine angtor_init
     
+    subroutine strtor_init(n)
+        
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(ip) :: n
+        
+        if( n < 1 ) return
+        use_strtor = .true.
+
+        call mallocate('strtor_init [strtorat]', 4, n, strtorat)
+        call mallocate('strtor_init [strtork]', 9, n, strtork)
+        call mallocate('strtor_init [strtor_t]', n, strtor_t)
+        call mallocate('strtor_init [strtor_a]', 3, n, strtor_b)
+
+        nstrtor = n
+
+    end subroutine strtor_init
+    
     subroutine angtor_potential(V)
         use mod_mmpol, only: cmm
 
@@ -671,6 +699,47 @@ module mod_bonded
         end do
 
     end subroutine angtor_potential
+    
+    subroutine strtor_potential(V)
+        use mod_mmpol, only: cmm
+        use mod_constants
+
+        implicit none
+
+        real(rp), intent(inout) :: V
+        real(rp) :: thet, costhet, dihef(3), dr(3), r(3), vst
+        integer(ip) :: i, j, k, ib1, ib2, ib3
+        
+        if(.not. use_torsion) return
+
+        do i=1, nstrtor
+            ! Atoms that defines the dihedral angle
+            costhet = cos_torsion(strtorat(:,i))
+            thet = acos(costhet)
+            do j=1, 3
+                dihef(j) = 1.0 + cos(j*thet+torsphase(j,strtor_t(i)))
+            end do
+
+            ib1 = strtor_b(1,i) 
+            ib2 = strtor_b(2,i)
+            ib3 = strtor_b(3,i)
+            r(1) = norm2(cmm(:, bondat(1,ib1)) - cmm(:, bondat(2,ib1)))
+            r(2) = norm2(cmm(:, bondat(1,ib2)) - cmm(:, bondat(2,ib2)))
+            r(3) = norm2(cmm(:, bondat(1,ib3)) - cmm(:, bondat(2,ib3)))
+            dr(1) = r(1) - l0bond(ib1)  
+            dr(2) = r(2) - l0bond(ib2)  
+            dr(3) = r(3) - l0bond(ib3)  
+            
+            do j=1,3
+                vst = 0.0
+                do k=1, 3
+                    vst = vst + strtork((j-1)*3+k,i) * dihef(k)
+                end do
+                V = V + vst * dr(j)
+            end do
+        end do
+
+    end subroutine strtor_potential
     
     subroutine tortor_init(n)
         !! Initialize torsion-torsion correction potential arrays
@@ -986,6 +1055,7 @@ module mod_bonded
         call torsion_terminate()
         call tortor_terminate()
         call angtor_terminate()
+        call strtor_terminate()
 
     end subroutine terminate_bonded
     
@@ -1125,5 +1195,20 @@ module mod_bonded
         call mfree('angtor_terminate [angtor_a]', angtor_a)
 
     end subroutine angtor_terminate
+
+    subroutine strtor_terminate()
+        use mod_memory, only: mfree
+
+        implicit none
+
+        if( .not. use_strtor ) return
+        
+        use_strtor = .false.
+        call mfree('strtor_terminate [strtorat]', strtorat)
+        call mfree('strtor_terminate [strtork]', strtork)
+        call mfree('strtor_terminate [strtor_t]', strtor_t)
+        call mfree('strtor_terminate [strtor_b]', strtor_b)
+
+    end subroutine strtor_terminate
 
 end module mod_bonded
