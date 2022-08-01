@@ -86,11 +86,11 @@ make-lib-intel:
     stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - cd build-intel
+        - cd build_intel
         - make openmmpol
     artifacts:
         paths:
-            - build-intel
+            - build_intel
     only:
         - pushes
 
@@ -98,15 +98,15 @@ compile-C-intel:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - cd build-intel
+        - cd build_intel
         - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
     artifacts:
         paths:
-            - build-intel/bin/C_test_init
-            - build-intel/bin/C_test_ipd
-            - build-intel/bin/C_test_energy
-            - build-intel/bin/C_test_init_xyz
-            - build-intel/bin/C_test_potential_xyz
+            - build_intel/bin/C_test_init
+            - build_intel/bin/C_test_ipd
+            - build_intel/bin/C_test_energy
+            - build_intel/bin/C_test_init_xyz
+            - build_intel/bin/C_test_potential_xyz
     only:
         - pushes
 
@@ -114,11 +114,11 @@ compile-FORTRAN-intel:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - cd build-intel
+        - cd build_intel
         - make F_test_init
     artifacts:
         paths:
-            - build-intel/bin/F_test_init
+            - build_intel/bin/F_test_init
     only:
         - pushes
 
@@ -146,7 +146,7 @@ run_tests-intel:
     stage: test
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - cd build-intel
+        - cd build_intel
         - make test
     only:
         - pushes
