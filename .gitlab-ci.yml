@@ -33,7 +33,7 @@ cmake-config:
 cmake-config-intel:
     stage: configure
     image: $CI_REGISTRY_IMAGE:latest
-    before-script:
+    before_script:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - mkdir build_intel
