@@ -36,9 +36,9 @@ cmake-config-intel:
     script:
         - mkdir build_intel
         - cd build_intel
-        - CC=`/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc` 
-          CXX=`/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc` 
-          FC=`/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort` 
+        - CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
+          CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
+          FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort 
           cmake -DCMAKE_BUILD_TYPE=DEBUG ..
     artifacts:
         paths:
