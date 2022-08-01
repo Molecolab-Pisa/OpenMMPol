@@ -18,5 +18,5 @@ RUN zypper --non-interactive in gcc \
 RUN pip install -Iv ford==6.1.11
 RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py
 RUN zypper addrepo https://yum.repos.intel.com/oneapi oneAPI
-RUN zypper install intel-basekit \
-                   intel-hpckit
+RUN zypper --non-interactive install intel-basekit \
+                                     intel-hpckit
