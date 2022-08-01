@@ -1311,7 +1311,7 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
-        real(rp) :: amp, phase, torsion_unit
+        real(rp) :: phase, torsion_unit
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
 
         if(.not. allocated(atclass)) call read_atom_cards(prm_file)
@@ -1503,7 +1503,7 @@ module mod_prm
         use mod_mmpol, only: fatal_error, mm_atoms, conn
         use mod_bonded, only: angtor_init, angtorat, angtork, &
                               angtor_t, angtor_a, torsionat, angleat
-        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
+        use mod_constants, only: kcalmol2au
         
         implicit none
         
@@ -1515,12 +1515,11 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
-                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
         character(len=120) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
-        real(rp) :: amp, phase, torsion_unit
         logical :: tor_done, ang1_done, ang2_done
 
         if(.not. allocated(atclass)) call read_atom_cards(prm_file)

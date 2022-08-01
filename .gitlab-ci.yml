@@ -30,6 +30,18 @@ cmake-config:
         paths:
             - build
 
+cmake-config-intel:
+    stage: configure
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - source /opt/intel/oneapi/setvars.sh
+        - mkdir build_intel
+        - cd build_intel
+        - CC=`which icc` CXX=`which icc` FC=`which ifort` cmake -DCMAKE_BUILD_TYPE=DEBUG ..
+    artifacts:
+        paths:
+            - build_intel
+
 make-lib:
     stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
@@ -70,6 +82,46 @@ compile-FORTRAN:
     only:
         - pushes
 
+make-lib-intel:
+    stage: compile-lib
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build-intel
+        - make openmmpol
+    artifacts:
+        paths:
+            - build-intel
+    only:
+        - pushes
+
+compile-C-intel:
+    stage: compile-bin
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build-intel
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+    artifacts:
+        paths:
+            - build-intel/bin/C_test_init
+            - build-intel/bin/C_test_ipd
+            - build-intel/bin/C_test_energy
+            - build-intel/bin/C_test_init_xyz
+            - build-intel/bin/C_test_potential_xyz
+    only:
+        - pushes
+
+compile-FORTRAN-intel:
+    stage: compile-bin
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build-intel
+        - make F_test_init
+    artifacts:
+        paths:
+            - build-intel/bin/F_test_init
+    only:
+        - pushes
+
 make-doc:
     stage: documentation
     image: $CI_REGISTRY_IMAGE:latest
@@ -86,6 +138,15 @@ run_tests:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
+        - make test
+    only:
+        - pushes
+
+run_tests-intel:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build-intel
         - make test
     only:
         - pushes

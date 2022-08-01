@@ -586,6 +586,8 @@ module mod_bonded
 
     subroutine torsion_potential(V)
         !! Compute torsion potential
+        use mod_constants, only: pi, eps_rp
+
         implicit none
 
         real(rp), intent(inout) :: V
@@ -598,7 +600,12 @@ module mod_bonded
         do i=1, ntorsion
             ! Atoms that defines the dihedral angle
             costhet = cos_torsion(torsionat(:,i))
-            thet = acos(costhet)
+            
+            if(costhet + 1.0 <= eps_rp) then
+                thet = pi
+            else
+                thet = acos(costhet)
+            end if
 
             do j=1, 6
                 if(torsn(j,i) < 1) exit

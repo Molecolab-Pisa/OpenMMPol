@@ -1,5 +1,5 @@
 FROM opensuse/leap:latest
-LABEL version="1.1"
+LABEL version="1.2"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive in gcc \
                                 gcc-c++ \ 
@@ -16,4 +16,7 @@ RUN zypper --non-interactive in gcc \
                                 valgrind \
                                 zlib-devel
 RUN pip install -Iv ford==6.1.11
-RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py 
+RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py
+RUN zypper addrepo https://yum.repos.intel.com/oneapi oneAPI
+RUN zypper install intel-basekit \
+                   intel-hpckit

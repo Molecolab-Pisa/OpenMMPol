@@ -11,7 +11,10 @@ module mod_interface
     public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
     public :: get_polar_mm
     public :: mmpol_init_mmp, do_mm, do_qmmm, get_energy, &
-              write_hdf5, ommp_terminate
+              ommp_terminate
+#ifdef USE_HDF5
+    public :: write_hdf5
+#endif
 
     contains
         

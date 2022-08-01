@@ -403,7 +403,7 @@ module mod_io
           do j = 1, m
             write(out_unit,1020) matrix(icol(1):icol(5),j)
           end do
-          write(out_unit,*)
+          write(out_unit,'("")')
         end do
     !
         if (nres.ne.0) then

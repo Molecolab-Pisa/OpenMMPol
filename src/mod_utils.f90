@@ -235,6 +235,8 @@ module mod_utils
                     deltax, deltay, dx, dy
 
         done = .false.
+        ix = 0
+        iy = 0
         do ix=1, nx-1
             do iy=1, ny-1
                 if(x < xgrd(ix+1,iy) .and. x > xgrd(ix,iy) .and. &
