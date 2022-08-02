@@ -16,6 +16,23 @@ module mod_io
 #ifdef USE_HDF5
     integer(hid_t) :: iof_hdf5_out = 101
     public :: mmpol_save_as_hdf5
+    
+    interface hdf5_add_scalar
+        ! Write a scalar as an attribute of the group
+        module procedure r_hdf5_add_scalar
+        module procedure i_hdf5_add_scalar
+    end interface hdf5_add_scalar
+    
+    interface hdf5_add_array
+        ! Write a scalar as an attribute of the group
+        module procedure r1_hdf5_add_array
+        module procedure r2_hdf5_add_array
+        module procedure r3_hdf5_add_array
+
+        module procedure i1_hdf5_add_array
+        module procedure i2_hdf5_add_array
+        module procedure i3_hdf5_add_array
+    end interface hdf5_add_array
 #endif
     
     contains
@@ -27,13 +44,199 @@ module mod_io
 #else
 #define H5T_IP H5T_STD_I32LE
 #endif
-    
     ! Subroutines dedicated to HDF5 I/O
+    !subroutine hdf5_add_array(hid, label, array)
+
+    !end subroutine
+
+    subroutine r_hdf5_add_scalar(hid, label, scalar)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        real(rp), intent(in) :: scalar
+
+        integer(hsize_t), dimension(1), parameter :: dims = [1]
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
+        
+        call H5Acreate_f(hid, &
+                         label, &
+                         H5T_RP, &
+                         cur_dsp, cur_dst, eflag)
+        call H5Awrite_f(cur_dst, H5T_RP, scalar, dims, eflag)
+    end subroutine
+    
+    subroutine i_hdf5_add_scalar(hid, label, scalar)
+        use hdf5
+        use mod_memory, only: ip
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        integer(ip), intent(in) :: scalar
+
+        integer(hsize_t), dimension(1), parameter :: dims = [1]
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
+        call H5Acreate_f(hid, &
+                         label, &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call H5Awrite_f(cur_dst, H5T_IP, scalar, dims, eflag)
+    end subroutine
+    
+    subroutine r1_hdf5_add_array(hid, label, v)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        real(rp), intent(in), dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(1, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_RP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_RP, v, dims, eflag)
+    end subroutine
+    
+    subroutine r2_hdf5_add_array(hid, label, v)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        real(rp), intent(in), dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(2, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_RP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_RP, v, dims, eflag)
+    end subroutine
+    
+    subroutine r3_hdf5_add_array(hid, label, v)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        real(rp), intent(in), dimension(:,:,:) :: v
+
+        integer(hsize_t), dimension(3) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(3, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_RP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_RP, v, dims, eflag)
+    end subroutine
+    
+    subroutine i1_hdf5_add_array(hid, label, v)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        integer(ip), intent(in), dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(1, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
+    end subroutine
+    
+    subroutine i2_hdf5_add_array(hid, label, v)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        integer(ip), intent(in), dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(2, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
+    end subroutine
+    
+    subroutine i3_hdf5_add_array(hid, label, v)
+        use hdf5
+        use mod_memory, only: ip, rp
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        integer(ip), intent(in), dimension(:,:,:) :: v
+
+        integer(hsize_t), dimension(3) :: dims 
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+       
+        dims = shape(v)
+        call h5screate_simple_f(3, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
+    end subroutine
+
     subroutine mmpol_save_as_hdf5(filename, out_fail)
         use hdf5
         use mod_memory, only: ip
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
-                             amoeba, pol, conn, ff_type, &
+                             q0, amoeba, pol, conn, ff_type, &
                              ix, iy, iz, mol_frame, mmat_polgrp
 
         implicit none
@@ -41,8 +244,8 @@ module mod_io
         character(len=*), intent(in) :: filename
         integer(ip), intent(out) :: out_fail
         
-        integer(hid_t) :: hg_sysfund, hg_sysder, hg_res, hg_cur, hg_amoeba, &
-                          cur_dst, cur_dsp
+        integer(hid_t) :: hg_sysmodel, hg_res, hg_cur, hg_amoeba, &
+                          hg_top, hg_cur_param, hg_cur_bp, cur_dst, cur_dsp
         integer(hsize_t), dimension(4) :: dims
         integer(kind=4) :: eflag
 
@@ -63,149 +266,100 @@ module mod_io
             return
         end if
         
-        call h5gcreate_f(iof_hdf5_out, "system fundamental", hg_sysfund, eflag)
+        call h5gcreate_f(iof_hdf5_out, "system model", hg_sysmodel, eflag)
         if( eflag /= 0) then 
-            write(iof_mmpol, *) "Error while creating group 'system fundamental.'&
+            write(iof_mmpol, *) "Error while creating group 'system model.'&
                                 &Failure in h5gcreate_f subroutine."
             out_fail = -1_ip
             return
         end if
         
-        ! Write H5G:system fundamental
-        ! Those are the minimal quantities needed to start a calculation.
-        ! It should contain only the information needed by the program to 
-        ! correctly describe the system.
+        ! Write H5G:system model
+        ! Those are the quantities needed to describe the model potential of
+        ! the system.
+        ! It should not contain any information on/derived from atoms positions
 
-        ! Attributes
-        dims = (/1, 0, 0, 0/)
-        call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
+        call hdf5_add_scalar(hg_sysmodel, "N-atoms", mm_atoms)
+        call hdf5_add_scalar(hg_sysmodel, "N-pol-atoms", pol_atoms)
+        call hdf5_add_scalar(hg_sysmodel, "FF type", ff_type)
         
-        call H5Acreate_f(hg_sysfund, &
-                         "numer of MM atoms", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call H5Awrite_f(cur_dst, H5T_IP, mm_atoms, dims(:1), eflag)
+        call h5gcreate_f(hg_sysmodel, "topology", hg_top, eflag)
         
-        call H5Acreate_f(hg_sysfund, &
-                         "numer of POL atoms", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call H5Awrite_f(cur_dst, H5T_IP, pol_atoms, dims(:1), eflag)
-
-        call H5Acreate_f(hg_sysfund, &
-                         "FF type", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call H5Awrite_f(cur_dst, H5T_IP, ff_type, dims(:1), eflag)
-        
-        ! Dataset
-        ! coordinates
-        dims = (/3, mm_atoms, 0, 0/)
-        call H5Screate_simple_f(2, dims(:2), cur_dsp, eflag)
-        call H5Dcreate_f(hg_sysfund, &
-                         "Coordinates of MM sites", &
-                         H5T_RP, &
-                         cur_dsp, cur_dst, eflag)
-        call H5Dwrite_f(cur_dst, H5T_RP, cmm, dims(:2), eflag)
-
-        ! list of polarizable atoms
-        dims = (/pol_atoms, 0, 0, 0/)
-        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-        call h5dcreate_f(hg_sysfund, &
-                         "Index of polarizable MM sites (1-based)", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_IP, polar_mm, dims(:1), eflag)
-        
-        ! q
-        dims = (/ld_cart, mm_atoms, 0, 0/)
-        call h5screate_simple_f(2, dims(:2), cur_dsp, eflag)
-        call h5dcreate_f(hg_sysfund, &
-                         "Multiopolar distributions on MM atoms", &
-                         H5T_RP, &
-                         cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_RP, q, dims(:2), eflag)
-        
-        ! polarizabilities 
-        dims = (/pol_atoms, 0, 0, 0/)
-        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-        call h5dcreate_f(hg_sysfund, &
-                         "Polarizabilities of POL atoms", &
-                         H5T_RP, &
-                         cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_RP, pol, dims(:1), eflag)
-
-        ! Connectivity of the environment is saved as an adjacency matrix; 
-        ! Since such a matrix is sparse and boolean it can be represented in
-        ! a very efficient way using Yale format (sometimes called compressed
-        ! sparse row) omitting the V vector. In this way the adj. matrix is 
-        ! represented by adj_m_ci(n_bond) and adj_m_ri(mm_atoms+1).
-        
-        call h5gcreate_f(hg_sysfund, "topology", hg_cur, eflag)
-        
-        dims = (/mm_atoms+1, 0, 0, 0/)
-        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-        call h5dcreate_f(hg_cur, &
-                         "Adjacency matrix (Yale format) RowIdx", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_IP, conn(1)%ri, dims(:1), eflag)
-        
-        dims = (/size(conn(1)%ci), 0, 0, 0/)
-        call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-        call h5dcreate_f(hg_cur, &
-                         "Adjacency matrix (Yale format) ColumnIdx", &
-                         H5T_IP, &
-                         cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_IP, conn(1)%ci, dims(:1), eflag)
-        
+        call h5gcreate_f(hg_top, "connectivity", hg_cur, eflag)
+        call hdf5_add_array(hg_cur, "ADJ1-RowIdx", conn(1)%ri) 
+        call hdf5_add_array(hg_cur, "ADJ1-ColIdx", conn(1)%ci) 
         call h5gclose_f(hg_cur, eflag)
-
+        
         if(amoeba) then
-            call h5gcreate_f(hg_sysfund, "amoeba", hg_amoeba, eflag)
-            ! Rotation convenction
-            call h5gcreate_f(hg_amoeba, "rotation", hg_cur, eflag)
-            
-            dims = (/mm_atoms, 0, 0, 0/)
-            call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-            call h5dcreate_f(hg_cur, &
-                             "X-axys index", &
-                             H5T_IP, &
-                             cur_dsp, cur_dst, eflag)
-            call h5dwrite_f(cur_dst, H5T_IP, ix, dims(:1), eflag)
-            
-            call h5dcreate_f(hg_cur, &
-                             "Y-axys index", &
-                             H5T_IP, &
-                             cur_dsp, cur_dst, eflag)
-            call h5dwrite_f(cur_dst, H5T_IP, iy, dims(:1), eflag)
-            
-            call h5dcreate_f(hg_cur, &
-                             "Z-axys index", &
-                             H5T_IP, &
-                             cur_dsp, cur_dst, eflag)
-            call h5dwrite_f(cur_dst, H5T_IP, iz, dims(:1), eflag)
-            
-            call h5dcreate_f(hg_cur, &
-                             "Molecular frame def", &
-                             H5T_IP, &
-                             cur_dsp, cur_dst, eflag)
-            call h5dwrite_f(cur_dst, H5T_IP, mol_frame, dims(:1), eflag)
-            
-            dims = (/mm_atoms, 0, 0, 0/)
-            call h5screate_simple_f(1, dims(:1), cur_dsp, eflag)
-            call h5dcreate_f(hg_amoeba, &
-                             "Polarization groups index", &
-                             H5T_IP, &
-                             cur_dsp, cur_dst, eflag)
-            call h5dwrite_f(cur_dst, H5T_IP, mmat_polgrp, dims(:1), eflag)
-            
-            call h5gclose_f(hg_cur, eflag)
-            
+            call h5gcreate_f(hg_top, "AMOEBA", hg_amoeba, eflag)
+            call hdf5_add_array(hg_amoeba, "polarization_group_id", mmat_polgrp)
             call h5gclose_f(hg_amoeba, eflag)
-        endif
+        end if
+        
+        call h5gclose_f(hg_top, eflag)
 
-        call h5gclose_f(hg_sysfund, eflag)
+        call h5gcreate_f(hg_sysmodel, "parameters", hg_cur, eflag)
+        
+        call h5gcreate_f(hg_cur, "bonded", hg_cur_param, eflag)
+        
+        ! Bond stretching
+        call h5gcreate_f(hg_cur_param, "stretching", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Angle bending
+        call h5gcreate_f(hg_cur_param, "bending", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Dihedral torsion
+        call h5gcreate_f(hg_cur_param, "torsion", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Stretching-bending coupling
+        call h5gcreate_f(hg_cur_param, "stretching-bending", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Stretching-torsion coupling
+        call h5gcreate_f(hg_cur_param, "stretching-torsion", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Bending-torsion coupling 
+        call h5gcreate_f(hg_cur_param, "bending-torsion", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Torsion-torsion coupling
+        call h5gcreate_f(hg_cur_param, "torsion-torsion", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Pi-torsion
+        call h5gcreate_f(hg_cur_param, "pi-torsion", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Out-of-plane bending
+        call h5gcreate_f(hg_cur_param, "out-of-plane-bending", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+        ! Urey-Bradley stretching
+        call h5gcreate_f(hg_cur_param, "urey-bradley", hg_cur_bp, eflag)
+        call h5gclose_f(hg_cur_bp, eflag)
+
+        call h5gclose_f(hg_cur_param, eflag)
+        
+        call h5gcreate_f(hg_cur, "non-bonded", hg_cur_param, eflag)
+        call h5gclose_f(hg_cur_param, eflag)
+        
+        call h5gcreate_f(hg_cur, "electrostatics", hg_cur_param, eflag)
+        if(amoeba) then
+            ! Write the unrotated multipoles, that are coordinates independent
+            call hdf5_add_array(hg_cur_param, "fixed_multipoles", q0)
+            ! Write all the information needed to perform the rotation of the 
+            ! multipoles
+            call h5gcreate_f(hg_cur_param, "AMOEBA", hg_amoeba, eflag)
+            call hdf5_add_array(hg_amoeba, "fixed_mmpoles_rot_Z", iz)
+            call hdf5_add_array(hg_amoeba, "fixed_mmpoles_rot_X", ix)
+            call hdf5_add_array(hg_amoeba, "fixed_mmpoles_rot_Y", iy)
+            call hdf5_add_array(hg_amoeba, "fixed_mmpoles_rot_CONV", mol_frame)
+            call h5gclose_f(hg_amoeba, eflag)
+        else
+            call hdf5_add_array(hg_cur_param, "fixed_multipoles", q)
+        end if
+        call hdf5_add_array(hg_cur_param, "polarizable_atoms_idx", polar_mm)
+        call hdf5_add_array(hg_cur_param, "polarizabilities", pol) 
+
+        call h5gclose_f(hg_cur_param, eflag)
+        call h5gclose_f(hg_cur, eflag)
+        
+        call h5gclose_f(hg_sysmodel, eflag)
         if( eflag /= 0) then 
             write(iof_mmpol, *) "Error while closing group 'system fundamental.'&
                                 &Failure in h5gclose_f subroutine."
@@ -214,13 +368,13 @@ module mod_io
         end if
 
         
-        call h5gcreate_f(iof_hdf5_out, "system derived", hg_sysder, eflag)
-        if( eflag /= 0) then 
-            write(iof_mmpol, *) "Error while creating group 'system derived'.&
-                                &Failure in h5gcreate_f subroutine."
-            out_fail = -1_ip
-            return
-        end if
+        !call h5gcreate_f(iof_hdf5_out, "system derived", hg_sysder, eflag)
+        !if( eflag /= 0) then 
+        !    write(iof_mmpol, *) "Error while creating group 'system derived'.&
+        !                        &Failure in h5gcreate_f subroutine."
+        !    out_fail = -1_ip
+        !    return
+        !end if
         
         call h5gcreate_f(iof_hdf5_out, "results", hg_res, eflag)
         if( eflag /= 0) then 

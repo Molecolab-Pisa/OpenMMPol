@@ -82,7 +82,7 @@ compile-C:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp
     artifacts:
         paths:
             - build/bin/C_test_init
@@ -90,6 +90,7 @@ compile-C:
             - build/bin/C_test_energy
             - build/bin/C_test_init_xyz
             - build/bin/C_test_potential_xyz
+            - build/bin/ommp_pp
     only:
         - pushes
         - schedules
@@ -128,7 +129,7 @@ compile-C-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp
     artifacts:
         paths:
             - build_intel/bin/C_test_init
@@ -136,6 +137,7 @@ compile-C-intel:
             - build_intel/bin/C_test_energy
             - build_intel/bin/C_test_init_xyz
             - build_intel/bin/C_test_potential_xyz
+            - build_intel/bin/ommp_pp
     only:
         - schedules
 
@@ -178,7 +180,7 @@ compile-C-nvidia:
         - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
     script:
         - cd build_nvidia
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp
     artifacts:
         paths:
             - build_nvidia/bin/C_test_init
@@ -186,6 +188,7 @@ compile-C-nvidia:
             - build_nvidia/bin/C_test_energy
             - build_nvidia/bin/C_test_init_xyz
             - build_nvidia/bin/C_test_potential_xyz
+            - build_nvidia/bin/ommp_pp
     only:
         - schedules
 
