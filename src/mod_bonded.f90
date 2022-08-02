@@ -14,7 +14,7 @@ module mod_bonded
     real(rp), allocatable :: kbond(:), l0bond(:)
     logical :: use_bond = .false.
     public :: bond_init, bond_potential, bondat, kbond, &
-              l0bond, bond_cubic, bond_quartic
+              l0bond, bond_cubic, bond_quartic, use_bond
 
     ! Angle
     integer(ip) :: nangle
@@ -30,7 +30,7 @@ module mod_bonded
     real(rp), allocatable :: kangle(:), eqangle(:)
     logical :: use_angle = .false.
     public :: angle_init, angle_potential, angleat, anglety, kangle, eqangle, &
-              angle_cubic, angle_quartic, angle_pentic, angle_sextic
+              angle_cubic, angle_quartic, angle_pentic, angle_sextic, use_angle
 
     ! Stretch-Bend
     integer(ip) :: nstrbnd
@@ -39,7 +39,7 @@ module mod_bonded
                              strbndl10(:), strbndl20(:)
     logical :: use_strbnd = .false.
     public :: strbnd_init, strbnd_potential, strbndat, strbndk1, &
-              strbndk2, strbndl10, strbndl20, strbndthet0
+              strbndk2, strbndl10, strbndl20, strbndthet0, use_strbnd
     
     ! Angle-Torsion coupling
     integer(ip) :: nangtor
@@ -55,7 +55,7 @@ module mod_bonded
     real(rp), allocatable :: strtork(:,:)
     logical :: use_strtor = .false.
     public :: strtor_init, strtor_potential, strtor_t, strtor_b, strtorat, &
-              strtork
+              strtork, use_strtor
     
     ! Urey-Bradley
     integer(ip) :: nurey
@@ -88,7 +88,7 @@ module mod_bonded
     real(rp), allocatable :: torsamp(:,:), torsphase(:,:)
     logical :: use_torsion = .false.
     public :: torsionat, torsn, torsamp, torsphase, torsion_init, &
-              torsion_potential
+              torsion_potential, use_torsion
 
     ! Torsion-torsion coupling (cmap)
     integer(ip) :: ntortor

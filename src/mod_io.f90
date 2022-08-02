@@ -14,6 +14,13 @@ module mod_io
     public :: print_matrix, print_int_vec
 
 #ifdef USE_HDF5
+#define H5T_RP H5T_NATIVE_DOUBLE
+#define H5T_LOGICAL H5T_BITFIELD_F
+#ifdef USE_I8
+#define H5T_IP H5T_STD_I64LE
+#else
+#define H5T_IP H5T_STD_I32LE
+#endif
     integer(hid_t) :: iof_hdf5_out = 101
     public :: mmpol_save_as_hdf5
     
@@ -21,6 +28,7 @@ module mod_io
         ! Write a scalar as an attribute of the group
         module procedure r_hdf5_add_scalar
         module procedure i_hdf5_add_scalar
+        module procedure l_hdf5_add_scalar
     end interface hdf5_add_scalar
     
     interface hdf5_add_array
@@ -38,12 +46,6 @@ module mod_io
     contains
     
 #ifdef USE_HDF5
-#define H5T_RP H5T_NATIVE_DOUBLE
-#ifdef USE_I8
-#define H5T_IP H5T_STD_I64LE
-#else
-#define H5T_IP H5T_STD_I32LE
-#endif
     ! Subroutines dedicated to HDF5 I/O
     !subroutine hdf5_add_array(hid, label, array)
 
@@ -92,6 +94,33 @@ module mod_io
                          H5T_IP, &
                          cur_dsp, cur_dst, eflag)
         call H5Awrite_f(cur_dst, H5T_IP, scalar, dims, eflag)
+    end subroutine
+    
+    subroutine l_hdf5_add_scalar(hid, label, scalar)
+        use hdf5
+        use mod_memory, only: ip
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        logical, intent(in) :: scalar
+
+        integer(hsize_t), dimension(1), parameter :: dims = [1]
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
+        call H5Acreate_f(hid, &
+                         label, &
+                         H5T_IP, &
+                         cur_dsp, cur_dst, eflag)
+        if(scalar) then
+            call H5Awrite_f(cur_dst, H5T_IP, 1, dims, eflag)
+        else
+            call H5Awrite_f(cur_dst, H5T_IP, 0, dims, eflag)
+        end if
+
     end subroutine
     
     subroutine r1_hdf5_add_array(hid, label, v)
@@ -238,6 +267,7 @@ module mod_io
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
                              q0, amoeba, pol, conn, ff_type, &
                              ix, iy, iz, mol_frame, mmat_polgrp
+        use mod_bonded
 
         implicit none
 
@@ -304,19 +334,66 @@ module mod_io
         
         ! Bond stretching
         call h5gcreate_f(hg_cur_param, "stretching", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_bond)
+        if(use_bond) then
+            call hdf5_add_scalar(hg_cur_bp, "cubic", bond_cubic)
+            call hdf5_add_scalar(hg_cur_bp, "quartic", bond_quartic)
+            call hdf5_add_array(hg_cur_bp, "k", kbond)
+            call hdf5_add_array(hg_cur_bp, "l0", l0bond)
+            call hdf5_add_array(hg_cur_bp, "atoms", bondat)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Angle bending
         call h5gcreate_f(hg_cur_param, "bending", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_angle)
+        if(use_angle) then
+            call hdf5_add_scalar(hg_cur_bp, "cubic", angle_cubic)
+            call hdf5_add_scalar(hg_cur_bp, "quartic", angle_quartic)
+            call hdf5_add_scalar(hg_cur_bp, "pentic", angle_pentic)
+            call hdf5_add_scalar(hg_cur_bp, "sextic", angle_sextic)
+            call hdf5_add_array(hg_cur_bp, "k", kangle)
+            call hdf5_add_array(hg_cur_bp, "ang0", eqangle)
+            call hdf5_add_array(hg_cur_bp, "atoms", angleat)
+            call hdf5_add_array(hg_cur_bp, "type", anglety)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Dihedral torsion
         call h5gcreate_f(hg_cur_param, "torsion", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_torsion)
+        if(use_torsion) then
+            call hdf5_add_array(hg_cur_bp, "amplitudes", torsamp)
+            call hdf5_add_array(hg_cur_bp, "phase", torsphase)
+            call hdf5_add_array(hg_cur_bp, "atoms", torsionat)
+            call hdf5_add_array(hg_cur_bp, "period", torsn)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Stretching-bending coupling
         call h5gcreate_f(hg_cur_param, "stretching-bending", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_strbnd)
+        if(use_strbnd) then
+            call hdf5_add_array(hg_cur_bp, "k1", strbndk1)
+            call hdf5_add_array(hg_cur_bp, "k2", strbndk2)
+            call hdf5_add_array(hg_cur_bp, "l1_0", strbndl10)
+            call hdf5_add_array(hg_cur_bp, "l2_0", strbndl20)
+            call hdf5_add_array(hg_cur_bp, "ang0", strbndthet0)
+            call hdf5_add_array(hg_cur_bp, "atoms", strbndat)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Stretching-torsion coupling
         call h5gcreate_f(hg_cur_param, "stretching-torsion", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_strtor)
+        if(use_strtor) then
+            call hdf5_add_array(hg_cur_bp, "k", strtork)
+            call hdf5_add_array(hg_cur_bp, "bonds_idx", strtor_b)
+            call hdf5_add_array(hg_cur_bp, "torsion_idx", strtor_t)
+            call hdf5_add_array(hg_cur_bp, "atoms", strtorat)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+
         ! Bending-torsion coupling 
         call h5gcreate_f(hg_cur_param, "bending-torsion", hg_cur_bp, eflag)
         call h5gclose_f(hg_cur_bp, eflag)
