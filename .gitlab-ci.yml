@@ -98,7 +98,7 @@ make-lib-intel:
         paths:
             - build_intel
     only:
-        - pushes
+        - schedules
 
 compile-C-intel:
     stage: compile-bin
@@ -116,7 +116,7 @@ compile-C-intel:
             - build_intel/bin/C_test_init_xyz
             - build_intel/bin/C_test_potential_xyz
     only:
-        - pushes
+        - schedules
 
 compile-FORTRAN-intel:
     stage: compile-bin
@@ -130,7 +130,7 @@ compile-FORTRAN-intel:
         paths:
             - build_intel/bin/F_test_init
     only:
-        - pushes
+        - schedules
 
 make-doc:
     stage: documentation
@@ -143,6 +143,15 @@ make-doc:
     only:
         - pushes
 
+run_short_test:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build
+        - ctest -R 'NMA|1crn|2d94' -E memcheck
+    only:
+        - pushes
+
 run_tests:
     stage: test
     image: $CI_REGISTRY_IMAGE:latest
@@ -150,7 +159,7 @@ run_tests:
         - cd build
         - make test
     only:
-        - pushes
+        - schedules
 
 run_tests-intel:
     stage: test
@@ -161,4 +170,4 @@ run_tests-intel:
         - cd build_intel
         - make test
     only:
-        - pushes
+        - schedules

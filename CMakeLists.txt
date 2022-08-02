@@ -7,8 +7,10 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_compile_options($<$<CONFIG:RELEASE>:-O3>
-                    $<$<CONFIG:DEBUG>:-Og>
                     $<$<CONFIG:DEBUG>:-g>)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    add_compile_options($<$<CONFIG:DEBUG>:-Og>)
+endif()
 
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -54,10 +56,12 @@ target_compile_options(openmmpol PRIVATE -cpp)
 # cmake 3.18 is needed for this
 #set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
 
-target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003) # Very strict check on code
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003) # Very strict check on code
+    target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
+    target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
+endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
-target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
-target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
 
 include_directories(include) # Directory for .h files
 
@@ -88,6 +92,8 @@ set_property(TARGET C_test_energy PROPERTY C_STANDARD 99)
 
 add_executable(F_test_init src/test_init.F90)
 target_link_libraries(F_test_init openmmpol)
-target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif()
 
 include(tests/CMakeLists.txt)
