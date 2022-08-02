@@ -37,10 +37,17 @@ target_link_libraries(openmmpol ${LAPACK_LIBRARIES})
 # HDF5
 find_package(HDF5 COMPONENTS Fortran)
 if (HDF5_FOUND)
-    add_definitions(-DUSE_HDF5)
     include_directories( SYSTEM ${HDF5_INCLUDE_DIRS})
     target_link_libraries(openmmpol ${HDF5_Fortran_LIBRARIES})
-endif(HDF5_FOUND)
+    set(CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_LIBRARIES ${HDF5_Fortran_LIBRARIES})
+    include(CheckFortranSourceCompiles)
+    check_fortran_source_compiles("program test_hdf5; use hdf5; integer(hid_t) :: test; integer(kind=4) :: eflag; call h5open_f(eflag); end"
+                                  HDF5_WORKS SRC_EXT .f90)
+    if (HDF5_WORKS)
+        add_definitions(-DUSE_HDF5)
+    endif() 
+endif()
 
 # Enable preprocessor for Fortran
 target_compile_options(openmmpol PRIVATE -cpp)
