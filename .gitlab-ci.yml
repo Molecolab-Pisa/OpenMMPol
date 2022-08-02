@@ -215,7 +215,6 @@ make-doc:
             - doc
     only:
         - pushes
-        - schedules
 
 run_short_test:
     stage: test
@@ -249,6 +248,8 @@ run_tests-intel:
 run_tests-nvidia:
     stage: test
     image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export FORTRANOPT=no_minus_zero
     script:
         - cd build_nvidia
         - make test
