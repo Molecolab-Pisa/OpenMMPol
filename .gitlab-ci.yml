@@ -46,6 +46,24 @@ cmake-config-intel:
         paths:
             - build_intel
 
+cmake-config-nvidia:
+    stage: configure
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export NVARCH=`uname -s`_`uname -m`
+        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
+        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+    script:
+        - mkdir build_nvidia
+        - cd build_nvidia
+        - CC=`which nvc` 
+          CXX=`which nvcc`
+          FC=`which nvfortran`
+          cmake -DCMAKE_BUILD_TYPE=DEBUG ..
+    artifacts:
+        paths:
+            - build_nvidia
+
 make-lib:
     stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest

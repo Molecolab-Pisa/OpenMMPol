@@ -20,3 +20,5 @@ RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=T
 RUN zypper addrepo https://yum.repos.intel.com/oneapi oneAPI
 RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
                                                             intel-hpckit
+RUN zypper addrepo https://developer.download.nvidia.com/hpc-sdk/sles/x86_64/nvhpc.repo
+RUN zypper --non-interactive --gpg-auto-import-keys install nvhpc
