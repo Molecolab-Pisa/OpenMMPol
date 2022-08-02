@@ -75,6 +75,7 @@ make-lib:
             - build
     only:
         - pushes
+        - schedules
 
 compile-C:
     stage: compile-bin
@@ -91,6 +92,7 @@ compile-C:
             - build/bin/C_test_potential_xyz
     only:
         - pushes
+        - schedules
 
 compile-FORTRAN:
     stage: compile-bin
@@ -103,6 +105,7 @@ compile-FORTRAN:
             - bin/F_test_init
     only:
         - pushes
+        - schedules
 
 make-lib-intel:
     stage: compile-lib
@@ -212,6 +215,7 @@ make-doc:
             - doc
     only:
         - pushes
+        - schedules
 
 run_short_test:
     stage: test
