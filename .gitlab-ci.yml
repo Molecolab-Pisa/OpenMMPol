@@ -89,6 +89,8 @@ compile-FORTRAN:
 make-lib-intel:
     stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
         - make openmmpol
@@ -101,6 +103,8 @@ make-lib-intel:
 compile-C-intel:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
         - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
@@ -117,6 +121,8 @@ compile-C-intel:
 compile-FORTRAN-intel:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
         - make F_test_init
@@ -149,6 +155,8 @@ run_tests:
 run_tests-intel:
     stage: test
     image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
         - make test
