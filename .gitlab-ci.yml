@@ -150,6 +150,58 @@ compile-FORTRAN-intel:
     only:
         - schedules
 
+make-lib-nvidia:
+    stage: compile-lib
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export NVARCH=`uname -s`_`uname -m`
+        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
+        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+    script:
+        - cd build_nvidia
+        - make openmmpol
+    artifacts:
+        paths:
+            - build_nvidia
+    only:
+        - schedules
+
+compile-C-nvidia:
+    stage: compile-bin
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export NVARCH=`uname -s`_`uname -m`
+        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
+        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+    script:
+        - cd build_nvidia
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+    artifacts:
+        paths:
+            - build_nvidia/bin/C_test_init
+            - build_nvidia/bin/C_test_ipd
+            - build_nvidia/bin/C_test_energy
+            - build_nvidia/bin/C_test_init_xyz
+            - build_nvidia/bin/C_test_potential_xyz
+    only:
+        - schedules
+
+compile-FORTRAN-nvidia:
+    stage: compile-bin
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export NVARCH=`uname -s`_`uname -m`
+        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
+        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+    script:
+        - cd build_nvidia
+        - make F_test_init
+    artifacts:
+        paths:
+            - build_nvidia/bin/F_test_init
+    only:
+        - schedules
+
 make-doc:
     stage: documentation
     image: $CI_REGISTRY_IMAGE:latest
@@ -186,6 +238,15 @@ run_tests-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
+        - make test
+    only:
+        - schedules
+
+run_tests-nvidia:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build_nvidia
         - make test
     only:
         - schedules
