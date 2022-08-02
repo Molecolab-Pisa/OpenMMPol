@@ -483,6 +483,11 @@ module mod_io
         
         write(out_unit, '(t3, a)') label
         
+        if(ib > ie) then
+            write(out_unit,'(t5)')
+            return
+        end if 
+
         if(sort) then
             call sort_ivec(vec(ib:ie), sorted_vec)
             write(out_unit,'(t5, 10i8)') sorted_vec
