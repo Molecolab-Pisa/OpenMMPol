@@ -47,7 +47,7 @@ module mod_bonded
     real(rp), allocatable :: angtork(:,:)
     logical :: use_angtor = .false.
     public :: angtor_init, angtor_potential, angtor_t, angtor_a, angtorat, &
-              angtork
+              angtork, use_angtor
 
     ! Bond-Torsion coupling
     integer(ip) :: nstrtor
@@ -64,7 +64,7 @@ module mod_bonded
     real(rp), allocatable :: kurey(:), l0urey(:)
     logical :: use_urey = .false.
     public :: urey_init, urey_potential, ureyat, kurey, &
-              l0urey, urey_cubic, urey_quartic
+              l0urey, urey_cubic, urey_quartic, use_urey
 
     ! Out-of-Plane Bending
     integer(ip) :: nopb
@@ -73,14 +73,14 @@ module mod_bonded
     real(rp), allocatable :: kopb(:)
     logical :: use_opb = .false.
     public :: opb_init, opb_potential, opbat, opb_cubic, opb_quartic, &
-              opb_pentic, opb_sextic, kopb
+              opb_pentic, opb_sextic, kopb, use_opb
     
     ! Pi-torsion 
     integer(ip) :: npitors
     integer(ip), allocatable :: pitorsat(:,:)
     real(rp), allocatable :: kpitors(:)
     logical :: use_pitors = .false.
-    public :: pitors_init, pitors_potential, pitorsat, kpitors
+    public :: pitors_init, pitors_potential, pitorsat, kpitors, use_pitors 
 
     ! Torsion
     integer(ip) :: ntorsion
@@ -97,7 +97,8 @@ module mod_bonded
                              ttmap_vx(:), ttmap_vy(:), ttmap_vxy(:)
     logical :: use_tortor = .false.
     public :: tortorat, tortorprm, tortor_newmap, tortor_init, &
-              tortor_potential
+              ttmap_ang1, ttmap_ang2, ttmap_v, tortor_potential, &
+              use_tortor
 
     ! Global
     public :: terminate_bonded

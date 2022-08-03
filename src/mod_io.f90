@@ -396,18 +396,59 @@ module mod_io
 
         ! Bending-torsion coupling 
         call h5gcreate_f(hg_cur_param, "bending-torsion", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_angtor)
+        if(use_angtor) then
+            call hdf5_add_array(hg_cur_bp, "k", angtork)
+            call hdf5_add_array(hg_cur_bp, "angles_idx", angtor_a)
+            call hdf5_add_array(hg_cur_bp, "torsion_idx", angtor_t)
+            call hdf5_add_array(hg_cur_bp, "atoms", angtorat)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Torsion-torsion coupling
         call h5gcreate_f(hg_cur_param, "torsion-torsion", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_tortor)
+        if(use_tortor) then
+            call hdf5_add_array(hg_cur_bp, "atoms", tortorat)
+            call hdf5_add_array(hg_cur_bp, "map_id", tortorprm)
+            call hdf5_add_array(hg_cur_bp, "maps_ang1", ttmap_ang1)
+            call hdf5_add_array(hg_cur_bp, "maps_ang2", ttmap_ang2)
+            call hdf5_add_array(hg_cur_bp, "maps_pot", ttmap_v)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Pi-torsion
         call h5gcreate_f(hg_cur_param, "pi-torsion", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_pitors)
+        if(use_pitors) then
+            call hdf5_add_array(hg_cur_bp, "atoms", pitorsat)
+            call hdf5_add_array(hg_cur_bp, "k", kpitors)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
+
         ! Out-of-plane bending
         call h5gcreate_f(hg_cur_param, "out-of-plane-bending", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_opb)
+        if(use_opb) then
+            call hdf5_add_scalar(hg_cur_bp, "cubic", opb_cubic)
+            call hdf5_add_scalar(hg_cur_bp, "quartic", opb_quartic)
+            call hdf5_add_scalar(hg_cur_bp, "pentic", opb_pentic)
+            call hdf5_add_scalar(hg_cur_bp, "sextic", opb_sextic)
+            call hdf5_add_array(hg_cur_bp, "k", kopb)
+            call hdf5_add_array(hg_cur_bp, "atoms", opbat)
+        endif
         call h5gclose_f(hg_cur_bp, eflag)
+        
         ! Urey-Bradley stretching
         call h5gcreate_f(hg_cur_param, "urey-bradley", hg_cur_bp, eflag)
+        call hdf5_add_scalar(hg_cur_bp, "enabled", use_urey)
+        if(use_urey) then
+            call hdf5_add_scalar(hg_cur_bp, "cubic", urey_cubic)
+            call hdf5_add_scalar(hg_cur_bp, "quartic", urey_quartic)
+            call hdf5_add_array(hg_cur_bp, "k", kurey)
+            call hdf5_add_array(hg_cur_bp, "l0", l0urey)
+            call hdf5_add_array(hg_cur_bp, "atoms", ureyat)
+        end if
         call h5gclose_f(hg_cur_bp, eflag)
 
         call h5gclose_f(hg_cur_param, eflag)
