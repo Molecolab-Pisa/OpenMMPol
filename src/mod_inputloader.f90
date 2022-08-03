@@ -415,10 +415,16 @@ module mod_inputloader
         if( .not. check_keyword(prm_file)) then
             call fatal_error("PRM file cannot be completely understood")
         end if
-
+        
+        if(verbose == OMMP_VERBOSE_DEBUG) &
+            write(*, *) "Assigning electrostatic parameters"
         call assign_pol(prm_file, attype)
         call assign_mpoles(prm_file, attype)
+        if(verbose == OMMP_VERBOSE_DEBUG) &
+            write(*, *) "Assigning non-bonded parameters"
         call assign_vdw(prm_file, attype)
+        if(verbose == OMMP_VERBOSE_DEBUG) &
+            write(*, *) "Assigning bonded parameters"
         call assign_bond(prm_file, attype)
         call assign_angle(prm_file, attype)
         call assign_urey(prm_file, attype)
