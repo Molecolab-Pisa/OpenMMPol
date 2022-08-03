@@ -268,6 +268,7 @@ module mod_io
                              q0, amoeba, pol, conn, ff_type, &
                              ix, iy, iz, mol_frame, mmat_polgrp
         use mod_bonded
+        use mod_nonbonded
 
         implicit none
 
@@ -450,10 +451,21 @@ module mod_io
             call hdf5_add_array(hg_cur_bp, "atoms", ureyat)
         end if
         call h5gclose_f(hg_cur_bp, eflag)
-
         call h5gclose_f(hg_cur_param, eflag)
         
+        ! Non-bonded (VdW and similar, all except electrostatics)
         call h5gcreate_f(hg_cur, "non-bonded", hg_cur_param, eflag)
+        call hdf5_add_scalar(hg_cur_param, "enabled", use_nonbonded)
+        if(use_nonbonded) then
+            call hdf5_add_array(hg_cur_param, "screening", vdw_screening)
+            call hdf5_add_array(hg_cur_param, "radius", vdw_r)
+            call hdf5_add_array(hg_cur_param, "energy", vdw_e)
+            call hdf5_add_array(hg_cur_param, "scale_factor", vdw_f)
+            call hdf5_add_array(hg_cur_param, "pair_row_idx", vdw_pair%ri)
+            call hdf5_add_array(hg_cur_param, "pair_col_idx", vdw_pair%ci)
+            call hdf5_add_array(hg_cur_param, "pair_radius", vdw_pair_r)
+            call hdf5_add_array(hg_cur_param, "pair_energy", vdw_pair_e)
+        end if
         call h5gclose_f(hg_cur_param, eflag)
         
         call h5gcreate_f(hg_cur, "electrostatics", hg_cur_param, eflag)

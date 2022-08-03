@@ -14,10 +14,11 @@ module mod_nonbonded
     
     real(rp), dimension(4) :: vdw_screening
 
-    logical :: initialized = .false.
+    logical :: use_nonbonded = .false.
     
     public :: vdw_init, vdw_terminate, vdw_potential, vdw_set_pair
-    public :: vdw_r, vdw_e, vdw_f, vdw_screening 
+    public :: vdw_r, vdw_e, vdw_f, vdw_screening, vdw_pair, vdw_pair_r, &
+              vdw_pair_e, use_nonbonded
 
     contains
 
@@ -91,7 +92,7 @@ module mod_nonbonded
                 call fatal_error("epsilonrule specified is not understood")
         end select
 
-        if(.not. initialized) then
+        if(.not. use_nonbonded) then
             call mallocate('vdw_init [vdw_r]', mm_atoms, vdw_r)
             call mallocate('vdw_init [vdw_e]', mm_atoms, vdw_e)
             call mallocate('vdw_init [vdw_f]', mm_atoms, vdw_f)
@@ -102,7 +103,7 @@ module mod_nonbonded
             call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, vdw_pair_e)
 
             vdw_f = 1.0_rp
-            initialized = .true.
+            use_nonbonded = .true.
         end if
 
     end subroutine vdw_init
@@ -113,7 +114,7 @@ module mod_nonbonded
 
         implicit none
         
-        if(.not. initialized) return
+        if(.not. use_nonbonded) return
 
         call mfree('vdw_terminate [vdw_r]', vdw_r)
         call mfree('vdw_terminate [vdw_e]', vdw_e)
