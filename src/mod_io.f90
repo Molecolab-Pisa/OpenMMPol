@@ -264,9 +264,10 @@ module mod_io
     subroutine mmpol_save_as_hdf5(filename, out_fail)
         use hdf5
         use mod_memory, only: ip
-        use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, ld_cart, q, &
-                             q0, amoeba, pol, conn, ff_type, &
-                             ix, iy, iz, mol_frame, mmat_polgrp
+        use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, &
+                             q0, q, amoeba, pol, conn, ff_type, &
+                             ix, iy, iz, mol_frame, mmat_polgrp, &
+                             mscale, pscale, dscale, uscale, pscale_intra
         use mod_bonded
         use mod_nonbonded
 
@@ -483,6 +484,14 @@ module mod_io
         else
             call hdf5_add_array(hg_cur_param, "fixed_multipoles", q)
         end if
+        call hdf5_add_array(hg_cur_param, "fixed_fixed_scale_f", mscale)
+        call hdf5_add_array(hg_cur_param, "fixed_ipd_scale_f", pscale)
+        call hdf5_add_array(hg_cur_param, "ipd_ipd_scale_f", uscale)
+        if(amoeba) then
+            call hdf5_add_array(hg_cur_param, "fixed_direct_ipd_scale_f", dscale)
+            call hdf5_add_array(hg_cur_param, "fixed_intragroup_ipd_scale_f", pscale_intra)
+        end if
+        
         call hdf5_add_array(hg_cur_param, "polarizable_atoms_idx", polar_mm)
         call hdf5_add_array(hg_cur_param, "polarizabilities", pol) 
 
@@ -496,24 +505,14 @@ module mod_io
             out_fail = -1_ip
             return
         end if
-
+        call hdf5_add_array(iof_hdf5_out, "coordinates", cmm)
         
-        !call h5gcreate_f(iof_hdf5_out, "system derived", hg_sysder, eflag)
-        !if( eflag /= 0) then 
-        !    write(iof_mmpol, *) "Error while creating group 'system derived'.&
-        !                        &Failure in h5gcreate_f subroutine."
-        !    out_fail = -1_ip
-        !    return
-        !end if
-        
-        call h5gcreate_f(iof_hdf5_out, "results", hg_res, eflag)
         if( eflag /= 0) then 
-            write(iof_mmpol, *) "Error while creating group 'results'.&
+            write(iof_mmpol, *) "Error while creating group 'system model.'&
                                 &Failure in h5gcreate_f subroutine."
             out_fail = -1_ip
             return
         end if
-
         call h5fclose_f(iof_hdf5_out, eflag)
         if( eflag /= 0) then 
             write(iof_mmpol, *) "Error while closing HDF5 file. Failure in &
@@ -523,7 +522,6 @@ module mod_io
         end if
 
         out_fail = 0_ip
-    
     end subroutine mmpol_save_as_hdf5
     
 #endif
