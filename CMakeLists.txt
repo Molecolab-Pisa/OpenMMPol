@@ -65,10 +65,12 @@ target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent 
 
 include_directories(include) # Directory for .h files
 
-add_executable(ommp_pp src/ommp_compile.c)
-target_link_libraries(ommp_pp openmmpol)
-target_compile_options(ommp_pp PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET ommp_pp PROPERTY C_STANDARD 99)
+if (HDF5_FOUND)
+    add_executable(ommp_pp src/ommp_compile.c)
+    target_link_libraries(ommp_pp openmmpol)
+    target_compile_options(ommp_pp PRIVATE -Wall -Wextra -pedantic)
+    set_property(TARGET ommp_pp PROPERTY C_STANDARD 99)
+endif ()
 
 add_executable(C_test_init_xyz src/test_init_xyz.c)
 target_link_libraries(C_test_init_xyz openmmpol)

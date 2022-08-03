@@ -41,9 +41,12 @@ extern void get_pitors_energy(double *);
 extern void get_torsion_energy(double *);
 extern void get_tortor_energy(double *);
 extern void get_urey_energy(double *);
-extern void write_hdf5(char *);
 extern void print_summary(void);
 extern void print_summary_to_file(char *);
+
+#ifdef USE_HDF5
+extern void write_hdf5(char *);
+#endif
 
 extern int32_t get_n_ipd(void);
 extern int32_t get_ld_cart(void);
