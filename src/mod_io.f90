@@ -21,8 +21,8 @@ module mod_io
 #else
 #define H5T_IP H5T_STD_I32LE
 #endif
-    integer(hid_t) :: iof_hdf5_out = 101
-    public :: mmpol_save_as_hdf5
+    integer(hid_t) :: iof_hdf5_out = 301, iof_hdf5_io = 302
+    public :: mmpol_save_as_hdf5, mmpol_init_from_hdf5
     
     interface hdf5_add_scalar
         ! Write a scalar as an attribute of the group
@@ -30,6 +30,11 @@ module mod_io
         module procedure i_hdf5_add_scalar
         module procedure l_hdf5_add_scalar
     end interface hdf5_add_scalar
+
+    interface hdf5_read_scalar
+        module procedure r_hdf5_read_scalar
+        module procedure i_hdf5_read_scalar
+    end interface hdf5_read_scalar
     
     interface hdf5_add_array
         ! Write a scalar as an attribute of the group
@@ -41,6 +46,16 @@ module mod_io
         module procedure i2_hdf5_add_array
         module procedure i3_hdf5_add_array
     end interface hdf5_add_array
+
+    interface hdf5_read_array
+        module procedure r1_hdf5_read_array
+        module procedure r2_hdf5_read_array
+        module procedure r3_hdf5_read_array
+        
+        module procedure i1_hdf5_read_array
+        module procedure i2_hdf5_read_array
+        module procedure i3_hdf5_read_array
+    end interface hdf5_read_array
 #endif
     
     contains
@@ -261,6 +276,168 @@ module mod_io
         call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
     end subroutine
 
+    subroutine r1_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_memory, only: ip, rp, mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        real(rp), allocatable, dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        call mallocate('r1_hdf5_read_array [v]', int(dims(1), ip), v)
+        call h5dread_f(dataset, H5T_RP, v, dims, eflag)
+    end subroutine
+
+    subroutine r2_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_memory, only: ip, rp, mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        real(rp), allocatable, dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        call mallocate('r2_hdf5_read_array [v]', int(dims(1), ip), int(dims(2), ip), v)
+        call h5dread_f(dataset, H5T_RP, v, dims, eflag)
+    end subroutine
+
+    subroutine r3_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_memory, only: ip, rp, mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        real(rp), allocatable, dimension(:,:,:) :: v
+
+        integer(hsize_t), dimension(3) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        call mallocate('r3_hdf5_read_array [v]', int(dims(1), ip), int(dims(2), ip), int(dims(3), ip), v)
+        call h5dread_f(dataset, H5T_RP, v, dims, eflag)
+    end subroutine
+    
+    subroutine i1_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_memory, only: ip, rp, mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        integer(ip), allocatable, dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        call mallocate('i1_hdf5_read_array [v]', int(dims(1), ip), v)
+        call h5dread_f(dataset, H5T_IP, v, dims, eflag)
+    end subroutine
+
+    subroutine i2_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_memory, only: ip, rp, mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        integer(ip), allocatable, dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        call mallocate('i2_hdf5_read_array [v]', int(dims(1), ip), int(dims(2), ip), v)
+        call h5dread_f(dataset, H5T_IP, v, dims, eflag)
+    end subroutine
+
+    subroutine i3_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_memory, only: ip, rp, mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        integer(ip), allocatable, dimension(:,:,:) :: v
+
+        integer(hsize_t), dimension(3) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        call mallocate('i3_hdf5_read_array [v]', int(dims(1), ip), int(dims(2), ip), int(dims(3), ip), v)
+        call h5dread_f(dataset, H5T_IP, v, dims, eflag)
+    end subroutine
+
+    subroutine r_hdf5_read_scalar(hid, location, s)
+        use hdf5
+        use mod_memory, only: ip, rp
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: location
+        real(rp) :: s
+        
+        integer(hsize_t), dimension(1), parameter :: dims = [1]
+        integer(kind=4) :: eflag
+        integer(hid_t) :: att_id
+        
+        call H5Aopen_name_f(hid, location, att_id, eflag)
+        call H5Aread_f(att_id, H5T_RP, s, dims, eflag)
+    end subroutine
+    
+    subroutine i_hdf5_read_scalar(hid, location, s)
+        use hdf5
+        use mod_memory, only: ip, rp
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: location
+        integer(ip) :: s
+        
+        integer(hsize_t), dimension(1), parameter :: dims = [1]
+        integer(kind=4) :: eflag
+        integer(hid_t) :: att_id
+        
+        call H5Aopen_name_f(hid, location, att_id, eflag)
+        call H5Aread_f(att_id, H5T_IP, s, dims, eflag)
+    end subroutine
+
     subroutine mmpol_save_as_hdf5(filename, out_fail)
         use hdf5
         use mod_memory, only: ip
@@ -298,7 +475,7 @@ module mod_io
             return
         end if
         
-        call h5gcreate_f(iof_hdf5_out, "system model", hg_sysmodel, eflag)
+        call h5gcreate_f(iof_hdf5_out, "system_model", hg_sysmodel, eflag)
         if( eflag /= 0) then 
             write(iof_mmpol, *) "Error while creating group 'system model.'&
                                 &Failure in h5gcreate_f subroutine."
@@ -313,7 +490,7 @@ module mod_io
 
         call hdf5_add_scalar(hg_sysmodel, "N-atoms", mm_atoms)
         call hdf5_add_scalar(hg_sysmodel, "N-pol-atoms", pol_atoms)
-        call hdf5_add_scalar(hg_sysmodel, "FF type", ff_type)
+        call hdf5_add_scalar(hg_sysmodel, "FF_type", ff_type)
         
         call h5gcreate_f(hg_sysmodel, "topology", hg_top, eflag)
         
@@ -523,7 +700,61 @@ module mod_io
 
         out_fail = 0_ip
     end subroutine mmpol_save_as_hdf5
+
+    subroutine mmpol_init_from_hdf5(filename, out_fail)
+        use hdf5
+        use mod_memory, only: ip, rp
+        use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, &
+                             q0, q, amoeba, pol, conn, ff_type, &
+                             ix, iy, iz, mol_frame, mmat_polgrp, &
+                             mscale, pscale, dscale, uscale, pscale_intra
+        use mod_bonded
+        use mod_nonbonded
+
+        implicit none
+
+        character(len=*), intent(in) :: filename
+        integer(ip), intent(out) :: out_fail
+        
+        integer(hid_t) :: hg_sysmodel, hg_res, hg_cur, hg_amoeba, &
+                          hg_top, hg_cur_param, hg_cur_bp, cur_dst, cur_dsp
+        integer(hsize_t), dimension(4) :: dims
+        integer(kind=4) :: eflag
+
+        ! Initialize interface
+        call h5open_f(eflag)
+        if(eflag /= 0) then
+            write(iof_mmpol, *) "Unable to initialize HDF5 module. Failure in &
+                               &h5open_f subroutine."
+            out_fail = -1_ip
+            return
+        end if
+        
+        call h5fopen_f(filename, H5F_ACC_RDONLY_F, iof_hdf5_io, eflag)
+        if( eflag /= 0) then 
+            write(iof_mmpol, *) "Unable to open HDF5 file. Failure in &
+                               &h5fopen_f subroutine."
+            out_fail = -1_ip
+            return
+        end if
     
+        call hdf5_read_scalar(iof_hdf5_io, &
+                             'system_model/N-atoms', &
+                             mm_atoms)
+        call hdf5_read_array(iof_hdf5_io, &
+                             'system_model/parameters/bonded/stretching/k', &
+                             kbond)
+        write(*, *) mm_atoms
+        call h5fclose_f(iof_hdf5_io, eflag)
+        if( eflag /= 0) then 
+            write(iof_mmpol, *) "Error while closing HDF5 file. Failure in &
+                               &h5fclose_f subroutine."
+            out_fail = -1_ip
+            return
+        end if
+
+        out_fail = 0_ip
+    end subroutine mmpol_init_from_hdf5
 #endif
     
     subroutine mmpol_print_summary(of_name)

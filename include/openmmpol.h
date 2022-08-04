@@ -46,6 +46,7 @@ extern void print_summary_to_file(char *);
 
 #ifdef USE_HDF5
 extern void write_hdf5(char *);
+extern void mmpol_init_hdf5(char *);
 #endif
 
 extern int32_t get_n_ipd(void);

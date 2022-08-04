@@ -13,7 +13,7 @@ module mod_interface
     public :: mmpol_init_mmp, do_mm, do_qmmm, get_energy, &
               ommp_terminate
 #ifdef USE_HDF5
-    public :: write_hdf5
+    public :: write_hdf5, mmpol_init_hdf5
 #endif
 
     contains
@@ -344,6 +344,23 @@ module mod_interface
         end subroutine
 
 #ifdef USE_HDF5
+        subroutine mmpol_init_hdf5(filename) bind(c, name='mmpol_init_hdf5')
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
+            use mod_io, only: mmpol_init_from_hdf5
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(120)
+            character(len=120) :: hdf5in
+            integer(ip) :: ok
+
+            call c2f_string(filename, hdf5in)
+            call mmpol_init_from_hdf5(hdf5in, ok)
+            
+        end subroutine mmpol_init_hdf5
+        
         function write_hdf5(filename) bind(c, name='write_hdf5')
             !! This function is an interface for saving an HDF5 file 
             !! with all the data contained in mmpol module using
