@@ -97,7 +97,7 @@ module mod_bonded
                              ttmap_vx(:), ttmap_vy(:), ttmap_vxy(:)
     logical :: use_tortor = .false.
     public :: tortorat, tortorprm, tortor_newmap, tortor_init, &
-              ttmap_ang1, ttmap_ang2, ttmap_v, tortor_potential, &
+              ttmap_ang1, ttmap_ang2, ttmap_v, ttmap_shape, tortor_potential, &
               use_tortor
 
     ! Global

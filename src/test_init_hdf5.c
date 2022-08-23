@@ -14,6 +14,11 @@ int main(int argc, char **argv){
     set_verbose(OMMP_VERBOSE_DEBUG);
     mmpol_init_hdf5(argv[1]);
     
+    if(argc == 3)
+        print_summary_to_file(argv[2]);
+    else
+        print_summary();
+    
     ommp_terminate();
     
     return 0;
