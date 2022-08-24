@@ -314,7 +314,6 @@ module mod_io
         integer(hid_t) :: dataset, dataspace
         integer(kind=4) :: eflag
         
-        write(*, *) dataset_name
         call h5dopen_f(hid, dataset_name, dataset, eflag)
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
@@ -326,7 +325,6 @@ module mod_io
             end if
         end if
         call h5dread_f(dataset, H5T_RP, v, dims, eflag)
-        write(*, *) "OK"
     end subroutine
 
     subroutine r2_hdf5_read_array(hid, dataset_name, v)
@@ -344,7 +342,6 @@ module mod_io
         integer(hid_t) :: dataset, dataspace
         integer(kind=4) :: eflag
         
-        write(*, *) dataset_name
         call h5dopen_f(hid, dataset_name, dataset, eflag)
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
@@ -375,7 +372,6 @@ module mod_io
         integer(hid_t) :: dataset, dataspace
         integer(kind=4) :: eflag
         
-        write(*, *) dataset_name
         call h5dopen_f(hid, dataset_name, dataset, eflag)
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
@@ -407,7 +403,6 @@ module mod_io
         integer(hid_t) :: dataset, dataspace
         integer(kind=4) :: eflag
         
-        write(*, *) dataset_name
         call h5dopen_f(hid, dataset_name, dataset, eflag)
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
@@ -436,7 +431,6 @@ module mod_io
         integer(hid_t) :: dataset, dataspace
         integer(kind=4) :: eflag
         
-        write(*, *) dataset_name
         call h5dopen_f(hid, dataset_name, dataset, eflag)
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
@@ -467,7 +461,6 @@ module mod_io
         integer(hid_t) :: dataset, dataspace
         integer(kind=4) :: eflag
         
-        write(*, *) dataset_name
         call h5dopen_f(hid, dataset_name, dataset, eflag)
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
@@ -539,7 +532,6 @@ module mod_io
         integer(kind=4) :: eflag
         integer(hid_t) :: att_id, dataset
        
-        write(*, *) location, "--", attname
         call h5gopen_f(hid, location, dataset, eflag)
         call H5Aopen_name_f(dataset, attname, att_id, eflag)
         call H5Aread_f(att_id, H5T_IP, is, dims, eflag)
@@ -549,12 +541,11 @@ module mod_io
         else
             s = .true.
         end if
-        write(*, *) "OK"
     end subroutine
 
     subroutine mmpol_save_as_hdf5(filename, out_fail)
         use hdf5
-        use mod_memory, only: ip
+        use mod_memory, only: ip, rp, mallocate, mfree
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, &
                              q0, q, amoeba, pol, conn, ff_type, &
                              ix, iy, iz, mol_frame, mmat_polgrp, &
@@ -571,6 +562,8 @@ module mod_io
                           hg_top, hg_cur_param, hg_cur_bp, cur_dst, cur_dsp
         integer(hsize_t), dimension(4) :: dims
         integer(kind=4) :: eflag
+
+        real(rp), allocatable :: tmp_q0(:, :)
 
         ! Initialize interface
         call h5open_f(eflag)
@@ -764,7 +757,15 @@ module mod_io
         call h5gcreate_f(hg_cur, "electrostatics", hg_cur_param, eflag)
         if(amoeba) then
             ! Write the unrotated multipoles, that are coordinates independent
-            call hdf5_add_array(hg_cur_param, "fixed_multipoles", q0)
+            ! Since quadrupoles have been multiplied by 1/3 
+            ! (see [[mod_mmpol::mmpol_prepare]]) we should now save them 
+            ! correctly so we multiply quadrupoles terms by 3
+            call mallocate('save_as_hdf5 [tmp_q0]', size(q0, 1), size(q0, 2), tmp_q0)
+            tmp_q0 = q0
+            tmp_q0(5:10,:) = tmp_q0(5:10,:) * 3.0
+            call hdf5_add_array(hg_cur_param, "fixed_multipoles", tmp_q0)
+            call mfree('save_as_hdf5 [tmp_q0]', tmp_q0)
+            
             ! Write all the information needed to perform the rotation of the 
             ! multipoles
             call h5gcreate_f(hg_cur_param, "AMOEBA", hg_amoeba, eflag)
@@ -819,7 +820,7 @@ module mod_io
     subroutine mmpol_init_from_hdf5(filename, out_fail)
         use hdf5
         use mod_adjacency_mat, only: build_conn_upto_n, yale_sparse
-        use mod_memory, only: ip, rp
+        use mod_memory, only: ip, rp, mfree
         use mod_mmpol, only: mm_atoms, pol_atoms, cmm, polar_mm, &
                              q0, q, amoeba, pol, conn, ff_type, &
                              ix, iy, iz, mol_frame, mmat_polgrp, &
@@ -1082,7 +1083,6 @@ module mod_io
             do i=1, size(tmp_shape, 2)
                 ibeg = iend + 1 
                 iend = ibeg + tmp_shape(1,i) * tmp_shape(2,i) - 1
-                write(*, *) ibeg, iend, shape(tmp_ang1)
 
                 call tortor_newmap(tmp_shape(1,i), &
                                    tmp_shape(2,i), &
@@ -1090,6 +1090,11 @@ module mod_io
                                    tmp_ang2(ibeg:iend), &
                                    tmp_v(ibeg:iend))
             end do
+
+            call mfree('mmpol_init_from_hdf5 [tmp_ang1]', tmp_ang1)
+            call mfree('mmpol_init_from_hdf5 [tmp_ang2]', tmp_ang2)
+            call mfree('mmpol_init_from_hdf5 [tmp_v]', tmp_v)
+            call mfree('mmpol_init_from_hdf5 [tmp_shape]', tmp_shape)
         end if
         
         ! Pi-torsion
@@ -1172,7 +1177,9 @@ module mod_io
             call hdf5_read_array(iof_hdf5_io, & 
                                  "system_model/parameters/non-bonded/screening", &
                                  l_vdwscale)
+            
             vdw_screening = l_vdwscale
+            call mfree('mmpol_init_from_hdf5 [l_vdwscale]', l_vdwscale)
 
             call hdf5_read_array(iof_hdf5_io, & 
                                  "system_model/parameters/non-bonded/radius", &
@@ -1199,9 +1206,9 @@ module mod_io
                                  vdw_pair_e)
         end if
         
+        call hdf5_read_array(iof_hdf5_io, &
+                             "system_model/parameters/electrostatics/fixed_multipoles", q)
         if(amoeba) then
-            call hdf5_read_array(iof_hdf5_io, &
-                                 "system_model/parameters/electrostatics/fixed_multipoles", q0)
             call hdf5_read_array(iof_hdf5_io, &
                                 "system_model/parameters/electrostatics/AMOEBA/fixed_mmpoles_rot_Z", &
                                 iz)
@@ -1214,9 +1221,6 @@ module mod_io
             call hdf5_read_array(iof_hdf5_io, &
                                 "system_model/parameters/electrostatics/AMOEBA/fixed_mmpoles_rot_CONV", &
                                 mol_frame)
-        else
-            call hdf5_read_array(iof_hdf5_io, &
-                                 "system_model/parameters/electrostatics/fixed_multipoles", q)
         end if
         call hdf5_read_array(iof_hdf5_io, &
                              "system_model/parameters/electrostatics/fixed_fixed_scale_f", l_mscale)
@@ -1232,8 +1236,14 @@ module mod_io
                                  "system_model/parameters/electrostatics/fixed_intragroup_ipd_scale_f", &
                                  l_ipscale)
         end if
+
         call set_screening_parameters(l_mscale, l_pscale, l_dscale, l_uscale, &
                                       l_ipscale)
+        call mfree('mmpol_init_from_hdf5 [l_mscale]', l_mscale)
+        call mfree('mmpol_init_from_hdf5 [l_pscale]', l_pscale)
+        call mfree('mmpol_init_from_hdf5 [l_dscale]', l_dscale)
+        call mfree('mmpol_init_from_hdf5 [l_uscale]', l_uscale)
+        call mfree('mmpol_init_from_hdf5 [l_ipscale]', l_ipscale)
         
         call hdf5_read_array(iof_hdf5_io, &
                              "system_model/parameters/electrostatics/polarizable_atoms_idx", polar_mm)
