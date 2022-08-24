@@ -1,10 +1,10 @@
 ## Download of FF parameters from Tinker repository
 file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoebabio18.prm
      amoebabio18.prm
-     EXPECTED_HASH MD5=6fd01814c88e6dd44d7de8be2eed2be0) 
+     EXPECTED_HASH MD5=490ba93448bd71f14398d74f9cb8a523) 
 file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoeba09.prm
      amoeba09.prm
-     EXPECTED_HASH MD5=65bdb55c901ea6c2c2e9fa759825dc12) 
+     EXPECTED_HASH MD5=91eaeec4edd2c581863c6cd4e0b2d975) 
 
 #==== MEMORY TEST ====#
 set(VALGRINDOPT --track-origins=yes --leak-check=full --show-leak-kinds=all) 

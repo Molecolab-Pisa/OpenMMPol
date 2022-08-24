@@ -1,13 +1,13 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(64) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(65) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
                                                  "angle-quartic       ", &
                                                  "angle-sextic        ", &
-                                                 "angtors             ", & ! TODO
+                                                 "angtors             ", & 
                                                  "atom                ", &
                                                  "bond                ", &
                                                  "bond-cubic          ", &
@@ -51,7 +51,7 @@ function keyword_is_implemented(kw)
                                                  "radiustype          ", &
                                                  "radiussize          ", &
                                                  "strbnd              ", &
-                                                 "strtors             ", & ! TODO
+                                                 "strtors             ", & 
                                                  "torsion             ", &
                                                  "torsionunit         ", &
                                                  "tortors             ", &
@@ -64,7 +64,8 @@ function keyword_is_implemented(kw)
                                                  "vdw-14-scale        ", &
                                                  "vdw-15-scale        ", &
                                                  "vdwtype             ", &
-                                                 "vdwpr               "]
+                                                 "vdwpr               ", &
+                                                 "vdwpair             "]
     character(len=*) :: kw
     integer(ip) :: i, l 
     logical :: keyword_is_implemented
@@ -109,7 +110,7 @@ end function
 function keyword_is_recognized(kw)
     implicit none
 
-    character(len=*), parameter :: rec_kwd(170) = ["a-expterm           ", &
+    character(len=*), parameter :: rec_kwd(171) = ["a-expterm           ", &
                                               "angang              ", &
                                               "angangunit          ", &
                                               "angcflux            ", &
@@ -277,6 +278,7 @@ function keyword_is_recognized(kw)
                                               "vdw-15-scale        ", &
                                               "vdwindex            ", &
                                               "vdwpr               ", &
+                                              "vdwpair             ", &
                                               "vdwterm             ", &
                                               "vdwtype             "]
     character(len=*) :: kw

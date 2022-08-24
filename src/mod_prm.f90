@@ -2100,7 +2100,8 @@ module mod_prm
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
             if(line(:4) == 'vdw ') nvdw = nvdw + 1
-            if(line(:6) == 'vdwpr ') nvdwpr = nvdwpr + 1
+            if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') &
+                nvdwpr = nvdwpr + 1
         end do
 
         ! VDW
@@ -2230,8 +2231,12 @@ module mod_prm
                 endif
 
                 ivdw = ivdw + 1
-            else if(line(:6) == 'vdwpr ') then
-                tokb = 7
+            else if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') then
+                if(line(:6) == 'vdwpr ') then
+                    tokb = 7
+                else
+                    tokb = 9
+                end if
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
                     write(errstring, *) "Wrong VDWPR card"
