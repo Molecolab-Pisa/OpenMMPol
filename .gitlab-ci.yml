@@ -82,15 +82,10 @@ compile-C:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp  C_test_potential_hdf5 C_test_init_hdf5
     artifacts:
         paths:
-            - build/bin/C_test_init
-            - build/bin/C_test_ipd
-            - build/bin/C_test_energy
-            - build/bin/C_test_init_xyz
-            - build/bin/C_test_potential_xyz
-            - build/bin/ommp_pp
+            - build/bin
     only:
         - pushes
         - schedules
@@ -103,7 +98,7 @@ compile-FORTRAN:
         - make F_test_init
     artifacts:
         paths:
-            - bin/F_test_init
+            - build/bin
     only:
         - pushes
         - schedules
@@ -132,12 +127,7 @@ compile-C-intel:
         - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
     artifacts:
         paths:
-            - build_intel/bin/C_test_init
-            - build_intel/bin/C_test_ipd
-            - build_intel/bin/C_test_energy
-            - build_intel/bin/C_test_init_xyz
-            - build_intel/bin/C_test_potential_xyz
-            - build_intel/bin/ommp_pp
+            - build_intel/bin
     only:
         - schedules
 
@@ -151,7 +141,7 @@ compile-FORTRAN-intel:
         - make F_test_init
     artifacts:
         paths:
-            - build_intel/bin/F_test_init
+            - build_intel/bin
     only:
         - schedules
 
@@ -183,12 +173,7 @@ compile-C-nvidia:
         - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
     artifacts:
         paths:
-            - build_nvidia/bin/C_test_init
-            - build_nvidia/bin/C_test_ipd
-            - build_nvidia/bin/C_test_energy
-            - build_nvidia/bin/C_test_init_xyz
-            - build_nvidia/bin/C_test_potential_xyz
-            - build_nvidia/bin/ommp_pp
+            - build_nvidia/bin
     only:
         - schedules
 
@@ -204,7 +189,7 @@ compile-FORTRAN-nvidia:
         - make F_test_init
     artifacts:
         paths:
-            - build_nvidia/bin/F_test_init
+            - build_nvidia/bin
     only:
         - schedules
 
