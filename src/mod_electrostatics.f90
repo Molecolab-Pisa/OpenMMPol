@@ -479,6 +479,7 @@ module mod_electrostatics
         logical :: to_do, to_scale
 
         if(amoeba) then
+            !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, tmpE, tmpEgr) reduction(+:V, E, Egr)
             do i=1, mm_atoms
                 ! loop on sources
                 do j=1, mm_atoms
@@ -526,7 +527,9 @@ module mod_electrostatics
                     end if
                 end do
             end do
+            !$omp end parallel do
         else
+            !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, tmpE, tmpEgr) reduction(+:V, E, Egr)
             do i=1, mm_atoms
                 ! loop on sources
                 do j=1, mm_atoms
@@ -562,6 +565,7 @@ module mod_electrostatics
                     end if
                 end do
             end do
+            !$omp end parallel do
         end if
     end subroutine potential_field_fieldgr_M2M
     

@@ -36,6 +36,13 @@ find_package(LAPACK REQUIRED COMPONENTS Fortran)
 target_link_libraries(openmmpol ${LAPACK_LIBRARIES})
 # cmake 3.22 exposes BLA_SIZEOF_INTEGER
 
+#OpenMP
+find_package(OpenMP REQUIRED COMPONENTS Fortran)
+if(OpenMP_Fortran_FOUND)
+    include_directories(SYSTEM ${OpenMP_Fortran_INCLUDE_DIRS})
+    target_link_libraries(openmmpol OpenMP::OpenMP_Fortran)
+endif()
+
 # HDF5
 find_package(HDF5 COMPONENTS Fortran)
 if (HDF5_FOUND)
