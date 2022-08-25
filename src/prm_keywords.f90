@@ -298,9 +298,10 @@ end function
 
 function check_keyword(prm_file)
     use mod_memory, only : ip
-    use mod_mmpol, only : fatal_error, verbose
+    use mod_mmpol, only : fatal_error
     use mod_utils, only : starts_with_alpha, str_to_lower, tokenize
-    use mod_constants, only: OMMP_VERBOSE_HIGH
+    use mod_io, only : ommp_message
+    use mod_constants, only: OMMP_VERBOSE_HIGH, OMMP_VERBOSE_LOW
     
     implicit none
 
@@ -310,7 +311,7 @@ function check_keyword(prm_file)
     
     integer(ip), parameter :: iof_prminp = 201
     integer(ip) :: ist, ibeg, iend
-    character(len=120) :: line, kw
+    character(len=120) :: line, kw, msg
     
     ! open tinker xyz file
     open(unit=iof_prminp, &
@@ -337,20 +338,21 @@ function check_keyword(prm_file)
             if(keyword_is_recognized(kw)) then
                 if(.not. keyword_is_implemented(kw)) then
                     if(keyword_is_ignored(kw)) then
-                        if(verbose >= OMMP_VERBOSE_HIGH) &
-                        write(*, *) "'", trim(kw), "' - keyword&
+                        write(msg, "(A)") "'"//trim(kw)//"' - keyword&
                                    & ignored"
+                        call ommp_message(msg, OMMP_VERBOSE_HIGH)
                     else
-                        write(*, *) "'", trim(kw), "' - keyword&
+                        write(msg, "(A)") "'"//trim(kw)//"' - keyword&
                                    & is not implemented and &
                                    &cannot be ignored."
+                        call ommp_message(msg, OMMP_VERBOSE_LOW)
                         check_keyword = .false.
                     end if
                 end if
             else
-                if(verbose >= OMMP_VERBOSE_HIGH) &
-                write(*, *) "'", trim(kw), "' - keyword&
+                write(msg, "(A)") "'"//trim(kw)//"' - keyword&
                            & is not recognized."
+                call ommp_message(msg, OMMP_VERBOSE_HIGH)
             end if
         end if
     end do

@@ -20,7 +20,8 @@ module mod_solvers
     use mod_constants, only: OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, &
                              OMMP_VERBOSE_DEBUG
-    use mod_mmpol, only: verbose, fatal_error
+    use mod_mmpol, only: fatal_error
+    use mod_io, only: ommp_message
 
     implicit none
     private
@@ -55,7 +56,6 @@ module mod_solvers
         !! In output the solution of the linear system
         real(rp), dimension(n, n), intent(in) :: tmat
         !! Polarization matrix TODO
-
 
         integer(ip) :: info
         integer(ip), dimension(:), allocatable :: ipiv
@@ -118,6 +118,7 @@ module mod_solvers
         integer(ip) :: it
         real(rp) :: rms_norm, alpha, gnew, gold, gama
         real(rp), allocatable :: r(:), p(:), h(:), z(:)
+        character(len=120) :: msg
 
         ! Optional arguments handling
         if(present(arg_tol)) then
@@ -132,11 +133,11 @@ module mod_solvers
             n_iter = OMMP_DEFAULT_SOLVER_ITER
         end if
 
-        if(verbose >= OMMP_VERBOSE_LOW) then
-            write(6, *) "Solving linear system with CG solver"
-            write(6, *) "Max iter:", n_iter
-            write(6, *) "Tolerance: ", tol
-        end if
+        call ommp_message("Solving linear system with CG solver", OMMP_VERBOSE_LOW)
+        write(msg, "(A, I4)") "Max iter:", n_iter
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        write(msg, "(A, E8.1)") "Tolerance: ", tol
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
 
         call mallocate('conjugate_gradient_solver [r]', n, r)
         call mallocate('conjugate_gradient_solver [p]', n, p)
@@ -176,14 +177,13 @@ module mod_solvers
             gnew = dot_product(r, z)
             rms_norm = sqrt(gnew/dble(n))
 
-            if(verbose >= OMMP_VERBOSE_HIGH) then
-                write(6, "(t3,'iter=',i4,' residual rms norm: ', d14.4)") it, rms_norm
-            end if
+            write(msg, "('iter=',i4,' residual rms norm: ', d14.4)") it, rms_norm
+            call ommp_message(msg, OMMP_VERBOSE_HIGH)
 
             ! Check convergence
             if(rms_norm < tol) then
-                if(verbose >= OMMP_VERBOSE_HIGH) &
-                    write(6, *) "Required convergence threshold reached, exiting iterative solver."
+                call ommp_message("Required convergence threshold reached, &
+                                  &exiting iterative solver.", OMMP_VERBOSE_HIGH)
                 exit
             end if
 
@@ -246,6 +246,7 @@ module mod_solvers
         real(rp) :: rms_norm, max_norm
         logical :: do_diis
         real(rp), allocatable :: x_new(:), y(:), x_diis(:,:), e_diis(:,:), bmat(:,:)
+        character(len=120) :: msg
         
         ! Optional arguments handling
         if(present(arg_tol)) then
@@ -268,16 +269,17 @@ module mod_solvers
 
         do_diis =  (diis_max > 0)
         
-        if(verbose >= OMMP_VERBOSE_LOW) then
-            write(6, *) "Solving linear system with jacobi solver"
-            write(6, *) "Max iter:", n_iter
-            write(6, *) "Tolerance: ", tol
-            if(do_diis) then
-                write(6, *) "DIIS is enabled with n = ", diis_max
-            else
-                write(6, *) "DIIS is disabled"
-            endif
-        end if
+        call ommp_message("Solving linear system with jacobi solver", OMMP_VERBOSE_LOW)
+        write(msg, "(A, I4)") "Max iter:", n_iter
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        write(msg, "(A, E8.1)") "Tolerance: ", tol
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        if(do_diis) then
+            write(msg, "(A, I4)") "DIIS is enabled with n = ", diis_max
+        else
+            write(msg, "(A)") "DIIS is disabled"
+        endif
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
         
         ! Memory allocation
         call mallocate('jacobi_diis_solver [x_new]', n, x_new)
@@ -317,13 +319,13 @@ module mod_solvers
             ! update
             x = x_new
             
-            if(verbose >= OMMP_VERBOSE_HIGH) then
-                write(6, "(t3,'iter=',i4,' residual norm (rms, max): ', 2d14.4)") it, rms_norm, max_norm
-            end if
-            
+            write(msg, "('iter=',i4,' residual norm (rms, max): ', 2d14.4)") it, rms_norm, max_norm
+            call ommp_message(msg, OMMP_VERBOSE_HIGH)
+
+            ! Check convergence
             if(max_norm < tol) then
-                if(verbose >= OMMP_VERBOSE_HIGH) &
-                    write(6, *) "Required convergence threshold reached, exiting iterative solver."
+                call ommp_message("Required convergence threshold reached, &
+                                  &exiting iterative solver.", OMMP_VERBOSE_HIGH)
                 exit
             end if
         enddo

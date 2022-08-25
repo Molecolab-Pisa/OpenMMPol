@@ -32,8 +32,8 @@ module mod_polarization
     !!    \label{eq:T_offdiag}
     !! \end{equation}
 
-
     use mod_memory, only: ip, rp
+    use mod_io, only: ommp_message
     
     implicit none 
     private
@@ -59,7 +59,7 @@ module mod_polarization
         !! field and induced dipoles are stored in e(:,:,1)/ipds(:,:,1) while
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
-        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, pol, fatal_error, verbose
+        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, pol, fatal_error
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
@@ -177,18 +177,18 @@ module mod_polarization
             end select
         end if
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            if(amoeba) then
-                call print_matrix(.false., 'RHS (D)', n, 1, n, 1, &
-                                  e_vec(:, OMMP_AMOEBA_D))
-                call print_matrix(.false., 'RHS (P)', n, 1, n, 1, &
-                                  e_vec(:, OMMP_AMOEBA_P))
-            else
-                call print_matrix(.false., 'RHS', n, 1, n, 1, e_vec)
-            end if
-            if(allocated(tmat)) &
-                call print_matrix(.false., 'LHS', n, n, n, n, tmat)
-        end if
+        !--! if(verbose == OMMP_VERBOSE_DEBUG) then
+        !--!     if(amoeba) then
+        !--!         call print_matrix(.false., 'RHS (D)', n, 1, n, 1, &
+        !--!                           e_vec(:, OMMP_AMOEBA_D))
+        !--!         call print_matrix(.false., 'RHS (P)', n, 1, n, 1, &
+        !--!                           e_vec(:, OMMP_AMOEBA_P))
+        !--!     else
+        !--!         call print_matrix(.false., 'RHS', n, 1, n, 1, e_vec)
+        !--!     end if
+        !--!     if(allocated(tmat)) &
+        !--!         call print_matrix(.false., 'LHS', n, n, n, n, tmat)
+        !--! end if
 
         select case (solver)
             case(OMMP_SOLVER_CG)
@@ -320,7 +320,7 @@ module mod_polarization
         !! is only used to accumulate results from [[dipole_T]] and shape it in
         !! the correct way.
 
-        use mod_mmpol, only : pol_atoms, verbose
+        use mod_mmpol, only : pol_atoms
         use mod_io, only: print_matrix
         use mod_constants, only: OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH
 
@@ -333,8 +333,7 @@ module mod_polarization
 
         integer(ip) :: i, j, ii, jj
         
-        if(verbose >= OMMP_VERBOSE_HIGH) &
-            write(6, *) "Explicitly computing interaction matrix to solve the polarization system"
+        call ommp_message("Explicitly computing interaction matrix to solve the polarization system", OMMP_VERBOSE_HIGH)
 
         ! Initialize the tensor with zeros
         tmat = 0.0_rp
@@ -353,11 +352,11 @@ module mod_polarization
         enddo
         
         ! Print the matrix if verbose output is requested
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            call print_matrix(.true., 'Polarization tensor:', &
-                              3*pol_atoms, 3*pol_atoms, &
-                              3*pol_atoms, 3*pol_atoms, TMat)
-        end if
+        ! if(verbose == OMMP_VERBOSE_DEBUG) then
+        !     call print_matrix(.true., 'Polarization tensor:', &
+        !                       3*pol_atoms, 3*pol_atoms, &
+        !                       3*pol_atoms, 3*pol_atoms, TMat)
+        ! end if
         
     end subroutine create_TMat
 

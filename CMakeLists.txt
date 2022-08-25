@@ -22,6 +22,7 @@ add_library(openmmpol SHARED
             src/mod_inputloader.f90
             src/mod_interface.f90
             src/mod_io.f90
+            src/mod_iohdf5.f90
             src/mod_memory.f90
             src/mod_mmpol.f90
             src/mod_nonbonded.f90

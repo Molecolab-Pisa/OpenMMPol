@@ -1,6 +1,6 @@
 subroutine rotate_multipoles(doder,def,fx)
   use mod_memory, only: ip, rp
-  use mod_mmpol, only: ld_cder, mm_atoms, q, q0, verbose, ix, iy, iz
+  use mod_mmpol, only: ld_cder, mm_atoms, q, q0, ix, iy, iz
   use mod_io, only: print_matrix
   implicit none
 !
@@ -37,20 +37,20 @@ subroutine rotate_multipoles(doder,def,fx)
 !
 !     (very verbose) debug printing:
 !
-      if(verbose == 3) then
-        do i = 1, 3
-          call print_matrix(.false.,'dri:',3,3,3,3,dri(:,:,i))
-        end do
-        do i = 1, 3
-          call print_matrix(.false.,'driz:',3,3,3,3,driz(:,:,i))
-        end do
-        do i = 1, 3
-          call print_matrix(.false.,'drix:',3,3,3,3,drix(:,:,i))
-        end do
-        do i = 1, 3
-          call print_matrix(.false.,'driy:',3,3,3,3,driy(:,:,i))
-        end do
-      end if
+      !--! if(verbose == 3) then
+      !--!   do i = 1, 3
+      !--!     call print_matrix(.false.,'dri:',3,3,3,3,dri(:,:,i))
+      !--!   end do
+      !--!   do i = 1, 3
+      !--!     call print_matrix(.false.,'driz:',3,3,3,3,driz(:,:,i))
+      !--!   end do
+      !--!   do i = 1, 3
+      !--!     call print_matrix(.false.,'drix:',3,3,3,3,drix(:,:,i))
+      !--!   end do
+      !--!   do i = 1, 3
+      !--!     call print_matrix(.false.,'driy:',3,3,3,3,driy(:,:,i))
+      !--!   end do
+      !--! end if
 !
 !     extract the field and field gradient:
 !
@@ -281,7 +281,7 @@ subroutine rotate_multipoles(doder,def,fx)
 !
 !     (very verbose) output:
 !
-      if (verbose == 3) call print_matrix(.false.,'ri:',3,3,3,3,r)
+      !--! if (verbose == 3) call print_matrix(.false.,'ri:',3,3,3,3,r)
       rt = transpose(r)
 !
 !     copy the monopole:
@@ -318,7 +318,7 @@ subroutine rotate_multipoles(doder,def,fx)
 end subroutine rotate_multipoles
 !
 subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
-  use mod_mmpol, only: cmm, verbose, mol_frame, fatal_error
+  use mod_mmpol, only: cmm, mol_frame, fatal_error
   use mod_memory, only: ip, rp
   use mod_io, only: print_matrix
   implicit none
@@ -661,37 +661,37 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !
 ! (very verbose) debug printing:
 !
-  if(verbose == 3) then
-    call print_matrix(.false.,'ez_u',3,3,3,3,ez_u)
-    call print_matrix(.false.,'u_ri',3,3,3,3,u_ri)
-    call print_matrix(.false.,'u_riz',3,3,3,3,u_riz)
-    call print_matrix(.false.,'u_rix',3,3,3,3,u_rix)
-    call print_matrix(.false.,'u_riy',3,3,3,3,u_riy)
+  !--! if(verbose == 3) then
+  !--!   call print_matrix(.false.,'ez_u',3,3,3,3,ez_u)
+  !--!   call print_matrix(.false.,'u_ri',3,3,3,3,u_ri)
+  !--!   call print_matrix(.false.,'u_riz',3,3,3,3,u_riz)
+  !--!   call print_matrix(.false.,'u_rix',3,3,3,3,u_rix)
+  !--!   call print_matrix(.false.,'u_riy',3,3,3,3,u_riy)
 !
-    call print_matrix(.false.,'ex_v',3,3,3,3,ex_v)
-    call print_matrix(.false.,'ex_ez',3,3,3,3,ex_ez)
-    call print_matrix(.false.,'v_ri',3,3,3,3,v_ri)
-    call print_matrix(.false.,'v_rix',3,3,3,3,v_rix)
-    call print_matrix(.false.,'v_riy',3,3,3,3,v_riy)
+  !--!   call print_matrix(.false.,'ex_v',3,3,3,3,ex_v)
+  !--!   call print_matrix(.false.,'ex_ez',3,3,3,3,ex_ez)
+  !--!   call print_matrix(.false.,'v_ri',3,3,3,3,v_ri)
+  !--!   call print_matrix(.false.,'v_rix',3,3,3,3,v_rix)
+  !--!   call print_matrix(.false.,'v_riy',3,3,3,3,v_riy)
 !
-    call print_matrix(.false.,'ez_ri',3,3,3,3,ez_ri)
-    call print_matrix(.false.,'ez_riz',3,3,3,3,ez_riz)
-    call print_matrix(.false.,'ez_rix',3,3,3,3,ez_rix)
-    call print_matrix(.false.,'ez_riy',3,3,3,3,ez_riy)
+  !--!   call print_matrix(.false.,'ez_ri',3,3,3,3,ez_ri)
+  !--!   call print_matrix(.false.,'ez_riz',3,3,3,3,ez_riz)
+  !--!   call print_matrix(.false.,'ez_rix',3,3,3,3,ez_rix)
+  !--!   call print_matrix(.false.,'ez_riy',3,3,3,3,ez_riy)
 !
-    call print_matrix(.false.,'ex_ri',3,3,3,3,ex_ri)
-    call print_matrix(.false.,'ex_riz',3,3,3,3,ex_riz)
-    call print_matrix(.false.,'ex_rix',3,3,3,3,ex_rix)
-    call print_matrix(.false.,'ex_riy',3,3,3,3,ex_riy)
+  !--!   call print_matrix(.false.,'ex_ri',3,3,3,3,ex_ri)
+  !--!   call print_matrix(.false.,'ex_riz',3,3,3,3,ex_riz)
+  !--!   call print_matrix(.false.,'ex_rix',3,3,3,3,ex_rix)
+  !--!   call print_matrix(.false.,'ex_riy',3,3,3,3,ex_riy)
 !
-    call print_matrix(.false.,'ey_ex',3,3,3,3,ey_ex)
-    call print_matrix(.false.,'ey_ez',3,3,3,3,ey_ez)
+  !--!   call print_matrix(.false.,'ey_ex',3,3,3,3,ey_ex)
+  !--!   call print_matrix(.false.,'ey_ez',3,3,3,3,ey_ez)
 !
-    call print_matrix(.false.,'ey_ri',3,3,3,3,ey_ri)
-    call print_matrix(.false.,'ey_riz',3,3,3,3,ey_riz)
-    call print_matrix(.false.,'ey_rix',3,3,3,3,ey_rix)
-    call print_matrix(.false.,'ey_riy',3,3,3,3,ey_riy)
-  end if
+  !--!   call print_matrix(.false.,'ey_ri',3,3,3,3,ey_ri)
+  !--!   call print_matrix(.false.,'ey_riz',3,3,3,3,ey_riz)
+  !--!   call print_matrix(.false.,'ey_rix',3,3,3,3,ey_rix)
+  !--!   call print_matrix(.false.,'ey_riy',3,3,3,3,ey_riy)
+  !--! end if
 !
   return
 end subroutine rotation_matrix

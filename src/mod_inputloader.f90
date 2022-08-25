@@ -1,4 +1,6 @@
 module mod_inputloader
+    use mod_io, only: ommp_message
+
     implicit none
     private
 
@@ -11,7 +13,7 @@ module mod_inputloader
         !! and initialize all the quantities need to describe the environment
         !! within this library.
 
-        use mod_mmpol, only: verbose, cmm, q, pol
+        use mod_mmpol, only: cmm, q, pol
         use mod_mmpol, only: mm_atoms, amoeba, &
                              polar_mm, conn, mmat_polgrp, thole_scale
         use mod_mmpol, only: mol_frame, iz, ix, iy
@@ -63,10 +65,10 @@ module mod_inputloader
         ! TODO why we do not use eps_rp directly?
 
         integer(ip), allocatable :: i12(:,:)
+        character(len=120) :: msg
        
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Reading MMP file: ", input_file(1:len(trim(input_file)))
-        end if
+        write(msg, "(A)") "Reading MMP file: "//input_file(1:len(trim(input_file)))
+        call ommp_message(msg, OMMP_VERBOSE_DEBUG)
 
         ! open the (formatted) input file
         open (unit=iof_mmpinp, &
@@ -79,9 +81,7 @@ module mod_inputloader
             call fatal_error('Error while opening MMP input file')
         end if
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Reading input parameters"
-        end if
+        call ommp_message("Reading input parameters", OMMP_VERBOSE_DEBUG)
 
         ! Read input revision, supported revisions are 2 and 3.
         read(iof_mmpinp,*) input_revision
@@ -109,9 +109,7 @@ module mod_inputloader
             my_ld_cart = 1
         end if
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Allocating memory"
-        end if
+        call ommp_message("Allocating memory", OMMP_VERBOSE_DEBUG)
 
         call mallocate('mmpol_init_from_mmp [my_cmm]', 3_ip, my_mm_atoms, my_cmm)
         call mallocate('mmpol_init_from_mmp [my_q]', my_ld_cart, my_mm_atoms, my_q)
@@ -121,9 +119,7 @@ module mod_inputloader
        
         call skip_lines(iof_mmpinp, my_mm_atoms+1) ! Skip a zero and the section of atomic numbers
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Reading coordinates"
-        end if
+        call ommp_message("Reading coordinates", OMMP_VERBOSE_DEBUG)
         ! coordinates:
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_cmm(1:3,i)
@@ -131,26 +127,20 @@ module mod_inputloader
 
         call skip_lines(iof_mmpinp, my_mm_atoms) ! Skip section of residues number
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Reading fixed multipoles"
-        end if
+        call ommp_message("Reading fixed multipoles", OMMP_VERBOSE_DEBUG)
         ! charges/multipoles:
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_q(1:my_ld_cart,i)
         end do
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Reading polarizabilities"
-        end if
+        call ommp_message("Reading polarizabilities", OMMP_VERBOSE_DEBUG)
         ! polarizabilities:
         my_pol = 0.0_rp
         do i = 1, my_mm_atoms
             read(iof_mmpinp,*) my_pol(i)
         end do
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Processing polarizabilities"
-        end if
+        call ommp_message("Processing polarizabilities", OMMP_VERBOSE_DEBUG)
         ! count how many atoms are polarizable:
         ! TODO this is more efficiently done with pack and count
         my_pol_atoms = 0
@@ -168,9 +158,7 @@ module mod_inputloader
         end do
         my_pol(my_pol_atoms+1:my_mm_atoms) = 0.0_rp
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Initializing open mmpol module"
-        end if
+        call ommp_message("Initializing open mmpol module", OMMP_VERBOSE_DEBUG)
         ! mmpol module initialization
         call mmpol_init(my_ff_type, my_mm_atoms, my_pol_atoms)
         if(amoeba) then
@@ -195,9 +183,7 @@ module mod_inputloader
             end if
         end if 
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Converting input units to A.U."
-        end if
+        call ommp_message("Converting input units to A.U.", OMMP_VERBOSE_DEBUG)
         ! Copy data in the correct units (this means AU)
         cmm = my_cmm * angstrom2au
         q = my_q
@@ -211,9 +197,7 @@ module mod_inputloader
         call mfree('mmpol_init_from_mmp [my_q]', my_q)
         call mfree('mmpol_init_from_mmp [pol]', my_pol)
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Processing connectivity informations"
-        end if
+        call ommp_message("Processing connectivity informations", OMMP_VERBOSE_DEBUG)
 
         ! 1-2 connectivity:
         call mallocate('mmpol_init_from_mmp [i12]', maxn12, mm_atoms, i12)
@@ -244,15 +228,10 @@ module mod_inputloader
         ! now, process the input, create all the required arrays 
         ! and the correspondence lists:
      
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Populating utility arrays"
-        end if
-        
+        call ommp_message("Populating utility arrays", OMMP_VERBOSE_DEBUG)
         call mmpol_prepare()
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Initialization from MMP file done."
-        end if
+        call ommp_message("Initialization from MMP file done.", OMMP_VERBOSE_DEBUG)
 
     end subroutine mmpol_init_from_mmp
 
@@ -298,7 +277,7 @@ module mod_inputloader
         !! This function read a .mmp file (revision 2 and 3) are supported
         !! and initialize all the quantities need to describe the environment
         !! within this library.
-        use mod_mmpol, only: verbose, cmm, polar_mm, conn
+        use mod_mmpol, only:cmm, polar_mm, conn
         use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
         
         use mod_memory, only: ip, mfree, mallocate, memory_init
@@ -323,13 +302,12 @@ module mod_inputloader
                                   maxn12 = 8
         integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke
         integer(ip), allocatable :: i12(:,:), attype(:)
-        character(len=120) :: line
+        character(len=120) :: line, msg
         type(yale_sparse) :: adj
 
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Reading XYZ file: ", xyz_file(1:len(trim(xyz_file)))
-        end if
+        write(msg, "(A)") "Reading XYZ file: "//xyz_file(1:len(trim(xyz_file)))
+        call ommp_message(msg, OMMP_VERBOSE_DEBUG)
 
         ! open tinker xyz file
         open(unit=iof_xyzinp, &
@@ -416,15 +394,14 @@ module mod_inputloader
             call fatal_error("PRM file cannot be completely understood")
         end if
         
-        if(verbose == OMMP_VERBOSE_DEBUG) &
-            write(*, *) "Assigning electrostatic parameters"
+        call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
         call assign_pol(prm_file, attype)
         call assign_mpoles(prm_file, attype)
-        if(verbose == OMMP_VERBOSE_DEBUG) &
-            write(*, *) "Assigning non-bonded parameters"
+        
+        call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call assign_vdw(prm_file, attype)
-        if(verbose == OMMP_VERBOSE_DEBUG) &
-            write(*, *) "Assigning bonded parameters"
+        
+        call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         call assign_bond(prm_file, attype)
         call assign_angle(prm_file, attype)
         call assign_urey(prm_file, attype)

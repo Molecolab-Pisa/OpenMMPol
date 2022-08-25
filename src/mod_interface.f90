@@ -105,7 +105,7 @@ module mod_interface
         end function is_amoeba
         
         subroutine set_verbose(verb) bind(c, name='set_verbose')
-            use mod_mmpol, only: set_verbosity
+            use mod_io, only: set_verbosity
             implicit none 
 
             integer(ip), intent(in), value :: verb
@@ -114,7 +114,7 @@ module mod_interface
         end subroutine set_verbose
 
         subroutine print_summary() bind(c, name='print_summary')
-            use mod_io, only: mmpol_print_summary
+            use mod_mmpol, only: mmpol_print_summary
 
             implicit none
             
@@ -124,7 +124,7 @@ module mod_interface
         
         subroutine print_summary_to_file(filename) &
                 bind(c, name='print_summary_to_file')
-            use mod_io, only: mmpol_print_summary
+            use mod_mmpol, only: mmpol_print_summary
 
             implicit none
             
@@ -389,7 +389,7 @@ module mod_interface
             !! This function is an interface for saving an HDF5 file 
             !! with all the data contained in mmpol module using
             !! [[mod_io:mmpol_save_as_hdf5]]
-            use mod_io, only: mmpol_init_from_hdf5
+            use mod_iohdf5, only: mmpol_init_from_hdf5
 
             implicit none
             
@@ -406,7 +406,7 @@ module mod_interface
             !! This function is an interface for saving an HDF5 file 
             !! with all the data contained in mmpol module using
             !! [[mod_io:mmpol_save_as_hdf5]]
-            use mod_io, only: mmpol_save_as_hdf5
+            use mod_iohdf5, only: mmpol_save_as_hdf5
 
             implicit none
             

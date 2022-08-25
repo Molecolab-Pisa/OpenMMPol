@@ -6,13 +6,10 @@ module mod_mmpol
     
     use mod_memory, only: ip, rp
     use mod_adjacency_mat, only: yale_sparse
+    use mod_io, only: ommp_message
 
     implicit none 
     !private TODO
-    
-    integer(ip), protected :: verbose = 0_ip
-    !! verbosity flag, allowed range 0 (no printing at all) -- 
-    !! 3 (debug printing)
     
     integer(ip), protected :: ff_type
     !! Force field type selection flag (0 for AMBER, 1 for AMOEBA)
@@ -122,23 +119,8 @@ module mod_mmpol
 
     integer(ip), allocatable :: ix(:), iy(:), iz(:)
     !! neighboring atoms used to define the axes of the molecular frame
-    ! TODO those quantities could probably be used only at need and
-    ! then removed.
-
+    
     contains
-
-    subroutine set_verbosity(v)
-        integer(ip), intent(in) :: v
-
-        if( v < 0 ) then
-            verbose = 0_ip
-        else if( v > 3 ) then 
-            verbose = 3_ip
-        else
-            verbose = v
-        end if
-
-    end subroutine set_verbosity
 
     subroutine mmpol_init(l_ff_type, l_mm_atoms, l_pol_atoms)
         !! Performs all the memory allocation and vector initialization
@@ -223,6 +205,7 @@ module mod_mmpol
         !!   * performs multipoles rotation   
 
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
+        use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_DEBUG
 
         implicit none
@@ -232,9 +215,7 @@ module mod_mmpol
         
         type(yale_sparse) :: adj, pg_adj
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Building connectivity lists"
-        end if
+        call ommp_message("Building connectivity lists", OMMP_VERBOSE_DEBUG)
         
         ! compute connectivity lists from connected atoms
         if(size(conn) < 4) then
@@ -243,26 +224,21 @@ module mod_mmpol
             call build_conn_upto_n(adj, 4, conn, .false.)
         end if
         
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Creating MM->polar and polar->MM lists"
-        end if
+        call ommp_message("Creating MM->polar and polar->MM lists", OMMP_VERBOSE_DEBUG)
+
         ! invert mm_polar list creating mm_polar
         mm_polar(:) = 0
         do i = 1, pol_atoms
             mm_polar(polar_mm(i)) = i
         end do
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Populating coordinates of polarizable atoms"
-        end if
+        call ommp_message("Populating coordinates of polarizable atoms", OMMP_VERBOSE_DEBUG)
         ! populate cpol list of coordinates
         do i = 1, pol_atoms
             cpol(:,i) = cmm(:, polar_mm(i))
         end do
 
-        if(verbose == OMMP_VERBOSE_DEBUG) then
-            write(6, *) "Setting Thole factors"
-        end if
+        call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
         ! compute factors for thole damping
         
         if(amoeba) then
@@ -418,13 +394,6 @@ module mod_mmpol
                 pg2mm%ri(i+1) = pg2mm%ri(i+1) + 1
             end do
         end do
-        
-        if(verbose == 3_ip) then
-            do i=1, pg2mm%n
-                write(*, '("Atoms in polarization group ", I5, ":", *(I5))') &
-                      i, pg2mm%ci(pg2mm%ri(i):pg2mm%ri(i+1)-1)
-            end do
-        end if
     end subroutine reverse_polgrp_tab
 
     subroutine build_pg_adjacency_matrix(adj)
@@ -506,5 +475,100 @@ module mod_mmpol
         end if
         
     end subroutine set_screening_parameters
+    
+    subroutine mmpol_print_summary(of_name)
+        !! Prints a complete summary of all the quantities stored 
+        !! in the MMPol module
+
+        use mod_io, only: iof_mmpol, print_matrix, print_int_vec
+        
+        implicit none
+
+        character(len=*), intent(in), optional :: of_name
+        
+        integer(ip) :: of_unit
+
+        integer(ip) :: i, j, grp, igrp, lst(1000), ilst
+        real(rp), dimension(mm_atoms) :: polar ! Polarizabilities of all atoms
+        character(len=120) :: str
+
+        if(present(of_name)) then
+            of_unit = 101
+            open(unit=of_unit, &
+                 file=of_name(1:len(trim(of_name))), &
+                 action='write')
+        else
+            of_unit = iof_mmpol
+        end if
+
+        polar = 0.0_rp
+        do i=1, pol_atoms
+            polar(polar_mm(i)) = pol(i)
+        end do
+
+        write(of_unit, '(A, 4F8.4)') 'mscale: ', mscale
+        write(of_unit, '(A, 4F8.4)') 'pscale: ', pscale
+        if(amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', pscale_intra
+        write(of_unit, '(A, 4F8.4)') 'dscale: ', dscale
+        write(of_unit, '(A, 4F8.4)') 'uscale: ', uscale
+
+        call print_matrix(.true.,'coordinates:', &
+                          3,mm_atoms,3,mm_atoms,cmm,of_unit)
+        if (amoeba) then
+            call print_matrix(.true.,'multipoles - non rotated:', &
+                              ld_cart,mm_atoms,ld_cart,mm_atoms,q0,of_unit)
+        end if
+        call print_matrix(.true.,'multipoles :', &
+                          ld_cart,mm_atoms,ld_cart,mm_atoms,q,of_unit)
+        call print_matrix(.true.,'coordinates of polarizable atoms:', &
+                          3,pol_atoms,3,pol_atoms,cpol,of_unit)
+        call print_matrix(.false.,'polarizabilities:', &
+                          mm_atoms,1,mm_atoms,1,polar,of_unit)
+        call print_matrix(.false.,'thole factors:', &
+                          mm_atoms,1,mm_atoms,1,thole,of_unit)
+        call print_int_vec('mm_polar list:', &
+                           mm_atoms,0,0,mm_polar,.false., of_unit)
+        call print_int_vec('polar_mm list:', &
+                           pol_atoms,0,0,polar_mm, .false.,of_unit)
+
+        ! write the connectivity information for each atom:
+  1000  format(t3,'connectivity information for the ',i8,'-th atom:')
+    
+        do i = 1, mm_atoms
+            write(of_unit, 1000) i
+            
+            do j=1, 4
+                if(j == 4 .and. .not. amoeba) cycle
+                
+                write(str, "('1-', I1, ' neighors:')") j+1
+                call print_int_vec(trim(str), &
+                                   size(conn(j)%ci), &
+                                   conn(j)%ri(i), &
+                                   conn(j)%ri(i+1)-1, & 
+                                   conn(j)%ci, &
+                                   .true.,of_unit)
+            end do
+            
+            if(amoeba) then 
+                do j=1, 4
+                    ilst = 1
+                    do igrp=pg_conn(j)%ri(mmat_polgrp(i)), &
+                            pg_conn(j)%ri(mmat_polgrp(i)+1)-1
+                        grp = pg_conn(j)%ci(igrp)
+                        lst(ilst:ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)-1) = &
+                        polgrp_mmat%ci(polgrp_mmat%ri(grp):polgrp_mmat%ri(grp+1)-1)
+                        ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
+                    end do
+                    
+                    write(str, "('1-', I1, ' polarization neighors:')") j
+                    call print_int_vec(trim(str), & 
+                                       ilst-1,0,0,lst,.true., of_unit)
+                end do
+            end if
+        end do
+        
+        if(present(of_name)) close(of_unit)
+
+    end subroutine mmpol_print_summary
 
 end module mod_mmpol
