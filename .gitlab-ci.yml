@@ -240,6 +240,6 @@ run_tests-nvidia:
         - export FORTRANOPT=no_minus_zero
     script:
         - cd build_nvidia
-        - make test
+        - ctest -V
     only:
         - schedules
