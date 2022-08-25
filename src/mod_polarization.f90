@@ -41,8 +41,9 @@ module mod_polarization
     real(rp), allocatable :: TMat(:,:)
     !! Interaction tensor, only allocated for the methods that explicitly 
     !! requires it.
+    logical :: ipd_done = .false.
 
-    public :: polarization
+    public :: polarization, ipd_done
     
     contains
     
@@ -248,6 +249,7 @@ module mod_polarization
         
         ! Reshape dipole vector into the matrix 
         ipds = reshape(ipd0, (/3_ip, pol_atoms, n_ipd/)) 
+        ipd_done = .true. !! TODO Maybe check convergence...
         
         call mfree('polarization [ipd0]', ipd0)
         call mfree('polarization [e_vec]', e_vec)

@@ -27,9 +27,18 @@
 extern void mmpol_init_mmp(char *);
 extern void mmpol_init_xyz(char *, char *);
 extern void ommp_terminate(void);
-extern void do_mm(void);
-extern void do_qmmm(double *, int32_t);
-extern void get_energy(double *, double *);
+#ifdef USE_HDF5
+extern void write_hdf5(char *);
+extern void mmpol_init_hdf5(char *);
+#endif
+extern void set_verbose(int32_t);
+extern void print_summary(void);
+extern void print_summary_to_file(char *);
+
+extern void get_polelec_energy(double *);
+extern void get_fixedelec_energy(double *);
+extern void set_external_field(double *, int32_t);
+
 extern void get_vdw_energy(double *);
 extern void get_bond_energy(double *);
 extern void get_angle_energy(double *);
@@ -41,19 +50,11 @@ extern void get_pitors_energy(double *);
 extern void get_torsion_energy(double *);
 extern void get_tortor_energy(double *);
 extern void get_urey_energy(double *);
-extern void print_summary(void);
-extern void print_summary_to_file(char *);
-
-#ifdef USE_HDF5
-extern void write_hdf5(char *);
-extern void mmpol_init_hdf5(char *);
-#endif
 
 extern int32_t get_n_ipd(void);
 extern int32_t get_ld_cart(void);
 extern int32_t get_mm_atoms(void);
 extern int32_t get_pol_atoms(void);
-
 extern void *get_cmm(void);
 extern void *get_cpol(void);
 extern void *get_q(void);
@@ -61,5 +62,3 @@ extern void *get_ipd(void);
 extern void *get_polar_mm(void);
 
 extern bool is_amoeba(void);
-
-extern void set_verbose(int32_t);

@@ -46,7 +46,7 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    int n_ipd, pol_atoms;
+    int pol_atoms;
     double E_MMMM, E_MMPOL;
     double *electric_field;
     double **external_ef;
@@ -54,26 +54,24 @@ int main(int argc, char **argv){
 
     mmpol_init_mmp(argv[1]);
     set_verbose(OMMP_VERBOSE_NONE);
-    n_ipd = get_n_ipd();
     pol_atoms = get_pol_atoms();
     
-    electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
+    electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     polar_mm = (int32_t *) get_polar_mm();
     
     if(argc == 4)
         external_ef = read_ef(argv[3]);
 
-    for(int i = 0; i < n_ipd; i++)
-        for(int j = 0; j < pol_atoms; j++)
-            for(int k = 0; k < 3; k++)
-                if(argc == 4)
-                    electric_field[i*pol_atoms*3+j*3+k] = external_ef[polar_mm[j]-1][k];
-                else
-                    electric_field[i*pol_atoms*3+j*3+k] = 0.0;
+    for(int j = 0; j < pol_atoms; j++)
+        for(int k = 0; k < 3; k++)
+            if(argc == 4)
+                electric_field[j*3+k] = external_ef[polar_mm[j]-1][k];
+            else
+                electric_field[j*3+k] = 0.0;
 
-    do_qmmm(electric_field, OMMP_SOLVER_DEFAULT);
-
-    get_energy(&E_MMMM, &E_MMPOL); 
+    get_fixedelec_energy(&E_MMMM);
+    set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
+    get_polelec_energy(&E_MMPOL);
 
     FILE *fp = fopen(argv[2], "w+");
 

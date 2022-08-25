@@ -11,7 +11,7 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    int n_ipd, pol_atoms;
+    int pol_atoms;
     double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, 
            ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex;
     
@@ -20,19 +20,18 @@ int main(int argc, char **argv){
     set_verbose(OMMP_VERBOSE_DEBUG);
     mmpol_init_hdf5(argv[1]);
     
-    n_ipd = get_n_ipd();
     pol_atoms = get_pol_atoms();
     
-    electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
+    electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     
-    for(int i = 0; i < n_ipd; i++)
-        for(int j = 0; j < pol_atoms; j++)
-            for(int k = 0; k < 3; k++)
-                electric_field[i*pol_atoms*3+j*3+k] = 0.0;
+    for(int j = 0; j < pol_atoms; j++)
+        for(int k = 0; k < 3; k++)
+            electric_field[j*3+k] = 0.0;
 
-    do_qmmm(electric_field, OMMP_SOLVER_DEFAULT);
+    get_fixedelec_energy(&em);
+    set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
+    get_polelec_energy(&ep);
 
-    get_energy(&em, &ep); 
     get_vdw_energy(&ev);
     get_bond_energy(&eb);
     get_angle_energy(&ea);

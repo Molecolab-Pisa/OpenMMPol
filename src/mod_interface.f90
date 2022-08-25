@@ -1,17 +1,23 @@
 ! Wrapper function for open-mmpol library
 module mod_interface
     use iso_c_binding
-    use mod_mmpol
     use mod_memory, only: ip, rp
 
     implicit none
     private
 
-    public :: get_mm_atoms, get_pol_atoms, get_n_ipd, get_ld_cart
-    public :: is_amoeba, get_cmm, get_cpol, get_q, get_ipd
-    public :: get_polar_mm
-    public :: mmpol_init_mmp, do_mm, do_qmmm, get_energy, &
-              ommp_terminate
+    public :: get_cmm, get_cpol, get_q, get_ipd, get_polar_mm, get_mm_atoms
+    public :: get_pol_atoms, get_ld_cart, is_amoeba
+
+    public :: set_verbose, print_summary, print_summary_to_file
+    public :: mmpol_init_xyz, mmpol_init_mmp, ommp_terminate
+
+    public :: set_external_field, get_polelec_energy, get_fixedelec_energy
+    public :: get_urey_energy, get_strbnd_energy, get_angle_energy
+    public :: get_angtor_energy, get_strtor_energy, get_bond_energy
+    public :: get_opb_energy, get_pitors_energy, get_torsion_energy
+    public :: get_tortor_energy, get_vdw_energy 
+
 #ifdef USE_HDF5
     public :: write_hdf5, mmpol_init_hdf5
 #endif
@@ -19,36 +25,42 @@ module mod_interface
     contains
         
         function get_cmm() bind(c, name='get_cmm')
+            use mod_mmpol, only: cmm
             type(c_ptr) :: get_cmm
 
             get_cmm = c_loc(cmm)
         end function get_cmm
 
         function get_cpol() bind(c, name='get_cpol')
+            use mod_mmpol, only: cpol
             type(c_ptr) :: get_cpol
 
             get_cpol = c_loc(cpol)
         end function get_cpol
 
         function get_q() bind(c, name='get_q')
+            use mod_mmpol, only: q
             type(c_ptr) :: get_q
 
             get_q = c_loc(q)
         end function get_q
 
         function get_ipd() bind(c, name='get_ipd')
+            use mod_mmpol, only: ipd
             type(c_ptr) :: get_ipd
 
             get_ipd = c_loc(ipd)
         end function get_ipd
         
         function get_polar_mm() bind(c, name='get_polar_mm')
+            use mod_mmpol, only: polar_mm
             type(c_ptr) :: get_polar_mm
 
             get_polar_mm = c_loc(polar_mm)
         end function get_polar_mm
 
         function get_mm_atoms() bind(c, name='get_mm_atoms')
+            use mod_mmpol, only: mm_atoms
             implicit none
 
             integer(ip) :: get_mm_atoms
@@ -57,6 +69,7 @@ module mod_interface
         end function get_mm_atoms
         
         function get_pol_atoms() bind(c, name='get_pol_atoms')
+            use mod_mmpol, only: pol_atoms
             implicit none
 
             integer(ip) :: get_pol_atoms
@@ -65,6 +78,7 @@ module mod_interface
         end function get_pol_atoms
 
         function get_n_ipd() bind(c, name='get_n_ipd')
+            use mod_mmpol, only: n_ipd
             implicit none
 
             integer(ip) :: get_n_ipd
@@ -73,6 +87,7 @@ module mod_interface
         end function get_n_ipd
 
         function get_ld_cart() bind(c, name='get_ld_cart')
+            use mod_mmpol, only: ld_cart
             implicit none
 
             integer(ip) :: get_ld_cart
@@ -81,6 +96,7 @@ module mod_interface
         end function get_ld_cart
 
         function is_amoeba() bind(c, name='is_amoeba')
+            use mod_mmpol, only: amoeba
             implicit none
 
             logical(c_bool) :: is_amoeba
@@ -89,6 +105,7 @@ module mod_interface
         end function is_amoeba
         
         subroutine set_verbose(verb) bind(c, name='set_verbose')
+            use mod_mmpol, only: set_verbosity
             implicit none 
 
             integer(ip), intent(in), value :: verb
@@ -105,7 +122,8 @@ module mod_interface
 
         end subroutine print_summary
         
-        subroutine print_summary_to_file(filename) bind(c, name='print_summary_to_file')
+        subroutine print_summary_to_file(filename) &
+                bind(c, name='print_summary_to_file')
             use mod_io, only: mmpol_print_summary
 
             implicit none
@@ -139,7 +157,8 @@ module mod_interface
             f_str = trim(f_str)
         end subroutine c2f_string
         
-        subroutine mmpol_init_xyz(xyzfile, prmfile) bind(c, name='mmpol_init_xyz')
+        subroutine mmpol_init_xyz(xyzfile, prmfile) &
+                bind(c, name='mmpol_init_xyz')
             use mod_inputloader, only : mmpol_init_from_xyz
             
             implicit none
@@ -164,47 +183,69 @@ module mod_interface
             call mmpol_init_from_mmp(input_file)
         end subroutine 
 
-        subroutine do_mm() bind(c, name='do_mm') 
-            ! Perform the MM-only calculations of pot and field
-            ! and return EMM
-            use mod_io, only: print_matrix
-            use mod_electrostatics, only: prepare_M2M, prepare_M2D
-            
-            implicit none
-  
-            call prepare_M2M()
-            call prepare_M2D()
-
-        end subroutine 
-
-        subroutine do_qmmm(ef_qmd, solver) bind(c, name='do_qmmm')
-            ! Compute polarization and QM-MM energy
-            use mod_polarization, only: polarization
-            use mod_mmpol, only: pol_atoms, n_ipd
+        subroutine set_external_field(ext_field, solver) &
+                bind(c, name='set_external_field')
+            !! This function get an external field and solve the polarization
+            !! system in the presence of the provided external field.
+            use mod_polarization, only: polarization, ipd_done
+            use mod_mmpol, only: pol_atoms, n_ipd, ipd
             use mod_electrostatics, only: e_m2d, prepare_M2D
+            use mod_memory, only: mallocate, mfree
 
             implicit none
             
-            real(kind=rp), intent(in) :: ef_qmd(3, pol_atoms, n_ipd)
+            real(kind=rp), intent(in) :: ext_field(3, pol_atoms)
             integer(ip), intent(in), value :: solver
 
+            real(rp), allocatable :: ef(:,:,:)
+            integer :: i
+
+            ipd_done = .false.
+            
+            call mallocate('get_polelec_energy [ef]', 3, pol_atoms, n_ipd, ef)
             call prepare_M2D()
-            call polarization(e_m2d+ef_qmd, ipd, solver)
+            do i=1, n_ipd
+                ef(:,:,i) = e_m2d(:,:,i) + ext_field
+            end do
+            call polarization(ef, ipd, solver)
+            call mfree('get_polelec_energy [ef]', ef)
+
+        end subroutine set_external_field
+
+        subroutine get_polelec_energy(epol) &
+                bind(c, name='get_polelec_energy')
+            !! Solve the polarization equation for a certain external field
+            !! and compute the interaction energy of the induced dipoles with
+            !! themselves and fixed multipoles.
+
+            use mod_polarization, only: polarization, ipd_done
+            use mod_mmpol, only: ipd
+            use mod_electrostatics, only: e_m2d, prepare_M2D, energy_MM_pol
+            use mod_constants, only: OMMP_SOLVER_DEFAULT
+
+            implicit none
+            
+            real(rp), intent(out) :: epol
+
+            if(.not. ipd_done) then
+                !! Solve the polarization system without external field
+                call prepare_M2D()
+                call polarization(e_m2d, ipd, OMMP_SOLVER_DEFAULT)
+            end if
+            call energy_MM_pol(epol) 
         end subroutine
 
-        subroutine get_energy(EMM, EPol) bind(c, name='get_energy')
-            ! Get the energy
+        subroutine get_fixedelec_energy(emm) &
+                bind(c, name='get_fixedelec_energy')
+            ! Get the interaction energy of fixed multipoles
             use mod_electrostatics, only: energy_MM_MM, energy_MM_pol
 
             implicit none
-            real(kind=rp), intent(out) :: EMM, EPol
+            real(kind=rp), intent(out) :: emm
 
             emm = 0.0_rp
-            epol = 0.0_rp
             
             call energy_MM_MM(emm)
-            call energy_MM_pol(epol)
-
         end subroutine
 
         subroutine get_urey_energy(eub) bind(c, name='get_urey_energy')

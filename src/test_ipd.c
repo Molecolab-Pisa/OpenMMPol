@@ -75,21 +75,20 @@ int main(int argc, char **argv){
         return 1;
     }
     
-    electric_field = (double *) malloc(sizeof(double) * n_ipd * 3 * pol_atoms);
+    electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     polar_mm = (int32_t *) get_polar_mm();
    
     if(argc == 5)
         external_ef = read_ef(argv[4]);
 
-    for(int i = 0; i < n_ipd; i++)
-        for(int j = 0; j < pol_atoms; j++)
-            for(int k = 0; k < 3; k++)
-                if(argc == 5)
-                    electric_field[i*pol_atoms*3+j*3+k] = external_ef[polar_mm[j]-1][k];
-                else
-                    electric_field[i*pol_atoms*3+j*3+k] = 0.0;
+    for(int j = 0; j < pol_atoms; j++)
+        for(int k = 0; k < 3; k++)
+            if(argc == 5)
+                electric_field[j*3+k] = external_ef[polar_mm[j]-1][k];
+            else
+                electric_field[j*3+k] = 0.0;
 
-    do_qmmm(electric_field, solver);
+    set_external_field(electric_field, solver);
 
     // Get induced point dipoles
     _ipd = (double *) get_ipd();
