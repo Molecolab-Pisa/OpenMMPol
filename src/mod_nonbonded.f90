@@ -132,6 +132,8 @@ module mod_nonbonded
         !! it is overwritten with a warning print
         
         use mod_mmpol, only: fatal_error, mm_atoms
+        use mod_io, only: ommp_message
+        use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_adjacency_mat, only: reallocate_mat
         use mod_memory, only: mallocate, mfree
 
@@ -148,6 +150,7 @@ module mod_nonbonded
 
         integer(ip) :: i, jc, jr, newsize, oldsize
         real(rp), allocatable :: tmp(:)
+        character(len=120) :: msg
 
         if(ia == ib) then 
             call fatal_error("VdW parameters could not be set for a self-interaction")
@@ -159,7 +162,9 @@ module mod_nonbonded
         jc = max(ia, ib)
         if(any(vdw_pair%ci(vdw_pair%ri(jr):vdw_pair%ri(jr+1)-1) == jc)) then
             ! The pair is already present in the matrix
-            write(*, *) "VdW parameter for pair ", jr, jc, "will be overwritten"
+            write(msg, "(A, I5, I5, A)") "VdW parameter for pair ", jr, jc, "will be overwritten"
+            call ommp_message(msg, OMMP_VERBOSE_LOW)
+
             do i=vdw_pair%ri(jr), vdw_pair%ri(jr+1)-1
                 if(vdw_pair%ci(i) == jc) then
                     vdw_pair_r = r

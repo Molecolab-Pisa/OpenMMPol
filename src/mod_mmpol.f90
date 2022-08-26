@@ -334,6 +334,7 @@ module mod_mmpol
         ! This routine compute the thole factors and stores
         ! them in a vector. TODO add reference
         
+        use mod_constants, only: OMMP_VERBOSE_LOW
         implicit none
 
         real(rp), optional, intent(in) :: asc
@@ -356,8 +357,8 @@ module mod_mmpol
             end if
         else
             if(present(asc)) then
-                write(*,*) "Scale factor passed to thole_init is ignored because &
-                           &AMOEBA FF is used"
+                call ommp_message("Scale factor passed to thole_init is &
+                    ignored because AMOEBA FF is used", OMMP_VERBOSE_LOW)
             end if
         end if
     end subroutine thole_init

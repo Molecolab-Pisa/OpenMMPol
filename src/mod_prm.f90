@@ -2038,7 +2038,9 @@ module mod_prm
                         eqangle(iang) = th0ang(j) * deg2rad
                         iang = iang + 1
                     else
-                        write(*, *) "MB22 NO ANGLE PARAM FOUND FOR", a,b, c
+                        write(errstring, *) "No angle parameter found for &
+                            &atoms ", a, b, c
+                        call fatal_error(errstring)
                     end if
                 end do
             end do
@@ -2850,7 +2852,6 @@ module mod_prm
                     ! For each center different multipoles are defined for 
                     ! different environment. So first check if the environment
                     ! is the correct one
-                    ! write(*, *) "ATOM", i, "MULTIPOLE", j
                     
                     ! Assignament with only 1,2-neighbours.
                     ax_found = .false.

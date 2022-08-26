@@ -176,7 +176,6 @@ module mod_adjacency_mat
                             res%ri(ir+1) = res%ri(ir+1) + 1
 
                             if(res%ri(ir+1) > res_nnz) then
-                                ! write(*, *) "REALLOCATING RES"
                                 res_nnz = res_nnz + nnz
                                 call reallocate_mat(res, res_nnz)
                             endif

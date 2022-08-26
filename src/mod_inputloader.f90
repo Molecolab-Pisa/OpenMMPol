@@ -243,6 +243,7 @@ module mod_inputloader
         !! clear the handling of polarization groups.
 
         use mod_memory, only : ip
+        use mod_mmpol, only: fatal_error
         
         implicit none
 
@@ -261,7 +262,9 @@ module mod_inputloader
                 ! This is a new group
                 do j=1, maxn
                     if(polgroup_neigh(j,i) == 0) exit
-                    if(mm2pol(polgroup_neigh(j,i)) /= 0) write(*, *) "MB22 Unexpected error!" !TODO
+                    if(mm2pol(polgroup_neigh(j,i)) /= 0) then
+                        call fatal_error("Unexpected error in polgroup11_to_mm2pg")
+                    end if
                     mm2pol(polgroup_neigh(j,i)) = ipg
                 end do
 
@@ -269,7 +272,9 @@ module mod_inputloader
             end if
         end do
 
-        if( any(mm2pol == 0) ) write(*, *) "MB22 2 unexpected error" !TODO
+        if( any(mm2pol == 0) ) then
+            call fatal_error("Unexpected error in polgroup11_to_mm2pg")
+        end if
 
     end subroutine polgroup11_to_mm2pg
 

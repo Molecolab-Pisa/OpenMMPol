@@ -396,7 +396,8 @@ module mod_bonded
 
     subroutine opb_init(n, opbtype)
         !! Initialize Out-of-Plane bending potential arrays
-
+        use mod_io, only: ommp_message
+        use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_mmpol, only: fatal_error
         use mod_memory, only: mallocate
 
@@ -413,7 +414,7 @@ module mod_bonded
             case('w-d-c')
                 call fatal_error('Out-of-plane bend W-D-C is not implemented')
             case default
-                write(*,*) "'",opbtype,"'"
+                call ommp_message("Found OPB type: '"//opbtype//"'", OMMP_VERBOSE_LOW)
                 call fatal_error('Out-of-plane type specified is not understood')
         end select
 
