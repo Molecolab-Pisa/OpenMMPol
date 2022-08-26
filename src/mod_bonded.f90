@@ -9,35 +9,76 @@ module mod_bonded
 
     ! Bond
     integer(ip) :: nbond
+    !! Number of bond terms in the potential energy function
     integer(ip), allocatable :: bondat(:,:)
+    !! Atoms involved in the ith bond term
     real(rp) :: bond_cubic, bond_quartic
-    real(rp), allocatable :: kbond(:), l0bond(:)
+    !! 3rd and 4th order terms coefficients, corresponding to 
+    !! \(k^{(2)}\) and \(k^{(3)}\) 
+    real(rp), allocatable :: kbond(:)    !! Force constants for bond terms
+    real(rp), allocatable :: l0bond(:)   !! Equilibrium lengths for bonds
     logical :: use_bond = .false.
+    !! Flag to enable the calculation of bond terms in potential energy function
     public :: bond_init, bond_potential, bondat, kbond, &
               l0bond, bond_cubic, bond_quartic, use_bond
 
     ! Angle
     integer(ip) :: nangle
-    integer(ip), allocatable :: angleat(:,:), anglety(:), angauxat(:)
-    integer(ip), parameter, public :: OMMP_ANG_SIMPLE = 0, &
-                                      OMMP_ANG_H0 = 1, &
-                                      OMMP_ANG_H1 = 2, &
-                                      OMMP_ANG_H2 = 3, &
-                                      OMMP_ANG_INPLANE = 4, &
-                                      OMMP_ANG_INPLANE_H0 = 5, &
-                                      OMMP_ANG_INPLANE_H1 = 6
+    !! Number of angle terms in the potential energy function
+    integer(ip), allocatable :: angleat(:,:)
+    !! Atoms involved in the ith angle term
+    integer(ip), allocatable :: anglety(:)
+    !! Type of function to be used for ith angle term
+    integer(ip), allocatable :: angauxat(:)
+    !! Auxiliary atom to be used in calculaton of ith angle term
+
+    ! Those constants are used as shorthand for the type of angle parameter
+    ! that is used for a certain term. They consider two aspects: the functional
+    ! form that could be a simple armonic constaint on the angle or something
+    ! more involved (as the \testit{in-plane}) angle); the second aspects is 
+    ! the hydrogen-environment that is the introduction of different force 
+    ! constatns when the central atom is connected to a different number of
+    ! hydrogen atoms.
+    integer(ip), parameter, public :: OMMP_ANG_SIMPLE = 0
+    !! Simple angle with no difference for hydrogen environments
+    integer(ip), parameter, public :: OMMP_ANG_H0 = 1
+    !! Simple angle with two different hydrogen environments
+    integer(ip), parameter, public :: OMMP_ANG_H1 = 2
+    !! Simple angle with three different hydrogen environments
+    integer(ip), parameter, public :: OMMP_ANG_H2 = 3
+    !! Simple angle with four different hydrogen environments
+    integer(ip), parameter, public :: OMMP_ANG_INPLANE = 4
+    !! In-plane angle with no difference for hydrogen environments
+    integer(ip), parameter, public :: OMMP_ANG_INPLANE_H0 = 5
+    !! In-plane angle with two different hydrogen environments
+    integer(ip), parameter, public :: OMMP_ANG_INPLANE_H1 = 6
+    !! In-plane angle with three different hydrogen environments
     real(rp) :: angle_cubic, angle_quartic, angle_pentic, angle_sextic
-    real(rp), allocatable :: kangle(:), eqangle(:)
+    !! Coefficients for 3rd to 6th order terms corresponding to 
+    !! \(k^{(3)}\) ... \(k^{(6)}\). 
+    real(rp), allocatable :: kangle(:)
+    !! Force constants for the ith angle term
+    real(rp), allocatable :: eqangle(:)
+    !! Equilibrium angle for the ith angle term
     logical :: use_angle = .false.
+    !! Flag to enable the calculation of angle terms in potential energy function
     public :: angle_init, angle_potential, angleat, anglety, kangle, eqangle, &
               angle_cubic, angle_quartic, angle_pentic, angle_sextic, use_angle
 
     ! Stretch-Bend
     integer(ip) :: nstrbnd
+    !! Number of stretching-bending coupling terms in potential energy function
     integer(ip), allocatable :: strbndat(:,:)
-    real(rp), allocatable :: strbndk1(:), strbndk2(:), strbndthet0(:), &
-                             strbndl10(:), strbndl20(:)
+    !! Atoms involved in the ith stretching-bending term
+    real(rp), allocatable :: strbndk1(:), strbndk2(:)
+    !! Force constants for the ith stretching-bending term (\(k_1\) and \(k_2\))
+    real(rp), allocatable :: strbndthet0(:)
+    !! Equilibrium angle for the ith stretching-bending term
+    real(rp), allocatable :: strbndl10(:), strbndl20(:)
+    !! Equilibrium distances for the ith stretching-bending term
     logical :: use_strbnd = .false.
+    !! Flag to enable calculation of stretching-bending coupling terms in 
+    !! potential energy function
     public :: strbnd_init, strbnd_potential, strbndat, strbndk1, &
               strbndk2, strbndl10, strbndl20, strbndthet0, use_strbnd
     
@@ -59,19 +100,33 @@ module mod_bonded
     
     ! Urey-Bradley
     integer(ip) :: nurey
+    !! Number of Urey-Bradley terms in potential energy function
     integer(ip), allocatable :: ureyat(:,:)
+    !! Atoms involved in ith Urey-Bradley term
     real(rp) :: urey_cubic, urey_quartic
-    real(rp), allocatable :: kurey(:), l0urey(:)
+    !! 3rd and 4th order constants for U-B potential (
+    !! \(k^{(3)}\) and \(k^{(4)}\))
+    real(rp), allocatable :: kurey(:)
+    !! Force constants for U-B terms
+    real(rp), allocatable :: l0urey(:)
+    !! Equilibrium distance for U-B potentials
     logical :: use_urey = .false.
+    !! Flag to enable calculation of U-B terms in the potential energy function
     public :: urey_init, urey_potential, ureyat, kurey, &
               l0urey, urey_cubic, urey_quartic, use_urey
 
     ! Out-of-Plane Bending
     integer(ip) :: nopb
+    !! Number of out-of-plane bending function in potential energy func.
     integer(ip), allocatable :: opbat(:,:)
+    !! Atoms involved in ith oop bending function
     real(rp) :: opb_cubic=0.0, opb_quartic=0.0, opb_pentic=0.0, opb_sextic=0.0
+    !! Coefficients for 3rd to 6th order terms corresponding to 
+    !! \(k^{(3)}\) ... \(k^{(6)}\) for out-of-plane bending. 
     real(rp), allocatable :: kopb(:)
+    !! Force constants for ith out-of plane bending
     logical :: use_opb = .false.
+    !! Flag to enable out-of-plane bending calculation
     public :: opb_init, opb_potential, opbat, opb_cubic, opb_quartic, &
               opb_pentic, opb_sextic, kopb, use_opb
     
@@ -105,7 +160,8 @@ module mod_bonded
     contains
 
     subroutine bond_init(n) 
-        !! Initialize bond stretching arrays
+        !! Initialize array used in calculation of bond stratching terms of
+        !! potential energy
 
         use mod_memory, only: mallocate
 
@@ -129,7 +185,12 @@ module mod_bonded
     end subroutine bond_init
 
     subroutine bond_potential(V)
-        !! Compute the bond-stretching potential
+        !! Compute the bond-stretching terms of the potential energy.  
+        !! They are computed according to the general formula adopted in AMOEBA
+        !! Force Field:
+        !! \[U_{bond} = \sum_i k_i \Delta l_i^2 \large(1 + k^{(3)}\Delta l_i + 
+        !! k^{(4)}\Delta l_i^2 \large)\]
+        !! \[\Delta l_i = l_i - l^{(eq)}_i\]
 
         use mod_constants, only : eps_rp
         use mod_mmpol, only: cmm
@@ -171,6 +232,8 @@ module mod_bonded
     end subroutine bond_potential
 
     subroutine angle_init(n)
+        !! Initialize arrays used in calculation of angle bending functions
+
         use mod_memory, only: mallocate
 
         implicit none
@@ -198,11 +261,26 @@ module mod_bonded
     end subroutine angle_init
 
     subroutine angle_potential(V)
+        !! Compute angle-bending terms of the potential energy function.   
+        !! Simple angle terms are computed according to the formula:
+        !! \[U_{angle} = \sum_i k_i \Delta \theta_i^2 \large(1 +  
+        !!  \sum_{j=1}^4 k^{(j+2)} \Delta \theta_i^j \large)\]
+        !! \[\Delta \theta_i = \theta_i - \theta^{(eq)}_i\]    
+        !! Out-of plane angle are more complex. First, central atom has to be
+        !! a trigonal center, the other two atoms together with the auxliary 
+        !! atom (that is the remaining one connected to the trigonal center) 
+        !! define the projection plane. During the first run the auxiliary atom
+        !! is found and saved.
+        !! Then, the trigonal center is projected on the plane defined by the 
+        !! other three atoms, and the angle is the one defined by the projection
+        !! (which is the vertex, and the other two atoms -- the auxiliary is
+        !! excluded). Then the same formula used for simple angle terms is used.
         use mod_mmpol, only: cmm, conn, fatal_error
 
         implicit none
 
         real(rp), intent(inout) :: V
+        !! Bond potential, result will be added to V
         
         integer(ip) :: i, j
         real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
@@ -246,7 +324,7 @@ module mod_bonded
                     end do
                 end if
                 a = cmm(:, angleat(1,i))
-                b = cmm(:, angleat(2,i))
+                b = cmm(:, angleat(2,i)) !! Trigonal center
                 c = cmm(:, angleat(3,i))
 
                 aux = cmm(:, angauxat(i))
@@ -255,6 +333,7 @@ module mod_bonded
                 pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
                 pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
                 pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+                !! Normal vector of the projection plane
                 pln = pln / sqrt(dot_product(pln, pln))
 
                 v_dist = b - aux
@@ -277,7 +356,8 @@ module mod_bonded
     end subroutine angle_potential
     
     subroutine strbnd_init(n)
-        !! Initialize Stretch-bend cross term potential
+        !! Initialize arrays for calculation of stretch-bend cross term 
+        !! potential
 
         use mod_memory, only: mallocate
 
@@ -301,7 +381,16 @@ module mod_bonded
     end subroutine strbnd_init
 
     subroutine strbnd_potential(V)
-        !! Compute the stretch-bend cross term potential
+        !! Compute the stretch-bend cross term potential.   
+        !! Those terms are computed according the following formula:
+        !! \[U_{bond/angle} = (k_i \Delta l_i + k_j \Delta l_j) 
+        !! \Delta \theta_{ij} \]
+        !! where \(\theta_{ij}\) is the angle delimited by the bond \(i\) and 
+        !! \(j\).   
+        !! The force constants \(k_i\) and \(k_j\) are explicitely defined in
+        !! the FF, while the equilibrium values are the same as for stretching
+        !! and bending terms.
+
         use mod_mmpol, only: cmm, fatal_error
 
         implicit none
@@ -354,7 +443,10 @@ module mod_bonded
     end subroutine urey_init
 
     subroutine urey_potential(V)
-        !! Compute the Urey-Bradley potential
+        !! Compute the Urey-Bradley potential.  
+        !! This is basically a virtual bond, with its stretching harminic 
+        !! potential that connect two otherwise un-connected bonds. The same
+        !! potential formula used for normal stretching is used.
 
         use mod_constants, only : eps_rp
         use mod_mmpol, only: cmm
@@ -391,11 +483,11 @@ module mod_bonded
                 V = V + kurey(i)*dl2 * (1.0_rp + urey_cubic*dl + urey_quartic*dl2)
             end do
         end if
-        
     end subroutine urey_potential
 
     subroutine opb_init(n, opbtype)
-        !! Initialize Out-of-Plane bending potential arrays
+        !! Initialize arrays for out-of-plane bending potential calculation.   
+        !! @todo Currently only Allinger functional form is supported 
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_mmpol, only: fatal_error
@@ -428,7 +520,15 @@ module mod_bonded
     end subroutine opb_init
 
     subroutine opb_potential(V)
-        !! Compute the out-of-plane bending potential
+        !! Computes the out-of-plane bending potential.  
+        !! With Allinger formula: similarly to in plane angles, here we are 
+        !! considering a trigonal center, where D is the central atom and 
+        !! A, B, C are connected to D. Allinger formula consider the angle 
+        !! between vector \(\vec{AD}\) and the normal vector of plane ABC, 
+        !! using \(\frac{\pi}{2}\) as implicit equilibrium value. The formula
+        !! for this potential term is:
+        !! \[U_{out-of-plane} = \sum_i k_i \chi_i^2 \large(1 + 
+        !! \sum_{j=1}^4 k^{(j+2)} \chi_i^j \large) \]
 
         use mod_constants, only : pi
         use mod_mmpol, only: cmm
@@ -444,9 +544,9 @@ module mod_bonded
         if(.not. use_opb) return
         
         do i=1, nopb
-            !! A* -- D -- C
-            !!       |
-            !!       B 
+            ! A* -- D -- C
+            !       |
+            !       B 
             a = cmm(:,opbat(2,i))
             d = cmm(:,opbat(1,i))
             c = cmm(:,opbat(3,i))
@@ -471,11 +571,10 @@ module mod_bonded
             V = V +  kopb(i) * thet2 * (1 + opb_cubic*thet + opb_quartic*thet2 &
                 + opb_pentic*thet3 + opb_sextic*thet4)
         end do
-
     end subroutine opb_potential
     
     subroutine pitors_init(n)
-        !! Initialize pi-torsion potential arrays
+        !! Initialize arrays needed to compute pi-torsion potential
 
         use mod_memory, only: mallocate
 
@@ -495,7 +594,15 @@ module mod_bonded
     end subroutine pitors_init
 
     subroutine pitors_potential(V)
-        !! Compute pi-torsion potential
+        !! Compute pi-torsion terms of the potential.  
+        !! This potential is defined on a \(\pi\)-system, and uses the 
+        !! coordinates of six atoms A...F the central "double" bond is A-B, then
+        !! C and D are connected to A while E and F are connected to B. So two
+        !! plane ACD and BEF are defined. The potential is computed using the 
+        !! dihedral angle of the normal vector of those two planes, connected 
+        !! by segment A-B (\(\theta\)).  
+        !! The formula used is:
+        !! \[U_{\pi-torsion} = \sum_i k_i \large(1 + cos(2\theta-\pi) \large)\]
 
         use mod_constants, only : pi
         use mod_mmpol, only: cmm
@@ -558,7 +665,7 @@ module mod_bonded
             
             thet = acos(costhet)
 
-            V = V +  kpitors(i) * (1 + cos(2.0*thet+pi))
+            V = V +  kpitors(i) * (1 + cos(2.0*thet-pi))
         end do
 
     end subroutine pitors_potential
