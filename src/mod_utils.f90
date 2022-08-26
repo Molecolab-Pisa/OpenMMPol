@@ -1,4 +1,7 @@
 module mod_utils
+    !! This module contains some very generic utils for string manipulation,
+    !! or very basic computational/mathematic operation. It should not depend
+    !! on any module except from [[mod_memory]].
     use mod_memory, only: ip
 
     implicit none
@@ -12,11 +15,15 @@ module mod_utils
     contains
 
     function str_to_lower(s)
+        !! Convert string in input from upper case to lower case and return
+        !! the lower case string as output.
+
         implicit none
 
         character(len=*), intent(in) :: s
         !! String to be converted in lowercase
         character(len(s)) :: str_to_lower
+        !! String converted to lowercase
 
         integer :: ic, i
 
@@ -34,10 +41,14 @@ module mod_utils
     end function str_to_lower
    
     function count_substr_occurence(s, c)
-        ! Count the number of occurence of substring c in string s
+        !! Count the number of occurence of substring c in string s, and return
+        !! the number of occurence, if c is not contained in s, zero is returned.
         implicit none
 
-        character(len=*), intent(in) :: s, c
+        character(len=*), intent(in) :: s
+        !! String where to search the substring
+        character(len=*), intent(in) :: c
+        !! Substring to search
         integer(ip) :: count_substr_occurence, i, lens, lenc
         
         count_substr_occurence = 0
@@ -54,10 +65,12 @@ module mod_utils
     end function
 
     function starts_with_alpha(s)
-        ! Decide if a string starts with a letter
+        !! Decide if a string starts with a letter or not.
         implicit none
 
         character(len=*), intent(in) :: s
+        !! String to analyze
+
         logical :: starts_with_alpha
 
         starts_with_alpha = (scan(s(1:1), &
@@ -66,10 +79,12 @@ module mod_utils
     end function
 
     function isint(s)
-        ! Decide if a string contains an integer
+        !! Decide if a string can be interpreted as an integer or not
+
         implicit none
 
         character(len=*), intent(in) :: s
+        !! String to analyze
         logical :: isint
         
         isint = (verify(s, '+-1234567890') == 0)
@@ -77,10 +92,11 @@ module mod_utils
     end function
 
     function isreal(s)
-        ! Decide if a string contains a real
+        !! Decide if a string can be interpreted as a real
         implicit none
 
         character(len=*), intent(in) :: s
+        !! String to analyze
         logical :: isreal
 
         isreal = (verify(s, '+-1234567890.') == 0)
@@ -89,17 +105,35 @@ module mod_utils
     end function
 
     function tokenize(s, ib, ntok)
-        ! This function, given a string returns the first printable character
-        ! if ib is absent or the last printable character after s(ib) if ib is 
-        ! present. It's used to subdivide a string in tokens.
+        !! This function is used to subsequently break a string into tokens.
+        !! Tokens separators are any number of spaces.   
+        !! If just the string is provided, the function returns the position of
+        !! the first printable character;   
+        !! If also ib is provided it saves the position of the first printable 
+        !! character after position ib (or ib itself) in ib and return the 
+        !! position of the last printable character before the first space after
+        !! ib. If ntok is specified instead of a single token, ntok are 
+        !! returned. In case of last token hitten -1 is returned.   
+        !! To divide a string follow the following scheme:   
+        !! 1. ib = tokenize(s)   
+        !! 2. ie = tokenize(s, ib)   
+        !! 3. tok1 = s(ib:ie)   
+        !! 4a. ib = ib+1   
+        !! 4b. ie = tokenize(s, ib)   
+        !! 5. tok2 = s(ib:ie)   
 
         use mod_memory, only: ip
         implicit none
 
         character(len=120), intent(in) :: s
+        !! String to subdivide in token
         integer(ip), intent(inout), optional :: ib
+        !! Index where to start token research (input)/Index where token 
+        !! begins (output)
         integer(ip), intent(in), optional :: ntok
+        !! Number of token to be extracted
         integer(ip) :: tokenize
+        !! Index where token ends.
 
         integer(ip) :: i, slen, ich, itok
 
@@ -144,41 +178,40 @@ module mod_utils
     end function
     
     subroutine skip_lines(f, n)
-        !! This subroutine just skip lines while reading an input
-        !! file
+        !! Skips n lines while reading an input file
         use mod_memory, only: ip
         
         implicit none
 
-        !! unit file
         integer(ip), intent(in) :: f
-        !! number of line to be skipped
+        !! unit file
         integer(ip), intent(in) :: n
+        !! number of line to be skipped
 
         integer(ip) :: i
-        ! character(len=512) :: s
 
         do i=1, n
             read(f, *)
-            ! read(f, *) s
-            ! write(6, *) "SKIPPING ", i, "/", n, "  '", trim(s),"'"
         end do
-
     end subroutine skip_lines
 
 
     subroutine sort_ivec(iv, ov)
-        !! This is a simple -- and unefficient -- routine to sort a vector of int
-        !! it is just used during some output to simplify comparisons with older 
-        !! version of the code
+        !! This is a simple -- and unefficient -- routine to sort a vector of 
+        !! integers.
+        !! It is just used during some output to simplify comparisons with older 
+        !! version of the code.   
+        !! @warning This function should not be used in efficiency-critical
+        !! part of the code!
         use mod_memory, only: mallocate
 
         implicit none
 
-        !! Input vector
         integer(ip), dimension(:), intent(in) :: iv
-        !! Output, sorted vector
+        !! Input vector
         integer(ip), allocatable, intent(out) :: ov(:)
+        !! Output, sorted vector
+        
         integer(ip) :: i, imin(1)
         logical, allocatable :: mask(:)
 
@@ -201,8 +234,8 @@ module mod_utils
 
         implicit none
 
-        !! Vector to be reordered in place
         integer(ip), dimension(:), intent(inout) :: iv
+        !! Vector to be reordered in place
         integer(ip), allocatable :: ov(:)
 
         call sort_ivec(iv, ov)
@@ -210,17 +243,43 @@ module mod_utils
 
     end subroutine sort_ivec_inplace
 
-    subroutine compute_bicubic_interp(x, y, z, nx, ny, xgrd, ygrd, v, vx, vy, vxy)
-        !! Compute the value
+    subroutine compute_bicubic_interp(x, y, z, nx, ny, xgrd, ygrd, &
+                                      v, vx, vy, vxy)
+        !! Evaluate the z value at position (x, y) of a surface built as a 
+        !! bicubic spline interpolating the points     
+        !! (xgrd(\(x_i\), \(y_i\)), ygrd(\(x_i\), \(y_i\)),
+        !! vxgrd(\(x_i\), \(y_i\))).     
+        !! In order to do so also the derivatives of the surface at the points
+        !! of the grid arre needed and in particular if we consider the surface
+        !! points as
+        !! \[(x_i, y_i, V(x_i, y_i))\]
+        !! also value of \(\frac{\partial V}{\partial x}\),
+        !! \(\frac{\partial V}{\partial y}\) and 
+        !! \(\frac{\partial^2 V}{\partial x \partial y}\) at grid points
+        !! are needed.
         
         use mod_memory, only: ip, rp
 
         implicit none
 
         real(rp), intent(in) :: x, y
+        !! Coordinates at which the z value of the surface should be computed
         real(rp), intent(out) :: z
+        !! The z value of the surface
         integer(ip), intent(in) :: nx, ny
-        real(rp), dimension(ny,nx), intent(in) :: xgrd, ygrd, v, vx, vy, vxy
+        !! Number of grid points along x and y direction
+        real(rp), dimension(ny,nx), intent(in) :: xgrd
+        !! X-coordinate value of points on the grid
+        real(rp), dimension(ny,nx), intent(in) :: ygrd 
+        !! Y-coordinate value of points on the grid
+        real(rp), dimension(ny,nx), intent(in) :: v
+        !! V(x, y) of points on the grid
+        real(rp), dimension(ny,nx), intent(in) :: vx 
+        !! \(\frac{\partial V}{\partial x}\) of points on the grid
+        real(rp), dimension(ny,nx), intent(in) :: vy 
+        !! \(\frac{\partial V}{\partial y}\) of points on the grid
+        real(rp), dimension(ny,nx), intent(in) :: vxy
+        !! \(\frac{\partial^2 V}{\partial x \partial y}\) of points on the grid
 
         integer(ip) :: ix, iy, ii, jj
         logical :: done
@@ -285,15 +344,19 @@ module mod_utils
     end subroutine compute_bicubic_interp
 
     subroutine cyclic_spline(n, x, y, a, b, c, d)
-        !! Compute the cyclic interpolating cubic spline that passes for points 
-        !! (x_i, y_i). Each segment is described by the curve:
-        !! S_i(x) = a_i + b_i(x-x_i) + c_i (x-x_i)^2 + d_i(x-x_i)^3
+        !! Compute the cyclic interpolating cubic spline (2D) that passes for  
+        !! points \((x_i, y_i)\). Each segment is described by the curve:
+        !! \[S_i(x) = a_i + b_i(x-x_i) + c_i (x-x_i)^2 + d_i(x-x_i)^3\]
+        !! The algorithm used to compute the coefficients is taken from 
+        !! "Numerical Algorithm with C" - Gisela ENGELN-MULLGES Frank UHLIG
+        !! (10.1007/978-3-642-61074-5) 
+
         use mod_memory, only: ip, rp, mallocate, mfree
         implicit none
 
         integer(ip), intent(in) :: n 
         !! Dimension of the data series
-        real(rp), intent(in) :: x(:)
+        real(rp), intent(in) :: x(n)
         !! X-values of input data
         real(rp), intent(in) :: y(n) 
         !! Y-values of input data
