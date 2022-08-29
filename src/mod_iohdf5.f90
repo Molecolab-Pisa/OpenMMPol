@@ -1163,6 +1163,7 @@ module mod_iohdf5
                               'enabled', &
                               use_nonbonded)
         if(use_nonbonded) then
+            !! TODO Those parameters should be read from file!
             call vdw_init("buffered-14-7", "cubic-mean", "diameter", "r-min", &
                           "hhg")
             call hdf5_read_array(iof_hdf5_io, & 
