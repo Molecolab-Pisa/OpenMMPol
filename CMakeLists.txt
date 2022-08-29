@@ -65,7 +65,7 @@ target_compile_options(openmmpol PRIVATE -cpp)
 #set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
 
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003) # Very strict check on code
+    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
     target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
     target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
 endif()

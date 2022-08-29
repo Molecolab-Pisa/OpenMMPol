@@ -190,8 +190,8 @@ module mod_inputloader
         if(amoeba) then
             my_pol = my_pol*angstrom2au**3
         end if
-        pol = my_pol
-        polar_mm = pol_atoms_list
+        pol = my_pol(1:my_pol_atoms)
+        polar_mm = pol_atoms_list(1:my_pol_atoms)
         
         call mfree('mmpol_init_from_mmp [my_cmm]', my_cmm)
         call mfree('mmpol_init_from_mmp [my_q]', my_q)

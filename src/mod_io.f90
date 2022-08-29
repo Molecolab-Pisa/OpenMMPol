@@ -263,7 +263,7 @@ module mod_io
         if(present(ibeg)) then
             ie = iend
         else
-            ib = 0
+            ie = 0
         end if
         if(ib == 0) ib = 1
         if(ie == 0) ie = size(vec)
