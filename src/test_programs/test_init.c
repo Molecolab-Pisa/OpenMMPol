@@ -19,13 +19,13 @@ int main(int argc, char **argv){
         
     // printf("Input file: '%s'\n", infile);
 
-    set_verbose(OMMP_VERBOSE_DEBUG);
-    mmpol_init_mmp(infile);
+    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
+    ommp_init_mmp(infile);
     
     if(argc == 3)
-        print_summary_to_file(outfile);
+        ommp_ommp_print_summary_to_file(outfile);
     else
-        print_summary();
+        ommp_print_summary();
     
     ommp_terminate();
     

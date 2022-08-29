@@ -477,7 +477,7 @@ module mod_mmpol
         
     end subroutine set_screening_parameters
     
-    subroutine mmpol_print_summary(of_name)
+    subroutine mmpol_ommp_print_summary(of_name)
         !! Prints a complete summary of all the quantities stored 
         !! in the MMPol module
 
@@ -565,6 +565,6 @@ module mod_mmpol
         
         if(present(of_name)) close(of_unit)
 
-    end subroutine mmpol_print_summary
+    end subroutine mmpol_ommp_print_summary
 
 end module mod_mmpol

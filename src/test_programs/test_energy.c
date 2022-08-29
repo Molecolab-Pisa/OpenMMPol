@@ -52,12 +52,12 @@ int main(int argc, char **argv){
     double **external_ef;
     int32_t *polar_mm;
 
-    mmpol_init_mmp(argv[1]);
-    set_verbose(OMMP_VERBOSE_NONE);
-    pol_atoms = get_pol_atoms();
+    ommp_init_mmp(argv[1]);
+    ommp_set_verbose(OMMP_VERBOSE_NONE);
+    pol_atoms = ommp_get_pol_atoms();
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
-    polar_mm = (int32_t *) get_polar_mm();
+    polar_mm = (int32_t *) ommp_get_polar_mm();
     
     if(argc == 4)
         external_ef = read_ef(argv[3]);
@@ -69,9 +69,9 @@ int main(int argc, char **argv){
             else
                 electric_field[j*3+k] = 0.0;
 
-    get_fixedelec_energy(&E_MMMM);
-    set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
-    get_polelec_energy(&E_MMPOL);
+    ommp_get_fixedelec_energy(&E_MMMM);
+    ommp_set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
+    ommp_get_polelec_energy(&E_MMPOL);
 
     FILE *fp = fopen(argv[2], "w+");
 

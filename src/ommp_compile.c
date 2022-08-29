@@ -11,10 +11,10 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    set_verbose(OMMP_VERBOSE_LOW);
-    mmpol_init_xyz(argv[1], argv[2]);
+    ommp_set_verbose(OMMP_VERBOSE_LOW);
+    ommp_init_xyz(argv[1], argv[2]);
 
-    write_hdf5(argv[3]);
+    ommp_write_hdf5(argv[3]);
     
     ommp_terminate();
     

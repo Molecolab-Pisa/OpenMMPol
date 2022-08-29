@@ -24,41 +24,41 @@
 
 #define AU2KCALMOL 627.5096080306
 
-extern void mmpol_init_mmp(char *);
-extern void mmpol_init_xyz(char *, char *);
+extern void ommp_init_mmp(char *);
+extern void ommp_init_xyz(char *, char *);
 extern void ommp_terminate(void);
 #ifdef USE_HDF5
-extern void write_hdf5(char *);
-extern void mmpol_init_hdf5(char *);
+extern void ommp_write_hdf5(char *);
+extern void ommp_init_hdf5(char *);
 #endif
-extern void set_verbose(int32_t);
-extern void print_summary(void);
-extern void print_summary_to_file(char *);
+extern void ommp_set_verbose(int32_t);
+extern void ommp_print_summary(void);
+extern void ommp_ommp_print_summary_to_file(char *);
 
-extern void get_polelec_energy(double *);
-extern void get_fixedelec_energy(double *);
-extern void set_external_field(double *, int32_t);
+extern void ommp_get_polelec_energy(double *);
+extern void ommp_get_fixedelec_energy(double *);
+extern void ommp_set_external_field(double *, int32_t);
 
-extern void get_vdw_energy(double *);
-extern void get_bond_energy(double *);
-extern void get_angle_energy(double *);
-extern void get_angtor_energy(double *);
-extern void get_strtor_energy(double *);
-extern void get_strbnd_energy(double *);
-extern void get_opb_energy(double *);
-extern void get_pitors_energy(double *);
-extern void get_torsion_energy(double *);
-extern void get_tortor_energy(double *);
-extern void get_urey_energy(double *);
+extern void ommp_get_vdw_energy(double *);
+extern void ommp_get_bond_energy(double *);
+extern void ommp_get_angle_energy(double *);
+extern void ommp_get_angtor_energy(double *);
+extern void ommp_get_strtor_energy(double *);
+extern void ommp_get_strbnd_energy(double *);
+extern void ommp_get_opb_energy(double *);
+extern void ommp_get_pitors_energy(double *);
+extern void ommp_get_torsion_energy(double *);
+extern void ommp_get_tortor_energy(double *);
+extern void ommp_get_urey_energy(double *);
 
 extern int32_t get_n_ipd(void);
-extern int32_t get_ld_cart(void);
-extern int32_t get_mm_atoms(void);
-extern int32_t get_pol_atoms(void);
-extern void *get_cmm(void);
-extern void *get_cpol(void);
-extern void *get_q(void);
-extern void *get_ipd(void);
-extern void *get_polar_mm(void);
+extern int32_t ommp_get_ld_cart(void);
+extern int32_t ommp_get_mm_atoms(void);
+extern int32_t ommp_get_pol_atoms(void);
+extern void *ommp_get_cmm(void);
+extern void *ommp_get_cpol(void);
+extern void *ommp_get_q(void);
+extern void *ommp_get_ipd(void);
+extern void *ommp_get_polar_mm(void);
 
-extern bool is_amoeba(void);
+extern bool ommp_ff_is_amoeba(void);

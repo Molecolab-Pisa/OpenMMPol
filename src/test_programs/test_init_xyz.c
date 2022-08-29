@@ -11,13 +11,13 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    set_verbose(OMMP_VERBOSE_DEBUG);
-    mmpol_init_xyz(argv[1], argv[2]);
+    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
+    ommp_init_xyz(argv[1], argv[2]);
     
     if(argc == 4)
-        print_summary_to_file(argv[3]);
+        ommp_ommp_print_summary_to_file(argv[3]);
     else
-        print_summary();
+        ommp_print_summary();
     
     ommp_terminate();
     
