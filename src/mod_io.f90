@@ -1,4 +1,6 @@
 module mod_io
+    !! Unified Input/Output handling across the code.
+    
     use mod_memory, only: ip, rp
 
     implicit none
@@ -17,10 +19,22 @@ module mod_io
     public :: print_header
     public :: print_matrix, print_int_vec
 
+    interface print_matrix
+        !! Interface for matrix printing function
+        module procedure d1_print_matrix
+        module procedure d2_print_matrix
+    end interface print_matrix
+
     contains
     
     subroutine set_verbosity(v)
+        !! Set the verbosity level for the output, this is a library-level
+        !! function, that changes the behaviour of several I/O functions. It
+        !! also enforces min/max verbosity levels (currently no output is 0, 
+        !! while debug output is 3).
+
         integer(ip), intent(in) :: v
+        !! Requested level of verbosity
 
         if( v < 0 ) then
             verbose = 0_ip
@@ -32,6 +46,10 @@ module mod_io
     end subroutine set_verbosity
 
     subroutine ommp_message(s, level, logpre, u)
+        !! Output a message according to the verbosity level.   
+        !! @note All the output messages should pass for this function, if it
+        !! is necessary, first use write to format the message on a string and 
+        !! then pass the string to [[ommp_message]]
         use mod_constants, only: OMMP_VERBOSE_DEBUG, &
                                  OMMP_VERBOSE_HIGH, &
                                  OMMP_VERBOSE_LOW, &
@@ -40,9 +58,14 @@ module mod_io
         implicit none
 
         character(len=*), intent(in) :: s
+        !! Message to be printed
         character(len=*), intent(in), optional :: logpre
+        !! String that explains the type of message, if missing a default type
+        !! is assigned based on requested verbosity level
         integer(ip), intent(in) :: level
+        !! Requested verbosity level
         integer(ip), intent(in), optional :: u
+        !! Output unit for the message, if missing, unit 6/stdout is used.
 
         integer(ip) :: outunit
         character(len=12) :: pre
@@ -72,133 +95,179 @@ module mod_io
     end subroutine ommp_message
     
 
-    subroutine print_header
-      implicit none
+    subroutine print_header()
+        !! Print the header of OpenMMPol library
+        implicit none
       
-      9000 format(t3,' .d88888b.                             888b     d888 888b     d888 8888888b.          888 ',/,&
-                  t3,'d88P" "Y88b                            8888b   d8888 8888b   d8888 888   Y88b         888 ',/,&
-                  t3,'888     888                            88888b.d88888 88888b.d88888 888    888         888 ',/,&
-                  t3,'888     888 88888b.   .d88b.  88888b.  888Y88888P888 888Y88888P888 888   d88P .d88b.  888 ',/,&
-                  t3,'888     888 888 "88b d8P  Y8b 888 "88b 888 Y888P 888 888 Y888P 888 8888888P" d88""88b 888 ',/,&
-                  t3,'888     888 888  888 88888888 888  888 888  Y8P  888 888  Y8P  888 888       888  888 888 ',/,&
-                  t3,'Y88b. .d88P 888 d88P Y8b.     888  888 888   "   888 888   "   888 888       Y88..88P 888 ',/,&
-                  t3,' "Y88888P"  88888P"   "Y8888  888  888 888       888 888       888 888        "Y88P"  888 ',/,&
-                  t3,'            888                                                                           ',/,&
-                  t3,'            888                                                                           ',/,&
-                  t3,'            888                                                                           ')
-      9100 format(t3,'an open-source implementation of MMPol and AMOEBA embedding for polarizable QM/MM',/, &
-                  t5,'by Vladislav Slama, Lorenzo Cupellini, Benedetta Mennucci, ..., Filippo Lipparini',/, &
-                  t5,'MoLECoLab Pisa')
+        9000 format(t3,' .d88888b.                             888b     d888 888b     d888 8888888b.          888 ',/,&
+                    t3,'d88P" "Y88b                            8888b   d8888 8888b   d8888 888   Y88b         888 ',/,&
+                    t3,'888     888                            88888b.d88888 88888b.d88888 888    888         888 ',/,&
+                    t3,'888     888 88888b.   .d88b.  88888b.  888Y88888P888 888Y88888P888 888   d88P .d88b.  888 ',/,&
+                    t3,'888     888 888 "88b d8P  Y8b 888 "88b 888 Y888P 888 888 Y888P 888 8888888P" d88""88b 888 ',/,&
+                    t3,'888     888 888  888 88888888 888  888 888  Y8P  888 888  Y8P  888 888       888  888 888 ',/,&
+                    t3,'Y88b. .d88P 888 d88P Y8b.     888  888 888   "   888 888   "   888 888       Y88..88P 888 ',/,&
+                    t3,' "Y88888P"  88888P"   "Y8888  888  888 888       888 888       888 888        "Y88P"  888 ',/,&
+                    t3,'            888                                                                           ',/,&
+                    t3,'            888                                                                           ',/,&
+                    t3,'            888                                                                           ')
+        9100 format(t3,'an open-source implementation of MMPol and AMOEBA embedding for polarizable QM/MM',/, &
+                    t5,'by Vladislav Slama, Lorenzo Cupellini, Benedetta Mennucci, Filippo Lipparini',/, &
+                    t5,'MoLECoLab Pisa')
 
-      write(iof_mmpol,9000)
-      write(iof_mmpol,9100)
-      write(iof_mmpol,*)
-      return
+        write(iof_mmpol,9000)
+        write(iof_mmpol,9100)
+        write(iof_mmpol,*)
     end subroutine print_header
 
-    subroutine print_matrix(trans,label,lda,ldb,n,m,matrix, ofunit)
-      implicit none
-      logical,                         intent(in) :: trans
-      character    (len=*),            intent(in) :: label
-      integer(ip),                     intent(in) :: lda, ldb, n, m
-      real(rp),    dimension(lda,ldb), intent(in) :: matrix
-      integer(ip), intent(in), optional :: ofunit
-    !
-      integer(ip)        :: i, j, nbatch, nres, icol(5), out_unit
-      character (len=24) :: iform, rform
+    subroutine d1_print_matrix(trans, label, matrix, ofunit)
+        !! Output a 1D-matrix of real in a well formatted way
+        implicit none
 
-      if(present(ofunit)) then
-          out_unit = ofunit
-      else
-          out_unit = iof_mmpol
-      end if
-    !
-      1000 format(t3,a)
-      1010 format(t3,5i16)
-      1020 format(t3,5f16.8)
-      write(out_unit,1000) label
-      if (trans) then
-    !
-        nbatch = n/5
-        nres   = n - 5*nbatch
-        write(iform,'("(t3,",i1,"i16)")') nres
-        write(rform,'("(t3,",i1,"f16.8)")') nres
-    !
-        do i = 1, nbatch
-          icol(1) = (i-1)*5 + 1
-          icol(2) = (i-1)*5 + 2
-          icol(3) = (i-1)*5 + 3
-          icol(4) = (i-1)*5 + 4
-          icol(5) = (i-1)*5 + 5
-          write(out_unit,1010) icol(1:5)
-          do j = 1, m
-            write(out_unit,1020) matrix(icol(1):icol(5),j)
-          end do
-          write(out_unit,'("")')
-        end do
-    !
-        if (nres.ne.0) then
-          do i = 1, nres
-            icol(i) = 5*nbatch + i
-          end do
-          write(out_unit,iform) icol(1:nres)
-          do j = 1, m
-            write(out_unit,rform) matrix(icol(1):icol(nres),j)
-          end do
+        logical, intent(in) :: trans
+        !! It the matrix is transposed or not
+        character(len=*), intent(in) :: label
+        !! Label to be printed before the matrix
+        real(rp), dimension(:), intent(in) :: matrix
+        !! Matrix to be printed
+        integer(ip), intent(in), optional :: ofunit
+        !! Unit where the matrix should be printed, if not present [[iof_mmpol]]
+        !! is used.
+        
+        call d2_print_matrix(trans, label, &
+                             reshape(matrix, [size(matrix), 1]), ofunit)
+
+    end subroutine d1_print_matrix
+
+    subroutine d2_print_matrix(trans, label, matrix, ofunit)
+        !! Output a 2D-matrix of real in a well formatted way
+        implicit none
+
+        logical, intent(in) :: trans
+        !! It the matrix is transposed or not
+        character(len=*), intent(in) :: label
+        !! Label to be printed before the matrix
+        real(rp), dimension(:, :), intent(in) :: matrix
+        !! Matrix to be printed
+        integer(ip), intent(in), optional :: ofunit
+        !! Unit where the matrix should be printed, if not present [[iof_mmpol]]
+        !! is used.
+
+        integer(ip) :: i, j, nbatch, nres, out_unit, nrow, ncol
+        integer(ip), parameter :: colperrow = 5
+        integer(ip), dimension(colperrow) :: icol
+        character (len=24) :: iform, rform
+
+        if(present(ofunit)) then
+            out_unit = ofunit
+        else
+            out_unit = iof_mmpol
         end if
-    !
-      else
-    !
-        nbatch = m/5
-        nres   = m - 5*nbatch
-        write(iform,'("(t3,",i1,"i16)")') nres
-        write(rform,'("(t3,",i1,"f16.8)")') nres
-    !
-        do i = 1, nbatch
-          icol(1) = (i-1)*5 + 1
-          icol(2) = (i-1)*5 + 2
-          icol(3) = (i-1)*5 + 3
-          icol(4) = (i-1)*5 + 4
-          icol(5) = (i-1)*5 + 5
-          write(out_unit,1010) icol(1:5)
-          do j = 1, n
-            write(out_unit,1020) matrix(j,icol(1):icol(5))
-          end do
-          write(out_unit,*)
-        end do
-    !
-        if (nres.ne.0) then
-          do i = 1, nres
-            icol(i) = 5*nbatch + i
-          end do
-          write(out_unit,iform) icol(1:nres)
-          do j = 1, n
-            write(out_unit,rform) matrix(j,icol(1):icol(nres))
-           end do
-        end if
+        
+        nrow = size(matrix, 1)
+        ncol = size(matrix, 2)
+        
+        icol = [(i, i=1, colperrow)]
+
+   1000 format(t3,a)
+   1010 format(t3,5i16)
+   1020 format(t3,5f16.8)
+
+        write(out_unit,1000) label
+        
+        if(trans) then
+            nbatch = nrow/colperrow
+            nres   = mod(nrow, colperrow)
+
+            write(iform,'("(t3,",i1,"i16)")') nres
+            write(rform,'("(t3,",i1,"f16.8)")') nres
+            
+            do i = 1, nbatch
+                write(out_unit, 1010) icol(1:colperrow)
+                
+                do j = 1, ncol
+                    write(out_unit, 1020) matrix(icol(1):icol(colperrow), j)
+                end do
+                
+                write(out_unit,'("")')
+                
+                icol = icol + colperrow
+            end do
+        
+            if (nres > 0) then
+                write(out_unit,iform) icol(1:nres)
+          
+                do j = 1, ncol
+                    write(out_unit,rform) matrix(icol(1):icol(nres),j)
+                end do
+            end if
+        else
+            nbatch = ncol/colperrow
+            nres   = mod(ncol,colperrow)
+            write(iform,'("(t3,",i1,"i16)")') nres
+            write(rform,'("(t3,",i1,"f16.8)")') nres
+            
+            do i = 1, nbatch
+                write(out_unit,1010) icol(1:colperrow)
+          
+                do j = 1, nrow
+                    write(out_unit,1020) matrix(j,icol(1):icol(colperrow))
+                end do
+                
+                write(out_unit,*)
+                icol = icol + colperrow
+            end do
+
+            if(nres.ne.0) then
+                write(out_unit,iform) icol(1:nres)
+          
+                do j = 1, nrow
+                    write(out_unit,rform) matrix(j,icol(1):icol(nres))
+                end do
+            end if
       end if
-    end subroutine print_matrix
-    !
-    subroutine print_int_vec(label, n, ibeg, iend, vec, dosort, ofunit)
+    end subroutine d2_print_matrix
+
+    subroutine print_int_vec(label, vec, dosort, ofunit, ibeg, iend)
+        !! Print an array of integers in a well formatted way.
         use mod_utils, only: sort_ivec
         
         implicit none
         
         character(len=*), intent(in) :: label
-        integer(ip), intent(in) :: n, ibeg, iend
+        !! Label to print before the array
+        integer(ip), dimension(:), intent(in) :: vec
+        !! Integer vector to be printed
         logical, optional :: dosort
+        !! If present and .true., print the sorted array
+        !! otherwise [[iof_mmpol]] is used.
         integer(ip), intent(in), optional :: ofunit
+        !! If present specify the unit where the array should be printed, 
+        integer(ip), intent(in), optional :: ibeg
+        !! Index of the first element to be printed, if 0 or absent the first 
+        !! element is used
+        integer(ip), intent(in), optional :: iend
+        !! Index of the last element to be printed, if 0 or absent the last 
+        !! element of the array is used
         logical :: sort
-        integer(ip), dimension(n), intent(in) :: vec
+
         
         integer(ip) :: ib, ie, out_unit
 
         integer(ip), allocatable, dimension(:) :: sorted_vec
 
-        ib = ibeg
-        ie = iend
+        if(present(ibeg)) then
+            ib = ibeg
+        else
+            ib = 0
+        end if
+        if(present(ibeg)) then
+            ie = iend
+        else
+            ib = 0
+        end if
         if(ib == 0) ib = 1
-        if(ie == 0) ie = n
+        if(ie == 0) ie = size(vec)
+        
         if(.not. present(dosort)) then
             sort = .false.
         else
@@ -218,6 +287,7 @@ module mod_io
             return
         end if 
 
+        !! TODO extend the scope of this function...
         if(sort) then
             call sort_ivec(vec(ib:ie), sorted_vec)
             write(out_unit,'(t5, 10i8)') sorted_vec

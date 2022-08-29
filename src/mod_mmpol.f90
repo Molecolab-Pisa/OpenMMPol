@@ -358,7 +358,7 @@ module mod_mmpol
         else
             if(present(asc)) then
                 call ommp_message("Scale factor passed to thole_init is &
-                    ignored because AMOEBA FF is used", OMMP_VERBOSE_LOW)
+                    &ignored because AMOEBA FF is used", OMMP_VERBOSE_LOW)
             end if
         end if
     end subroutine thole_init
@@ -513,24 +513,16 @@ module mod_mmpol
         write(of_unit, '(A, 4F8.4)') 'dscale: ', dscale
         write(of_unit, '(A, 4F8.4)') 'uscale: ', uscale
 
-        call print_matrix(.true.,'coordinates:', &
-                          3,mm_atoms,3,mm_atoms,cmm,of_unit)
+        call print_matrix(.true., 'coordinates:', cmm, of_unit)
         if (amoeba) then
-            call print_matrix(.true.,'multipoles - non rotated:', &
-                              ld_cart,mm_atoms,ld_cart,mm_atoms,q0,of_unit)
+            call print_matrix(.true., 'multipoles - non rotated:', q0, of_unit)
         end if
-        call print_matrix(.true.,'multipoles :', &
-                          ld_cart,mm_atoms,ld_cart,mm_atoms,q,of_unit)
-        call print_matrix(.true.,'coordinates of polarizable atoms:', &
-                          3,pol_atoms,3,pol_atoms,cpol,of_unit)
-        call print_matrix(.false.,'polarizabilities:', &
-                          mm_atoms,1,mm_atoms,1,polar,of_unit)
-        call print_matrix(.false.,'thole factors:', &
-                          mm_atoms,1,mm_atoms,1,thole,of_unit)
-        call print_int_vec('mm_polar list:', &
-                           mm_atoms,0,0,mm_polar,.false., of_unit)
-        call print_int_vec('polar_mm list:', &
-                           pol_atoms,0,0,polar_mm, .false.,of_unit)
+        call print_matrix(.true., 'multipoles :', q, of_unit)
+        call print_matrix(.true., 'coordinates of polarizable atoms:', cpol, of_unit)
+        call print_matrix(.false., 'polarizabilities:', polar, of_unit)
+        call print_matrix(.false., 'thole factors:',thole, of_unit)
+        call print_int_vec('mm_polar list:', mm_polar, .false., of_unit)
+        call print_int_vec('polar_mm list:', polar_mm, .false., of_unit)
 
         ! write the connectivity information for each atom:
   1000  format(t3,'connectivity information for the ',i8,'-th atom:')
@@ -543,11 +535,10 @@ module mod_mmpol
                 
                 write(str, "('1-', I1, ' neighors:')") j+1
                 call print_int_vec(trim(str), &
-                                   size(conn(j)%ci), &
-                                   conn(j)%ri(i), &
-                                   conn(j)%ri(i+1)-1, & 
                                    conn(j)%ci, &
-                                   .true.,of_unit)
+                                   .true., of_unit, &
+                                   conn(j)%ri(i), &
+                                   conn(j)%ri(i+1)-1) 
             end do
             
             if(amoeba) then 
@@ -560,10 +551,14 @@ module mod_mmpol
                         polgrp_mmat%ci(polgrp_mmat%ri(grp):polgrp_mmat%ri(grp+1)-1)
                         ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
                     end do
-                    
+                   
                     write(str, "('1-', I1, ' polarization neighors:')") j
-                    call print_int_vec(trim(str), & 
-                                       ilst-1,0,0,lst,.true., of_unit)
+                    if(ilst == 1) ilst = 0
+                    ! needed to addres the empty array case
+                    call print_int_vec(trim(str), &
+                                       lst, &
+                                       .true., of_unit, &
+                                       1, ilst-1)
                 end do
             end if
         end do
