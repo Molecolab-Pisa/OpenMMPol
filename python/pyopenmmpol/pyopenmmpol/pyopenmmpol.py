@@ -34,6 +34,14 @@ def ommp_terminate():
 # ------
 
 def ommp_set_external_field(eqm, solver):
+    solver_dic = {'cg' : 1,
+                  'conjugate gradients': 1,
+                  'jacobi' : 2,
+                  'diis' : 2,
+                  'jacobi-diis': 2,
+                  'inversion': 3,
+                  'default': 1}
+
     _eqm = np.ascontiguousarray(eqm)
     eqm_type = npct.ndpointer(dtype=ct.c_double,
                               ndim=2,
@@ -43,7 +51,7 @@ def ommp_set_external_field(eqm, solver):
 
     _libopenmmpol.ommp_set_external_field.restypes = []
     _libopenmmpol.ommp_set_external_field.argtypes = [eqm_type, INT_TYPE]
-    _libopenmmpol.ommp_set_external_field(_eqm, ???)
+    _libopenmmpol.ommp_set_external_field(_eqm, solver_dic[solver])
 
 
 _libopenmmpol.ommp_get_polelec_energy.argtypes = [ct.POINTER(ct.c_double)]
@@ -63,77 +71,77 @@ def ommp_get_fixedelec_energy():
 # -------
 
 _libopenmmpol.ommp_get_vdw_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_vdw_energy.restype = []
+_libopenmmpol.ommp_get_vdw_energy.restypes = []
 def ommp_get_vdw_energy():
     ev = ct.c_double(0.0)
     _libopenmmpol.ommp_get_vdw_energy(ct.byref(ev))
     return ev
 
 _libopenmmpol.ommp_get_bond_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_bond_energy.restype = []
+_libopenmmpol.ommp_get_bond_energy.restypes = []
 def ommp_get_bond_energy():
     eb = ct.c_double(0.0)
     _libopenmmpol.ommp_get_bond_energy(ct.byref(eb))
     return eb
 
 _libopenmmpol.ommp_get_angle_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_angle_energy.restype = []
+_libopenmmpol.ommp_get_angle_energy.restypes = []
 def ommp_get_angle_energy():
     ea = ct.c_double(0.0)
     _libopenmmpol.ommp_get_angle_energy(ct.byref(ea))
     return ea
 
 _libopenmmpol.ommp_get_angtor_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_angtor_energy.restype = []
+_libopenmmpol.ommp_get_angtor_energy.restypes = []
 def ommp_get_angtor_energy():
     eat = ct.c_double(0.0)
     _libopenmmpol.ommp_get_angtor_energy(ct.byref(eat))
     return eat
 
 _libopenmmpol.ommp_get_strtor_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_strtor_energy.restype = []
+_libopenmmpol.ommp_get_strtor_energy.restypes = []
 def ommp_get_strtor_energy():
     ebt = ct.c_double(0.0)
     _libopenmmpol.ommp_get_strtor_energy(ct.byref(ebt))
     return ebt
 
 _libopenmmpol.ommp_get_strbnd_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_strbnd_energy.restype = []
+_libopenmmpol.ommp_get_strbnd_energy.restypes = []
 def ommp_get_strbnd_energy():
     eba = ct.c_double(0.0)
     _libopenmmpol.ommp_get_strbnd_energy(ct.byref(eba))
     return eba
 
 _libopenmmpol.ommp_get_opb_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_opb_energy.restype = []
+_libopenmmpol.ommp_get_opb_energy.restypes = []
 def ommp_get_opb_energy():
     eopb = ct.c_double(0.0)
     _libopenmmpol.ommp_get_opb_energy(ct.byref(eopb))
     return eopb
 
 _libopenmmpol.ommp_get_pitors_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_pitors_energy.restype = []
+_libopenmmpol.ommp_get_pitors_energy.restypes = []
 def ommp_get_pitors_energy():
     ept = ct.c_double(0.0)
     _libopenmmpol.ommp_get_pitors_energy(ct.byref(ept))
     return ept
 
 _libopenmmpol.ommp_get_torsion_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_torsion_energy.restype = []
+_libopenmmpol.ommp_get_torsion_energy.restypes = []
 def ommp_get_torsion_energy():
     et = ct.c_double(0.0)
     _libopenmmpol.ommp_get_torsion_energy(ct.byref(et))
     return et
 
 _libopenmmpol.ommp_get_tortor_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_tortor_energy.restype = []
+_libopenmmpol.ommp_get_tortor_energy.restypes = []
 def ommp_get_tortor_energy():
     ett = ct.c_double(0.0)
     _libopenmmpol.ommp_get_tortor_energy(ct.byref(et))
     return ett
 
 _libopenmmpol.ommp_get_urey_energy.argtypes = [ct.POINTER(ct.c_double)]
-_libopenmmpol.ommp_get_urey_energy.restype = []
+_libopenmmpol.ommp_get_urey_energy.restypes = []
 def ommp_get_urey_energy():
     eub = ct.c_double(0.0)
     _libopenmmpol.ommp_get_urey_energy(ct.byref(eub))
