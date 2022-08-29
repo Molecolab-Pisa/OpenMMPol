@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="pyopenmmpol",
-    version="0.0.2",
+    version="0.0.3",
     url="https://molimen1.dcci.unipi.it/filippo/open-mmpol/",
     author="Molecolab Group",
     author_email="benedetta.mennucci@unipi.it",
