@@ -15,7 +15,7 @@ int main(int argc, char **argv){
     ommp_init_xyz(argv[1], argv[2]);
     
     if(argc == 4)
-        ommp_ommp_print_summary_to_file(argv[3]);
+        ommp_print_summary_to_file(argv[3]);
     else
         ommp_print_summary();
     

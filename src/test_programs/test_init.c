@@ -23,7 +23,7 @@ int main(int argc, char **argv){
     ommp_init_mmp(infile);
     
     if(argc == 3)
-        ommp_ommp_print_summary_to_file(outfile);
+        ommp_print_summary_to_file(outfile);
     else
         ommp_print_summary();
     

@@ -15,7 +15,7 @@ int main(int argc, char **argv){
     ommp_init_hdf5(argv[1]);
     
     if(argc == 3)
-        ommp_ommp_print_summary_to_file(argv[2]);
+        ommp_print_summary_to_file(argv[2]);
     else
         ommp_print_summary();
     

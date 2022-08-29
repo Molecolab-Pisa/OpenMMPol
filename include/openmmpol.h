@@ -33,7 +33,7 @@ extern void ommp_init_hdf5(char *);
 #endif
 extern void ommp_set_verbose(int32_t);
 extern void ommp_print_summary(void);
-extern void ommp_ommp_print_summary_to_file(char *);
+extern void ommp_print_summary_to_file(char *);
 
 extern void ommp_get_polelec_energy(double *);
 extern void ommp_get_fixedelec_energy(double *);

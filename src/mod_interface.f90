@@ -9,7 +9,7 @@ module mod_interface
     public :: ommp_get_cmm, ommp_get_cpol, ommp_get_q, ommp_get_ipd, ommp_get_polar_mm, ommp_get_mm_atoms
     public :: ommp_get_pol_atoms, ommp_get_ld_cart, ommp_ff_is_amoeba
 
-    public :: ommp_set_verbose, ommp_print_summary, ommp_ommp_print_summary_to_file
+    public :: ommp_set_verbose, ommp_print_summary, ommp_print_summary_to_file
     public :: ommp_init_xyz, ommp_init_mmp, ommp_terminate
 
     public :: ommp_set_external_field, ommp_get_polelec_energy, ommp_get_fixedelec_energy
@@ -122,8 +122,8 @@ module mod_interface
 
         end subroutine ommp_print_summary
         
-        subroutine ommp_ommp_print_summary_to_file(filename) &
-                bind(c, name='ommp_ommp_print_summary_to_file')
+        subroutine ommp_print_summary_to_file(filename) &
+                bind(c, name='ommp_print_summary_to_file')
             use mod_mmpol, only: mmpol_ommp_print_summary
 
             implicit none
@@ -134,7 +134,7 @@ module mod_interface
             call c2f_string(filename, output_file)
             call mmpol_ommp_print_summary(output_file)
 
-        end subroutine ommp_ommp_print_summary_to_file
+        end subroutine ommp_print_summary_to_file
 
         subroutine c2f_string(c_str, f_str)
             implicit none
