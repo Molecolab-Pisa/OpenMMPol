@@ -183,7 +183,7 @@ _libopenmmpol.ommp_get_cmm.argtypes = []
 def get_cmm():
     rtype = npct.ndpointer(dtype=ct.c_double,
                            ndim=2,
-                           shape=(ommp_get_mm_atoms(),3),
+                           shape=(get_mm_atoms(),3),
                            flags=('F_CONTIGUOUS'))
     _libopenmmpol.ommp_get_cmm.restype = rtype
     cmm = _libopenmmpol.ommp_get_cmm()
@@ -193,7 +193,7 @@ _libopenmmpol.ommp_get_cpol.argtypes = []
 def get_cpol():
     rtype = npct.ndpointer(dtype=ct.c_double,
                            ndim=2,
-                           shape=(ommp_get_pol_atoms(),3),
+                           shape=(get_pol_atoms(),3),
                            flags=('F_CONTIGUOUS'))
     _libopenmmpol.ommp_get_cpol.restype = rtype
     cpol = _libopenmmpol.ommp_get_cpol()
@@ -203,7 +203,8 @@ _libopenmmpol.ommp_get_q.argtypes = []
 def get_q():
     rtype = npct.ndpointer(dtype=ct.c_double,
                            ndim=2,
-                           shape=(ommp_get_mm_atoms(), ommp_get_ld_cart()),
+                           shape=(get_mm_atoms(),
+                                  get_ld_cart()),
                            flags=('F_CONTIGUOUS'))
     _libopenmmpol.ommp_get_q.restype = rtype
     q = _libopenmmpol.ommp_get_q()
@@ -211,8 +212,8 @@ def get_q():
 
 _libopenmmpol.ommp_get_ipd.argtypes = []
 def get_ipd():
-    n_ipd = _libopenmmpol.get_n_ipd()
-    n_polat = _libopenmmpol.ommp_get_pol_atoms()
+    n_ipd = get_n_ipd()
+    n_polat = get_pol_atoms()
     rtype = npct.ndpointer(dtype=ct.c_double,
                            ndim=3,
                            shape=(n_ipd, n_polat, 3),
