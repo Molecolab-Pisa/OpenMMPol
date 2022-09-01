@@ -164,7 +164,8 @@ module mod_solvers
 
             ! unlikely quick return:
             if(abs(gama) < eps_rp) then
-                write(6, *) "Direction vector with zero norm, exiting iterative solver."
+                call ommp_message("Direction vector with zero norm, exiting &
+                                  &iterative solver.", OMMP_VERBOSE_HIGH)
                 exit
             end if
 
