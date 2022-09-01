@@ -5,7 +5,7 @@ summary: A library to interface quantum chemical software with atomistic polariz
 author: Molecolab
 author_description: Mennucci's research group in Pisa.
 email: benedetta.mennucci@unipi.it
-fpp_extensions: f03
+fpp_extensions: f90
 preprocess: true
 predocmark: >
 media_dir: ./media
