@@ -1,5 +1,6 @@
 module mod_inputloader
     use mod_io, only: ommp_message
+    use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none
     private
@@ -65,7 +66,7 @@ module mod_inputloader
         ! TODO why we do not use eps_rp directly?
 
         integer(ip), allocatable :: i12(:,:)
-        character(len=120) :: msg
+        character(len=OMMP_STR_CHAR_MAX) :: msg
        
         write(msg, "(A)") "Reading MMP file: "//input_file(1:len(trim(input_file)))
         call ommp_message(msg, OMMP_VERBOSE_DEBUG)
@@ -307,7 +308,7 @@ module mod_inputloader
                                   maxn12 = 8
         integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke
         integer(ip), allocatable :: i12(:,:), attype(:)
-        character(len=120) :: line, msg
+        character(len=OMMP_STR_CHAR_MAX) :: line, msg
         type(yale_sparse) :: adj
 
         

@@ -91,7 +91,7 @@ module mod_io
             end select
         end if
 
-        write(outunit, '(A12, " ", A)') pre, s
+        write(outunit, '(A12, " ", A)') pre, trim(s)
     end subroutine ommp_message
     
 

@@ -19,7 +19,8 @@ module mod_solvers
     use mod_memory, only: ip, rp
     use mod_constants, only: OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, &
-                             OMMP_VERBOSE_DEBUG
+                             OMMP_VERBOSE_DEBUG, &
+                             OMMP_STR_CHAR_MAX
     use mod_mmpol, only: fatal_error
     use mod_io, only: ommp_message
 
@@ -118,7 +119,7 @@ module mod_solvers
         integer(ip) :: it
         real(rp) :: rms_norm, alpha, gnew, gold, gama
         real(rp), allocatable :: r(:), p(:), h(:), z(:)
-        character(len=120) :: msg
+        character(len=OMMP_STR_CHAR_MAX) :: msg
 
         ! Optional arguments handling
         if(present(arg_tol)) then
@@ -247,7 +248,7 @@ module mod_solvers
         real(rp) :: rms_norm, max_norm
         logical :: do_diis
         real(rp), allocatable :: x_new(:), y(:), x_diis(:,:), e_diis(:,:), bmat(:,:)
-        character(len=120) :: msg
+        character(len=OMMP_STR_CHAR_MAX) :: msg
         
         ! Optional arguments handling
         if(present(arg_tol)) then

@@ -1,6 +1,7 @@
 module mod_nonbonded
 
     use mod_memory, only: rp, ip
+    use mod_constants, only: OMMP_STR_CHAR_MAX
     use mod_adjacency_mat, only: yale_sparse
 
     implicit none
@@ -150,7 +151,7 @@ module mod_nonbonded
 
         integer(ip) :: i, jc, jr, newsize, oldsize
         real(rp), allocatable :: tmp(:)
-        character(len=120) :: msg
+        character(len=OMMP_STR_CHAR_MAX) :: msg
 
         if(ia == ib) then 
             call fatal_error("VdW parameters could not be set for a self-interaction")

@@ -3,6 +3,7 @@ module mod_prm
     !! the asignament of parameters based on atom type and connectivity.
 
     use mod_memory, only: ip, rp
+    use mod_constants, only: OMMP_STR_CHAR_MAX
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower
 
@@ -42,7 +43,7 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, iat, toke, tokb, tokb1, nquote
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip) :: natype
 
 
@@ -133,7 +134,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, l, jat, tokb, toke, ibnd, nbnd, &
                        cla, clb
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:)
         real(rp), allocatable :: kbnd(:), l0bnd(:)
         logical :: done
@@ -297,7 +298,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, iub, nub, &
                        cla, clb, clc, maxub, a, b, c, jc, jb 
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), ubtmp(:)
         real(rp), allocatable :: kub(:), l0ub(:)
         logical :: done
@@ -491,7 +492,7 @@ module mod_prm
         integer(ip) :: ist, i, j, tokb, toke, isb, nstrbnd, &
                        cla, clb, clc, a, b, c, jc, jb, maxsb, &
                        l1a, l1b, l2a, l2b
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), sbtmp(:), &
                                     sbattmp(:, :)
         real(rp), allocatable :: k1(:), k2(:)
@@ -703,7 +704,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, tokb, toke, iopb, nopb, &
                        cla, clb, clc, cld, maxopb, a, b, c, d, jc, jb, iprm
-        character(len=120) :: line, errstring, opb_type
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring, opb_type
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
                                     classd(:), tmpat(:,:)
         real(rp), allocatable :: kopbend(:), tmpk(:)
@@ -925,7 +926,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, tokb, toke, ipitors, npitors, &
                        cla, clb, maxpi, a, b, c, jb, iprm
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), tmpat(:,:)
         real(rp), allocatable :: kpi(:), tmpk(:)
 
@@ -1092,7 +1093,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     t_n(:,:), tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
@@ -1307,7 +1308,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
@@ -1516,7 +1517,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
@@ -1727,7 +1728,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
                        cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
         real(rp), allocatable :: kang(:), th0ang(:)
         logical :: done
@@ -2072,7 +2073,7 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, l, tokb, toke
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         character(len=20) :: radrule, radsize, radtype, vdwtype, epsrule
         integer(ip), allocatable :: vdwat(:), vdwpr_a(:), vdwpr_b(:)
         real(rp), allocatable :: vdw_e_prm(:), vdw_r_prm(:), vdw_f_prm(:), &
@@ -2346,7 +2347,7 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, k, l, iat, tokb, toke
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         
         integer(ip), allocatable :: polat(:), pgspec(:,:) 
         real(rp), allocatable :: thf(:), isopol(:)
@@ -2680,7 +2681,7 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, k, iat, tokb, toke
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: multat(:), multax(:,:), multframe(:)
         real(rp), allocatable :: cmult(:,:)
         real(rp) :: msc(4)
@@ -2956,7 +2957,7 @@ module mod_prm
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
                        cla, clb, clc, a, b, c, jc, jb, itt, ndata, ntt, ibeg, iend, maxtt
-        character(len=120) :: line, errstring
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classx(:,:), map_dimension(:,:), tmpat(:,:), tmpprm(:), savedmap(:)
         real(rp), allocatable :: data_map(:), ang_map(:,:)
 

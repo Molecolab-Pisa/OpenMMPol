@@ -311,7 +311,7 @@ function check_keyword(prm_file)
     
     integer(ip), parameter :: iof_prminp = 201
     integer(ip) :: ist, ibeg, iend
-    character(len=120) :: line, kw, msg
+    character(len=OMMP_STR_CHAR_MAX) :: line, kw, msg
     
     ! open tinker xyz file
     open(unit=iof_prminp, &

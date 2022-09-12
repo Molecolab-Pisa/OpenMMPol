@@ -3,6 +3,7 @@ module mod_utils
     !! or very basic computational/mathematic operation. It should not depend
     !! on any module except from [[mod_memory]].
     use mod_memory, only: ip
+    use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none
     private
@@ -125,7 +126,7 @@ module mod_utils
         use mod_memory, only: ip
         implicit none
 
-        character(len=120), intent(in) :: s
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: s
         !! String to subdivide in token
         integer(ip), intent(inout), optional :: ib
         !! Index where to start token research (input)/Index where token 

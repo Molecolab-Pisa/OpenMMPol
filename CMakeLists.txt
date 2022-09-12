@@ -12,7 +12,7 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     add_compile_options($<$<CONFIG:DEBUG>:-Og>)
 endif()
 
-# set(CMAKE_VERBOSE_MAKEFILE ON)
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_library(openmmpol SHARED 
             src/mod_adjacency_mat.f90
@@ -120,6 +120,12 @@ add_executable(F_test_init src/test_programs/test_init.F90)
 target_link_libraries(F_test_init openmmpol)
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif()
+
+add_executable(F_test_ipd src/test_programs/test_ipd.F90)
+target_link_libraries(F_test_ipd openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F_test_ipd PRIVATE -Wall -Wextra -pedantic -std=f2003)
 endif()
 
 include(tests/CMakeLists.txt)

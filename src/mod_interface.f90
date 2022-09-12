@@ -1,26 +1,32 @@
 ! Wrapper function for open-mmpol library
-module mod_interface
+module mod_ommp_interface
     use iso_c_binding
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ommp_integer => ip, &
+                          ommp_real => rp
+
+    use mod_mmpol, only: ommp_cmm => cmm, &
+                         ommp_cpol => cpol, &
+                         ommp_q => q, &
+                         ommp_ipd => ipd, &
+                         ommp_polar_mm => polar_mm, &
+                         ommp_mm_atoms => mm_atoms, &
+                         ommp_n_ipd => n_ipd, &
+                         ommp_pol_atoms => pol_atoms, &
+                         ommp_ld_cart => ld_cart, &
+                         ommp_is_amoeba => amoeba
+
+    use mod_constants, only: OMMP_FF_AMOEBA, OMMP_FF_WANG_AL, OMMP_FF_WANG_DL, &
+                             OMMP_SOLVER_CG, OMMP_SOLVER_DIIS, &
+                             OMMP_SOLVER_INVERSION, OMMP_SOLVER_DEFAULT, &
+                             OMMP_MATV_INCORE, OMMP_MATV_DIRECT, &
+                             OMMP_MATV_DEFAULT, &
+                             OMMP_AMOEBA_D, OMMP_AMOEBA_P, &
+                             OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
+                             OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE
+    use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none
-    private
-
-    public :: ommp_get_cmm, ommp_get_cpol, ommp_get_q, ommp_get_ipd, ommp_get_polar_mm, ommp_get_mm_atoms
-    public :: ommp_get_pol_atoms, ommp_get_ld_cart, ommp_ff_is_amoeba
-
-    public :: ommp_set_verbose, ommp_print_summary, ommp_print_summary_to_file
-    public :: ommp_init_xyz, ommp_init_mmp, ommp_terminate
-
-    public :: ommp_set_external_field, ommp_get_polelec_energy, ommp_get_fixedelec_energy
-    public :: ommp_get_urey_energy, ommp_get_strbnd_energy, ommp_get_angle_energy
-    public :: ommp_get_angtor_energy, ommp_get_strtor_energy, ommp_get_bond_energy
-    public :: ommp_get_opb_energy, ommp_get_pitors_energy, ommp_get_torsion_energy
-    public :: ommp_get_tortor_energy, ommp_get_vdw_energy 
-
-#ifdef USE_HDF5
-    public :: ommp_write_hdf5, ommp_init_hdf5
-#endif
+    private :: c2f_string, OMMP_STR_CHAR_MAX
 
     contains
         
@@ -63,7 +69,7 @@ module mod_interface
             use mod_mmpol, only: mm_atoms
             implicit none
 
-            integer(ip) :: ommp_get_mm_atoms
+            integer(ommp_integer) :: ommp_get_mm_atoms
 
             ommp_get_mm_atoms = mm_atoms
         end function ommp_get_mm_atoms
@@ -72,7 +78,7 @@ module mod_interface
             use mod_mmpol, only: pol_atoms
             implicit none
 
-            integer(ip) :: ommp_get_pol_atoms
+            integer(ommp_integer) :: ommp_get_pol_atoms
 
             ommp_get_pol_atoms = pol_atoms
         end function ommp_get_pol_atoms
@@ -81,7 +87,7 @@ module mod_interface
             use mod_mmpol, only: n_ipd
             implicit none
 
-            integer(ip) :: get_n_ipd
+            integer(ommp_integer) :: get_n_ipd
 
             get_n_ipd = n_ipd
         end function get_n_ipd
@@ -90,7 +96,7 @@ module mod_interface
             use mod_mmpol, only: ld_cart
             implicit none
 
-            integer(ip) :: ommp_get_ld_cart
+            integer(ommp_integer) :: ommp_get_ld_cart
 
             ommp_get_ld_cart = ld_cart
         end function ommp_get_ld_cart
@@ -108,7 +114,7 @@ module mod_interface
             use mod_io, only: set_verbosity
             implicit none 
 
-            integer(ip), intent(in), value :: verb
+            integer(ommp_integer), intent(in), value :: verb
 
             call set_verbosity(verb)
         end subroutine ommp_set_verbose
@@ -128,8 +134,8 @@ module mod_interface
 
             implicit none
             
-            character(kind=c_char), intent(in) :: filename(120)
-            character(len=120) :: output_file
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: output_file
             
             call c2f_string(filename, output_file)
             call mmpol_ommp_print_summary(output_file)
@@ -163,24 +169,35 @@ module mod_interface
             
             implicit none
             
-            character(kind=c_char), intent(in) :: xyzfile(120), prmfile(120)
-            character(len=120) :: xyz_file, prm_file
+            character(kind=c_char), intent(in) :: xyzfile(OMMP_STR_CHAR_MAX), & 
+                                                  prmfile(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: xyz_file, prm_file
 
             call c2f_string(prmfile, prm_file)
             call c2f_string(xyzfile, xyz_file)
             call mmpol_init_from_xyz(xyz_file, prm_file)
         end subroutine 
         
-        subroutine ommp_init_mmp(filename) bind(c, name='ommp_init_mmp')
+        subroutine C_ommp_init_mmp(filename) bind(c, name='ommp_init_mmp')
             use mod_inputloader, only : mmpol_init_from_mmp
             
             implicit none
             
-            character(kind=c_char), intent(in) :: filename(120)
-            character(len=120) :: input_file
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: input_file
 
             call c2f_string(filename, input_file)
             call mmpol_init_from_mmp(input_file)
+        end subroutine 
+        
+        subroutine ommp_init_mmp(filename)
+            use mod_inputloader, only : mmpol_init_from_mmp
+            
+            implicit none
+            
+            character(len=*) :: filename
+
+            call mmpol_init_from_mmp(trim(filename))
         end subroutine 
 
         subroutine ommp_set_external_field(ext_field, solver) &
@@ -194,10 +211,10 @@ module mod_interface
 
             implicit none
             
-            real(kind=rp), intent(in) :: ext_field(3, pol_atoms)
-            integer(ip), intent(in), value :: solver
+            real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
+            integer(ommp_integer), intent(in), value :: solver
 
-            real(rp), allocatable :: ef(:,:,:)
+            real(ommp_real), allocatable :: ef(:,:,:)
             integer :: i
 
             ipd_done = .false.
@@ -225,7 +242,7 @@ module mod_interface
 
             implicit none
             
-            real(rp), intent(out) :: epol
+            real(ommp_real), intent(out) :: epol
 
             if(.not. ipd_done) then
                 !! Solve the polarization system without external field
@@ -241,9 +258,9 @@ module mod_interface
             use mod_electrostatics, only: energy_MM_MM, energy_MM_pol
 
             implicit none
-            real(kind=rp), intent(out) :: emm
+            real(ommp_real), intent(out) :: emm
 
-            emm = 0.0_rp
+            emm = 0.0
             
             call energy_MM_MM(emm)
         end subroutine
@@ -253,9 +270,9 @@ module mod_interface
             use mod_bonded, only: urey_potential
 
             implicit none
-            real(rp), intent(inout) :: eub
+            real(ommp_real), intent(inout) :: eub
 
-            eub = 0.0_rp
+            eub = 0.0
             call urey_potential(eub)
         end subroutine
         
@@ -264,9 +281,9 @@ module mod_interface
             use mod_bonded, only: strbnd_potential
 
             implicit none
-            real(rp), intent(inout) :: eba
+            real(ommp_real), intent(inout) :: eba
 
-            eba = 0.0_rp
+            eba = 0.0
             call strbnd_potential(eba)
         end subroutine
         
@@ -275,9 +292,9 @@ module mod_interface
             use mod_bonded, only: angle_potential
 
             implicit none
-            real(rp), intent(inout) :: eang
+            real(ommp_real), intent(inout) :: eang
 
-            eang = 0.0_rp
+            eang = 0.0
             call angle_potential(eang)
         end subroutine
         
@@ -286,9 +303,9 @@ module mod_interface
             use mod_bonded, only: angtor_potential
 
             implicit none
-            real(rp), intent(inout) :: eat
+            real(ommp_real), intent(inout) :: eat
 
-            eat = 0.0_rp
+            eat = 0.0
             call angtor_potential(eat)
         end subroutine
         
@@ -297,9 +314,9 @@ module mod_interface
             use mod_bonded, only: strtor_potential
 
             implicit none
-            real(rp), intent(inout) :: ebt
+            real(ommp_real), intent(inout) :: ebt
 
-            ebt = 0.0_rp
+            ebt = 0.0
             call strtor_potential(ebt)
         end subroutine
         
@@ -308,9 +325,9 @@ module mod_interface
             use mod_bonded, only: bond_potential
 
             implicit none
-            real(rp), intent(inout) :: ebnd
+            real(ommp_real), intent(inout) :: ebnd
 
-            ebnd = 0.0_rp
+            ebnd = 0.0
             call bond_potential(ebnd)
         end subroutine
         
@@ -319,9 +336,9 @@ module mod_interface
             use mod_bonded, only: opb_potential
 
             implicit none
-            real(rp), intent(inout) :: eopb
+            real(ommp_real), intent(inout) :: eopb
 
-            eopb = 0.0_rp
+            eopb = 0.0
             call opb_potential(eopb)
         end subroutine
         
@@ -330,9 +347,9 @@ module mod_interface
             use mod_bonded, only: pitors_potential
 
             implicit none
-            real(rp), intent(inout) :: epitors
+            real(ommp_real), intent(inout) :: epitors
 
-            epitors = 0.0_rp
+            epitors = 0.0
             call pitors_potential(epitors)
         end subroutine
         
@@ -341,9 +358,9 @@ module mod_interface
             use mod_bonded, only: torsion_potential
 
             implicit none
-            real(rp), intent(inout) :: et
+            real(ommp_real), intent(inout) :: et
 
-            et = 0.0_rp
+            et = 0.0
             call torsion_potential(et)
         end subroutine
         
@@ -352,9 +369,9 @@ module mod_interface
             use mod_bonded, only: tortor_potential
 
             implicit none
-            real(rp), intent(inout) :: ett
+            real(ommp_real), intent(inout) :: ett
 
-            ett = 0.0_rp
+            ett = 0.0
             call tortor_potential(ett)
         end subroutine
         
@@ -363,9 +380,9 @@ module mod_interface
             use mod_nonbonded, only: vdw_potential
 
             implicit none
-            real(rp), intent(inout) :: evdw
+            real(ommp_real), intent(inout) :: evdw
 
-            evdw = 0.0_rp
+            evdw = 0.0
             call vdw_potential(evdw)
         end subroutine
 
@@ -393,9 +410,9 @@ module mod_interface
 
             implicit none
             
-            character(kind=c_char), intent(in) :: filename(120)
-            character(len=120) :: hdf5in
-            integer(ip) :: ok
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5in
+            integer(ommp_integer) :: ok
 
             call c2f_string(filename, hdf5in)
             call mmpol_init_from_hdf5(hdf5in, ok)
@@ -410,9 +427,9 @@ module mod_interface
 
             implicit none
             
-            character(kind=c_char), intent(in) :: filename(120)
-            character(len=120) :: hdf5out
-            integer(ip) :: ommp_write_hdf5
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5out
+            integer(ommp_integer) :: ommp_write_hdf5
 
             call c2f_string(filename, hdf5out)
             call mmpol_save_as_hdf5(hdf5out, ommp_write_hdf5)
@@ -420,5 +437,5 @@ module mod_interface
         end function ommp_write_hdf5
 #endif
 
-end module mod_interface
+end module mod_ommp_interface
 

@@ -7,6 +7,7 @@ module mod_mmpol
     use mod_memory, only: ip, rp
     use mod_adjacency_mat, only: yale_sparse
     use mod_io, only: ommp_message
+    use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none 
     !private TODO
@@ -491,7 +492,7 @@ module mod_mmpol
 
         integer(ip) :: i, j, grp, igrp, lst(1000), ilst
         real(rp), dimension(mm_atoms) :: polar ! Polarizabilities of all atoms
-        character(len=120) :: str
+        character(len=OMMP_STR_CHAR_MAX) :: str
 
         if(present(of_name)) then
             of_unit = 101

@@ -1,8 +1,8 @@
 program test_init
     use iso_c_binding, only: c_char
-    use mod_interface, only: ommp_init_mmp, ommp_terminate
+    use mod_ommp_interface, only: ommp_init_mmp, ommp_terminate
 #ifdef USE_HDF5
-    use mod_interface, only: ommp_write_hdf5
+    use mod_ommp_interface, only: ommp_write_hdf5
 #endif
 
     implicit none
