@@ -120,6 +120,7 @@ module mod_mmpol
 
     integer(ip), allocatable :: ix(:), iy(:), iz(:)
     !! neighboring atoms used to define the axes of the molecular frame
+    logical, protected :: mmpol_is_init = .false.
     
     contains
 
@@ -187,6 +188,8 @@ module mod_mmpol
             call mallocate('mmpol_init [iy]', mm_atoms, iy)
             call mallocate('mmpol_init [iz]', mm_atoms, iz)
         end if
+
+        mmpol_is_init = .true.
   
     end subroutine mmpol_init
 
@@ -314,6 +317,8 @@ module mod_mmpol
             call mfree('mmpol_terminate [iy]', iy)
             call mfree('mmpol_terminate [iz]', iz)
         end if
+
+        mmpol_is_init = .false.
 
     end subroutine mmpol_terminate
     

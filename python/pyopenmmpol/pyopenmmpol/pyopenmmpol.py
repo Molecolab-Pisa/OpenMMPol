@@ -21,6 +21,11 @@ if _libopenmmpol.__use_8bytes_int():
 else:
     INT_TYPE = ct.c_int32
 
+_libopenmmpol.ommp_is_initialized.argtypes = []
+_libopenmmpol.ommp_is_initialized.restypes = [ct.c_bool]
+def is_init():
+    return _libopenmmpol.ommp_is_initialized()
+
 _libopenmmpol.ommp_init_mmp.argtypes = [ct.c_char_p]
 _libopenmmpol.ommp_init_mmp.restypes = []
 def init_mmp(infile_mmp):

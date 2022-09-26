@@ -1,6 +1,19 @@
 ! Wrapper function for open-mmpol library
 module mod_ommp_interface
+    !! The interface of the library, basically all the operation performed
+    !! by an external code should be done through the routines of this
+    !! module. 
+    !! The interface is conceived to work naturally with C and Fortran; the C
+    !! interface is also used to build the interface for Python.
+    !! In a fortran code, this module can be imported and it should expose 
+    !! directly all the vector and scalar quantities needed.
+    !! In a C code, routines are provided to get the pointer or the values of 
+    !! vector and scalar quantites respectively.
+
     use iso_c_binding
+    
+    ! Renamed import of several global variable that should be available
+    ! in the interface
     use mod_memory, only: ommp_integer => ip, &
                           ommp_real => rp
 
@@ -13,7 +26,8 @@ module mod_ommp_interface
                          ommp_n_ipd => n_ipd, &
                          ommp_pol_atoms => pol_atoms, &
                          ommp_ld_cart => ld_cart, &
-                         ommp_is_amoeba => amoeba
+                         ommp_is_amoeba => amoeba, &
+                         ommp_is_initialized => mmpol_is_init
 
     use mod_constants, only: OMMP_FF_AMOEBA, OMMP_FF_WANG_AL, OMMP_FF_WANG_DL, &
                              OMMP_SOLVER_CG, OMMP_SOLVER_DIIS, &
@@ -26,11 +40,23 @@ module mod_ommp_interface
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none
+    
     private :: c2f_string, OMMP_STR_CHAR_MAX
 
     contains
+
+        function c_ommp_is_initialized() bind(c, name='ommp_is_initialized')
+            implicit none 
+            logical(c_bool) :: c_ommp_is_initialized
+
+            c_ommp_is_initialized = ommp_is_initialized
+            
+            return
+        end function c_ommp_is_initialized
         
         function ommp_get_cmm() bind(c, name='ommp_get_cmm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
             use mod_mmpol, only: cmm
             type(c_ptr) :: ommp_get_cmm
 
@@ -38,6 +64,8 @@ module mod_ommp_interface
         end function ommp_get_cmm
 
         function ommp_get_cpol() bind(c, name='ommp_get_cpol')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! polarizable atoms.
             use mod_mmpol, only: cpol
             type(c_ptr) :: ommp_get_cpol
 
@@ -45,6 +73,8 @@ module mod_ommp_interface
         end function ommp_get_cpol
 
         function ommp_get_q() bind(c, name='ommp_get_q')
+            !! Return the c-pointer to the array containing the static source of 
+            !! the electrostatic field.
             use mod_mmpol, only: q
             type(c_ptr) :: ommp_get_q
 
@@ -52,6 +82,8 @@ module mod_ommp_interface
         end function ommp_get_q
 
         function ommp_get_ipd() bind(c, name='ommp_get_ipd')
+            !! Return the c-pointer to the array containing the induced dipoles 
+            !! on polarizable sites.
             use mod_mmpol, only: ipd
             type(c_ptr) :: ommp_get_ipd
 
@@ -59,6 +91,8 @@ module mod_ommp_interface
         end function ommp_get_ipd
         
         function ommp_get_polar_mm() bind(c, name='ommp_get_polar_mm')
+            !! Return the c-pointer to the array containing the map from 
+            !! polarizable to MM atoms.
             use mod_mmpol, only: polar_mm
             type(c_ptr) :: ommp_get_polar_mm
 
@@ -66,6 +100,7 @@ module mod_ommp_interface
         end function ommp_get_polar_mm
 
         function ommp_get_mm_atoms() bind(c, name='ommp_get_mm_atoms')
+            !! Return the number of MM atoms in the system.
             use mod_mmpol, only: mm_atoms
             implicit none
 
@@ -75,6 +110,7 @@ module mod_ommp_interface
         end function ommp_get_mm_atoms
         
         function ommp_get_pol_atoms() bind(c, name='ommp_get_pol_atoms')
+            !! Return the number of polarizable atoms in the system.
             use mod_mmpol, only: pol_atoms
             implicit none
 
@@ -84,6 +120,7 @@ module mod_ommp_interface
         end function ommp_get_pol_atoms
 
         function get_n_ipd() bind(c, name='get_n_ipd')
+            !! Return the number of dipole's set for the current Force-Field.
             use mod_mmpol, only: n_ipd
             implicit none
 
@@ -102,6 +139,8 @@ module mod_ommp_interface
         end function ommp_get_ld_cart
 
         function ommp_ff_is_amoeba() bind(c, name='ommp_ff_is_amoeba')
+            !! Return true if the current forcefield is AMOEBA, and false in
+            !! all other cases.
             use mod_mmpol, only: amoeba
             implicit none
 
@@ -111,15 +150,18 @@ module mod_ommp_interface
         end function ommp_ff_is_amoeba
         
         subroutine ommp_set_verbose(verb) bind(c, name='ommp_set_verbose')
+            !! Set the verbosity level of the library to verb
             use mod_io, only: set_verbosity
             implicit none 
 
             integer(ommp_integer), intent(in), value :: verb
+            !! Requested verbosity library
 
             call set_verbosity(verb)
         end subroutine ommp_set_verbose
 
         subroutine ommp_print_summary() bind(c, name='ommp_print_summary')
+            !! Print a summary of the system input on standard output.
             use mod_mmpol, only: mmpol_ommp_print_summary
 
             implicit none
@@ -130,11 +172,13 @@ module mod_ommp_interface
         
         subroutine ommp_print_summary_to_file(filename) &
                 bind(c, name='ommp_print_summary_to_file')
+            !! Print a summary of the system input on file.
             use mod_mmpol, only: mmpol_ommp_print_summary
 
             implicit none
             
             character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            !! File where the summary will be printed
             character(len=OMMP_STR_CHAR_MAX) :: output_file
             
             call c2f_string(filename, output_file)
@@ -143,9 +187,11 @@ module mod_ommp_interface
         end subroutine ommp_print_summary_to_file
 
         subroutine c2f_string(c_str, f_str)
+            !! Convert a string coming from C into a Fortran string
             implicit none
             
             character(kind=c_char), intent(in) :: c_str(:)
+            !! Input string to be converted
             character(len=*), intent(out) :: f_str
 
             integer :: i 
@@ -165,6 +211,7 @@ module mod_ommp_interface
         
         subroutine ommp_init_xyz(xyzfile, prmfile) &
                 bind(c, name='ommp_init_xyz')
+            !! Initialize the library using a Tinker xyz and a Tinker prm
             use mod_inputloader, only : mmpol_init_from_xyz
             
             implicit none
