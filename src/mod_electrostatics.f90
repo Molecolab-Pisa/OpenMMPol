@@ -110,8 +110,6 @@ module mod_electrostatics
             end do
         end if
 
-        ! Since potential is computed using all the sites each 
-        ! interaction is counted twice
         ene = ene + 0.5_rp * eMM
 
     end subroutine energy_MM_pol
