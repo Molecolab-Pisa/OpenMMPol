@@ -291,10 +291,12 @@ module mod_mmpol
         call mfree('mmpol_terminate [thole]', thole)
         call mfree('mmpol_terminate [idp]', ipd) 
         
-        do i=1, size(conn)
-            call matfree(conn(i))
-        end do
-        deallocate(conn)
+        if(allocated(conn)) then
+            do i=1, size(conn)
+                call matfree(conn(i))
+            end do
+            deallocate(conn)
+        endif
 
         if (amoeba) then
             ! Extra quantities that should be deallocated only
@@ -327,13 +329,21 @@ module mod_mmpol
         !! function should be used in all the conditions 
         !! where the program cannot proceed.
 
+        use mod_constants, only: OMMP_VERBOSE_LOW
+        use mod_io, only: ommp_message
         implicit none
       
         character (len=*) message
         !! Message to print before the program termination
 
-        write(6, '(t3,a)') message
-        stop '   error termination for open_mmpol.'
+        !write(6, '(t3,a)') message
+        call ommp_message(message, OMMP_VERBOSE_LOW, 'stop')
+        call ommp_message("Unrecoverable error in openMMPol &
+                          &library. Exiting.", OMMP_VERBOSE_LOW, &
+                          'stop')
+        call mmpol_terminate()
+
+        stop
     end subroutine fatal_error
 
     subroutine thole_init(asc)

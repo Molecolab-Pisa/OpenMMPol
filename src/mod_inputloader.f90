@@ -88,7 +88,7 @@ module mod_inputloader
         read(iof_mmpinp,*) input_revision
         
         if (input_revision /= 3 .and. input_revision /= 2) &
-            call fatal_error('input and internal revision conflict.')
+            call fatal_error('MMP file is only supported with version 2 or 3.')
 
         call memory_init(.false., 0)
         
