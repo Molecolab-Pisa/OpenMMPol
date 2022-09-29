@@ -54,8 +54,6 @@ _libopenmmpol.ommp_print_summary.restypes = []
 def print_summary():
     _libopenmmpol.ommp_print_summary()
 
-# ------
-
 def set_external_field(eqm, solver):
     _eqm = np.ascontiguousarray(eqm)
     eqm_type = npct.ndpointer(dtype=ct.c_double,
@@ -82,8 +80,6 @@ def get_fixedelec_energy():
     EMM = ct.c_double(0.0)
     _libopenmmpol.ommp_get_fixedelec_energy(ct.byref(EMM))
     return EMM.value
-
-# -------
 
 _libopenmmpol.ommp_get_vdw_energy.argtypes = [ct.POINTER(ct.c_double)]
 _libopenmmpol.ommp_get_vdw_energy.restypes = []
@@ -227,10 +223,27 @@ def get_ipd():
     ipd = _libopenmmpol.ommp_get_ipd()
     return ipd
 
-# ommp_get_polar_mm
-
 _libopenmmpol.ommp_ff_is_amoeba.argtypes = []
 _libopenmmpol.ommp_ff_is_amoeba.restype = ct.c_bool
 def ff_is_amoeba():
      return bool(_libopenmmpol.ommp_ff_is_amoeba())
+
+_libopenmmpol.ommp_potential_mm2ext.restypes = []
+def potential_mm2ext(coord, v):
+    assert coord.shape[1] == 3
+    assert coord.shape[0] == v.shape[0]
+
+    n = v.shape[0]
+    coordtype = npct.ndpointer(dtype=ct.c_double,
+                               ndim=2,
+                               shape=(n,3))
+    vtype =  npct.ndpointer(dtype=ct.c_double,
+                            ndim=1,
+                            shape=(n))
+
+    _libopenmmpol.ommp_potential_mm2ext.argtypes = [ct.c_int32,
+                                                    coordtype,
+                                                    vtype]
+    _libopenmmpol.ommp_potential_mm2ext(n, coord, v)
+    return
 
