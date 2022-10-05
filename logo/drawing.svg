@@ -15,7 +15,7 @@
    id="svg8"
    inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="drawing.svg"
-   inkscape:export-filename="/home/mattia/LibEnv/logo/logo.png"
+   inkscape:export-filename="/home/mattia/LibEnv/open-mmpol/logo/logo.png"
    inkscape:export-xdpi="300"
    inkscape:export-ydpi="300">
   <defs
@@ -1544,7 +1544,7 @@
       <path
          transform="matrix(-0.3,0,0,-0.3,0.69,0)"
          d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:#a51429;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:#f5550a;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
          id="path2146-6-7-1" />
     </marker>
     <marker
@@ -1558,7 +1558,7 @@
       <path
          transform="matrix(-0.3,0,0,-0.3,0.69,0)"
          d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:#a51429;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:#f5550a;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
          id="path2146-6-7-4-97" />
     </marker>
     <marker
@@ -1628,7 +1628,7 @@
       <path
          transform="matrix(-0.3,0,0,-0.3,0.69,0)"
          d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:#a51429;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:#f5550a;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
          id="path2146-6-7-4-8-4" />
     </marker>
     <marker
@@ -2063,9 +2063,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1"
-     inkscape:cx="-16.454131"
-     inkscape:cy="374.73397"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="232.63711"
+     inkscape:cy="198.83907"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -2083,7 +2083,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -2097,8 +2097,8 @@
        id="path2965"
        cx="-127.50313"
        cy="40.233299"
-       rx="57.933716"
-       ry="57.603851" />
+       ry="57.603851"
+       rx="57.933716" />
     <g
        id="g1461"
        transform="matrix(0.44968322,0,0,0.44968322,35.858947,-40.026718)">
@@ -3231,19 +3231,19 @@
        r="2.6604025"
        transform="rotate(3.9113697)" />
     <path
-       style="fill:none;stroke:#a51429;stroke-width:0.65;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2148-3-4-7)"
+       style="fill:none;stroke:#f66b2b;stroke-width:0.65;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2148-3-4-7)"
        d="m -150.08897,77.468116 c 3.63579,-1.619219 7.27104,-3.238198 10.90574,-4.85693"
        id="path8495-85"
        inkscape:path-effect="#path-effect6573"
        inkscape:original-d="m -150.08897,77.468116 c 3.63572,-1.61938 7.27097,-3.23836 10.90574,-4.85693" />
     <path
-       style="fill:none;stroke:#a51429;stroke-width:0.65;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2148-3-4-1-15)"
+       style="fill:none;stroke:#f66b2b;stroke-width:0.65;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2148-3-4-1-15)"
        d="m -133.5152,67.493648 c -3.38415,-2.09481 -6.76782,-4.189323 -10.15097,-6.283514"
        id="path8495-9-61"
        inkscape:path-effect="#path-effect6571"
        inkscape:original-d="m -133.5152,67.493648 c -3.38425,-2.094649 -6.76792,-4.18916 -10.15097,-6.283514" />
     <path
-       style="fill:none;stroke:#a51429;stroke-width:0.65;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2148-3-4-1-4-9)"
+       style="fill:none;stroke:#f66b2b;stroke-width:0.65;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2148-3-4-1-4-9)"
        d="m -149.1664,55.577144 c 3.58638,-1.725861 7.17225,-3.45148 10.75758,-5.176834"
        id="path8495-9-7-8"
        inkscape:path-effect="#path-effect6561"
