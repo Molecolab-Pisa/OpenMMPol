@@ -98,6 +98,11 @@ target_link_libraries(C_test_energy openmmpol)
 target_compile_options(C_test_energy PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_energy PROPERTY C_STANDARD 99)
 
+add_executable(ommp_xyz2mmp src/ommp_xyz2mmp.c)
+target_link_libraries(ommp_xyz2mmp openmmpol)
+target_compile_options(ommp_xyz2mmp PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET ommp_xyz2mmp PROPERTY C_STANDARD 99)
+
 if (HDF5_WORKS)
     add_executable(ommp_pp src/ommp_compile.c)
     target_link_libraries(ommp_pp openmmpol)

@@ -582,5 +582,261 @@ module mod_mmpol
         if(present(of_name)) close(of_unit)
 
     end subroutine mmpol_ommp_print_summary
+    
+    
+    subroutine mmpol_save_as_mmp(of_name, r_version)
+        !! Save the loaded system in mmpol format. Only the electrostatic part
+        !! is saved, everything else is just ignored. Version 2 and 3 of the 
+        !! mmp format are supported, 3 is used as default.
+        
+        use mod_io, only: ommp_message
+        use mod_constants, only: mscale_wang_al, &
+                                 pscale_wang_al, &
+                                 dscale_wang_al, &
+                                 uscale_wang_al, &
+                                 mscale_wang_dl, &
+                                 pscale_wang_dl, &
+                                 dscale_wang_dl, &
+                                 uscale_wang_dl, &
+                                 eps_rp, angstrom2au
+
+        implicit none
+
+        character(len=*), intent(in) :: of_name
+        !! Name of the output file
+        integer(ip), intent(in), optional :: r_version
+
+        integer(ip) :: of_unit, version, i, jb, je, igrp, inta(120)
+
+        if(.not. mmpol_is_init) then
+            call fatal_error('OpenMMPol is not initialized, cannot save .mmp &
+                             &file.')
+        end if
+        
+        if(present(r_version)) then
+            version = r_version
+        else
+            version = 3
+        end if
+
+        of_unit = 101
+        open(unit=of_unit, &
+             file=of_name(1:len(trim(of_name))), &
+             action='write')
+        ! 1.  Integer, revision number used to check if the MMPol.mmp file is 
+        !     consistent with the Gaussian version being used
+        if(version == 2 .or. version == 3) then
+            write(of_unit, '(I0,T2)') version
+        else
+            call fatal_error("Requested version of .mmp file is not supported &
+                             &by openMMPol")
+        end if
+        
+        ! 2.  Integer, MMPol job type:
+        !     
+        !     0: for a QM/MM calculation (
+        !     1: for a Tinker QM/MM calculation
+        !     2: for a QM/MM electronic energy transfer (EET) calculation
+        write(of_unit, '(I0,T2)') 0
+    
+        ! 3.  Integer, verbosity flag
+        write(of_unit, '(I0,T2)') 3
+
+        ! 4.  Integer, force field type:
+        !     
+        !     0: Amber-like
+        !     1: AMOEBA-like
+        if(amoeba) then
+            write(of_unit, '(I0,T2)') 1
+        else
+            write(of_unit, '(I0,T2)') 0
+        end if
+        
+        ! 5.  Integer, force field sub-type. For AMBER:
+        !     
+        !     0: AMBER Wang-AL
+        !     1: AMBER Wang-DL
+        !     2: AMBER Thole
+        !     0: AMOEBA
+        if(amoeba) then
+            write(of_unit, '(I0,T2)') 0
+        else
+            if(all(abs(mscale-mscale_wang_al) < eps_rp) .and. &
+               all(abs(pscale-pscale_wang_al) < eps_rp) .and. &
+               all(abs(dscale-dscale_wang_al) < eps_rp) .and. &
+               all(abs(uscale-uscale_wang_al) < eps_rp)) then
+                write(of_unit, '(I0,T2)') 0
+            else if(all(abs(mscale-mscale_wang_dl) < eps_rp) .and. &
+                    all(abs(pscale-pscale_wang_dl) < eps_rp) .and. &
+                    all(abs(dscale-dscale_wang_dl) < eps_rp) .and. &
+                    all(abs(uscale-uscale_wang_dl) < eps_rp)) then
+                write(of_unit, '(I0,T2)') 1
+            else
+                call fatal_error("The scaling scheme used is non-standard and &
+                                 &therefore cannot be saved in .mmp format")
+            end if
+        end if
+        
+        ! 6.  Integer, disabled flag
+        write(of_unit, '(I0,T2)') 0
+
+        ! 7.  Real, damping parameter for the dipole-dipole interactions
+        !     (Angstrom)
+        write(of_unit, '(F16.8)') 0.0
+
+        ! 8.  Integer, solution method for the polarization equations 
+        !     (suggested 3):
+        !     
+        !     0: default, same as 3
+        !     1: matrix inversion
+        !     2: iterative using Jacobi/DIIS
+        !     3: iterative using preconditioned CG solver
+        write(of_unit, '(I0,T2)') 0
+        
+        ! 9.  Integer, how to compute the matrix/vector products for 
+        !     MMPol (suggested 3):
+        !     
+        !     0: default (1 for matrix inversion, 3 for iterative)
+        !     1: assemble the matrix incore
+        !     2: on-the-fly products with O(N^2) scaling
+        !     3: on-the-fly products with the use of FMM if the system is large enough
+        !     4: on-the-fly products with the use of FMM in all cases
+        write(of_unit, '(I0,T2)') 0
+        
+        ! 10. Integer, convergence threshold (10^-N) for the iterative 
+        !     solvers (suggested 8)
+        write(of_unit, '(I0,T2)') 8
+
+        ! 11. Integer, accuracy of the FMM calculations (suggested 0):
+        !     
+        !     <0: 10^-5 RMS 10^-4 Max Error
+        !     0: 10^-6 RMS 10^-5 Max Error
+        !     1: 10^-7 RMS 10^-6 Max Error
+        !     >2: maximum accuracy
+        write(of_unit, '(I0,T2)') 0     
+        
+        ! 12. Real, FMM box size for MM interactions (Angstrom) (suggested 12.0)
+        write(of_unit, '(F16.8)') 12.0
+
+        ! 13. Real, FMM box size for MM/PCM interactions (Angstrom) 
+        !     (suggested 6.0)
+        if(version == 3) then
+            write(of_unit, '(F16.8)') 6.0
+        end if
+
+        ! 14. Integer, continuum solvation model:
+        !     
+        !     0: no continuum solvation model
+        !     1: ddCOSMO
+        !     2: ddPCM
+        write(of_unit, '(I0,T2)') 0     
+        
+        ! 15. Integer, maximum angular momentum for PCM (suggested 10)
+        write(of_unit, '(I0,T2)') 10
+
+        ! 16. Integer, number of Lebedev integration points for PCM 
+        !     (suggested 302)
+        write(of_unit, '(I0,T2)') 302
+
+        ! 17. Integer, convergence threshold (10^-N) for the PCM 
+        !     iterative solvers (suggested 8)
+        write(of_unit, '(I0,T2)') 8
+
+        ! 18. Real, dielectric constant of the solvent for PCM (78.3 for water)
+        write(of_unit, '(F16.8)') 78.3
+
+        ! 19. Real, optical dielectric constant of the solvent for PCM 
+        !     (1.7 for water)
+        if(version == 3) then
+            write(of_unit, '(F16.8)') 0.00
+        end if
+
+        ! 20. Real, relative size of the switching region for PCM 
+        !     (suggested 0.1)
+        write(of_unit, '(F16.8)') 0.1
+
+        ! 21. Integer, cavity type for PCM (suggested 3):
+        !     
+        !     0: default, same as 3
+        !     1: SAS cavity using UFF radii plus the probe radius
+        !     2: Read the cavity from the input file 
+        !        (the input must contain at least one sphere per atom)
+        !     3: VdW cavity using Bondi's radii scaled by 1.1
+        !     4: SAS cavity using Bondi's radii plus the probe radius
+        write(of_unit, '(I0,T2)') 0
+        
+        ! 22. Real, probe radius for the SAS cavity (Angstrom) (1.4 for water)
+        write(of_unit, '(F16.8)') 1.4
+
+        ! 23. Integer, number of MM atoms
+        write(of_unit, '(I0,T2)') mm_atoms
+
+        ! 24. Integer, number of spheres composing the cavity. 
+        !     Mandatory if the cavity type is 2, additional spheres 
+        !     if the cavity is automatically built.
+        write(of_unit, '(I0,T2)') 0
+       
+        ! 25. Integer array, size (N): atomic numbers
+        do i=1, mm_atoms
+            write(of_unit, '(I0,T2)') 1
+        end do
+
+        ! 26. Real array, size (N, 3): coordinates
+        do i=1, mm_atoms
+            write(of_unit, '(3F16.8)') cmm(:,i) / angstrom2au
+        end do
+
+        ! 27. Integer array, size (N): residue numbers
+        do i=1, mm_atoms
+            write(of_unit, '(I0,T2)') 1
+        end do
+
+        ! 28. Real array, size (N): charges or fiixed multipoles
+        do i=1, mm_atoms
+            if(amoeba) then
+                write(of_unit, '(10F16.8)') q0(:,i) * [1.0, & !q
+                                                       1.0, 1.0, 1.0, & !mu
+                                                       3.0, 3.0, 3.0, & ! Q
+                                                       3.0, 3.0, 3.0]   ! Q
+
+            else
+                write(of_unit, '(F16.8)') q(:,i)
+            end if
+        end do
+
+        ! 29. Real array, size (N): polarizabilities
+        do i=1, mm_atoms
+            if(mm_polar(i) > 0) then
+                write(of_unit, '(F16.8)') pol(i) / (angstrom2au**3)
+            else
+                write(of_unit, '(F16.8)') 0.0
+            end if
+        end do
+
+        ! 30. Integer array, size (N, 8): connectivity matrix
+        do i=1, mm_atoms
+            jb = conn(1)%ri(i)
+            je = conn(1)%ri(i+1)-1
+            inta(1:8) = 0
+            inta(1:je-jb+1) = conn(1)%ci(jb:je)
+            write(of_unit, '(8I8)') inta(1:8)
+        end do
+
+        ! 31. Integer array, size (N, 120): polarization group members
+        do i=1, mm_atoms
+            igrp = mmat_polgrp(i)
+            jb=polgrp_mmat%ri(igrp)
+            je=polgrp_mmat%ri(igrp+1)-1
+            inta = 0
+            inta(1:je-jb+1) = polgrp_mmat%ci(jb:je)
+            write(of_unit, '(120I8)') inta
+        end do
+        ! 32. Integer array, size (N, 4): rotation conventions and 
+        !     reference atoms for the AMOEBA multipoles
+        do i=1, mm_atoms
+            write(of_unit, '(4I8)') mol_frame(i), iz(i), ix(i), iy(i)
+        end do
+
+    end subroutine mmpol_save_as_mmp
 
 end module mod_mmpol

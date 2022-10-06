@@ -26,6 +26,7 @@
 
 extern void ommp_init_mmp(char *);
 extern void ommp_init_xyz(char *, char *);
+extern void ommp_save_mmp(char *, int32_t);
 extern void ommp_terminate(void);
 #ifdef USE_HDF5
 extern void ommp_write_hdf5(char *);
