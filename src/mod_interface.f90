@@ -246,6 +246,29 @@ module mod_ommp_interface
 
             call mmpol_init_from_mmp(trim(filename))
         end subroutine 
+        
+        subroutine C_ommp_save_mmp(filename) bind(c, name='ommp_save_mmp')
+            use mod_mmpol, only : mmpol_save_as_mmp
+            
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: output_file
+
+            call c2f_string(filename, output_file)
+            call mmpol_save_as_mmp(output_file)
+        end subroutine 
+
+        subroutine ommp_save_mmp(filename, version)
+            use mod_mmpol, only : mmpol_save_as_mmp
+
+            implicit none
+
+            character(len=*) :: filename
+            integer :: version
+
+            call mmpol_save_as_mmp(trim(filename), version)
+        end subroutine
 
         subroutine ommp_set_external_field(ext_field, solver) &
                 bind(c, name='ommp_set_external_field')
@@ -453,6 +476,7 @@ module mod_ommp_interface
             use mod_bonded, only: terminate_bonded
             use mod_nonbonded, only: vdw_terminate
             use mod_electrostatics, only: electrostatics_terminate
+            use mod_polarization, only: polarization_terminate
 
             implicit none
 
@@ -460,6 +484,7 @@ module mod_ommp_interface
             call terminate_bonded()
             call vdw_terminate()
             call electrostatics_terminate()
+            call polarization_terminate()
 
         end subroutine
 

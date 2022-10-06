@@ -43,7 +43,7 @@ module mod_polarization
     !! requires it.
     logical :: ipd_done = .false.
 
-    public :: polarization, ipd_done
+    public :: polarization, ipd_done, polarization_terminate
     
     contains
     
@@ -136,8 +136,10 @@ module mod_polarization
         ! Allocate and compute dipole polarization tensor, if needed
         if(mvmethod == OMMP_MATV_INCORE .or. &
            solver == OMMP_SOLVER_INVERSION) then
-            call mallocate('polarization [TMat]',n,n,TMat)
-            call create_TMat(TMat)
+            if(.not. allocated(tmat)) then
+                call mallocate('polarization [TMat]',n,n,TMat)
+                call create_TMat(TMat)
+            end if
         end if
 
         ! Reshape electric field matrix into a vector
@@ -253,9 +255,18 @@ module mod_polarization
         
         call mfree('polarization [ipd0]', ipd0)
         call mfree('polarization [e_vec]', e_vec)
-        if(allocated(TMat)) call mfree('polarization [TMat]',TMat)
 
     end subroutine polarization
+
+    subroutine polarization_terminate()
+        use mod_memory, only: mfree 
+
+        implicit none
+        
+        if(allocated(TMat)) &
+            call mfree('polarization [TMat]',TMat)
+
+    end subroutine polarization_terminate
     
     subroutine dipole_T(i, j, tens)
         !! This subroutine compute the interaction tensor (rank 3) between
@@ -333,7 +344,8 @@ module mod_polarization
 
         integer(ip) :: i, j, ii, jj
         
-        call ommp_message("Explicitly computing interaction matrix to solve the polarization system", OMMP_VERBOSE_HIGH)
+        call ommp_message("Explicitly computing interaction matrix to solve &
+                           &the polarization system", OMMP_VERBOSE_HIGH)
 
         ! Initialize the tensor with zeros
         tmat = 0.0_rp
