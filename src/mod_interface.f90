@@ -270,8 +270,31 @@ module mod_ommp_interface
             call mmpol_save_as_mmp(trim(filename), version)
         end subroutine
 
-        subroutine ommp_set_external_field(ext_field, solver) &
+        subroutine C_ommp_set_external_field(ext_field, solver) &
                 bind(c, name='ommp_set_external_field')
+            use mod_mmpol, only: pol_atoms
+            
+            implicit none
+            
+            real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
+            integer(ommp_integer), intent(in), value :: solver
+
+            call ommp_set_external_field(ext_field, solver, .true.)
+        end subroutine C_ommp_set_external_field
+        
+        subroutine C_ommp_set_external_field_nomm(ext_field, solver) &
+                bind(c, name='ommp_set_external_field_nomm')
+            use mod_mmpol, only: pol_atoms
+            
+            implicit none
+            
+            real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
+            integer(ommp_integer), intent(in), value :: solver
+
+            call ommp_set_external_field(ext_field, solver, .false.)
+        end subroutine C_ommp_set_external_field_nomm
+
+        subroutine ommp_set_external_field(ext_field, solver, add_mm_field)
             !! This function get an external field and solve the polarization
             !! system in the presence of the provided external field.
             use mod_polarization, only: polarization, ipd_done
@@ -283,20 +306,40 @@ module mod_ommp_interface
             
             real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
             integer(ommp_integer), intent(in), value :: solver
+            logical, intent(in), value, optional :: add_mm_field
 
             real(ommp_real), allocatable :: ef(:,:,:)
             integer :: i
+            logical :: do_mm_f
+
+            if(present(add_mm_field)) then
+                do_mm_f = add_mm_field
+            else
+                do_mm_f = .true.
+            end if
 
             ipd_done = .false.
-            
-            call mallocate('ommp_get_polelec_energy [ef]', 3, pol_atoms, n_ipd, ef)
-            call prepare_M2D()
-            do i=1, n_ipd
-                ef(:,:,i) = e_m2d(:,:,i) + ext_field
-            end do
-            call polarization(ef, ipd, solver)
-            call mfree('ommp_get_polelec_energy [ef]', ef)
 
+            if(do_mm_f) then
+                call mallocate('ommp_get_polelec_energy [ef]', &
+                               3, pol_atoms, n_ipd, ef)
+                call prepare_M2D()
+                do i=1, n_ipd
+                    ef(:,:,i) = e_m2d(:,:,i) + ext_field
+                end do
+                call polarization(ef, ipd, solver)
+                call mfree('ommp_get_polelec_energy [ef]', ef)
+            else
+                call mallocate('ommp_get_polelec_energy [ef]', &
+                               3, pol_atoms, n_ipd, ef)
+                do i=1, n_ipd
+                    ef(:,:,i) = ext_field
+                end do
+                ! TODO in this case the polarization system should be solved
+                ! only once!
+                call polarization(ef, ipd, solver)
+                call mfree('ommp_get_polelec_energy [ef]', ef)
+            end if
         end subroutine ommp_set_external_field
 
         subroutine ommp_get_polelec_energy(epol) &

@@ -39,6 +39,7 @@ extern void ommp_print_summary_to_file(char *);
 extern void ommp_get_polelec_energy(double *);
 extern void ommp_get_fixedelec_energy(double *);
 extern void ommp_set_external_field(double *, int32_t);
+extern void ommp_set_external_field_nommm(double *, int32_t);
 extern void ommp_potential_mm2ext(int32_t, double *, double *);
 
 extern void ommp_get_vdw_energy(double *);

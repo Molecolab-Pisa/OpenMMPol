@@ -54,7 +54,7 @@ _libopenmmpol.ommp_print_summary.restypes = []
 def print_summary():
     _libopenmmpol.ommp_print_summary()
 
-def set_external_field(eqm, solver):
+def set_external_field(eqm, solver, exclude_mm = False):
     _eqm = np.ascontiguousarray(eqm)
     eqm_type = npct.ndpointer(dtype=ct.c_double,
                               ndim=2,
@@ -62,9 +62,15 @@ def set_external_field(eqm, solver):
                                      3),
                               flags='C_CONTIGUOUS')
 
-    _libopenmmpol.ommp_set_external_field.restypes = []
-    _libopenmmpol.ommp_set_external_field.argtypes = [eqm_type, INT_TYPE]
-    _libopenmmpol.ommp_set_external_field(_eqm, available_solvers[solver])
+    if not exclude_mm:
+        _libopenmmpol.ommp_set_external_field.restypes = []
+        _libopenmmpol.ommp_set_external_field.argtypes = [eqm_type, INT_TYPE]
+        _libopenmmpol.ommp_set_external_field(_eqm, available_solvers[solver])
+    else:
+        _libopenmmpol.ommp_set_external_field_nomm.restypes = []
+        _libopenmmpol.ommp_set_external_field_nomm.argtypes = [eqm_type, INT_TYPE]
+        _libopenmmpol.ommp_set_external_field_nomm(_eqm, available_solvers[solver])
+
 
 
 _libopenmmpol.ommp_get_polelec_energy.argtypes = [ct.POINTER(ct.c_double)]
