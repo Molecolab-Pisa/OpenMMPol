@@ -332,12 +332,11 @@ module mod_ommp_interface
             else
                 call mallocate('ommp_get_polelec_energy [ef]', &
                                3, pol_atoms, n_ipd, ef)
-                do i=1, n_ipd
-                    ef(:,:,i) = ext_field
-                end do
-                ! TODO in this case the polarization system should be solved
-                ! only once!
-                call polarization(ef, ipd, solver)
+                
+                ef(:,:,1) = ext_field
+                call polarization(ef, ipd, solver, &
+                                  OMMP_MATV_DEFAULT, [.true., .false.] )
+                
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             end if
         end subroutine ommp_set_external_field
