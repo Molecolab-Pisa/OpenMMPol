@@ -381,8 +381,10 @@ subroutine rotation_matrix(doder,j,jz,jx,jy,r,dri,driz,drix,driy)
 !
 ! get the xi, eta and zeta vectors and their norms:
 !
-  xi          = cmm(:,jz) - cmm(:,j)
-  xi_norm     = sqrt(dot_product(xi,xi))
+  if(jz.ne.0) then
+    xi          = cmm(:,jz) - cmm(:,j)
+    xi_norm     = sqrt(dot_product(xi,xi))
+  end if
   if (jx.ne.0) then
     eta       = cmm(:,jx) - cmm(:,j)
     eta_norm  = sqrt(dot_product(eta,eta))
