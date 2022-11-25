@@ -253,3 +253,40 @@ def potential_mm2ext(coord, v):
     _libopenmmpol.ommp_potential_mm2ext(n, coord, v)
     return
 
+_libopenmmpol.ommp_potential_mmpol2ext.restypes = []
+def potential_mmpol2ext(coord, v):
+    assert coord.shape[1] == 3
+    assert coord.shape[0] == v.shape[0]
+
+    n = v.shape[0]
+    coordtype = npct.ndpointer(dtype=ct.c_double,
+                               ndim=2,
+                               shape=(n,3))
+    vtype =  npct.ndpointer(dtype=ct.c_double,
+                            ndim=1,
+                            shape=(n))
+
+    _libopenmmpol.ommp_potential_mmpol2ext.argtypes = [ct.c_int32,
+                                                       coordtype,
+                                                       vtype]
+    _libopenmmpol.ommp_potential_mmpol2ext(n, coord, v)
+    return
+
+_libopenmmpol.ommp_potential_pol2ext.restypes = []
+def potential_pol2ext(coord, v):
+    assert coord.shape[1] == 3
+    assert coord.shape[0] == v.shape[0]
+
+    n = v.shape[0]
+    coordtype = npct.ndpointer(dtype=ct.c_double,
+                               ndim=2,
+                               shape=(n,3))
+    vtype =  npct.ndpointer(dtype=ct.c_double,
+                            ndim=1,
+                            shape=(n))
+
+    _libopenmmpol.ommp_potential_pol2ext.argtypes = [ct.c_int32,
+                                                     coordtype,
+                                                     vtype]
+    _libopenmmpol.ommp_potential_pol2ext(n, coord, v)
+    return

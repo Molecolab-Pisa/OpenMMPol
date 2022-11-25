@@ -377,6 +377,38 @@ module mod_ommp_interface
             call energy_MM_MM(emm)
         end subroutine
 
+        subroutine ommp_potential_mmpol2ext(n, cext, v) &
+                bind(c, name='ommp_potential_mmpol2ext')
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_D2E, &
+                                          potential_M2E
+
+            implicit none
+            
+            integer(ommp_integer), intent(in), value :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            call potential_M2E(cext, v)
+            call potential_D2E(cext, v)
+        end subroutine
+        
+        subroutine ommp_potential_pol2ext(n, cext, v) &
+                bind(c, name='ommp_potential_pol2ext')
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_D2E
+
+            implicit none
+            
+            integer(ommp_integer), intent(in), value :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            call potential_D2E(cext, v)
+        end subroutine
+        
         subroutine ommp_potential_mm2ext(n, cext, v) &
                 bind(c, name='ommp_potential_mm2ext')
             ! Compute the electric potential of static sites at
