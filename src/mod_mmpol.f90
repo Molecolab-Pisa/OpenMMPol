@@ -66,7 +66,7 @@ module mod_mmpol
         else if(sys_obj%ff_type == 0) then
             sys_obj%amoeba = .false.
         end if
-       
+        
         call topology_init(sys_obj%top, l_mm_atoms)
         call electrostatics_init(sys_obj%eel, sys_obj%amoeba, l_pol_atoms, &
                                  sys_obj%top)
@@ -287,7 +287,7 @@ module mod_mmpol
        
         implicit none
 
-        type(ommp_electrostatics_type), intent(out) :: eel_obj
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
         real(rp), intent(in) :: m(4), p(4), d(4), u(4)
         real(rp), optional, intent(in) :: i(4)
         

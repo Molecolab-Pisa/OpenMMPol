@@ -19,7 +19,7 @@ add_library(openmmpol SHARED
             #src/mod_bonded.f90
             src/mod_constants.f90
             src/mod_electrostatics.f90
-            #src/mod_inputloader.f90
+            src/mod_inputloader.f90
             #src/mod_interface.f90
             src/mod_io.f90
             #src/mod_iohdf5.f90
