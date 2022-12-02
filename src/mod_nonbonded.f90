@@ -7,24 +7,41 @@ module mod_nonbonded
     implicit none
     private
 
-    real(rp), allocatable, dimension(:) :: vdw_r, vdw_e, vdw_f
-    
-    type(yale_sparse) :: vdw_pair
-    real(rp), allocatable :: vdw_pair_r(:), vdw_pair_e(:)
     integer(ip), parameter :: pair_allocation_chunk = 20
-    
-    real(rp), dimension(4) :: vdw_screening
 
-    logical :: use_nonbonded = .false.
+    logical :: use_nonbonded = .false. !! TODO Move to another place
+
+    type ommp_nonbonded_type
+        !! Derived type for storing the information relative to the calculation
+        !! of non-bonding interactions
+        real(rp), allocatable, dimension(:) :: vdw_r
+        !! VdW radii for the atoms of the system
+        real(rp), allocatable, dimension(:) :: vdw_e
+        !! Vdw energies for the atoms of fthe system
+        real(rp), allocatable, dimension(:) :: vdw_f
+        !! Scale factor for displacing the interaction center
+    
+        type(yale_sparse) :: vdw_pair
+        !! If a pair is present in this sparse matrix, its VdW interaction
+        !! should be calculated using the corresponding radius and energy
+        !! not the standard ones, derived from the single-atom values.
+        real(rp), allocatable :: vdw_pair_r(:)
+        !! Radii for the VdW atom pairs
+        real(rp), allocatable :: vdw_pair_e(:)
+        !! VdW energies for atom pairs
+    
+        real(rp), dimension(4) :: vdw_screening
+        !! Screening factors for 1,2 1,3 and 1,4 neighbours.
+    end type ommp_nonbonded_type
+
     
     public :: vdw_init, vdw_terminate, vdw_potential, vdw_set_pair
-    public :: vdw_r, vdw_e, vdw_f, vdw_screening, vdw_pair, vdw_pair_r, &
-              vdw_pair_e, use_nonbonded
 
     contains
 
-    subroutine vdw_init(vdw_type, radius_rule, radius_size, radius_type, epsrule)
-        !! Initialize the non-bonded module allocating the parameters vectors
+    subroutine vdw_init(vdw_obj, vdw_type, radius_rule, radius_size, &
+                        radius_type, epsrule)
+        !! Initialize the non-bonded object allocating the parameters vectors
         
         use mod_memory, only: mallocate
         use mod_mmpol, only: mm_atoms, fatal_error

@@ -6,129 +6,43 @@ module mod_mmpol
     
     use mod_memory, only: ip, rp
     use mod_adjacency_mat, only: yale_sparse
+    use mod_topology, only: ommp_topology_type, topology_init, &
+                            topology_terminate
+    use mod_electrostatics, only: ommp_electrostatics_type
     use mod_io, only: ommp_message
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none 
-    !private TODO
-    
-    integer(ip), protected :: ff_type
-    !! Force field type selection flag (0 for AMBER, 1 for AMOEBA)
 
-    logical, protected :: amoeba
-    !! AMOEBA FF = True; WANG-AMBER = False
-    
-    integer(ip), protected :: mm_atoms !! number of MM atoms
-    integer(ip), protected :: pol_atoms !! number of polarizable atoms
-    integer(ip), protected :: ld_cart, ld_cder
-!!     size of the cartesian multipolar distribution (i.e., (l+1)*(l+2)*(l+3)/6)
-!!     this is 1 for AMBER (charges only), 10 for AMOEBA (up to quadrupoles). 
-!!     this is also the size of the array that contains the electrostatic properties
-!!     of the sources at the sources. ld_cder is the leading size of the derivative of
-!!     such a distribution, which is 3 for AMBER and 19 for AMOEBA.
-    integer(ip), protected :: n_ipd 
-    !! number of induced point dipoles distributions 
-    !! this is 1 for AMBER and 2 for AMOEBA
-    
-    ! arrays for the force field dependent exclusion factors. 
-    
-    real(rp), protected :: mscale(4)
-    !! factors for charge-charge (or multipole-multipole) interactions
+    type ommp_system
+        logical :: mmpol_is_init = .false.
+        !! Initialization flag
+        integer(ip) :: ff_type
+        !! Force field type selection flag (0 for AMBER, 1 for AMOEBA)
+        logical :: amoeba
+        !! AMOEBA FF = True; WANG-AMBER = False
 
-    real(rp), protected :: pscale(4)
-    !! factors for chrage-ipd (or multipole-ipd) interactions.
-    !! in AMOEBA, this is used to define the polarization field, i.e., the right-hand
-    !! side to the polarization equations, and depends on the connectivity.
-
-    real(rp), protected :: pscale_intra(4)
-    !! Only used for AMOEBA, same as pscale but for atoms that belong to the 
-    !! same polarization group
-    
-    real(rp), protected :: dscale(4)
-    !! factors for multipoles-ipd interactions used to compute the direct field,
-    !! which is used to define the polarization energy. these factors depend on 
-    !! the polarization group "connectivity" (AMOEBA only)
-
-    real(rp), protected :: uscale(4)
-    !! factor for ipd-ipd interactions. these depend on the connectivity (AMBER)
-    !! or on the polarization group " connectivity (AMOEBA)
-
-    ! allocatable arrays which describe the polarizable system
-    
-    real(rp), allocatable :: thole(:)
-    !! array to store the thole factors for computing damping functions
-    
-    real(rp) :: thole_scale
-    !! Scale factor for thole damping (only used by non-AMOEBA FF); all
-    !! the element of thole(:) are multiplied by thole_scale ** 0.5
-    
-    real(rp), allocatable, target :: cmm(:,:)
-    !! Coordinates of MM atoms (3:mm_atoms)
-    
-    real(rp), allocatable, target :: cpol(:,:)
-    !! Coordinates of polarizable atoms (3:pol_atoms)
-    
-    real(rp), allocatable, target :: q(:,:)
-    !! Mutlipolar distribution (ld_cart:mm_atoms)
-    !! For AMOEBA this is the rotated distribution.
-    !! The order for the stored multipoles is
-    !! q, px, py, pz, Qxx, Qxy, Qyy, Qxz, Qyx, Qzz.
-
-    real(rp), allocatable, target :: q0(:,:)
-    !! Unrotated utlipolar distribution (ld_cart:mm_atoms)
-    !! (AMOEBA only)
-    
-    real(rp), allocatable, target :: ipd(:,:,:)
-    !! induced point dipoles (3:pol_atoms:ipd) 
-    logical :: ipd_done
-    
-    real(rp), allocatable :: pol(:)
-    !! Polarizabilities for each polarizable atom
-    
-    integer(ip), allocatable :: mm_polar(:)
-    !! indices of the MM atoms that are polarizable
-
-    integer(ip), allocatable, target :: polar_mm(:)
-    !! positions of a polarizable atom in the mm atoms list
-    
-    type(yale_sparse), allocatable :: conn(:)
-    !! connectivity matrices listing atoms separetad by 1, 2, 3 (and 4 -- only 
-    !! for AMOEBA) bonds. 1st element is the adjacency matrix.
-
-    integer(ip), allocatable :: mmat_polgrp(:)
-    !! Polarizability group index for each MM site
-
-    type(yale_sparse) :: polgrp_mmat
-    !! For each polarization group index, list all the MM atoms included.
-    !! It basically is a sparse boolean matrix of dimension 
-    !! N_polgroups x N_mmatoms
-
-    type(yale_sparse), allocatable :: pg_conn(:)
-    !! Adjacency and connectivity matytrices between polarizability groups.
-    !! Two groups are said to be adjacent if they are connected by a chemical 
-    !! bond. The 1st element is the identity matrix for code simplicity.
-    
-    ! parameters for the definition of the rotation matrices for the multipoles:
-    integer(ip), allocatable :: mol_frame(:)
-    !! definition of the molecular frame
-    !! convention: 0 ... do not rotate
-    !!             1 ... z-then-x
-    !!             2 ... bisector
-    !!             3 ... z-only
-    !!             4 ... z-bisector
-    !!             5 ... 3-fold
-
-    integer(ip), allocatable :: ix(:), iy(:), iz(:)
-    !! neighboring atoms used to define the axes of the molecular frame
-    logical, protected :: mmpol_is_init = .false.
+        type(ommp_topology_type) :: top
+        !! Data structure containing the topology of the system
+        type(ommp_electrostatics_type) :: eel
+        !! Data structure containing all the information needed to run the
+        !! elctrostatics related calculations
+        !TODO type(ommp_bonded_type) :: bonded
+        !! Data structure containing all the information needed to run the
+        !! bonded terms calculations
+        !TODO type(ommp_nonbonded_type) :: nonbonded
+        !! Data structure containing all the information needed to run the
+        !! non-bonded terms calculations
+    end type ommp_system
     
     contains
 
-    subroutine mmpol_init(l_ff_type, l_mm_atoms, l_pol_atoms)
+    subroutine mmpol_init(sys_obj, l_ff_type, l_mm_atoms, l_pol_atoms)
         !! Performs all the memory allocation and vector initialization
         !! needed to run the openMMPol library
         
         use mod_memory, only: ip, rp, mallocate
+        use mod_electrostatics, only: electrostatics_init
 
         implicit none
 
@@ -140,60 +54,26 @@ module mod_mmpol
         
         integer(ip), intent(in) :: l_pol_atoms
         !! Number of polarizable atoms used in initialization
+
+        type(ommp_system), intent(inout) :: sys_obj
+        !! The object to be initialized
         
         ! FF related settings
-        ff_type = l_ff_type
-        mm_atoms = l_mm_atoms
-        pol_atoms = l_pol_atoms
-
-        if(ff_type == 1) then
-            amoeba = .true.
-            ld_cart = 10_ip
-            ld_cder = 19_ip
-            n_ipd = 2_ip
-        else if(ff_type == 0) then
-            amoeba = .false.
-            ld_cart = 1_ip
-            ld_cder = 3_ip
-            n_ipd = 1_ip
-        end if
-  
-        ! Memory allocation
-        call mallocate('mmpol_init [cmm]', 3_ip, mm_atoms, cmm)
-        call mallocate('mmpol_init [q]', ld_cart, mm_atoms, q)
-        call mallocate('mmpol_init [pol]', pol_atoms, pol)
-        call mallocate('mmpol_init [cpol]', 3_ip, pol_atoms, cpol)
-        call mallocate('mmpol_init [polar_mm]', pol_atoms, polar_mm)
-        call mallocate('mmpol_init [mm_polar]', mm_atoms, mm_polar)
-        call mallocate('mmpol_init [thole]', mm_atoms, thole)
+        sys_obj%ff_type = l_ff_type
         
-        call mallocate('mmpol_init [idp]', 3_ip, pol_atoms, n_ipd, ipd) 
-        ipd_done = .false.
-        ipd = 0.0_rp
-
-        allocate(conn(1)) 
-        ! Temporary allocation, it should be allocated of the proper
-        ! size when all the connectivity matricies are built, now
-        ! it should only contain adjacency matrix.
-
-        if (amoeba) then
-            ! Extra quantities that should be allocated only
-            ! for AMOEBA
-            call mallocate('mmpol_init [q0]', ld_cart, mm_atoms, q0)
-            
-            call mallocate('mmpol_init [mmat_polgrp]', mm_atoms, mmat_polgrp)
-
-            call mallocate('mmpol_init [mol_frame]', mm_atoms, mol_frame)
-            call mallocate('mmpol_init [ix]', mm_atoms, ix)
-            call mallocate('mmpol_init [iy]', mm_atoms, iy)
-            call mallocate('mmpol_init [iz]', mm_atoms, iz)
+        if(sys_obj%ff_type == 1) then
+            sys_obj%amoeba = .true.
+        else if(sys_obj%ff_type == 0) then
+            sys_obj%amoeba = .false.
         end if
-
-        mmpol_is_init = .true.
-  
+       
+        call topology_init(sys_obj%top, l_mm_atoms)
+        call electrostatics_init(sys_obj%eel, sys_obj%amoeba, l_pol_atoms, &
+                                 sys_obj%top)
+        sys_obj%mmpol_is_init = .true.
     end subroutine mmpol_init
 
-    subroutine mmpol_prepare()
+    subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 
         !! are used during the calculation. The upstream code have
         !! to provide cmm, q, pol, adjacency matrix and in
@@ -211,8 +91,12 @@ module mod_mmpol
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_DEBUG
+        use mod_electrostatics, only: thole_init
 
         implicit none
+        
+        type(ommp_system), intent(inout) :: sys_obj
+        !! The system object to bi initialized
 
         integer(ip) :: i
         real(rp) :: xx(3) ! TODO remove this variable
@@ -222,105 +106,68 @@ module mod_mmpol
         call ommp_message("Building connectivity lists", OMMP_VERBOSE_DEBUG)
         
         ! compute connectivity lists from connected atoms
-        if(size(conn) < 4) then
-            call matcpy(conn(1), adj)
-            deallocate(conn)
-            call build_conn_upto_n(adj, 4, conn, .false.)
+        if(size(sys_obj%top%conn) < 4) then
+            call matcpy(sys_obj%top%conn(1), adj)
+            deallocate(sys_obj%top%conn)
+            call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if
         
-        call ommp_message("Creating MM->polar and polar->MM lists", OMMP_VERBOSE_DEBUG)
-
+        call ommp_message("Creating MM->polar and polar->MM lists", &
+                          OMMP_VERBOSE_DEBUG)
         ! invert mm_polar list creating mm_polar
-        mm_polar(:) = 0
-        do i = 1, pol_atoms
-            mm_polar(polar_mm(i)) = i
+        sys_obj%eel%mm_polar(:) = 0
+        do i = 1, sys_obj%eel%pol_atoms
+            sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
         end do
 
-        call ommp_message("Populating coordinates of polarizable atoms", OMMP_VERBOSE_DEBUG)
+        call ommp_message("Populating coordinates of polarizable atoms", &
+                          OMMP_VERBOSE_DEBUG)
         ! populate cpol list of coordinates
-        do i = 1, pol_atoms
-            cpol(:,i) = cmm(:, polar_mm(i))
+        do i = 1, sys_obj%eel%pol_atoms
+            sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
         end do
 
         call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
-        ! compute factors for thole damping
         
-        if(amoeba) then
-            call thole_init()
-        else
-            call thole_init(thole_scale)
-        end if
+        ! compute factors for thole damping
+        call thole_init(sys_obj%eel)
 
-        if(amoeba) then
+        if(sys_obj%amoeba) then
             ! Copy multipoles from q to q0
-            q0 = q
+            sys_obj%eel%q0 = sys_obj%eel%q
 
             ! scales by 1/3 AMOEBA quadrupoles (?)
             ! Mysterious division of multipoles by three
             ! FL told me that it was done like that in
             ! Tinker
-            q0(5:10,:) = q0(5:10,:) / 3.0_rp
+            sys_obj%eel%q0(5:10,:) = sys_obj%eel%q0(5:10,:) / 3.0_rp
 
             ! polarization groups connectivity list
-            call reverse_polgrp_tab(mmat_polgrp, polgrp_mmat)
-            call build_pg_adjacency_matrix(pg_adj)
-            call build_conn_upto_n(pg_adj, 3, pg_conn, .true.)
+            call reverse_polgrp_tab(sys_obj%eel%mmat_polgrp, &
+                                    sys_obj%eel%polgrp_mmat)
+            call build_pg_adjacency_matrix(sys_obj%eel, pg_adj)
+            call build_conn_upto_n(pg_adj, 3, sys_obj%eel%pg_conn, .true.)
 
             ! performs multipoles rotation
-            call rotate_multipoles(.false.,xx,xx)
+            call rotate_multipoles(sys_obj%eel, .false.,xx,xx)
         end if
 
     end subroutine mmpol_prepare
 
-    subroutine mmpol_terminate()
+    subroutine mmpol_terminate(sys_obj)
         !! Performs all the deallocation needed at the end of the 
         !! calculation
         use mod_memory, only: mfree
-        use mod_adjacency_mat, only: matfree
+        use mod_electrostatics, only: electrostatics_terminate
 
         implicit none 
 
-        integer(ip) :: i
+        type(ommp_system), intent(inout) :: sys_obj
 
-        call mfree('mmpol_terminate [cmm]', cmm)
-        call mfree('mmpol_terminate [q]', q)
-        call mfree('mmpol_terminate [pol]', pol)
-        call mfree('mmpol_terminate [cpol]', cpol)
-        call mfree('mmpol_terminate [polar_mm]', polar_mm)
-        call mfree('mmpol_terminate [mm_polar]', mm_polar)
-        call mfree('mmpol_terminate [thole]', thole)
-        call mfree('mmpol_terminate [idp]', ipd) 
-        
-        if(allocated(conn)) then
-            do i=1, size(conn)
-                call matfree(conn(i))
-            end do
-            deallocate(conn)
-        endif
+        call electrostatics_terminate(sys_obj%eel)
+        call topology_terminate(sys_obj%top)
 
-        if (amoeba) then
-            ! Extra quantities that should be deallocated only
-            ! for AMOEBA
-            
-            ! Second set of multipoles (q0 = unrotated, q=rotated)
-            call mfree('mmpol_terminate [q0]', q0)
-            
-            ! Polarization groups
-            call mfree('mmpol_terminate [mmat_polgrp]', mmat_polgrp)
-            do i=1, size(pg_conn)
-                call matfree(pg_conn(i))
-            end do
-            deallocate(pg_conn)
-            call matfree(polgrp_mmat)
-
-            ! Information for multipoles rotation
-            call mfree('mmpol_terminate [mol_frame]', mol_frame)
-            call mfree('mmpol_terminate [ix]', ix)
-            call mfree('mmpol_terminate [iy]', iy)
-            call mfree('mmpol_terminate [iz]', iz)
-        end if
-
-        mmpol_is_init = .false.
+        sys_obj%mmpol_is_init = .false.
 
     end subroutine mmpol_terminate
     
@@ -341,43 +188,10 @@ module mod_mmpol
         call ommp_message("Unrecoverable error in openMMPol &
                           &library. Exiting.", OMMP_VERBOSE_LOW, &
                           'stop')
-        call mmpol_terminate()
+        !TODO call mmpol_terminate()
 
         stop
     end subroutine fatal_error
-
-    subroutine thole_init(asc)
-        ! This routine compute the thole factors and stores
-        ! them in a vector. TODO add reference
-        
-        use mod_constants, only: OMMP_VERBOSE_LOW
-        implicit none
-
-        real(rp), optional, intent(in) :: asc
-        
-        integer(ip) :: i, j
-        
-        thole = 0.0_rp
-        
-        do i = 1, pol_atoms
-            j = polar_mm(i)
-            thole(j) = pol(i) ** (1.0_rp/6.0_rp)
-        end do
-        
-        if(.not. amoeba) then
-            if(present(asc)) then
-                thole = thole * sqrt(asc)
-            else
-                call fatal_error("Scale factor for Thole damping should be passed &
-                                 &to thole_init() when non-AMOEBA FF are used")
-            end if
-        else
-            if(present(asc)) then
-                call ommp_message("Scale factor passed to thole_init is &
-                    &ignored because AMOEBA FF is used", OMMP_VERBOSE_LOW)
-            end if
-        end if
-    end subroutine thole_init
 
     subroutine reverse_polgrp_tab(mm2pg, pg2mm)
         !! Takes as argument an array of polarization group index for each
@@ -386,14 +200,16 @@ module mod_mmpol
         
         implicit none
 
-        integer(ip), intent(in) :: mm2pg(mm_atoms)
+        integer(ip), intent(in) :: mm2pg(:)
         !! Index of polarization group for each MM atom
         type(yale_sparse), intent(out) :: pg2mm
         !! Indices of atoms included in each polarization group;
         !! Atom indeces for the n-th group are found at 
         !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
 
-        integer(ip) :: i, j
+        integer(ip) :: i, j, mm_atoms
+
+        mm_atoms = size(mm2pg)
 
         ! Allocation of Yale fmt sparse matrix
         pg2mm%n = maxval(mm2pg)
@@ -413,7 +229,7 @@ module mod_mmpol
         end do
     end subroutine reverse_polgrp_tab
 
-    subroutine build_pg_adjacency_matrix(adj)
+    subroutine build_pg_adjacency_matrix(eel, adj)
         !! Builds the adjacency matrix of polarization groups starting from
         !! atomic adjacency matrix and list of polarization groups indices.
 
@@ -421,12 +237,13 @@ module mod_mmpol
 
         implicit none
 
+        type(ommp_electrostatics_type), intent(in) :: eel
         type(yale_sparse), intent(out) :: adj
         !! The group adjacency matrix to be saved.
 
         integer(ip) :: npg, pg1, atm1, atm2, i, j
 
-        npg = polgrp_mmat%n
+        npg = eel%polgrp_mmat%n
 
         adj%n = npg
         allocate(adj%ri(adj%n+1))
@@ -437,19 +254,19 @@ module mod_mmpol
             ! For each polarization group
             adj%ri(pg1+1) = adj%ri(pg1)
 
-            do i=polgrp_mmat%ri(pg1), polgrp_mmat%ri(pg1+1)-1
+            do i=eel%polgrp_mmat%ri(pg1), eel%polgrp_mmat%ri(pg1+1)-1
                 ! Loop on every atom of the group
-                atm1 = polgrp_mmat%ci(i)
-                do j=conn(1)%ri(atm1), conn(1)%ri(atm1+1)-1
+                atm1 = eel%polgrp_mmat%ci(i)
+                do j=eel%top%conn(1)%ri(atm1), eel%top%conn(1)%ri(atm1+1)-1
                     ! Loop on each connected atom...
-                    atm2 = conn(1)%ci(j)
+                    atm2 = eel%top%conn(1)%ci(j)
 
                     ! If the two atoms are in different PG, then the two
                     ! polarization groups are connected. 
-                    if(mmat_polgrp(atm1) /= mmat_polgrp(atm2) .and. &
+                    if(eel%mmat_polgrp(atm1) /= eel%mmat_polgrp(atm2) .and. &
                        ! if the group is not already present in the matrix
-                       all(adj%ci(adj%ri(pg1):adj%ri(pg1+1)-1) /= mmat_polgrp(atm2))) then
-                        adj%ci(adj%ri(pg1+1)) = mmat_polgrp(atm2)
+                       all(adj%ci(adj%ri(pg1):adj%ri(pg1+1)-1) /= eel%mmat_polgrp(atm2))) then
+                        adj%ci(adj%ri(pg1+1)) = eel%mmat_polgrp(atm2)
                         adj%ri(pg1+1) = adj%ri(pg1+1) + 1
                         if(adj%ri(pg1+1) > size(adj%ci)) then
                             ! If matrix is too small, it could be enlarged...
@@ -465,378 +282,379 @@ module mod_mmpol
 
     end subroutine build_pg_adjacency_matrix
     
-    subroutine set_screening_parameters(m, p, d, u, i)
+    subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
         !! Subroutine to initialize the screening parameters
        
         implicit none
 
+        type(ommp_electrostatics_type), intent(out) :: eel_obj
         real(rp), intent(in) :: m(4), p(4), d(4), u(4)
         real(rp), optional, intent(in) :: i(4)
         
-        mscale = m
-        pscale = p
-        dscale = d
-        uscale = u
+        eel_obj%mscale = m
+        eel_obj%pscale = p
+        eel_obj%dscale = d
+        eel_obj%uscale = u
         
         if(present(i)) then
-            if(amoeba) then
-                pscale_intra = i
+            if(eel_obj%amoeba) then
+                eel_obj%pscale_intra = i
             else
                 call fatal_error("Scale factors for atoms of the same group &
                                  &cannot be set outside AMOEBA FF")
             end if
         else
-            if(amoeba) &
+            if(eel_obj%amoeba) &
                 call fatal_error("Scale factors for atoms of the same group &
                                  &should be defined in AMOEBA FF")
         end if
         
     end subroutine set_screening_parameters
     
-    subroutine mmpol_ommp_print_summary(of_name)
-        !! Prints a complete summary of all the quantities stored 
-        !! in the MMPol module
+    !--! subroutine mmpol_ommp_print_summary(of_name)
+    !--!     !! Prints a complete summary of all the quantities stored 
+    !--!     !! in the MMPol module
 
-        use mod_io, only: iof_mmpol, print_matrix, print_int_vec
-        
-        implicit none
+    !--!     use mod_io, only: iof_mmpol, print_matrix, print_int_vec
+    !--!     
+    !--!     implicit none
 
-        character(len=*), intent(in), optional :: of_name
-        
-        integer(ip) :: of_unit
+    !--!     character(len=*), intent(in), optional :: of_name
+    !--!     
+    !--!     integer(ip) :: of_unit
 
-        integer(ip) :: i, j, grp, igrp, lst(1000), ilst
-        real(rp), dimension(mm_atoms) :: polar ! Polarizabilities of all atoms
-        character(len=OMMP_STR_CHAR_MAX) :: str
+    !--!     integer(ip) :: i, j, grp, igrp, lst(1000), ilst
+    !--!     real(rp), dimension(mm_atoms) :: polar ! Polarizabilities of all atoms
+    !--!     character(len=OMMP_STR_CHAR_MAX) :: str
 
-        if(present(of_name)) then
-            of_unit = 101
-            open(unit=of_unit, &
-                 file=of_name(1:len(trim(of_name))), &
-                 action='write')
-        else
-            of_unit = iof_mmpol
-        end if
+    !--!     if(present(of_name)) then
+    !--!         of_unit = 101
+    !--!         open(unit=of_unit, &
+    !--!              file=of_name(1:len(trim(of_name))), &
+    !--!              action='write')
+    !--!     else
+    !--!         of_unit = iof_mmpol
+    !--!     end if
 
-        polar = 0.0_rp
-        do i=1, pol_atoms
-            polar(polar_mm(i)) = pol(i)
-        end do
+    !--!     polar = 0.0_rp
+    !--!     do i=1, pol_atoms
+    !--!         polar(polar_mm(i)) = pol(i)
+    !--!     end do
 
-        write(of_unit, '(A, 4F8.4)') 'mscale: ', mscale
-        write(of_unit, '(A, 4F8.4)') 'pscale: ', pscale
-        if(amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', pscale_intra
-        write(of_unit, '(A, 4F8.4)') 'dscale: ', dscale
-        write(of_unit, '(A, 4F8.4)') 'uscale: ', uscale
+    !--!     write(of_unit, '(A, 4F8.4)') 'mscale: ', mscale
+    !--!     write(of_unit, '(A, 4F8.4)') 'pscale: ', pscale
+    !--!     if(amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', pscale_intra
+    !--!     write(of_unit, '(A, 4F8.4)') 'dscale: ', dscale
+    !--!     write(of_unit, '(A, 4F8.4)') 'uscale: ', uscale
 
-        call print_matrix(.true., 'coordinates:', cmm, of_unit)
-        if (amoeba) then
-            call print_matrix(.true., 'multipoles - non rotated:', q0, of_unit)
-        end if
-        call print_matrix(.true., 'multipoles :', q, of_unit)
-        call print_matrix(.true., 'coordinates of polarizable atoms:', cpol, of_unit)
-        call print_matrix(.false., 'polarizabilities:', polar, of_unit)
-        call print_matrix(.false., 'thole factors:',thole, of_unit)
-        call print_int_vec('mm_polar list:', mm_polar, .false., of_unit)
-        call print_int_vec('polar_mm list:', polar_mm, .false., of_unit)
+    !--!     call print_matrix(.true., 'coordinates:', cmm, of_unit)
+    !--!     if (amoeba) then
+    !--!         call print_matrix(.true., 'multipoles - non rotated:', q0, of_unit)
+    !--!     end if
+    !--!     call print_matrix(.true., 'multipoles :', q, of_unit)
+    !--!     call print_matrix(.true., 'coordinates of polarizable atoms:', cpol, of_unit)
+    !--!     call print_matrix(.false., 'polarizabilities:', polar, of_unit)
+    !--!     call print_matrix(.false., 'thole factors:',thole, of_unit)
+    !--!     call print_int_vec('mm_polar list:', mm_polar, .false., of_unit)
+    !--!     call print_int_vec('polar_mm list:', polar_mm, .false., of_unit)
 
-        ! write the connectivity information for each atom:
-  1000  format(t3,'connectivity information for the ',i8,'-th atom:')
-    
-        do i = 1, mm_atoms
-            write(of_unit, 1000) i
-            
-            do j=1, 4
-                if(j == 4 .and. .not. amoeba) cycle
-                
-                write(str, "('1-', I1, ' neighors:')") j+1
-                call print_int_vec(trim(str), &
-                                   conn(j)%ci, &
-                                   .true., of_unit, &
-                                   conn(j)%ri(i), &
-                                   conn(j)%ri(i+1)-1) 
-            end do
-            
-            if(amoeba) then 
-                do j=1, 4
-                    ilst = 1
-                    do igrp=pg_conn(j)%ri(mmat_polgrp(i)), &
-                            pg_conn(j)%ri(mmat_polgrp(i)+1)-1
-                        grp = pg_conn(j)%ci(igrp)
-                        lst(ilst:ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)-1) = &
-                        polgrp_mmat%ci(polgrp_mmat%ri(grp):polgrp_mmat%ri(grp+1)-1)
-                        ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
-                    end do
-                   
-                    write(str, "('1-', I1, ' polarization neighors:')") j
-                    if(ilst == 1) ilst = 0
-                    ! needed to addres the empty array case
-                    call print_int_vec(trim(str), &
-                                       lst, &
-                                       .true., of_unit, &
-                                       1, ilst-1)
-                end do
-            end if
-        end do
-        
-        if(present(of_name)) close(of_unit)
+    !--!     ! write the connectivity information for each atom:
+    !--!1000  format(t3,'connectivity information for the ',i8,'-th atom:')
+    !--! 
+    !--!     do i = 1, mm_atoms
+    !--!         write(of_unit, 1000) i
+    !--!         
+    !--!         do j=1, 4
+    !--!             if(j == 4 .and. .not. amoeba) cycle
+    !--!             
+    !--!             write(str, "('1-', I1, ' neighors:')") j+1
+    !--!             call print_int_vec(trim(str), &
+    !--!                                conn(j)%ci, &
+    !--!                                .true., of_unit, &
+    !--!                                conn(j)%ri(i), &
+    !--!                                conn(j)%ri(i+1)-1) 
+    !--!         end do
+    !--!         
+    !--!         if(amoeba) then 
+    !--!             do j=1, 4
+    !--!                 ilst = 1
+    !--!                 do igrp=pg_conn(j)%ri(mmat_polgrp(i)), &
+    !--!                         pg_conn(j)%ri(mmat_polgrp(i)+1)-1
+    !--!                     grp = pg_conn(j)%ci(igrp)
+    !--!                     lst(ilst:ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)-1) = &
+    !--!                     polgrp_mmat%ci(polgrp_mmat%ri(grp):polgrp_mmat%ri(grp+1)-1)
+    !--!                     ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
+    !--!                 end do
+    !--!                
+    !--!                 write(str, "('1-', I1, ' polarization neighors:')") j
+    !--!                 if(ilst == 1) ilst = 0
+    !--!                 ! needed to addres the empty array case
+    !--!                 call print_int_vec(trim(str), &
+    !--!                                    lst, &
+    !--!                                    .true., of_unit, &
+    !--!                                    1, ilst-1)
+    !--!             end do
+    !--!         end if
+    !--!     end do
+    !--!     
+    !--!     if(present(of_name)) close(of_unit)
 
-    end subroutine mmpol_ommp_print_summary
-    
-    
-    subroutine mmpol_save_as_mmp(of_name, r_version)
-        !! Save the loaded system in mmpol format. Only the electrostatic part
-        !! is saved, everything else is just ignored. Version 2 and 3 of the 
-        !! mmp format are supported, 3 is used as default.
-        
-        use mod_io, only: ommp_message
-        use mod_constants, only: mscale_wang_al, &
-                                 pscale_wang_al, &
-                                 dscale_wang_al, &
-                                 uscale_wang_al, &
-                                 mscale_wang_dl, &
-                                 pscale_wang_dl, &
-                                 dscale_wang_dl, &
-                                 uscale_wang_dl, &
-                                 eps_rp, angstrom2au
+    !--! end subroutine mmpol_ommp_print_summary
+    !--! 
+    !--! 
+    !--! subroutine mmpol_save_as_mmp(of_name, r_version)
+    !--!     !! Save the loaded system in mmpol format. Only the electrostatic part
+    !--!     !! is saved, everything else is just ignored. Version 2 and 3 of the 
+    !--!     !! mmp format are supported, 3 is used as default.
+    !--!     
+    !--!     use mod_io, only: ommp_message
+    !--!     use mod_constants, only: mscale_wang_al, &
+    !--!                              pscale_wang_al, &
+    !--!                              dscale_wang_al, &
+    !--!                              uscale_wang_al, &
+    !--!                              mscale_wang_dl, &
+    !--!                              pscale_wang_dl, &
+    !--!                              dscale_wang_dl, &
+    !--!                              uscale_wang_dl, &
+    !--!                              eps_rp, angstrom2au
 
-        implicit none
+    !--!     implicit none
 
-        character(len=*), intent(in) :: of_name
-        !! Name of the output file
-        integer(ip), intent(in), optional :: r_version
+    !--!     character(len=*), intent(in) :: of_name
+    !--!     !! Name of the output file
+    !--!     integer(ip), intent(in), optional :: r_version
 
-        integer(ip) :: of_unit, version, i, jb, je, igrp, inta(120)
+    !--!     integer(ip) :: of_unit, version, i, jb, je, igrp, inta(120)
 
-        if(.not. mmpol_is_init) then
-            call fatal_error('OpenMMPol is not initialized, cannot save .mmp &
-                             &file.')
-        end if
-        
-        if(present(r_version)) then
-            version = r_version
-        else
-            version = 3
-        end if
+    !--!     if(.not. mmpol_is_init) then
+    !--!         call fatal_error('OpenMMPol is not initialized, cannot save .mmp &
+    !--!                          &file.')
+    !--!     end if
+    !--!     
+    !--!     if(present(r_version)) then
+    !--!         version = r_version
+    !--!     else
+    !--!         version = 3
+    !--!     end if
 
-        of_unit = 101
-        open(unit=of_unit, &
-             file=of_name(1:len(trim(of_name))), &
-             action='write')
-        ! 1.  Integer, revision number used to check if the MMPol.mmp file is 
-        !     consistent with the Gaussian version being used
-        if(version == 2 .or. version == 3) then
-            write(of_unit, '(I0,T2)') version
-        else
-            call fatal_error("Requested version of .mmp file is not supported &
-                             &by openMMPol")
-        end if
-        
-        ! 2.  Integer, MMPol job type:
-        !     
-        !     0: for a QM/MM calculation (
-        !     1: for a Tinker QM/MM calculation
-        !     2: for a QM/MM electronic energy transfer (EET) calculation
-        write(of_unit, '(I0,T2)') 0
-    
-        ! 3.  Integer, verbosity flag
-        write(of_unit, '(I0,T2)') 3
+    !--!     of_unit = 101
+    !--!     open(unit=of_unit, &
+    !--!          file=of_name(1:len(trim(of_name))), &
+    !--!          action='write')
+    !--!     ! 1.  Integer, revision number used to check if the MMPol.mmp file is 
+    !--!     !     consistent with the Gaussian version being used
+    !--!     if(version == 2 .or. version == 3) then
+    !--!         write(of_unit, '(I0,T2)') version
+    !--!     else
+    !--!         call fatal_error("Requested version of .mmp file is not supported &
+    !--!                          &by openMMPol")
+    !--!     end if
+    !--!     
+    !--!     ! 2.  Integer, MMPol job type:
+    !--!     !     
+    !--!     !     0: for a QM/MM calculation (
+    !--!     !     1: for a Tinker QM/MM calculation
+    !--!     !     2: for a QM/MM electronic energy transfer (EET) calculation
+    !--!     write(of_unit, '(I0,T2)') 0
+    !--! 
+    !--!     ! 3.  Integer, verbosity flag
+    !--!     write(of_unit, '(I0,T2)') 3
 
-        ! 4.  Integer, force field type:
-        !     
-        !     0: Amber-like
-        !     1: AMOEBA-like
-        if(amoeba) then
-            write(of_unit, '(I0,T2)') 1
-        else
-            write(of_unit, '(I0,T2)') 0
-        end if
-        
-        ! 5.  Integer, force field sub-type. For AMBER:
-        !     
-        !     0: AMBER Wang-AL
-        !     1: AMBER Wang-DL
-        !     2: AMBER Thole
-        !     0: AMOEBA
-        if(amoeba) then
-            write(of_unit, '(I0,T2)') 0
-        else
-            if(all(abs(mscale-mscale_wang_al) < eps_rp) .and. &
-               all(abs(pscale-pscale_wang_al) < eps_rp) .and. &
-               all(abs(dscale-dscale_wang_al) < eps_rp) .and. &
-               all(abs(uscale-uscale_wang_al) < eps_rp)) then
-                write(of_unit, '(I0,T2)') 0
-            else if(all(abs(mscale-mscale_wang_dl) < eps_rp) .and. &
-                    all(abs(pscale-pscale_wang_dl) < eps_rp) .and. &
-                    all(abs(dscale-dscale_wang_dl) < eps_rp) .and. &
-                    all(abs(uscale-uscale_wang_dl) < eps_rp)) then
-                write(of_unit, '(I0,T2)') 1
-            else
-                call fatal_error("The scaling scheme used is non-standard and &
-                                 &therefore cannot be saved in .mmp format")
-            end if
-        end if
-        
-        ! 6.  Integer, disabled flag
-        write(of_unit, '(I0,T2)') 0
+    !--!     ! 4.  Integer, force field type:
+    !--!     !     
+    !--!     !     0: Amber-like
+    !--!     !     1: AMOEBA-like
+    !--!     if(amoeba) then
+    !--!         write(of_unit, '(I0,T2)') 1
+    !--!     else
+    !--!         write(of_unit, '(I0,T2)') 0
+    !--!     end if
+    !--!     
+    !--!     ! 5.  Integer, force field sub-type. For AMBER:
+    !--!     !     
+    !--!     !     0: AMBER Wang-AL
+    !--!     !     1: AMBER Wang-DL
+    !--!     !     2: AMBER Thole
+    !--!     !     0: AMOEBA
+    !--!     if(amoeba) then
+    !--!         write(of_unit, '(I0,T2)') 0
+    !--!     else
+    !--!         if(all(abs(mscale-mscale_wang_al) < eps_rp) .and. &
+    !--!            all(abs(pscale-pscale_wang_al) < eps_rp) .and. &
+    !--!            all(abs(dscale-dscale_wang_al) < eps_rp) .and. &
+    !--!            all(abs(uscale-uscale_wang_al) < eps_rp)) then
+    !--!             write(of_unit, '(I0,T2)') 0
+    !--!         else if(all(abs(mscale-mscale_wang_dl) < eps_rp) .and. &
+    !--!                 all(abs(pscale-pscale_wang_dl) < eps_rp) .and. &
+    !--!                 all(abs(dscale-dscale_wang_dl) < eps_rp) .and. &
+    !--!                 all(abs(uscale-uscale_wang_dl) < eps_rp)) then
+    !--!             write(of_unit, '(I0,T2)') 1
+    !--!         else
+    !--!             call fatal_error("The scaling scheme used is non-standard and &
+    !--!                              &therefore cannot be saved in .mmp format")
+    !--!         end if
+    !--!     end if
+    !--!     
+    !--!     ! 6.  Integer, disabled flag
+    !--!     write(of_unit, '(I0,T2)') 0
 
-        ! 7.  Real, damping parameter for the dipole-dipole interactions
-        !     (Angstrom)
-        write(of_unit, '(F16.8)') 0.0
+    !--!     ! 7.  Real, damping parameter for the dipole-dipole interactions
+    !--!     !     (Angstrom)
+    !--!     write(of_unit, '(F16.8)') 0.0
 
-        ! 8.  Integer, solution method for the polarization equations 
-        !     (suggested 3):
-        !     
-        !     0: default, same as 3
-        !     1: matrix inversion
-        !     2: iterative using Jacobi/DIIS
-        !     3: iterative using preconditioned CG solver
-        write(of_unit, '(I0,T2)') 0
-        
-        ! 9.  Integer, how to compute the matrix/vector products for 
-        !     MMPol (suggested 3):
-        !     
-        !     0: default (1 for matrix inversion, 3 for iterative)
-        !     1: assemble the matrix incore
-        !     2: on-the-fly products with O(N^2) scaling
-        !     3: on-the-fly products with the use of FMM if the system is large enough
-        !     4: on-the-fly products with the use of FMM in all cases
-        write(of_unit, '(I0,T2)') 0
-        
-        ! 10. Integer, convergence threshold (10^-N) for the iterative 
-        !     solvers (suggested 8)
-        write(of_unit, '(I0,T2)') 8
+    !--!     ! 8.  Integer, solution method for the polarization equations 
+    !--!     !     (suggested 3):
+    !--!     !     
+    !--!     !     0: default, same as 3
+    !--!     !     1: matrix inversion
+    !--!     !     2: iterative using Jacobi/DIIS
+    !--!     !     3: iterative using preconditioned CG solver
+    !--!     write(of_unit, '(I0,T2)') 0
+    !--!     
+    !--!     ! 9.  Integer, how to compute the matrix/vector products for 
+    !--!     !     MMPol (suggested 3):
+    !--!     !     
+    !--!     !     0: default (1 for matrix inversion, 3 for iterative)
+    !--!     !     1: assemble the matrix incore
+    !--!     !     2: on-the-fly products with O(N^2) scaling
+    !--!     !     3: on-the-fly products with the use of FMM if the system is large enough
+    !--!     !     4: on-the-fly products with the use of FMM in all cases
+    !--!     write(of_unit, '(I0,T2)') 0
+    !--!     
+    !--!     ! 10. Integer, convergence threshold (10^-N) for the iterative 
+    !--!     !     solvers (suggested 8)
+    !--!     write(of_unit, '(I0,T2)') 8
 
-        ! 11. Integer, accuracy of the FMM calculations (suggested 0):
-        !     
-        !     <0: 10^-5 RMS 10^-4 Max Error
-        !     0: 10^-6 RMS 10^-5 Max Error
-        !     1: 10^-7 RMS 10^-6 Max Error
-        !     >2: maximum accuracy
-        write(of_unit, '(I0,T2)') 0     
-        
-        ! 12. Real, FMM box size for MM interactions (Angstrom) (suggested 12.0)
-        write(of_unit, '(F16.8)') 12.0
+    !--!     ! 11. Integer, accuracy of the FMM calculations (suggested 0):
+    !--!     !     
+    !--!     !     <0: 10^-5 RMS 10^-4 Max Error
+    !--!     !     0: 10^-6 RMS 10^-5 Max Error
+    !--!     !     1: 10^-7 RMS 10^-6 Max Error
+    !--!     !     >2: maximum accuracy
+    !--!     write(of_unit, '(I0,T2)') 0     
+    !--!     
+    !--!     ! 12. Real, FMM box size for MM interactions (Angstrom) (suggested 12.0)
+    !--!     write(of_unit, '(F16.8)') 12.0
 
-        ! 13. Real, FMM box size for MM/PCM interactions (Angstrom) 
-        !     (suggested 6.0)
-        if(version == 3) then
-            write(of_unit, '(F16.8)') 6.0
-        end if
+    !--!     ! 13. Real, FMM box size for MM/PCM interactions (Angstrom) 
+    !--!     !     (suggested 6.0)
+    !--!     if(version == 3) then
+    !--!         write(of_unit, '(F16.8)') 6.0
+    !--!     end if
 
-        ! 14. Integer, continuum solvation model:
-        !     
-        !     0: no continuum solvation model
-        !     1: ddCOSMO
-        !     2: ddPCM
-        write(of_unit, '(I0,T2)') 0     
-        
-        ! 15. Integer, maximum angular momentum for PCM (suggested 10)
-        write(of_unit, '(I0,T2)') 10
+    !--!     ! 14. Integer, continuum solvation model:
+    !--!     !     
+    !--!     !     0: no continuum solvation model
+    !--!     !     1: ddCOSMO
+    !--!     !     2: ddPCM
+    !--!     write(of_unit, '(I0,T2)') 0     
+    !--!     
+    !--!     ! 15. Integer, maximum angular momentum for PCM (suggested 10)
+    !--!     write(of_unit, '(I0,T2)') 10
 
-        ! 16. Integer, number of Lebedev integration points for PCM 
-        !     (suggested 302)
-        write(of_unit, '(I0,T2)') 302
+    !--!     ! 16. Integer, number of Lebedev integration points for PCM 
+    !--!     !     (suggested 302)
+    !--!     write(of_unit, '(I0,T2)') 302
 
-        ! 17. Integer, convergence threshold (10^-N) for the PCM 
-        !     iterative solvers (suggested 8)
-        write(of_unit, '(I0,T2)') 8
+    !--!     ! 17. Integer, convergence threshold (10^-N) for the PCM 
+    !--!     !     iterative solvers (suggested 8)
+    !--!     write(of_unit, '(I0,T2)') 8
 
-        ! 18. Real, dielectric constant of the solvent for PCM (78.3 for water)
-        write(of_unit, '(F16.8)') 78.3
+    !--!     ! 18. Real, dielectric constant of the solvent for PCM (78.3 for water)
+    !--!     write(of_unit, '(F16.8)') 78.3
 
-        ! 19. Real, optical dielectric constant of the solvent for PCM 
-        !     (1.7 for water)
-        if(version == 3) then
-            write(of_unit, '(F16.8)') 0.00
-        end if
+    !--!     ! 19. Real, optical dielectric constant of the solvent for PCM 
+    !--!     !     (1.7 for water)
+    !--!     if(version == 3) then
+    !--!         write(of_unit, '(F16.8)') 0.00
+    !--!     end if
 
-        ! 20. Real, relative size of the switching region for PCM 
-        !     (suggested 0.1)
-        write(of_unit, '(F16.8)') 0.1
+    !--!     ! 20. Real, relative size of the switching region for PCM 
+    !--!     !     (suggested 0.1)
+    !--!     write(of_unit, '(F16.8)') 0.1
 
-        ! 21. Integer, cavity type for PCM (suggested 3):
-        !     
-        !     0: default, same as 3
-        !     1: SAS cavity using UFF radii plus the probe radius
-        !     2: Read the cavity from the input file 
-        !        (the input must contain at least one sphere per atom)
-        !     3: VdW cavity using Bondi's radii scaled by 1.1
-        !     4: SAS cavity using Bondi's radii plus the probe radius
-        write(of_unit, '(I0,T2)') 0
-        
-        ! 22. Real, probe radius for the SAS cavity (Angstrom) (1.4 for water)
-        write(of_unit, '(F16.8)') 1.4
+    !--!     ! 21. Integer, cavity type for PCM (suggested 3):
+    !--!     !     
+    !--!     !     0: default, same as 3
+    !--!     !     1: SAS cavity using UFF radii plus the probe radius
+    !--!     !     2: Read the cavity from the input file 
+    !--!     !        (the input must contain at least one sphere per atom)
+    !--!     !     3: VdW cavity using Bondi's radii scaled by 1.1
+    !--!     !     4: SAS cavity using Bondi's radii plus the probe radius
+    !--!     write(of_unit, '(I0,T2)') 0
+    !--!     
+    !--!     ! 22. Real, probe radius for the SAS cavity (Angstrom) (1.4 for water)
+    !--!     write(of_unit, '(F16.8)') 1.4
 
-        ! 23. Integer, number of MM atoms
-        write(of_unit, '(I0,T2)') mm_atoms
+    !--!     ! 23. Integer, number of MM atoms
+    !--!     write(of_unit, '(I0,T2)') mm_atoms
 
-        ! 24. Integer, number of spheres composing the cavity. 
-        !     Mandatory if the cavity type is 2, additional spheres 
-        !     if the cavity is automatically built.
-        write(of_unit, '(I0,T2)') 0
-       
-        ! 25. Integer array, size (N): atomic numbers
-        do i=1, mm_atoms
-            write(of_unit, '(I0,T2)') 1
-        end do
+    !--!     ! 24. Integer, number of spheres composing the cavity. 
+    !--!     !     Mandatory if the cavity type is 2, additional spheres 
+    !--!     !     if the cavity is automatically built.
+    !--!     write(of_unit, '(I0,T2)') 0
+    !--!    
+    !--!     ! 25. Integer array, size (N): atomic numbers
+    !--!     do i=1, mm_atoms
+    !--!         write(of_unit, '(I0,T2)') 1
+    !--!     end do
 
-        ! 26. Real array, size (N, 3): coordinates
-        do i=1, mm_atoms
-            write(of_unit, '(3F16.8)') cmm(:,i) / angstrom2au
-        end do
+    !--!     ! 26. Real array, size (N, 3): coordinates
+    !--!     do i=1, mm_atoms
+    !--!         write(of_unit, '(3F16.8)') cmm(:,i) / angstrom2au
+    !--!     end do
 
-        ! 27. Integer array, size (N): residue numbers
-        do i=1, mm_atoms
-            write(of_unit, '(I0,T2)') 1
-        end do
+    !--!     ! 27. Integer array, size (N): residue numbers
+    !--!     do i=1, mm_atoms
+    !--!         write(of_unit, '(I0,T2)') 1
+    !--!     end do
 
-        ! 28. Real array, size (N): charges or fiixed multipoles
-        do i=1, mm_atoms
-            if(amoeba) then
-                write(of_unit, '(10F16.8)') q0(:,i) * [1.0, & !q
-                                                       1.0, 1.0, 1.0, & !mu
-                                                       3.0, 3.0, 3.0, & ! Q
-                                                       3.0, 3.0, 3.0]   ! Q
+    !--!     ! 28. Real array, size (N): charges or fiixed multipoles
+    !--!     do i=1, mm_atoms
+    !--!         if(amoeba) then
+    !--!             write(of_unit, '(10F16.8)') q0(:,i) * [1.0, & !q
+    !--!                                                    1.0, 1.0, 1.0, & !mu
+    !--!                                                    3.0, 3.0, 3.0, & ! Q
+    !--!                                                    3.0, 3.0, 3.0]   ! Q
 
-            else
-                write(of_unit, '(F16.8)') q(:,i)
-            end if
-        end do
+    !--!         else
+    !--!             write(of_unit, '(F16.8)') q(:,i)
+    !--!         end if
+    !--!     end do
 
-        ! 29. Real array, size (N): polarizabilities
-        do i=1, mm_atoms
-            if(mm_polar(i) > 0) then
-                write(of_unit, '(F16.8)') pol(i) / (angstrom2au**3)
-            else
-                write(of_unit, '(F16.8)') 0.0
-            end if
-        end do
+    !--!     ! 29. Real array, size (N): polarizabilities
+    !--!     do i=1, mm_atoms
+    !--!         if(mm_polar(i) > 0) then
+    !--!             write(of_unit, '(F16.8)') pol(i) / (angstrom2au**3)
+    !--!         else
+    !--!             write(of_unit, '(F16.8)') 0.0
+    !--!         end if
+    !--!     end do
 
-        ! 30. Integer array, size (N, 8): connectivity matrix
-        do i=1, mm_atoms
-            jb = conn(1)%ri(i)
-            je = conn(1)%ri(i+1)-1
-            inta(1:8) = 0
-            inta(1:je-jb+1) = conn(1)%ci(jb:je)
-            write(of_unit, '(8I8)') inta(1:8)
-        end do
+    !--!     ! 30. Integer array, size (N, 8): connectivity matrix
+    !--!     do i=1, mm_atoms
+    !--!         jb = conn(1)%ri(i)
+    !--!         je = conn(1)%ri(i+1)-1
+    !--!         inta(1:8) = 0
+    !--!         inta(1:je-jb+1) = conn(1)%ci(jb:je)
+    !--!         write(of_unit, '(8I8)') inta(1:8)
+    !--!     end do
 
-        ! 31. Integer array, size (N, 120): polarization group members
-        do i=1, mm_atoms
-            igrp = mmat_polgrp(i)
-            jb=polgrp_mmat%ri(igrp)
-            je=polgrp_mmat%ri(igrp+1)-1
-            inta = 0
-            inta(1:je-jb+1) = polgrp_mmat%ci(jb:je)
-            write(of_unit, '(120I8)') inta
-        end do
-        ! 32. Integer array, size (N, 4): rotation conventions and 
-        !     reference atoms for the AMOEBA multipoles
-        do i=1, mm_atoms
-            write(of_unit, '(4I8)') mol_frame(i), iz(i), ix(i), iy(i)
-        end do
+    !--!     ! 31. Integer array, size (N, 120): polarization group members
+    !--!     do i=1, mm_atoms
+    !--!         igrp = mmat_polgrp(i)
+    !--!         jb=polgrp_mmat%ri(igrp)
+    !--!         je=polgrp_mmat%ri(igrp+1)-1
+    !--!         inta = 0
+    !--!         inta(1:je-jb+1) = polgrp_mmat%ci(jb:je)
+    !--!         write(of_unit, '(120I8)') inta
+    !--!     end do
+    !--!     ! 32. Integer array, size (N, 4): rotation conventions and 
+    !--!     !     reference atoms for the AMOEBA multipoles
+    !--!     do i=1, mm_atoms
+    !--!         write(of_unit, '(4I8)') mol_frame(i), iz(i), ix(i), iy(i)
+    !--!     end do
 
-    end subroutine mmpol_save_as_mmp
+    !--! end subroutine mmpol_save_as_mmp
 
 end module mod_mmpol
