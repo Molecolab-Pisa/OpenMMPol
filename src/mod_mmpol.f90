@@ -22,15 +22,15 @@ module mod_mmpol
         logical :: amoeba
         !! AMOEBA FF = True; WANG-AMBER = False
 
-        type(ommp_topology_type) :: top
+        type(ommp_topology_type), pointer :: top
         !! Data structure containing the topology of the system
-        type(ommp_electrostatics_type) :: eel
+        type(ommp_electrostatics_type), pointer :: eel
         !! Data structure containing all the information needed to run the
         !! elctrostatics related calculations
-        !TODO type(ommp_bonded_type) :: bonded
+        !TODO type(ommp_bonded_type), pointer :: bonded
         !! Data structure containing all the information needed to run the
         !! bonded terms calculations
-        !TODO type(ommp_nonbonded_type) :: nonbonded
+        !TODO type(ommp_nonbonded_type), pointer :: nonbonded
         !! Data structure containing all the information needed to run the
         !! non-bonded terms calculations
     end type ommp_system
@@ -41,22 +41,31 @@ module mod_mmpol
         !! Performs all the memory allocation and vector initialization
         !! needed to run the openMMPol library
         
-        use mod_memory, only: ip, rp, mallocate
         use mod_electrostatics, only: electrostatics_init
+        use mod_io, only: print_matrix
 
         implicit none
 
-        integer(ip), intent(in) :: l_ff_type
-        !! Force field type used in initialization
-        
-        integer(ip), intent(in) :: l_mm_atoms
-        !! Number of MM atoms used in initialization
-        
-        integer(ip), intent(in) :: l_pol_atoms
-        !! Number of polarizable atoms used in initialization
-
         type(ommp_system), intent(inout) :: sys_obj
         !! The object to be initialized
+        integer(ip), intent(in) :: l_ff_type
+        !! Force field type used in initialization
+        integer(ip), intent(in) :: l_mm_atoms
+        !! Number of MM atoms used in initialization
+        integer(ip), intent(in) :: l_pol_atoms
+        !! Number of polarizable atoms used in initialization
+        
+        type(ommp_topology_type), save, allocatable, target :: top
+        !! The topology object to be created inside the system
+        type(ommp_electrostatics_type), save, allocatable, target :: eel
+        !! The electrostatic object to be created inside the system
+        
+        !! Allocation an linking of topology...
+        allocate(top)
+        sys_obj%top => top
+        !! ... and electrostatics
+        allocate(eel)
+        sys_obj%eel => eel
         
         ! FF related settings
         sys_obj%ff_type = l_ff_type
@@ -67,10 +76,16 @@ module mod_mmpol
             sys_obj%amoeba = .false.
         end if
         
+        ! Initialization of sub-modules:
+        !   a. topology
         call topology_init(sys_obj%top, l_mm_atoms)
+        !   b. electrostatics
         call electrostatics_init(sys_obj%eel, sys_obj%amoeba, l_pol_atoms, &
                                  sys_obj%top)
+
+        ! Everything is done
         sys_obj%mmpol_is_init = .true.
+
     end subroutine mmpol_init
 
     subroutine mmpol_prepare(sys_obj)
@@ -165,7 +180,10 @@ module mod_mmpol
         type(ommp_system), intent(inout) :: sys_obj
 
         call electrostatics_terminate(sys_obj%eel)
+        deallocate(sys_obj%eel)
+
         call topology_terminate(sys_obj%top)
+        deallocate(sys_obj%top)
 
         sys_obj%mmpol_is_init = .false.
 
@@ -193,6 +211,7 @@ module mod_mmpol
         stop
     end subroutine fatal_error
 
+    ! TODO Move to eel module
     subroutine reverse_polgrp_tab(mm2pg, pg2mm)
         !! Takes as argument an array of polarization group index for each
         !! atom, and create a list of atms in each group using the boolean
@@ -229,6 +248,7 @@ module mod_mmpol
         end do
     end subroutine reverse_polgrp_tab
 
+    !TODO move to eel module
     subroutine build_pg_adjacency_matrix(eel, adj)
         !! Builds the adjacency matrix of polarization groups starting from
         !! atomic adjacency matrix and list of polarization groups indices.
@@ -282,6 +302,7 @@ module mod_mmpol
 
     end subroutine build_pg_adjacency_matrix
     
+    ! TODO move to eel
     subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
         !! Subroutine to initialize the screening parameters
        
@@ -311,95 +332,113 @@ module mod_mmpol
         
     end subroutine set_screening_parameters
     
-    !--! subroutine mmpol_ommp_print_summary(of_name)
-    !--!     !! Prints a complete summary of all the quantities stored 
-    !--!     !! in the MMPol module
+    subroutine mmpol_ommp_print_summary(sys_obj, of_name)
+        !! Prints a complete summary of all the quantities stored 
+        !! in the MMPol module
+        use mod_memory, only: mallocate, mfree
+        use mod_io, only: iof_mmpol, print_matrix, print_int_vec
+        
+        implicit none
 
-    !--!     use mod_io, only: iof_mmpol, print_matrix, print_int_vec
-    !--!     
-    !--!     implicit none
+        type(ommp_system), intent(in) :: sys_obj
+        character(len=*), intent(in), optional :: of_name
+        
+        integer(ip) :: of_unit
 
-    !--!     character(len=*), intent(in), optional :: of_name
-    !--!     
-    !--!     integer(ip) :: of_unit
+        integer(ip) :: i, j, grp, igrp, lst(1000), ilst
+        real(rp), allocatable :: polar(:) ! Polarizabilities of all atoms
+        character(len=OMMP_STR_CHAR_MAX) :: str
 
-    !--!     integer(ip) :: i, j, grp, igrp, lst(1000), ilst
-    !--!     real(rp), dimension(mm_atoms) :: polar ! Polarizabilities of all atoms
-    !--!     character(len=OMMP_STR_CHAR_MAX) :: str
+        if(present(of_name)) then
+            of_unit = 101
+            open(unit=of_unit, &
+                 file=of_name(1:len(trim(of_name))), &
+                 action='write')
+        else
+            of_unit = iof_mmpol
+        end if
 
-    !--!     if(present(of_name)) then
-    !--!         of_unit = 101
-    !--!         open(unit=of_unit, &
-    !--!              file=of_name(1:len(trim(of_name))), &
-    !--!              action='write')
-    !--!     else
-    !--!         of_unit = iof_mmpol
-    !--!     end if
+        call mallocate('mmpol_ommp_print_summary [polar]', &
+                       sys_obj%top%mm_atoms, polar)
+        polar = 0.0_rp
+        do i=1, sys_obj%eel%pol_atoms
+            polar(sys_obj%eel%polar_mm(i)) = sys_obj%eel%pol(i)
+        end do
 
-    !--!     polar = 0.0_rp
-    !--!     do i=1, pol_atoms
-    !--!         polar(polar_mm(i)) = pol(i)
-    !--!     end do
+        write(of_unit, '(A, 4F8.4)') 'mscale: ', sys_obj%eel%mscale
+        write(of_unit, '(A, 4F8.4)') 'pscale: ', sys_obj%eel%pscale
+        if(sys_obj%amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', &
+                                                      sys_obj%eel%pscale_intra
+        write(of_unit, '(A, 4F8.4)') 'dscale: ', sys_obj%eel%dscale
+        write(of_unit, '(A, 4F8.4)') 'uscale: ', sys_obj%eel%uscale
 
-    !--!     write(of_unit, '(A, 4F8.4)') 'mscale: ', mscale
-    !--!     write(of_unit, '(A, 4F8.4)') 'pscale: ', pscale
-    !--!     if(amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', pscale_intra
-    !--!     write(of_unit, '(A, 4F8.4)') 'dscale: ', dscale
-    !--!     write(of_unit, '(A, 4F8.4)') 'uscale: ', uscale
+        call print_matrix(.true., 'coordinates:', sys_obj%top%cmm, of_unit)
+        if(sys_obj%amoeba) then
+            call print_matrix(.true., 'multipoles - non rotated:', &
+                              sys_obj%eel%q0, of_unit)
+        end if
+        call print_matrix(.true., 'multipoles :', sys_obj%eel%q, of_unit)
+        call print_matrix(.true., 'coordinates of polarizable atoms:', &
+                          sys_obj%eel%cpol, of_unit)
+        call print_matrix(.false., 'polarizabilities:', polar, of_unit)
+        call print_matrix(.false., 'thole factors:', sys_obj%eel%thole, of_unit)
+        call print_int_vec('mm_polar list:', sys_obj%eel%mm_polar, .false., &
+                           of_unit)
+        call print_int_vec('polar_mm list:', sys_obj%eel%polar_mm, .false., &
+                           of_unit)
 
-    !--!     call print_matrix(.true., 'coordinates:', cmm, of_unit)
-    !--!     if (amoeba) then
-    !--!         call print_matrix(.true., 'multipoles - non rotated:', q0, of_unit)
-    !--!     end if
-    !--!     call print_matrix(.true., 'multipoles :', q, of_unit)
-    !--!     call print_matrix(.true., 'coordinates of polarizable atoms:', cpol, of_unit)
-    !--!     call print_matrix(.false., 'polarizabilities:', polar, of_unit)
-    !--!     call print_matrix(.false., 'thole factors:',thole, of_unit)
-    !--!     call print_int_vec('mm_polar list:', mm_polar, .false., of_unit)
-    !--!     call print_int_vec('polar_mm list:', polar_mm, .false., of_unit)
+        ! write the connectivity information for each atom:
+1000    format(t3,'connectivity information for the ',i8,'-th atom:')
+    
+        do i = 1, sys_obj%top%mm_atoms
+            write(of_unit, 1000) i
+            
+            do j=1, 4
+                if(j == 4 .and. .not. sys_obj%amoeba) cycle
+                
+                write(str, "('1-', I1, ' neighors:')") j+1
+                call print_int_vec(trim(str), &
+                                   sys_obj%top%conn(j)%ci, &
+                                   .true., of_unit, &
+                                   sys_obj%top%conn(j)%ri(i), &
+                                   sys_obj%top%conn(j)%ri(i+1)-1) 
+            end do
+            
+            if(sys_obj%amoeba) then 
+                do j=1, 4
+                    ilst = 1
+                    do igrp = &
+                        sys_obj%eel%pg_conn(j)%ri(sys_obj%eel%mmat_polgrp(i)), &
+                        sys_obj%eel%pg_conn(j)%ri(sys_obj%eel%mmat_polgrp(i)+1)-1
+                    
+                        grp = sys_obj%eel%pg_conn(j)%ci(igrp)
+                        lst(ilst:ilst+sys_obj%eel%polgrp_mmat%ri(grp+1) - &
+                                 sys_obj%eel%polgrp_mmat%ri(grp)-1) = &
+                        sys_obj%eel%polgrp_mmat%ci(&
+                            sys_obj%eel%polgrp_mmat%ri(grp):&
+                            sys_obj%eel%polgrp_mmat%ri(grp+1)-1)
 
-    !--!     ! write the connectivity information for each atom:
-    !--!1000  format(t3,'connectivity information for the ',i8,'-th atom:')
-    !--! 
-    !--!     do i = 1, mm_atoms
-    !--!         write(of_unit, 1000) i
-    !--!         
-    !--!         do j=1, 4
-    !--!             if(j == 4 .and. .not. amoeba) cycle
-    !--!             
-    !--!             write(str, "('1-', I1, ' neighors:')") j+1
-    !--!             call print_int_vec(trim(str), &
-    !--!                                conn(j)%ci, &
-    !--!                                .true., of_unit, &
-    !--!                                conn(j)%ri(i), &
-    !--!                                conn(j)%ri(i+1)-1) 
-    !--!         end do
-    !--!         
-    !--!         if(amoeba) then 
-    !--!             do j=1, 4
-    !--!                 ilst = 1
-    !--!                 do igrp=pg_conn(j)%ri(mmat_polgrp(i)), &
-    !--!                         pg_conn(j)%ri(mmat_polgrp(i)+1)-1
-    !--!                     grp = pg_conn(j)%ci(igrp)
-    !--!                     lst(ilst:ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)-1) = &
-    !--!                     polgrp_mmat%ci(polgrp_mmat%ri(grp):polgrp_mmat%ri(grp+1)-1)
-    !--!                     ilst = ilst+polgrp_mmat%ri(grp+1)-polgrp_mmat%ri(grp)
-    !--!                 end do
-    !--!                
-    !--!                 write(str, "('1-', I1, ' polarization neighors:')") j
-    !--!                 if(ilst == 1) ilst = 0
-    !--!                 ! needed to addres the empty array case
-    !--!                 call print_int_vec(trim(str), &
-    !--!                                    lst, &
-    !--!                                    .true., of_unit, &
-    !--!                                    1, ilst-1)
-    !--!             end do
-    !--!         end if
-    !--!     end do
-    !--!     
-    !--!     if(present(of_name)) close(of_unit)
+                        ilst = ilst+&
+                               sys_obj%eel%polgrp_mmat%ri(grp+1)- &
+                               sys_obj%eel%polgrp_mmat%ri(grp)
+                    end do
+                   
+                    write(str, "('1-', I1, ' polarization neighors:')") j
+                    if(ilst == 1) ilst = 0
+                    ! needed to addres the empty array case
+                    call print_int_vec(trim(str), &
+                                       lst, &
+                                       .true., of_unit, &
+                                       1, ilst-1)
+                end do
+            end if
+        end do
+        
+        if(present(of_name)) close(of_unit)
+        
+        call mfree('mmpol_ommp_print_summary [polar]', polar)
 
-    !--! end subroutine mmpol_ommp_print_summary
+    end subroutine mmpol_ommp_print_summary
     !--! 
     !--! 
     !--! subroutine mmpol_save_as_mmp(of_name, r_version)

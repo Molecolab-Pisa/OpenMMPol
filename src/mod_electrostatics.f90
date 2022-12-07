@@ -158,7 +158,7 @@ module mod_electrostatics
             eel_obj%ld_cder = 3_ip
             eel_obj%n_ipd = 1_ip
         endif
-        
+
         call mallocate('electrostatics_init [q]', eel_obj%ld_cart, &
                        mm_atoms, eel_obj%q)
         call mallocate('electrostatics_init [pol]', eel_obj%pol_atoms, &
@@ -201,7 +201,7 @@ module mod_electrostatics
 
         implicit none
 
-        type(ommp_electrostatics_type), intent(out) :: eel_obj
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
         integer(ip) :: i
 
         call mfree('electrostatics_terminate [q]', eel_obj%q)
@@ -242,8 +242,6 @@ module mod_electrostatics
         ! This routine compute the thole factors and stores
         ! them in a vector. TODO add reference
         
-        use mod_constants, only: OMMP_VERBOSE_LOW
-
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel

@@ -24,46 +24,48 @@
 
 #define AU2KCALMOL 627.5096080306
 
-extern void ommp_init_mmp(char *);
-extern void ommp_init_xyz(char *, char *);
-extern void ommp_save_mmp(char *, int32_t);
-extern void ommp_terminate(void);
-#ifdef USE_HDF5
-extern void ommp_write_hdf5(char *);
-extern void ommp_init_hdf5(char *);
-#endif
-extern void ommp_set_verbose(int32_t);
-extern void ommp_print_summary(void);
-extern void ommp_print_summary_to_file(char *);
+typedef void* OMMP_SYSTEM_PRT;
 
-extern void ommp_get_polelec_energy(double *);
-extern void ommp_get_fixedelec_energy(double *);
-extern void ommp_set_external_field(double *, int32_t);
-extern void ommp_set_external_field_nommm(double *, int32_t);
-extern void ommp_potential_mm2ext(int32_t, double *, double *);
-extern void ommp_potential_mmpol2ext(int32_t, double *, double *);
-extern void ommp_potential_pol2ext(int32_t, double *, double *);
-
-extern void ommp_get_vdw_energy(double *);
-extern void ommp_get_bond_energy(double *);
-extern void ommp_get_angle_energy(double *);
-extern void ommp_get_angtor_energy(double *);
-extern void ommp_get_strtor_energy(double *);
-extern void ommp_get_strbnd_energy(double *);
-extern void ommp_get_opb_energy(double *);
-extern void ommp_get_pitors_energy(double *);
-extern void ommp_get_torsion_energy(double *);
-extern void ommp_get_tortor_energy(double *);
-extern void ommp_get_urey_energy(double *);
-
-extern int32_t get_n_ipd(void);
-extern int32_t ommp_get_ld_cart(void);
-extern int32_t ommp_get_mm_atoms(void);
-extern int32_t ommp_get_pol_atoms(void);
-extern void *ommp_get_cmm(void);
-extern void *ommp_get_cpol(void);
-extern void *ommp_get_q(void);
-extern void *ommp_get_ipd(void);
-extern void *ommp_get_polar_mm(void);
-
-extern bool ommp_ff_is_amoeba(void);
+extern OMMP_SYSTEM_PRT ommp_init_mmp(char *);
+//extern void ommp_init_xyz(char *, char *);
+//extern void ommp_save_mmp(char *, int32_t);
+extern void ommp_terminate(OMMP_SYSTEM_PRT);
+//#ifdef USE_HDF5
+//extern void ommp_write_hdf5(char *);
+//extern void ommp_init_hdf5(char *);
+//#endif
+extern void ommp_set_verbose(OMMP_SYSTEM_PRT, int32_t);
+extern void ommp_print_summary(OMMP_SYSTEM_PRT);
+extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
+//
+//extern void ommp_get_polelec_energy(double *);
+//extern void ommp_get_fixedelec_energy(double *);
+//extern void ommp_set_external_field(double *, int32_t);
+//extern void ommp_set_external_field_nommm(double *, int32_t);
+//extern void ommp_potential_mm2ext(int32_t, double *, double *);
+//extern void ommp_potential_mmpol2ext(int32_t, double *, double *);
+//extern void ommp_potential_pol2ext(int32_t, double *, double *);
+//
+//extern void ommp_get_vdw_energy(double *);
+//extern void ommp_get_bond_energy(double *);
+//extern void ommp_get_angle_energy(double *);
+//extern void ommp_get_angtor_energy(double *);
+//extern void ommp_get_strtor_energy(double *);
+//extern void ommp_get_strbnd_energy(double *);
+//extern void ommp_get_opb_energy(double *);
+//extern void ommp_get_pitors_energy(double *);
+//extern void ommp_get_torsion_energy(double *);
+//extern void ommp_get_tortor_energy(double *);
+//extern void ommp_get_urey_energy(double *);
+//
+//extern int32_t get_n_ipd(void);
+//extern int32_t ommp_get_ld_cart(void);
+//extern int32_t ommp_get_mm_atoms(void);
+//extern int32_t ommp_get_pol_atoms(void);
+//extern void *ommp_get_cmm(void);
+//extern void *ommp_get_cpol(void);
+//extern void *ommp_get_q(void);
+//extern void *ommp_get_ipd(void);
+//extern void *ommp_get_polar_mm(void);
+//
+//extern bool ommp_ff_is_amoeba(void);
