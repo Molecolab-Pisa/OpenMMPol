@@ -7,7 +7,7 @@ module mod_inputloader
     implicit none
     private
 
-    public :: mmpol_init_from_mmp !TODO, mmpol_init_from_xyz
+    public :: mmpol_init_from_mmp, mmpol_init_from_xyz
 
     contains
     
@@ -287,151 +287,162 @@ module mod_inputloader
 
     end subroutine polgroup11_to_mm2pg
 
-!--!    subroutine mmpol_init_from_xyz(xyz_file, prm_file)
-!--!        !! This function read a .mmp file (revision 2 and 3) are supported
-!--!        !! and initialize all the quantities need to describe the environment
-!--!        !! within this library.
-!--!        use mod_mmpol, only:cmm, polar_mm, conn
-!--!        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
-!--!        
-!--!        use mod_memory, only: ip, mfree, mallocate, memory_init
-!--!        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
-!--!        use mod_adjacency_mat, only: adj_mat_from_conn, yale_sparse, &
-!--!                                     build_conn_upto_n
-!--!        use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-!--!                           assign_angle, assign_urey, assign_strbnd, &
-!--!                           assign_opb, assign_pitors, assign_torsion, &
-!--!                           assign_tortors, assign_angtor, assign_strtor, &
-!--!                           check_keyword, terminate_prm
-!--!        use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
-!--!
-!--!        implicit none
-!--!
-!--!        character(len=*), intent(in) :: xyz_file
-!--!        !! name of the input XYZ file
-!--!        character(len=*), intent(in) :: prm_file
-!--!        !! name of the input PRM file
-!--!
-!--!        integer(ip), parameter :: iof_xyzinp = 200, &
-!--!                                  maxn12 = 8
-!--!        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke
-!--!        integer(ip), allocatable :: i12(:,:), attype(:)
-!--!        character(len=OMMP_STR_CHAR_MAX) :: line, msg
-!--!        type(yale_sparse) :: adj
-!--!
-!--!        
-!--!        write(msg, "(A)") "Reading XYZ file: "//xyz_file(1:len(trim(xyz_file)))
-!--!        call ommp_message(msg, OMMP_VERBOSE_DEBUG)
-!--!
-!--!        ! open tinker xyz file
-!--!        open(unit=iof_xyzinp, &
-!--!             file=xyz_file(1:len(trim(xyz_file))), &
-!--!             form='formatted', &
-!--!             access='sequential', &
-!--!             iostat=ist)
-!--!
-!--!        if(ist /= 0) then
-!--!            call fatal_error('Error while opening XYZ input file')
-!--!        end if
-!--!
-!--!        ! First line contains as first word the number of atoms and
-!--!        ! then a comment that could be ignored.
-!--!        read(iof_xyzinp, *) my_mm_atoms
-!--!        
-!--!        ! Initialize the mmpol module
-!--!        ! TODO I'm assuming that it is AMOEBA and fully polarizable
-!--!        call mmpol_init(OMMP_FF_AMOEBA, my_mm_atoms, my_mm_atoms)        
-!--!        do i=1, my_mm_atoms
-!--!           polar_mm(i) = i 
-!--!        end do
-!--!
-!--!        ! Temporary quantities that are only used during the initialization
-!--!        call mallocate('mmpol_init_from_xyz [attype]', my_mm_atoms, attype)
-!--!        call mallocate('mmpol_init_from_xyz [i12]', maxn12, my_mm_atoms, i12)
-!--!        attype = 0_ip
-!--!        i12 = 0_ip
-!--!
-!--!        do i=1, my_mm_atoms
-!--!            read(iof_xyzinp, '(A)') line
-!--!
-!--!            ! First token contains an atom ID. Only sequential numbering is
-!--!            ! currently supported.
-!--!            tokb = tokenize(line)
-!--!            toke = tokenize(line, tokb)
-!--!
-!--!            read(line(tokb:toke), *) atom_id
-!--!            if(atom_id /= i) then
-!--!                call fatal_error('Non-sequential atom ids in xyz cannot be handled')
-!--!            end if
-!--!            
-!--!            ! This token should contain an atom name, so it should start
-!--!            ! with a letter. If this is not true, an unexpected error should
-!--!            ! be raised.
-!--!            tokb=toke+1
-!--!            toke = tokenize(line, tokb)
-!--!            if(.not. starts_with_alpha(line(tokb:toke))) then
-!--!                call fatal_error('Atom symbol missing or PBC string present in XYZ')
-!--!            end if
-!--!
-!--!            tokb=toke+1
-!--!            toke = tokenize(line, tokb, 3)
-!--!            ! The remaining part contains cartesian coordinates, atom type
-!--!            ! and connectivity for the current atom.
-!--!            read(line(tokb:toke), *) cmm(1,i), cmm(2,i), cmm(3,i)
-!--!            
-!--!            tokb=toke+1
-!--!            toke = tokenize(line, tokb)
-!--!            read(line(tokb:toke), *) attype(i)
-!--!
-!--!            do j=1, maxn12
-!--!                tokb=toke+1
-!--!                toke = tokenize(line, tokb)
-!--!                if(toke < 0) exit
-!--!                read(line(tokb:toke), *) i12(j,i)
-!--!            end do
-!--!            
-!--!        end do
-!--!        ! Close XYZ file after reading
-!--!        close(iof_xyzinp)
-!--!
-!--!        cmm = cmm * angstrom2au
-!--!        
-!--!        ! Writes the adjacency matrix in Yale sparse format in adj and then
-!--!        ! build the connectivity up to 4th order. This is needed here to be
-!--!        ! able to assign the parameters
-!--!        call adj_mat_from_conn(i12, adj)
-!--!        call build_conn_upto_n(adj, 4, conn, .false.)
-!--!
-!--!        call mfree('mmpol_init_from_xyz [i12]', i12)
-!--!        
-!--!        if( .not. check_keyword(prm_file)) then
-!--!            call fatal_error("PRM file cannot be completely understood")
-!--!        end if
-!--!        
-!--!        call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
-!--!        call assign_pol(prm_file, attype)
-!--!        call assign_mpoles(prm_file, attype)
-!--!        
-!--!        call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
-!--!        call assign_vdw(prm_file, attype)
-!--!        
-!--!        call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
-!--!        call assign_bond(prm_file, attype)
-!--!        call assign_angle(prm_file, attype)
-!--!        call assign_urey(prm_file, attype)
-!--!        call assign_strbnd(prm_file, attype)
-!--!        call assign_opb(prm_file, attype)
-!--!        call assign_pitors(prm_file, attype)
-!--!        call assign_torsion(prm_file, attype)
-!--!        call assign_tortors(prm_file, attype)
-!--!        call assign_angtor(prm_file, attype)
-!--!        call assign_strtor(prm_file, attype)
-!--!
-!--!        call terminate_prm()
-!--!        call mfree('mmpol_init_from_xyz [attype]', attype)
-!--!        
-!--!        call mmpol_prepare()
-!--!
-!--!    end subroutine mmpol_init_from_xyz
+    subroutine mmpol_init_from_xyz(sys_obj, xyz_file, prm_file)
+        !! This function read a .mmp file (revision 2 and 3) are supported
+        !! and initialize all the quantities need to describe the environment
+        !! within this library.
+        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
+        use mod_topology, only: ommp_topology_type
+        use mod_electrostatics, only: ommp_electrostatics_type
+        
+        use mod_memory, only: ip, mfree, mallocate, memory_init
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
+        use mod_adjacency_mat, only: adj_mat_from_conn, yale_sparse, &
+                                     build_conn_upto_n
+        !!use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
+        !!                   assign_angle, assign_urey, assign_strbnd, &
+        !!                   assign_opb, assign_pitors, assign_torsion, &
+        !!                   assign_tortors, assign_angtor, assign_strtor, &
+        !!                   check_keyword, terminate_prm
+        use mod_prm, only: assign_pol, assign_mpoles, check_keyword
+        use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: sys_obj
+        !! The system object to be initialized
+        character(len=*), intent(in) :: xyz_file
+        !! name of the input XYZ file
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_xyzinp = 200, &
+                                  maxn12 = 8
+        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke
+        integer(ip), allocatable :: i12(:,:), attype(:)
+        character(len=OMMP_STR_CHAR_MAX) :: line, msg
+        type(yale_sparse) :: adj
+        type(ommp_topology_type), pointer :: top
+        type(ommp_electrostatics_type), pointer :: eel
+
+        
+        write(msg, "(A)") "Reading XYZ file: "//xyz_file(1:len(trim(xyz_file)))
+        call ommp_message(msg, OMMP_VERBOSE_DEBUG)
+
+        ! open tinker xyz file
+        open(unit=iof_xyzinp, &
+             file=xyz_file(1:len(trim(xyz_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+
+        if(ist /= 0) then
+            call fatal_error('Error while opening XYZ input file')
+        end if
+
+        ! First line contains as first word the number of atoms and
+        ! then a comment that could be ignored.
+        read(iof_xyzinp, *) my_mm_atoms
+        
+        ! Initialize the mmpol module
+        ! TODO I'm assuming that it is AMOEBA and fully polarizable
+        call mmpol_init(sys_obj, OMMP_FF_AMOEBA, my_mm_atoms, my_mm_atoms)
+        ! Those are just shortcut
+        top => sys_obj%top
+        eel => sys_obj%eel
+
+        do i=1, my_mm_atoms
+           eel%polar_mm(i) = i 
+        end do
+
+        ! Temporary quantities that are only used during the initialization
+        call mallocate('mmpol_init_from_xyz [attype]', my_mm_atoms, attype)
+        call mallocate('mmpol_init_from_xyz [i12]', maxn12, my_mm_atoms, i12)
+        attype = 0_ip
+        i12 = 0_ip
+
+        do i=1, my_mm_atoms
+            read(iof_xyzinp, '(A)') line
+
+            ! First token contains an atom ID. Only sequential numbering is
+            ! currently supported.
+            tokb = tokenize(line)
+            toke = tokenize(line, tokb)
+
+            read(line(tokb:toke), *) atom_id
+            if(atom_id /= i) then
+                call fatal_error('Non-sequential atom ids in xyz cannot be handled')
+            end if
+            
+            ! This token should contain an atom name, so it should start
+            ! with a letter. If this is not true, an unexpected error should
+            ! be raised.
+            tokb=toke+1
+            toke = tokenize(line, tokb)
+            if(.not. starts_with_alpha(line(tokb:toke))) then
+                call fatal_error('Atom symbol missing or PBC string present in XYZ')
+            end if
+
+            tokb=toke+1
+            toke = tokenize(line, tokb, 3)
+            ! The remaining part contains cartesian coordinates, atom type
+            ! and connectivity for the current atom.
+            read(line(tokb:toke), *) top%cmm(1,i), top%cmm(2,i), top%cmm(3,i)
+            
+            tokb=toke+1
+            toke = tokenize(line, tokb)
+            read(line(tokb:toke), *) attype(i)
+
+            do j=1, maxn12
+                tokb=toke+1
+                toke = tokenize(line, tokb)
+                if(toke < 0) exit
+                read(line(tokb:toke), *) i12(j,i)
+            end do
+            
+        end do
+        ! Close XYZ file after reading
+        close(iof_xyzinp)
+
+        top%cmm = top%cmm * angstrom2au
+        
+        ! Writes the adjacency matrix in Yale sparse format in adj and then
+        ! build the connectivity up to 4th order. This is needed here to be
+        ! able to assign the parameters
+        call adj_mat_from_conn(i12, adj)
+        call build_conn_upto_n(adj, 4, top%conn, .false.)
+
+        call mfree('mmpol_init_from_xyz [i12]', i12)
+        
+        if( .not. check_keyword(prm_file)) then
+            call fatal_error("PRM file cannot be completely understood")
+        end if
+        
+        call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
+        call assign_pol(eel, prm_file, attype)
+        call assign_mpoles(eel, prm_file, attype)
+        
+        !TODO
+        !!call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
+        !1call assign_vdw(prm_file, attype)
+        !TODO
+        !!call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
+        !!call assign_bond(prm_file, attype)
+        !!call assign_angle(prm_file, attype)
+        !!call assign_urey(prm_file, attype)
+        !!call assign_strbnd(prm_file, attype)
+        !!call assign_opb(prm_file, attype)
+        !!call assign_pitors(prm_file, attype)
+        !!call assign_torsion(prm_file, attype)
+        !!call assign_tortors(prm_file, attype)
+        !!call assign_angtor(prm_file, attype)
+        !!call assign_strtor(prm_file, attype)
+
+        !! call terminate_prm()
+        call mfree('mmpol_init_from_xyz [attype]', attype)
+        
+        call mmpol_prepare(sys_obj)
+
+    end subroutine mmpol_init_from_xyz
 
 end module mod_inputloader

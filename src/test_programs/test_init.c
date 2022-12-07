@@ -17,8 +17,6 @@ int main(int argc, char **argv){
     if(argc == 3)
         strcpy(outfile, argv[2]);
         
-    // printf("Input file: '%s'\n", infile);
-
     OMMP_SYSTEM_PRT my_system = ommp_init_mmp(infile);
     //ommp_set_verbose(my_system, OMMP_VERBOSE_DEBUG);
    

@@ -27,7 +27,7 @@ add_library(openmmpol SHARED
             src/mod_mmpol.f90
             #src/mod_nonbonded.f90
             #src/mod_polarization.f90
-            #src/mod_prm.f90
+            src/mod_prm.f90
             #src/mod_solvers.f90
             src/mod_topology.f90
             src/mod_utils.f90
@@ -75,10 +75,10 @@ target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent 
 
 include_directories(include) # Directory for .h files
 
-#add_executable(C_test_init_xyz src/test_programs/test_init_xyz.c)
-#target_link_libraries(C_test_init_xyz openmmpol)
-#target_compile_options(C_test_init_xyz PRIVATE -Wall -Wextra -pedantic)
-#set_property(TARGET C_test_init_xyz PROPERTY C_STANDARD 99)
+add_executable(C_test_init_xyz src/test_programs/test_init_xyz.c)
+target_link_libraries(C_test_init_xyz openmmpol)
+target_compile_options(C_test_init_xyz PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_init_xyz PROPERTY C_STANDARD 99)
 
 add_executable(C_test_init src/test_programs/test_init.c)
 target_link_libraries(C_test_init openmmpol)
@@ -141,9 +141,3 @@ set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
 #endif()
 #
 #include(tests/CMakeLists.txt)
-
-add_executable(F_test_tmp src/test_programs/test_tmp.F90)
-target_link_libraries(F_test_tmp openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F_test_tmp PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif()

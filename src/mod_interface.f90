@@ -207,21 +207,26 @@ module mod_ommp_interface
             f_str = trim(f_str)
         end subroutine c2f_string
         
-        !TODO subroutine ommp_init_xyz(xyzfile, prmfile) &
-        !TODO         bind(c, name='ommp_init_xyz')
-        !TODO     !! Initialize the library using a Tinker xyz and a Tinker prm
-        !TODO     use mod_inputloader, only : mmpol_init_from_xyz
-        !TODO     
-        !TODO     implicit none
-        !TODO     
-        !TODO     character(kind=c_char), intent(in) :: xyzfile(OMMP_STR_CHAR_MAX), & 
-        !TODO                                           prmfile(OMMP_STR_CHAR_MAX)
-        !TODO     character(len=OMMP_STR_CHAR_MAX) :: xyz_file, prm_file
+        function ommp_init_xyz(xyzfile, prmfile) &
+                result(c_prt) bind(c, name='ommp_init_xyz')
+            !! Initialize the library using a Tinker xyz and a Tinker prm
+            use mod_inputloader, only : mmpol_init_from_xyz
+            
+            implicit none
+            
+            type(ommp_system), save, allocatable, target :: s
+            character(kind=c_char), intent(in) :: xyzfile(OMMP_STR_CHAR_MAX), & 
+                                                  prmfile(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: xyz_file, prm_file
+            type(c_ptr) :: c_prt
 
-        !TODO     call c2f_string(prmfile, prm_file)
-        !TODO     call c2f_string(xyzfile, xyz_file)
-        !TODO     call mmpol_init_from_xyz(xyz_file, prm_file)
-        !TODO end subroutine 
+            allocate(s)
+            
+            call c2f_string(prmfile, prm_file)
+            call c2f_string(xyzfile, xyz_file)
+            call mmpol_init_from_xyz(s, xyz_file, prm_file)
+            c_prt = c_loc(s)
+        end function
         
         function C_ommp_init_mmp(filename) &
                 result(c_prt) bind(c, name='ommp_init_mmp')
@@ -240,7 +245,6 @@ module mod_ommp_interface
             call c2f_string(filename, input_file)
             call mmpol_init_from_mmp(input_file, s)
             c_prt = c_loc(s)
-
         end function
         
 !TODO        subroutine ommp_init_mmp(filename)
