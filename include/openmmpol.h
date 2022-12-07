@@ -39,7 +39,7 @@ extern void ommp_print_summary(OMMP_SYSTEM_PRT);
 extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
 //
 //extern void ommp_get_polelec_energy(double *);
-//extern void ommp_get_fixedelec_energy(double *);
+extern double ommp_get_fixedelec_energy(OMMP_SYSTEM_PRT);
 //extern void ommp_set_external_field(double *, int32_t);
 //extern void ommp_set_external_field_nommm(double *, int32_t);
 //extern void ommp_potential_mm2ext(int32_t, double *, double *);
@@ -61,7 +61,7 @@ extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
 //extern int32_t get_n_ipd(void);
 //extern int32_t ommp_get_ld_cart(void);
 //extern int32_t ommp_get_mm_atoms(void);
-//extern int32_t ommp_get_pol_atoms(void);
+extern int32_t ommp_get_pol_atoms(OMMP_SYSTEM_PRT);
 //extern void *ommp_get_cmm(void);
 //extern void *ommp_get_cpol(void);
 //extern void *ommp_get_q(void);

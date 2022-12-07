@@ -98,15 +98,18 @@ module mod_ommp_interface
         !!TODO     ommp_get_mm_atoms = mm_atoms
         !!TODO end function ommp_get_mm_atoms
         !!TODO 
-        !!TODO function ommp_get_pol_atoms() bind(c, name='ommp_get_pol_atoms')
-        !!TODO     !! Return the number of polarizable atoms in the system.
-        !!TODO     use mod_mmpol, only: pol_atoms
-        !!TODO     implicit none
+        function ommp_get_pol_atoms(s_prt) bind(c, name='ommp_get_pol_atoms')
+            !! Return the number of polarizable atoms in the system.
+            implicit none
 
-        !!TODO     integer(ommp_integer) :: ommp_get_pol_atoms
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: ommp_get_pol_atoms
+            
+            call c_f_pointer(s_prt, s)
 
-        !!TODO     ommp_get_pol_atoms = pol_atoms
-        !!TODO end function ommp_get_pol_atoms
+            ommp_get_pol_atoms = s%eel%pol_atoms
+        end function ommp_get_pol_atoms
 
         !!TODO function get_n_ipd() bind(c, name='get_n_ipd')
         !!TODO     !! Return the number of dipole's set for the current Force-Field.
@@ -207,7 +210,7 @@ module mod_ommp_interface
             f_str = trim(f_str)
         end subroutine c2f_string
         
-        function ommp_init_xyz(xyzfile, prmfile) &
+        function C_ommp_init_xyz(xyzfile, prmfile) &
                 result(c_prt) bind(c, name='ommp_init_xyz')
             !! Initialize the library using a Tinker xyz and a Tinker prm
             use mod_inputloader, only : mmpol_init_from_xyz
@@ -374,18 +377,21 @@ module mod_ommp_interface
 !TODO            call energy_MM_pol(epol) 
 !TODO        end subroutine
 !TODO
-!TODO        subroutine ommp_get_fixedelec_energy(emm) &
-!TODO                bind(c, name='ommp_get_fixedelec_energy')
-!TODO            ! Get the interaction energy of fixed multipoles
-!TODO            use mod_electrostatics, only: energy_MM_MM, energy_MM_pol
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(out) :: emm
-!TODO
-!TODO            emm = 0.0
-!TODO            
-!TODO            call energy_MM_MM(emm)
-!TODO        end subroutine
+        function C_ommp_get_fixedelec_energy(s_prt) &
+                result(emm) bind(c, name='ommp_get_fixedelec_energy')
+            ! Get the interaction energy of fixed multipoles
+            use mod_electrostatics, only: energy_MM_MM
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: emm
+
+            call c_f_pointer(s_prt, s)
+
+            emm = 0.0
+            call energy_MM_MM(s%eel, emm)
+        end function
 !TODO
 !TODO        subroutine ommp_potential_mmpol2ext(n, cext, v) &
 !TODO                bind(c, name='ommp_potential_mmpol2ext')
