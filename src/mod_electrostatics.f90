@@ -671,7 +671,6 @@ module mod_electrostatics
             if(.not. allocated(eel%V_M2M)) then
                 call mallocate('prepare_m2m [V_M2M]', mm_atoms, eel%V_M2M)
             end if
-            
             eel%V_M2M = 0.0_rp
             call potential_M2M(eel, eel%V_M2M)
         end if
@@ -862,9 +861,9 @@ module mod_electrostatics
                                           .false., tmpHE)
 
                         if(to_scale) then
-                            V = V + tmpV * scalf
+                            V(j) = V(j) + tmpV * scalf
                         else
-                            V = V + tmpV
+                            V(j) = V(j) + tmpV
                         end if
                     end if
                 end do
@@ -888,9 +887,9 @@ module mod_electrostatics
                                          .false., tmpHE)
 
                         if(to_scale) then
-                            V = V + tmpV * scalf
+                            V(j) = V(j) + tmpV * scalf
                         else
-                            V = V + tmpV
+                            V(j) = V(j) + tmpV
                         end if
                     end if
                 end do
