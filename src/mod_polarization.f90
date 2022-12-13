@@ -202,19 +202,6 @@ module mod_polarization
             end select
         end if
         
-        !--! if(verbose == OMMP_VERBOSE_DEBUG) then
-        !--!     if(amoeba) then
-        !--!         call print_matrix(.false., 'RHS (D)', n, 1, n, 1, &
-        !--!                           e_vec(:, OMMP_AMOEBA_D))
-        !--!         call print_matrix(.false., 'RHS (P)', n, 1, n, 1, &
-        !--!                           e_vec(:, OMMP_AMOEBA_P))
-        !--!     else
-        !--!         call print_matrix(.false., 'RHS', n, 1, n, 1, e_vec)
-        !--!     end if
-        !--!     if(allocated(tmat)) &
-        !--!         call print_matrix(.false., 'LHS', n, n, n, n, tmat)
-        !--! end if
-
         select case (solver)
             case(OMMP_SOLVER_CG)
                 ! For now we do not have any other option.
