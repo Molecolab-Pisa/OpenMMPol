@@ -4,7 +4,7 @@ program test_ipd
 
     implicit none
 
-    integer :: argc, i, j, k
+    integer :: argc, i
     character(kind=c_char, len=120), dimension(3) :: argv
     real(ommp_real), allocatable :: ef(:,:), ef_pol(:,:), E_MMMM, E_MMPOL
     type(ommp_system), pointer :: my_system

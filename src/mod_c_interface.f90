@@ -209,7 +209,7 @@ module mod_ommp_C_interface
             
             implicit none
             
-            type(ommp_system), allocatable, target :: s
+            type(ommp_system), pointer :: s
             character(kind=c_char), intent(in) :: xyzfile(OMMP_STR_CHAR_MAX), & 
                                                   prmfile(OMMP_STR_CHAR_MAX)
             character(len=OMMP_STR_CHAR_MAX) :: xyz_file, prm_file

@@ -135,6 +135,12 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(F03_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
 endif ()
 
+add_executable(F03_test_init_xyz src/test_programs/F03/test_init_xyz.f90)
+target_link_libraries(F03_test_init_xyz openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F03_test_init_xyz PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif ()
+
 add_executable(F03_test_ipd src/test_programs/F03/test_ipd.f90)
 target_link_libraries(F03_test_ipd openmmpol)
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")

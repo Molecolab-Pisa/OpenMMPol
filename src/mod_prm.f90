@@ -2342,7 +2342,7 @@ module mod_prm
         
         implicit none
         
-        type(ommp_electrostatics_type), intent(inout) :: eel
+        type(ommp_electrostatics_type), intent(inout), target :: eel
         !! Electrostatics data structure to be initialized
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file

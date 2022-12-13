@@ -50,6 +50,18 @@ module ommp_interface
             call mmpol_init_from_mmp(trim(filename), s)
         end subroutine
         
+        subroutine ommp_init_xyz(s, xyzfile, prmfile)
+            use mod_inputloader, only : mmpol_init_from_xyz
+            
+            implicit none
+            
+            type(ommp_system), pointer, intent(inout) :: s
+            character(len=*) :: xyzfile, prmfile
+
+            allocate(s)
+            call mmpol_init_from_xyz(s, trim(xyzfile), trim(prmfile))
+        end subroutine
+        
         subroutine ommp_terminate(s)
             use mod_mmpol, only: mmpol_terminate
 
