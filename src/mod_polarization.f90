@@ -33,21 +33,20 @@ module mod_polarization
     !! \end{equation}
 
     use mod_memory, only: ip, rp
-    use mod_io, only: ommp_message
-    
+    use mod_io, only: ommp_message, fatal_error
+    use mod_mmpol, only: ommp_system 
+    use mod_electrostatics, only: ommp_electrostatics_type
+
     implicit none 
     private
     
-    real(rp), allocatable :: TMat(:,:)
-    !! Interaction tensor, only allocated for the methods that explicitly 
-    !! requires it.
-    logical :: ipd_done = .false.
 
-    public :: polarization, ipd_done, polarization_terminate
+    public :: polarization, polarization_terminate
     
     contains
     
-    subroutine polarization(e, ipds, arg_solver, arg_mvmethod, arg_ipd_mask)
+    subroutine polarization(sys_obj, e, & 
+                            & arg_solver, arg_mvmethod, arg_ipd_mask)
         !! Main driver for the calculation of induced dipoles. 
         !! Takes electric field at induced dipole sites as input and -- if
         !! solver converges -- provides induced dipoles as output.
@@ -59,7 +58,6 @@ module mod_polarization
         !! field and induced dipoles are stored in e(:,:,1)/ipds(:,:,1) while
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
-        use mod_mmpol, only: amoeba, pol_atoms, n_ipd, pol, fatal_error
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
@@ -77,10 +75,11 @@ module mod_polarization
       
         implicit none
 
-        real(rp), dimension(3, pol_atoms, n_ipd), intent(in) :: e
+        type(ommp_system), intent(inout) :: sys_obj
+        !! Fundamental data structure for OMMP system
+        real(rp), dimension(3, sys_obj%eel%pol_atoms, sys_obj%eel%n_ipd), &
+        & intent(in) :: e
         !! Total electric field that induces the dipoles
-        real(rp), dimension(3, pol_atoms, n_ipd), intent(out) :: ipds
-        !! Induced dipoles
 
         integer(ip), intent(in), optional :: arg_solver
         !! Flag for the solver to be used; optional, should be one OMMP_SOLVER_
@@ -88,7 +87,7 @@ module mod_polarization
         integer(ip), intent(in), optional :: arg_mvmethod
         !! Flag for the matrix-vector method to be used; optional, should be one of
         !! OMMP_MATV_ if not provided [[mod_constants:OMMP_MATV_DEFAULT]] is used.
-        logical, intent(in), optional :: arg_ipd_mask(n_ipd)
+        logical, intent(in), optional :: arg_ipd_mask(sys_obj%eel%n_ipd)
         !! Logical mask to skip calculation of one of the two set of dipoles
         !! in AMOEBA calculations (eg. when MM part's field is not taken into
         !! account, both P and D field are just external field, so there is no
@@ -98,29 +97,36 @@ module mod_polarization
         real(rp), dimension(:, :), allocatable :: e_vec, ipd0
         real(rp), dimension(:), allocatable :: inv_diag
         integer(ip) :: i, n, solver, mvmethod
-        logical :: ipd_mask(n_ipd)
+        logical :: ipd_mask(sys_obj%eel%n_ipd), amoeba
+        type(ommp_electrostatics_type), pointer :: eel
 
         abstract interface
-        subroutine mv(x, y, dodiag)
+        subroutine mv(eel, x, y, dodiag)
                 use mod_memory, only: rp, ip
-                use mod_mmpol, only: pol_atoms
-                real(rp), dimension(3*pol_atoms), intent(in) :: x
-                real(rp), dimension(3*pol_atoms), intent(out) :: y
+                use mod_electrostatics, only : ommp_electrostatics_type
+                type(ommp_electrostatics_type), intent(in) :: eel
+                real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
+                real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
                 logical, intent(in) :: dodiag
             end subroutine mv
         end interface
         procedure(mv), pointer :: matvec
         
         abstract interface
-        subroutine pc(x, y)
+        subroutine pc(eel, x, y)
                 use mod_memory, only: rp, ip
-                use mod_mmpol, only: pol_atoms
-                real(rp), dimension(3*pol_atoms), intent(in) :: x
-                real(rp), dimension(3*pol_atoms), intent(out) :: y
+                use mod_electrostatics, only : ommp_electrostatics_type
+                type(ommp_electrostatics_type), intent(in) :: eel
+                real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
+                real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
             end subroutine pc
         end interface
         procedure(pc), pointer :: precond
         
+        ! Shortcuts
+        eel => sys_obj%eel
+        amoeba = sys_obj%amoeba
+
         ! Handling of optional arguments
         if(present(arg_solver)) then
             solver = arg_solver
@@ -134,24 +140,24 @@ module mod_polarization
             mvmethod = OMMP_MATV_DEFAULT
         end if
 
-        if(present(arg_ipd_mask) .and. n_ipd > 1) then
+        if(present(arg_ipd_mask) .and. eel%n_ipd > 1) then
             ipd_mask = arg_ipd_mask
         else
             ipd_mask = .true.
         end if
 
         ! Dimension of the system
-        n = 3*pol_atoms
+        n = 3*eel%pol_atoms
 
-        call mallocate('polarization [ipd0]', n, n_ipd, ipd0)
-        call mallocate('polarization [e_vec]', n, n_ipd, e_vec)
+        call mallocate('polarization [ipd0]', n, eel%n_ipd, ipd0)
+        call mallocate('polarization [e_vec]', n, eel%n_ipd, e_vec)
 
         ! Allocate and compute dipole polarization tensor, if needed
         if(mvmethod == OMMP_MATV_INCORE .or. &
            solver == OMMP_SOLVER_INVERSION) then
-            if(.not. allocated(tmat)) then
-                call mallocate('polarization [TMat]',n,n,TMat)
-                call create_TMat(TMat)
+            if(.not. allocated(eel%tmat)) then !TODO move this in create_tmat
+                call mallocate('polarization [TMat]',n,n,eel%tmat)
+                call create_TMat(eel)
             end if
         end if
 
@@ -174,13 +180,13 @@ module mod_polarization
             ! Create a guess for dipoles
             if(amoeba) then
                 if(ipd_mask(OMMP_AMOEBA_D)) &
-                    call PolVec(e_vec(:, OMMP_AMOEBA_D), &
+                    call PolVec(eel, e_vec(:, OMMP_AMOEBA_D), &
                                 ipd0(:, OMMP_AMOEBA_D))
                 if(ipd_mask(OMMP_AMOEBA_P)) &
-                    call PolVec(e_vec(:, OMMP_AMOEBA_P), &
+                    call PolVec(eel, e_vec(:, OMMP_AMOEBA_P), &
                                 ipd0(:, OMMP_AMOEBA_P))
             else
-                call PolVec(e_vec(:,1), ipd0(:,1))
+                call PolVec(eel, e_vec(:,1), ipd0(:,1))
             end if
 
             select case(mvmethod)
@@ -219,22 +225,22 @@ module mod_polarization
                         call conjugate_gradient_solver(n, &
                                                        e_vec(:,OMMP_AMOEBA_D), &
                                                        ipd0(:,OMMP_AMOEBA_D), &
-                                                       matvec, precond)
+                                                       eel, matvec, precond)
                     if(ipd_mask(OMMP_AMOEBA_P)) &
                         call conjugate_gradient_solver(n, &
                                                        e_vec(:,OMMP_AMOEBA_P), &
                                                        ipd0(:,OMMP_AMOEBA_P), &
-                                                       matvec, precond)
+                                                       eel, matvec, precond)
                 else
                     call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), &
-                                                   matvec, precond)
+                                                   eel, matvec, precond)
                 end if
 
             case(OMMP_SOLVER_DIIS)
                 ! Create a vector containing inverse of diagonal of T matrix
                 call mallocate('polarization [inv_diag]', n, inv_diag)
-                do i=1, pol_atoms
-                    inv_diag(3*(i-1)+1:3*(i-1)+3) = pol(i) 
+                do i=1, eel%pol_atoms
+                    inv_diag(3*(i-1)+1:3*(i-1)+3) = eel%pol(i) 
                 end do
 
                 if(amoeba) then
@@ -242,15 +248,15 @@ module mod_polarization
                         call jacobi_diis_solver(n, &
                                                 e_vec(:,OMMP_AMOEBA_D), &
                                                 ipd0(:,OMMP_AMOEBA_D), &
-                                                matvec, inv_diag)
+                                                eel, matvec, inv_diag)
                     if(ipd_mask(OMMP_AMOEBA_P)) &
                         call jacobi_diis_solver(n, &
                                                 e_vec(:,OMMP_AMOEBA_P), &
                                                 ipd0(:,OMMP_AMOEBA_P), &
-                                                matvec, inv_diag)
+                                                eel, matvec, inv_diag)
                 else
                     call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), &
-                                            matvec, inv_diag)
+                                            eel, matvec, inv_diag)
                 end if
                 call mfree('polarization [inv_diag]', inv_diag)
 
@@ -259,13 +265,13 @@ module mod_polarization
                     if(ipd_mask(OMMP_AMOEBA_D)) &
                         call inversion_solver(n, &
                                               e_vec(:,OMMP_AMOEBA_D), &
-                                              ipd0(:,OMMP_AMOEBA_D), TMat)
+                                              ipd0(:,OMMP_AMOEBA_D), eel%TMat)
                     if(ipd_mask(OMMP_AMOEBA_P)) &
                         call inversion_solver(n, &
                                               e_vec(:,OMMP_AMOEBA_P), &
-                                              ipd0(:,OMMP_AMOEBA_P), TMat)
+                                              ipd0(:,OMMP_AMOEBA_P), eel%TMat)
                 else
-                    call inversion_solver(n, e_vec(:,1), ipd0(:,1), TMat)
+                    call inversion_solver(n, e_vec(:,1), ipd0(:,1), eel%TMat)
                 end if
                 
             case default
@@ -273,29 +279,30 @@ module mod_polarization
         end select
         
         ! Reshape dipole vector into the matrix 
-        ipds = reshape(ipd0, (/3_ip, pol_atoms, n_ipd/)) 
-        ipd_done = .true. !! TODO Maybe check convergence...
+        eel%ipd = reshape(ipd0, (/3_ip, eel%pol_atoms, eel%n_ipd/)) 
+        eel%ipd_done = .true. !! TODO Maybe check convergence...
         
         call mfree('polarization [ipd0]', ipd0)
         call mfree('polarization [e_vec]', e_vec)
 
     end subroutine polarization
 
-    subroutine polarization_terminate()
+    subroutine polarization_terminate(eel)
         use mod_memory, only: mfree 
 
         implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
         
-        if(allocated(TMat)) &
-            call mfree('polarization [TMat]',TMat)
+        if(allocated(eel%TMat)) &
+            call mfree('polarization [TMat]', eel%TMat)
 
     end subroutine polarization_terminate
     
-    subroutine dipole_T(i, j, tens)
+    subroutine dipole_T(eel, i, j, tens)
         !! This subroutine compute the interaction tensor (rank 3) between
         !! two polarizable sites i and j.
         !! This tensor is built according to the following rules: ... TODO
-        use mod_mmpol, only : pol, polar_mm, fatal_error
         use mod_electrostatics, only: screening_rules, damped_coulomb_kernel
 
         implicit none
@@ -307,7 +314,10 @@ module mod_polarization
         !
         ! Polarizabilities pol are defined for polarizable atoms only while 
         ! Thole factors are defined for all of them
-        !
+        
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        !! The electostatic data structure  for which the 
+        !! interaction tensor should be computed
         integer(ip), intent(in) :: i 
         !! Index (in the list of polarizable sites) of the source site
         integer(ip), intent(in) :: j
@@ -324,14 +334,15 @@ module mod_polarization
         tens = 0.0_rp
         
         if(i == j) then
-            tens(1, 1) = 1.0_rp / pol(i)
-            tens(2, 2) = 1.0_rp / pol(i)
-            tens(3, 3) = 1.0_rp / pol(i)
+            tens(1, 1) = 1.0_rp / eel%pol(i)
+            tens(2, 2) = 1.0_rp / eel%pol(i)
+            tens(3, 3) = 1.0_rp / eel%pol(i)
         else
-            call screening_rules(i, 'P', j, 'P', '-', to_do, to_scale, scalf)
+            call screening_rules(eel, i, 'P', j, 'P', '-', &
+                                 to_do, to_scale, scalf)
             if(to_do) then
-                call damped_coulomb_kernel(polar_mm(i), polar_mm(j), &
-                                           2, kernel, dr)
+                call damped_coulomb_kernel(eel, eel%polar_mm(i), &
+                                           eel%polar_mm(j), 2, kernel, dr)
                 ! Fill the matrix elemets
                 do ii=1, 3
                     do jj=1, 3
@@ -349,19 +360,19 @@ module mod_polarization
         end if
     end subroutine dipole_T
         
-    subroutine create_tmat(tmat)
+    subroutine create_tmat(eel)
         !! Explicitly construct polarization tensor in memory. This routine
         !! is only used to accumulate results from [[dipole_T]] and shape it in
         !! the correct way.
 
-        use mod_mmpol, only : pol_atoms
         use mod_io, only: print_matrix
         use mod_constants, only: OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH
 
         implicit none
         
-        real(rp), dimension(3*pol_atoms, 3*pol_atoms), intent(out) :: tmat
-        !! The interaction tensor to be computed
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        !! The electostatic data structure  for which the 
+        !! interaction tensor should be computed
         real(rp), dimension(3, 3) :: tensor
         !! Temporary interaction tensor between two sites
 
@@ -371,16 +382,16 @@ module mod_polarization
                            &the polarization system", OMMP_VERBOSE_HIGH)
 
         ! Initialize the tensor with zeros
-        tmat = 0.0_rp
+        eel%tmat = 0.0_rp
         
-        do i = 1, pol_atoms
+        do i = 1, eel%pol_atoms
             do j = 1, i
-                call dipole_T(i, j, tensor)
+                call dipole_T(eel, i, j, tensor)
                 
                 do ii=1, 3
                     do jj=1, 3
-                        tmat((j-1)*3+jj, (i-1)*3+ii) = tensor(jj, ii)
-                        tmat((i-1)*3+ii, (j-1)*3+jj) = tensor(jj, ii)
+                        eel%tmat((j-1)*3+jj, (i-1)*3+ii) = tensor(jj, ii)
+                        eel%tmat((i-1)*3+ii, (j-1)*3+jj) = tensor(jj, ii)
                     end do
                 end do
             enddo
@@ -395,123 +406,121 @@ module mod_polarization
         
     end subroutine create_TMat
 
-    subroutine TMatVec_incore(x, y, dodiag)
+    subroutine TMatVec_incore(eel, x, y, dodiag)
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
-        use mod_mmpol, only: pol_atoms
+        
         implicit none
         
-        real(rp), dimension(3*pol_atoms), intent(in) :: x
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! The electostatic data structure 
+        real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(3*pol_atoms), intent(out) :: y
+        real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
         !! Output vector
         logical, intent(in) :: dodiag
         !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
         !! skipped)
         
-        call TMatVec_offdiag(x, y)
-        if(dodiag) call TMatVec_diag(x, y)
+        call TMatVec_offdiag(eel, x, y)
+        if(dodiag) call TMatVec_diag(eel, x, y)
     
     end subroutine TMatVec_incore
     
-    subroutine TMatVec_otf(x, y, dodiag)
+    subroutine TMatVec_otf(eel, x, y, dodiag)
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
         use mod_electrostatics, only: field_extD2D
-        use mod_mmpol, only: pol_atoms
         implicit none
         
-        real(rp), dimension(3*pol_atoms), intent(in) :: x
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! The electostatic data structure 
+        real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(3*pol_atoms), intent(out) :: y
+        real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
         !! Output vector
         logical, intent(in) :: dodiag
         !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
         !! skipped)
         
         y = 0.0_rp
-        call field_extD2D(y, x)
+        call field_extD2D(eel, y, x)
         y = -1.0_rp * y ! Why? TODO
-        if(dodiag) call TMatVec_diag(x, y)
+        if(dodiag) call TMatVec_diag(eel, x, y)
     
     end subroutine TMatVec_otf
        
-    subroutine TMatVec_diag(x, y)
+    subroutine TMatVec_diag(eel, x, y)
         !! This routine compute the product between the diagonal of T matrix
         !! with x, and add it to y. The product is simply computed by 
         !! each element of x for its inverse polarizability.
-        use mod_mmpol, only: pol, pol_atoms
 
         implicit none
 
-        real(rp), dimension(3*pol_atoms), intent(in) :: x
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! The electostatic data structure 
+        real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(3*pol_atoms), intent(out) :: y
+        real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
         !! Output vector
 
         integer(ip) :: i, ii
 
-        do i=1, 3*pol_atoms
+        do i=1, 3*eel%pol_atoms
             ii = (i+2)/3
-            y(i) = y(i) + x(i) / pol(ii)
+            y(i) = y(i) + x(i) / eel%pol(ii)
         end do
     end subroutine TMatVec_diag
 
-    subroutine TMatVec_offdiag(x, y)
+    subroutine TMatVec_offdiag(eel, x, y)
         !! Perform matrix vector multiplication y = [TMat-diag(TMat)]*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
-        !! and x and y are column vectors
-        use mod_mmpol, only: pol_atoms
+        !! and x and y are column vectors 
         use mod_memory, only: mallocate, mfree
         
         implicit none
         
-        real(rp), dimension(:), intent(in) :: x
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! The electostatic data structure 
+        real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(:), intent(out) :: y
+        real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
         !! Output vector
         
-        real(rp), dimension(:), allocatable :: d
         integer(ip) :: i, n
 
-        n = 3*pol_atoms
-        call mallocate('TMatVec_offdiag [d]', n, d)
+        n = 3*eel%pol_atoms
         
-        ! Subtract the diagonal from the T matrix
-        do i = 1, n
-            d(i) = tmat(i,i)
-            tmat(i,i) = 0
-        end do
         ! Compute the matrix vector product
-        call dgemm('N', 'N', n, 1, n, 1.0_rp, tmat, n, x, n, 0.0_rp, y, n)
-        
+        call dgemm('N', 'N', n, 1, n, 1.0_rp, eel%tmat, n, x, n, 0.0_rp, y, n)
+        ! Subtract the product of diagonal 
         do i = 1, n
-            tmat(i,i) = d(i)
+            y(i) = y(i) - eel%tmat(i,i) * x(i)
         end do
-
-        call mfree('TMatVec_offdiag [d]', d)
+    
     end subroutine TMatVec_offdiag
 
-    subroutine PolVec(x,y)
+    subroutine PolVec(eel, x, y)
         !! Perform matrix vector multiplication y = pol*x,
         !! where pol is polarizability vector, x and y are 
         !! column vectors
-        use mod_mmpol, only : pol, pol_atoms
         
         implicit none
         
-        real(rp), dimension(3*pol_atoms), intent(in) :: x
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! The electostatic data structure 
+        real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
-        real(rp), dimension(3*pol_atoms), intent(out) :: y
+        real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
         !! Output vector
         
         integer(ip) :: i, indx
         
-        do i = 1, 3*pol_atoms
+        do i = 1, 3*eel%pol_atoms
             indx = (i+2)/3
-            y(i) = pol(indx)*x(i)   
+            y(i) = eel%pol(indx)*x(i)   
         enddo
         
     end subroutine PolVec

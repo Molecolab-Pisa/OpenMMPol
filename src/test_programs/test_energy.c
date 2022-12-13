@@ -57,8 +57,8 @@ int main(int argc, char **argv){
     pol_atoms = ommp_get_pol_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
-    /*polar_mm = (int32_t *) ommp_get_polar_mm();
-    
+    polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
+   
     if(argc == 4)
         external_ef = read_ef(argv[3]);
 
@@ -68,15 +68,15 @@ int main(int argc, char **argv){
                 electric_field[j*3+k] = external_ef[polar_mm[j]-1][k];
             else
                 electric_field[j*3+k] = 0.0;
-    */
+    
     E_MMMM = ommp_get_fixedelec_energy(my_system);
-    //ommp_set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
-    //ommp_get_polelec_energy(&E_MMPOL);
+    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_DEFAULT);
+    E_MMPOL = ommp_get_polelec_energy(my_system);
 
     FILE *fp = fopen(argv[2], "w+");
 
     fprintf(fp, "%20.12e\n", E_MMMM);
-    //fprintf(fp, "%20.12e\n", E_MMPOL);
+    fprintf(fp, "%20.12e\n", E_MMPOL);
     
     fclose(fp);
     free(electric_field);

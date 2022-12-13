@@ -15,7 +15,7 @@ module mod_io
     !! 3 (debug printing)
     
     public :: iof_memory, iof_mmpol, iof_mmpinp
-    public :: set_verbosity, ommp_message
+    public :: set_verbosity, ommp_message, fatal_error
     public :: print_header
     public :: print_matrix, print_int_vec
 
@@ -94,6 +94,26 @@ module mod_io
         write(outunit, '(A12, " ", A)') pre, trim(s)
     end subroutine ommp_message
     
+    subroutine fatal_error(message)
+        !! Prints a message and exit from the program. This
+        !! function should be used in all the conditions 
+        !! where the program cannot proceed.
+
+        use mod_constants, only: OMMP_VERBOSE_LOW
+        implicit none
+      
+        character (len=*) message
+        !! Message to print before the program termination
+
+        !write(6, '(t3,a)') message
+        call ommp_message(message, OMMP_VERBOSE_LOW, 'stop')
+        call ommp_message("Unrecoverable error in openMMPol &
+                          &library. Exiting.", OMMP_VERBOSE_LOW, &
+                          'stop')
+        !TODO call mmpol_terminate()
+
+        stop
+    end subroutine fatal_error
 
     subroutine print_header()
         !! Print the header of OpenMMPol library

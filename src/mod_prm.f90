@@ -3,6 +3,7 @@ module mod_prm
     !! the asignament of parameters based on atom type and connectivity.
 
     use mod_memory, only: ip, rp
+    use mod_io, only: fatal_error
     use mod_topology, only: ommp_topology_type
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_constants, only: OMMP_STR_CHAR_MAX
@@ -2336,7 +2337,6 @@ module mod_prm
 !!    
     subroutine assign_pol(eel, prm_file, my_attype)
         use mod_memory, only: mallocate, mfree, ip, rp
-        use mod_mmpol, only: fatal_error
         use mod_mmpol, only: set_screening_parameters
         use mod_constants, only: angstrom2au
         
@@ -2668,7 +2668,7 @@ module mod_prm
     
     subroutine assign_mpoles(eel, prm_file, my_attype)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, set_screening_parameters
+        use mod_mmpol, only: set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
                                  AMOEBA_ROT_Z_THEN_X, &
                                  AMOEBA_ROT_BISECTOR, &

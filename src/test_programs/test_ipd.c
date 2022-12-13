@@ -52,11 +52,11 @@ int main(int argc, char **argv){
     double **external_ef;
     int32_t *polar_mm;
 
-    ommp_init_mmp(argv[1]);
-    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
+    OMMP_SYSTEM_PRT my_system = ommp_init_mmp(argv[1]);
+    // ommp_set_verbose(OMMP_VERBOSE_DEBUG);
 
-    n_ipd = get_n_ipd();
-    pol_atoms = ommp_get_pol_atoms();
+    n_ipd = ommp_get_n_ipd(my_system);
+    pol_atoms = ommp_get_pol_atoms(my_system);
 
     if(strcmp(argv[3], "inversion") == 0){
         printf("Solving with matrix inversion\n");
@@ -76,7 +76,7 @@ int main(int argc, char **argv){
     }
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
-    polar_mm = (int32_t *) ommp_get_polar_mm();
+    polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
    
     if(argc == 5)
         external_ef = read_ef(argv[4]);
@@ -88,10 +88,10 @@ int main(int argc, char **argv){
             else
                 electric_field[j*3+k] = 0.0;
 
-    ommp_set_external_field(electric_field, solver);
+    ommp_set_external_field(my_system, electric_field, solver);
 
     // Get induced point dipoles
-    _ipd = (double *) ommp_get_ipd();
+    _ipd = (double *) ommp_get_ipd(my_system);
     ipd = (double ***) malloc(sizeof(double **) * n_ipd );
 
     for(int i = 0; i < n_ipd; i++){
@@ -123,7 +123,7 @@ int main(int argc, char **argv){
     
     if(argc == 5)
         free(external_ef);
-    ommp_terminate();
+    ommp_terminate(my_system);
     
     return 0;
 }

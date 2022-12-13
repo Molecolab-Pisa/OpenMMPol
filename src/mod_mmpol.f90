@@ -9,7 +9,7 @@ module mod_mmpol
     use mod_topology, only: ommp_topology_type, topology_init, &
                             topology_terminate
     use mod_electrostatics, only: ommp_electrostatics_type
-    use mod_io, only: ommp_message
+    use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
     implicit none 
@@ -189,27 +189,6 @@ module mod_mmpol
 
     end subroutine mmpol_terminate
     
-    subroutine fatal_error(message)
-        !! Prints a message and exit from the program. This
-        !! function should be used in all the conditions 
-        !! where the program cannot proceed.
-
-        use mod_constants, only: OMMP_VERBOSE_LOW
-        use mod_io, only: ommp_message
-        implicit none
-      
-        character (len=*) message
-        !! Message to print before the program termination
-
-        !write(6, '(t3,a)') message
-        call ommp_message(message, OMMP_VERBOSE_LOW, 'stop')
-        call ommp_message("Unrecoverable error in openMMPol &
-                          &library. Exiting.", OMMP_VERBOSE_LOW, &
-                          'stop')
-        !TODO call mmpol_terminate()
-
-        stop
-    end subroutine fatal_error
 
     ! TODO Move to eel module
     subroutine reverse_polgrp_tab(mm2pg, pg2mm)

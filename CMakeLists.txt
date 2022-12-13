@@ -26,9 +26,9 @@ add_library(openmmpol SHARED
             src/mod_memory.f90
             src/mod_mmpol.f90
             #src/mod_nonbonded.f90
-            #src/mod_polarization.f90
+            src/mod_polarization.f90
             src/mod_prm.f90
-            #src/mod_solvers.f90
+            src/mod_solvers.f90
             src/mod_topology.f90
             src/mod_utils.f90
             src/rotate_multipoles.f90)
@@ -90,10 +90,10 @@ set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
 #target_compile_options(C_test_reinit PRIVATE -Wall -Wextra -pedantic)
 #set_property(TARGET C_test_reinit PROPERTY C_STANDARD 99)
 #
-#add_executable(C_test_ipd src/test_programs/test_ipd.c)
-#target_link_libraries(C_test_ipd openmmpol)
-#target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)
-#set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
+add_executable(C_test_ipd src/test_programs/test_ipd.c)
+target_link_libraries(C_test_ipd openmmpol)
+target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
 #
 #add_executable(C_test_potential_xyz src/test_programs/test_potential_xyz.c)
 #target_link_libraries(C_test_potential_xyz openmmpol)
@@ -140,4 +140,4 @@ set_property(TARGET C_test_energy PROPERTY C_STANDARD 99)
 #    target_compile_options(F_test_ipd PRIVATE -Wall -Wextra -pedantic -std=f2003)
 #endif()
 #
-#include(tests/CMakeLists.txt)
+include(tests/CMakeLists.txt)

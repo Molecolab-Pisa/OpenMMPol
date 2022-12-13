@@ -70,23 +70,27 @@ module mod_ommp_interface
         !!TODO     ommp_get_q = c_loc(q)
         !!TODO end function ommp_get_q
 
-        !!TODO function ommp_get_ipd() bind(c, name='ommp_get_ipd')
-        !!TODO     !! Return the c-pointer to the array containing the induced dipoles 
-        !!TODO     !! on polarizable sites.
-        !!TODO     use mod_mmpol, only: ipd
-        !!TODO     type(c_ptr) :: ommp_get_ipd
+        function ommp_get_ipd(s_prt) bind(c, name='ommp_get_ipd')
+            !! Return the c-pointer to the array containing the induced dipoles 
+            !! on polarizable sites.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: ommp_get_ipd
 
-        !!TODO     ommp_get_ipd = c_loc(ipd)
-        !!TODO end function ommp_get_ipd
-        !!TODO 
-        !!TODO function ommp_get_polar_mm() bind(c, name='ommp_get_polar_mm')
-        !!TODO     !! Return the c-pointer to the array containing the map from 
-        !!TODO     !! polarizable to MM atoms.
-        !!TODO     use mod_mmpol, only: polar_mm
-        !!TODO     type(c_ptr) :: ommp_get_polar_mm
+            call c_f_pointer(s_prt, s)
+            ommp_get_ipd = c_loc(s%eel%ipd)
+        end function ommp_get_ipd
+        
+        function ommp_get_polar_mm(s_prt) bind(c, name='ommp_get_polar_mm')
+            !! Return the c-pointer to the array containing the map from 
+            !! polarizable to MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: ommp_get_polar_mm
 
-        !!TODO     ommp_get_polar_mm = c_loc(polar_mm)
-        !!TODO end function ommp_get_polar_mm
+            call c_f_pointer(s_prt, s)
+            ommp_get_polar_mm = c_loc(s%eel%polar_mm)
+        end function ommp_get_polar_mm
 
         !!TODO function ommp_get_mm_atoms() bind(c, name='ommp_get_mm_atoms')
         !!TODO     !! Return the number of MM atoms in the system.
@@ -111,15 +115,17 @@ module mod_ommp_interface
             ommp_get_pol_atoms = s%eel%pol_atoms
         end function ommp_get_pol_atoms
 
-        !!TODO function get_n_ipd() bind(c, name='get_n_ipd')
-        !!TODO     !! Return the number of dipole's set for the current Force-Field.
-        !!TODO     use mod_mmpol, only: n_ipd
-        !!TODO     implicit none
+        function ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
+            !! Return the number of dipole's set for the current Force-Field.
+            implicit none
 
-        !!TODO     integer(ommp_integer) :: get_n_ipd
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: ommp_get_n_ipd
 
-        !!TODO     get_n_ipd = n_ipd
-        !!TODO end function get_n_ipd
+            call c_f_pointer(s_prt, s)
+            ommp_get_n_ipd = s%eel%n_ipd
+        end function ommp_get_n_ipd
 
         !!TODO function ommp_get_ld_cart() bind(c, name='ommp_get_ld_cart')
         !!TODO     use mod_mmpol, only: ld_cart
@@ -283,100 +289,124 @@ module mod_ommp_interface
 !TODO            call mmpol_save_as_mmp(trim(filename), version)
 !TODO        end subroutine
 !TODO
-!TODO        subroutine C_ommp_set_external_field(ext_field, solver) &
-!TODO                bind(c, name='ommp_set_external_field')
-!TODO            use mod_mmpol, only: pol_atoms
-!TODO            
-!TODO            implicit none
-!TODO            
-!TODO            real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
-!TODO            integer(ommp_integer), intent(in), value :: solver
-!TODO
-!TODO            call ommp_set_external_field(ext_field, solver, .true.)
-!TODO        end subroutine C_ommp_set_external_field
-!TODO        
-!TODO        subroutine C_ommp_set_external_field_nomm(ext_field, solver) &
-!TODO                bind(c, name='ommp_set_external_field_nomm')
-!TODO            use mod_mmpol, only: pol_atoms
-!TODO            
-!TODO            implicit none
-!TODO            
-!TODO            real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
-!TODO            integer(ommp_integer), intent(in), value :: solver
-!TODO
-!TODO            call ommp_set_external_field(ext_field, solver, .false.)
-!TODO        end subroutine C_ommp_set_external_field_nomm
-!TODO
-!TODO        subroutine ommp_set_external_field(ext_field, solver, add_mm_field)
-!TODO            !! This function get an external field and solve the polarization
-!TODO            !! system in the presence of the provided external field.
-!TODO            use mod_polarization, only: polarization, ipd_done
-!TODO            use mod_mmpol, only: pol_atoms, n_ipd, ipd
-!TODO            use mod_electrostatics, only: e_m2d, prepare_M2D
-!TODO            use mod_memory, only: mallocate, mfree
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            real(ommp_real), intent(in) :: ext_field(3, pol_atoms)
-!TODO            integer(ommp_integer), intent(in), value :: solver
-!TODO            logical, intent(in), value, optional :: add_mm_field
-!TODO
-!TODO            real(ommp_real), allocatable :: ef(:,:,:)
-!TODO            integer :: i
-!TODO            logical :: do_mm_f
-!TODO
-!TODO            if(present(add_mm_field)) then
-!TODO                do_mm_f = add_mm_field
-!TODO            else
-!TODO                do_mm_f = .true.
-!TODO            end if
-!TODO
-!TODO            ipd_done = .false.
-!TODO
-!TODO            if(do_mm_f) then
-!TODO                call mallocate('ommp_get_polelec_energy [ef]', &
-!TODO                               3, pol_atoms, n_ipd, ef)
-!TODO                call prepare_M2D()
-!TODO                do i=1, n_ipd
-!TODO                    ef(:,:,i) = e_m2d(:,:,i) + ext_field
-!TODO                end do
-!TODO                call polarization(ef, ipd, solver)
-!TODO                call mfree('ommp_get_polelec_energy [ef]', ef)
-!TODO            else
-!TODO                call mallocate('ommp_get_polelec_energy [ef]', &
-!TODO                               3, pol_atoms, n_ipd, ef)
-!TODO                
-!TODO                ef(:,:,1) = ext_field
-!TODO                call polarization(ef, ipd, solver, &
-!TODO                                  OMMP_MATV_DEFAULT, [.true., .false.] )
-!TODO                
-!TODO                call mfree('ommp_get_polelec_energy [ef]', ef)
-!TODO            end if
-!TODO        end subroutine ommp_set_external_field
-!TODO
-!TODO        subroutine ommp_get_polelec_energy(epol) &
-!TODO                bind(c, name='ommp_get_polelec_energy')
-!TODO            !! Solve the polarization equation for a certain external field
-!TODO            !! and compute the interaction energy of the induced dipoles with
-!TODO            !! themselves and fixed multipoles.
-!TODO
-!TODO            use mod_polarization, only: polarization, ipd_done
-!TODO            use mod_mmpol, only: ipd
-!TODO            use mod_electrostatics, only: e_m2d, prepare_M2D, energy_MM_pol
-!TODO            use mod_constants, only: OMMP_SOLVER_DEFAULT
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            real(ommp_real), intent(out) :: epol
-!TODO
-!TODO            if(.not. ipd_done) then
-!TODO                !! Solve the polarization system without external field
-!TODO                call prepare_M2D()
-!TODO                call polarization(e_m2d, ipd, OMMP_SOLVER_DEFAULT)
-!TODO            end if
-!TODO            call energy_MM_pol(epol) 
-!TODO        end subroutine
-!TODO
+        subroutine C_ommp_set_external_field(s_prt, ext_field_prt, solver) &
+                bind(c, name='ommp_set_external_field')
+            !!use mod_mmpol, only: pol_atoms
+            
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: ext_field_prt
+            integer(ommp_integer), intent(in), value :: solver
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: ext_field(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(ext_field_prt, ext_field, [3, s%eel%pol_atoms])
+
+            call ommp_set_external_field(s, ext_field, solver, .true.)
+        end subroutine C_ommp_set_external_field
+        
+        subroutine C_ommp_set_external_field_nomm(s_prt, ext_field_prt, solver) &
+                bind(c, name='ommp_set_external_field_nomm')
+            !!use mod_mmpol, only: pol_atoms
+            
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: ext_field_prt
+            integer(ommp_integer), intent(in), value :: solver
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: ext_field(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(ext_field_prt, ext_field, [3, s%eel%pol_atoms])
+            
+            call ommp_set_external_field(s, ext_field, solver, .false.)
+        end subroutine C_ommp_set_external_field_nomm
+
+        subroutine ommp_set_external_field(sys_obj, ext_field, solver, &
+                                           add_mm_field)
+            !! This function get an external field and solve the polarization
+            !! system in the presence of the provided external field.
+            use mod_polarization, only: polarization
+            use mod_electrostatics, only: ommp_electrostatics_type, prepare_M2D
+            use mod_memory, only: mallocate, mfree
+
+            implicit none
+            
+            type(ommp_system), intent(inout) :: sys_obj
+            real(ommp_real), intent(in) :: ext_field(3,sys_obj%eel%pol_atoms)
+            integer(ommp_integer), intent(in), value :: solver
+            logical, intent(in), value, optional :: add_mm_field
+            
+            type(ommp_electrostatics_type), pointer :: eel
+            real(ommp_real), allocatable :: ef(:,:,:)
+            integer :: i
+            logical :: do_mm_f
+
+            eel => sys_obj%eel
+
+            if(present(add_mm_field)) then
+                do_mm_f = add_mm_field
+            else
+                do_mm_f = .true.
+            end if
+
+            eel%ipd_done = .false.
+
+            if(do_mm_f) then
+                call mallocate('ommp_get_polelec_energy [ef]', &
+                               3, eel%pol_atoms, eel%n_ipd, ef)
+                call prepare_M2D(eel)
+                do i=1, eel%n_ipd
+                    ef(:,:,i) = eel%e_m2d(:,:,i) + ext_field
+                end do
+                call polarization(sys_obj, ef, solver)
+                call mfree('ommp_get_polelec_energy [ef]', ef)
+            else
+                call mallocate('ommp_get_polelec_energy [ef]', &
+                               3, eel%pol_atoms, eel%n_ipd, ef)
+                
+                ef(:,:,1) = ext_field
+                call polarization(sys_obj, ef, solver, &
+                                  OMMP_MATV_DEFAULT, [.true., .false.] )
+                
+                call mfree('ommp_get_polelec_energy [ef]', ef)
+            end if
+        end subroutine ommp_set_external_field
+
+        function C_ommp_get_polelec_energy(s_prt) &
+                result(epol) bind(c, name='ommp_get_polelec_energy')
+            !! Solve the polarization equation for a certain external field
+            !! and compute the interaction energy of the induced dipoles with
+            !! themselves and fixed multipoles.
+
+            use mod_polarization, only: polarization
+            use mod_electrostatics, only: prepare_M2D, energy_MM_pol, &
+                                          ommp_electrostatics_type
+            use mod_constants, only: OMMP_SOLVER_DEFAULT
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(ommp_electrostatics_type), pointer :: eel
+            real(ommp_real) :: epol
+
+            call c_f_pointer(s_prt, s)
+            eel => s%eel
+            
+            if(.not. eel%ipd_done) then
+                !! Solve the polarization system without external field
+                call prepare_M2D(eel)
+                call polarization(s, eel%e_m2d, OMMP_SOLVER_DEFAULT)
+            end if
+            call energy_MM_pol(eel, epol) 
+        end function
+
         function C_ommp_get_fixedelec_energy(s_prt) &
                 result(emm) bind(c, name='ommp_get_fixedelec_energy')
             ! Get the interaction energy of fixed multipoles

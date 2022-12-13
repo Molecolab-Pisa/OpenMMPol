@@ -38,10 +38,10 @@ extern void ommp_set_verbose(OMMP_SYSTEM_PRT, int32_t);
 extern void ommp_print_summary(OMMP_SYSTEM_PRT);
 extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
 //
-//extern void ommp_get_polelec_energy(double *);
+extern double ommp_get_polelec_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_fixedelec_energy(OMMP_SYSTEM_PRT);
-//extern void ommp_set_external_field(double *, int32_t);
-//extern void ommp_set_external_field_nommm(double *, int32_t);
+extern void ommp_set_external_field(OMMP_SYSTEM_PRT, double *, int32_t);
+extern void ommp_set_external_field_nommm(OMMP_SYSTEM_PRT, double *, int32_t);
 //extern void ommp_potential_mm2ext(int32_t, double *, double *);
 //extern void ommp_potential_mmpol2ext(int32_t, double *, double *);
 //extern void ommp_potential_pol2ext(int32_t, double *, double *);
@@ -58,14 +58,14 @@ extern double ommp_get_fixedelec_energy(OMMP_SYSTEM_PRT);
 //extern void ommp_get_tortor_energy(double *);
 //extern void ommp_get_urey_energy(double *);
 //
-//extern int32_t get_n_ipd(void);
+extern int32_t ommp_get_n_ipd(OMMP_SYSTEM_PRT);
 //extern int32_t ommp_get_ld_cart(void);
 //extern int32_t ommp_get_mm_atoms(void);
 extern int32_t ommp_get_pol_atoms(OMMP_SYSTEM_PRT);
 //extern void *ommp_get_cmm(void);
 //extern void *ommp_get_cpol(void);
 //extern void *ommp_get_q(void);
-//extern void *ommp_get_ipd(void);
-//extern void *ommp_get_polar_mm(void);
+extern void *ommp_get_ipd(OMMP_SYSTEM_PRT);
+extern void *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 //
 //extern bool ommp_ff_is_amoeba(void);

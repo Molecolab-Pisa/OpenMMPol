@@ -1,5 +1,5 @@
 module mod_inputloader
-    use mod_io, only: ommp_message
+    use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
     use mod_mmpol, only: ommp_system
@@ -16,7 +16,7 @@ module mod_inputloader
         !! and initialize all the quantities need to describe the environment
         !! within this library.
 
-        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init, &
+        use mod_mmpol, only: mmpol_prepare, mmpol_init, &
                              set_screening_parameters
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
@@ -252,7 +252,6 @@ module mod_inputloader
         !! clear the handling of polarization groups.
 
         use mod_memory, only : ip
-        use mod_mmpol, only: fatal_error
         
         implicit none
 
@@ -291,7 +290,7 @@ module mod_inputloader
         !! This function read a .mmp file (revision 2 and 3) are supported
         !! and initialize all the quantities need to describe the environment
         !! within this library.
-        use mod_mmpol, only: fatal_error, mmpol_prepare, mmpol_init
+        use mod_mmpol, only: mmpol_prepare, mmpol_init
         use mod_topology, only: ommp_topology_type
         use mod_electrostatics, only: ommp_electrostatics_type
         
