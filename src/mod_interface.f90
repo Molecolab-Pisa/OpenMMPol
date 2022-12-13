@@ -266,17 +266,23 @@ module mod_ommp_interface
 !TODO            call mmpol_init_from_mmp(trim(filename))
 !TODO        end subroutine 
 !TODO        
-!TODO        subroutine C_ommp_save_mmp(filename) bind(c, name='ommp_save_mmp')
-!TODO            use mod_mmpol, only : mmpol_save_as_mmp
-!TODO            
-!TODO            implicit none
-!TODO            
-!TODO            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
-!TODO            character(len=OMMP_STR_CHAR_MAX) :: output_file
-!TODO
-!TODO            call c2f_string(filename, output_file)
-!TODO            call mmpol_save_as_mmp(output_file)
-!TODO        end subroutine 
+        subroutine C_ommp_save_mmp(s_prt, filename, version) &
+                   bind(c, name='ommp_save_mmp')
+            use mod_mmpol, only : mmpol_save_as_mmp
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            integer(ommp_integer), value :: version
+
+            character(len=OMMP_STR_CHAR_MAX) :: output_file
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            call c2f_string(filename, output_file)
+            call mmpol_save_as_mmp(s, output_file, version)
+        end subroutine 
 !TODO
 !TODO        subroutine ommp_save_mmp(filename, version)
 !TODO            use mod_mmpol, only : mmpol_save_as_mmp

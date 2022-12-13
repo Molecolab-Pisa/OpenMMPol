@@ -28,7 +28,7 @@ typedef void* OMMP_SYSTEM_PRT;
 
 extern OMMP_SYSTEM_PRT ommp_init_mmp(char *);
 extern OMMP_SYSTEM_PRT ommp_init_xyz(char *, char *);
-//extern void ommp_save_mmp(char *, int32_t);
+extern void ommp_save_mmp(OMMP_SYSTEM_PRT, char *, int32_t);
 extern void ommp_terminate(OMMP_SYSTEM_PRT);
 //#ifdef USE_HDF5
 //extern void ommp_write_hdf5(char *);

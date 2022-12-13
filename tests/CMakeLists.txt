@@ -14,11 +14,11 @@ add_test(NAME memcheck_NMA_loading_AMOEBA
 add_test(NAME memcheck_NMA_loading_WANG
     COMMAND valgrind ${VALGRINDOPT} bin/C_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp Testing/output)
 
-add_test(NAME memcheck_NMA_ene_full_AMOEBA
-         COMMAND valgrind ${VALGRINDOPT} bin/C_test_potential_xyz
-         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.xyz
-         amoeba09.prm
-         Testing/output)
+#TODO# add_test(NAME memcheck_NMA_ene_full_AMOEBA
+#TODO#          COMMAND valgrind ${VALGRINDOPT} bin/C_test_potential_xyz
+#TODO#          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input.xyz
+#TODO#          amoeba09.prm
+#TODO#          Testing/output)
 add_test(NAME memcheck_NMA_ipd1_AMOEBA_CG
          COMMAND valgrind ${VALGRINDOPT} bin/C_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 

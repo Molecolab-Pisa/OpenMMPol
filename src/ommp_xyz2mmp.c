@@ -11,12 +11,12 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
-    ommp_init_xyz(argv[1], argv[2]);
+    //ommp_set_verbose(OMMP_VERBOSE_DEBUG);
+    OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
     
-    ommp_save_mmp(argv[3], 3);
+    ommp_save_mmp(my_system, argv[3], 3);
     
-    ommp_terminate();
+    ommp_terminate(my_system);
     
     return 0;
 }
