@@ -18,8 +18,7 @@ int main(int argc, char **argv){
         strcpy(outfile, argv[2]);
         
     OMMP_SYSTEM_PRT my_system = ommp_init_mmp(infile);
-    //ommp_set_verbose(my_system, OMMP_VERBOSE_DEBUG);
-   
+    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
     if(argc == 3)
         ommp_print_summary_to_file(my_system, outfile);
     else

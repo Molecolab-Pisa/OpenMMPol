@@ -147,16 +147,14 @@ module mod_ommp_interface
         !!TODO     ommp_ff_is_amoeba = amoeba
         !!TODO end function ommp_ff_is_amoeba
         
-        subroutine ommp_set_verbose(s_prt, verb) bind(c, name='ommp_set_verbose')
+        subroutine ommp_set_verbose(verb) bind(c, name='ommp_set_verbose')
             !! Set the verbosity level of the library to verb
             use mod_io, only: set_verbosity
             implicit none 
 
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
             integer(ommp_integer), intent(in), value :: verb
-            !! Requested verbosity library
-            call c_f_pointer(s_prt, s)
+            
+            !! Requested verbosityi of library
             call set_verbosity(verb)
         end subroutine ommp_set_verbose
 
@@ -223,7 +221,7 @@ module mod_ommp_interface
             
             implicit none
             
-            type(ommp_system), save, allocatable, target :: s
+            type(ommp_system), allocatable, target :: s
             character(kind=c_char), intent(in) :: xyzfile(OMMP_STR_CHAR_MAX), & 
                                                   prmfile(OMMP_STR_CHAR_MAX)
             character(len=OMMP_STR_CHAR_MAX) :: xyz_file, prm_file
@@ -243,8 +241,8 @@ module mod_ommp_interface
             use mod_inputloader, only : mmpol_init_from_mmp
             
             implicit none
-            
-            type(ommp_system), save, allocatable, target :: s
+
+            type(ommp_system), pointer :: s
             character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
             character(len=OMMP_STR_CHAR_MAX) :: input_file
             type(c_ptr) :: c_prt
@@ -343,7 +341,7 @@ module mod_ommp_interface
 
             implicit none
             
-            type(ommp_system), intent(inout) :: sys_obj
+            type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real), intent(in) :: ext_field(3,sys_obj%eel%pol_atoms)
             integer(ommp_integer), intent(in), value :: solver
             logical, intent(in), value, optional :: add_mm_field
@@ -410,6 +408,7 @@ module mod_ommp_interface
                 call prepare_M2D(eel)
                 call polarization(s, eel%e_m2d, OMMP_SOLVER_DEFAULT)
             end if
+            epol = 0.0
             call energy_MM_pol(eel, epol) 
         end function
 

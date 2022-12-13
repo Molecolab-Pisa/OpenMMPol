@@ -84,12 +84,12 @@ add_executable(C_test_init src/test_programs/test_init.c)
 target_link_libraries(C_test_init openmmpol)
 target_compile_options(C_test_init PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
-#
-#add_executable(C_test_reinit src/test_programs/test_reinit.c)
-#target_link_libraries(C_test_reinit openmmpol)
-#target_compile_options(C_test_reinit PRIVATE -Wall -Wextra -pedantic)
-#set_property(TARGET C_test_reinit PROPERTY C_STANDARD 99)
-#
+
+add_executable(C_test_reinit src/test_programs/test_reinit.c)
+target_link_libraries(C_test_reinit openmmpol)
+target_compile_options(C_test_reinit PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_reinit PROPERTY C_STANDARD 99)
+
 add_executable(C_test_ipd src/test_programs/test_ipd.c)
 target_link_libraries(C_test_ipd openmmpol)
 target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)

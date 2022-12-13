@@ -34,7 +34,7 @@ extern void ommp_terminate(OMMP_SYSTEM_PRT);
 //extern void ommp_write_hdf5(char *);
 //extern void ommp_init_hdf5(char *);
 //#endif
-extern void ommp_set_verbose(OMMP_SYSTEM_PRT, int32_t);
+extern void ommp_set_verbose(int32_t);
 extern void ommp_print_summary(OMMP_SYSTEM_PRT);
 extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
 //

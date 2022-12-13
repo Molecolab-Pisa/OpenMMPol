@@ -22,9 +22,9 @@ module mod_mmpol
         logical :: amoeba
         !! AMOEBA FF = True; WANG-AMBER = False
 
-        type(ommp_topology_type), pointer :: top
+        type(ommp_topology_type), allocatable :: top
         !! Data structure containing the topology of the system
-        type(ommp_electrostatics_type), pointer :: eel
+        type(ommp_electrostatics_type), allocatable :: eel
         !! Data structure containing all the information needed to run the
         !! elctrostatics related calculations
         !TODO type(ommp_bonded_type), pointer :: bonded
@@ -55,17 +55,10 @@ module mod_mmpol
         integer(ip), intent(in) :: l_pol_atoms
         !! Number of polarizable atoms used in initialization
         
-        type(ommp_topology_type), save, allocatable, target :: top
-        !! The topology object to be created inside the system
-        type(ommp_electrostatics_type), save, allocatable, target :: eel
-        !! The electrostatic object to be created inside the system
-        
-        !! Allocation an linking of topology...
-        allocate(top)
-        sys_obj%top => top
+        !! Allocation topology...
+        allocate(sys_obj%top)
         !! ... and electrostatics
-        allocate(eel)
-        sys_obj%eel => eel
+        allocate(sys_obj%eel)
         
         ! FF related settings
         sys_obj%ff_type = l_ff_type
@@ -438,7 +431,7 @@ module mod_mmpol
 
         implicit none
 
-        type(ommp_system), intent(in) :: sys_obj
+        type(ommp_system), target, intent(in) :: sys_obj
         !! System data structure to be saved
         character(len=*), intent(in) :: of_name
         !! Name of the output file

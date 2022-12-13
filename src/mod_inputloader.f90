@@ -308,7 +308,7 @@ module mod_inputloader
 
         implicit none
 
-        type(ommp_system), intent(inout) :: sys_obj
+        type(ommp_system), intent(inout), target :: sys_obj
         !! The system object to be initialized
         character(len=*), intent(in) :: xyz_file
         !! name of the input XYZ file

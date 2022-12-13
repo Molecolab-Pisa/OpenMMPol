@@ -75,7 +75,7 @@ module mod_polarization
       
         implicit none
 
-        type(ommp_system), intent(inout) :: sys_obj
+        type(ommp_system), target, intent(inout) :: sys_obj
         !! Fundamental data structure for OMMP system
         real(rp), dimension(3, sys_obj%eel%pol_atoms, sys_obj%eel%n_ipd), &
         & intent(in) :: e
