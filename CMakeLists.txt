@@ -18,6 +18,7 @@ add_library(openmmpol SHARED
             src/mod_adjacency_mat.f90
             #src/mod_bonded.f90
             src/mod_constants.f90
+            src/mod_c_interface.f90
             src/mod_electrostatics.f90
             src/mod_inputloader.f90
             src/mod_interface.f90
@@ -75,22 +76,22 @@ target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent 
 
 include_directories(include) # Directory for .h files
 
-add_executable(C_test_init_xyz src/test_programs/test_init_xyz.c)
+add_executable(C_test_init_xyz src/test_programs/C/test_init_xyz.c)
 target_link_libraries(C_test_init_xyz openmmpol)
 target_compile_options(C_test_init_xyz PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_init_xyz PROPERTY C_STANDARD 99)
 
-add_executable(C_test_init src/test_programs/test_init.c)
+add_executable(C_test_init src/test_programs/C/test_init.c)
 target_link_libraries(C_test_init openmmpol)
 target_compile_options(C_test_init PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
 
-add_executable(C_test_reinit src/test_programs/test_reinit.c)
+add_executable(C_test_reinit src/test_programs/C/test_reinit.c)
 target_link_libraries(C_test_reinit openmmpol)
 target_compile_options(C_test_reinit PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_reinit PROPERTY C_STANDARD 99)
 
-add_executable(C_test_ipd src/test_programs/test_ipd.c)
+add_executable(C_test_ipd src/test_programs/C/test_ipd.c)
 target_link_libraries(C_test_ipd openmmpol)
 target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
@@ -100,7 +101,7 @@ set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
 #target_compile_options(C_test_potential_xyz PRIVATE -Wall -Wextra -pedantic)
 #set_property(TARGET C_test_potential_xyz PROPERTY C_STANDARD 99)
 
-add_executable(C_test_energy src/test_programs/test_energy.c)
+add_executable(C_test_energy src/test_programs/C/test_energy.c)
 target_link_libraries(C_test_energy openmmpol)
 target_compile_options(C_test_energy PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_energy PROPERTY C_STANDARD 99)
@@ -128,16 +129,22 @@ set_property(TARGET ommp_xyz2mmp PROPERTY C_STANDARD 99)
 #endif ()
 #
 #
-#add_executable(F_test_init src/test_programs/test_init.F90)
-#target_link_libraries(F_test_init openmmpol)
-#if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-#    target_compile_options(F_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
-#endif()
-#
-#add_executable(F_test_ipd src/test_programs/test_ipd.F90)
-#target_link_libraries(F_test_ipd openmmpol)
-#if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-#    target_compile_options(F_test_ipd PRIVATE -Wall -Wextra -pedantic -std=f2003)
-#endif()
-#
+add_executable(F03_test_init src/test_programs/F03/test_init.f90)
+target_link_libraries(F03_test_init openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F03_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif ()
+
+add_executable(F03_test_ipd src/test_programs/F03/test_ipd.f90)
+target_link_libraries(F03_test_ipd openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F03_test_ipd PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif ()
+
+add_executable(F03_test_energy src/test_programs/F03/test_energy.f90)
+target_link_libraries(F03_test_energy openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F03_test_energy PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif ()
+
 include(tests/CMakeLists.txt)
