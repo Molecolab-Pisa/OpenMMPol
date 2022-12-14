@@ -391,116 +391,166 @@ module mod_ommp_C_interface
 !TODO            call potential_M2E(cext, v)
 !TODO        end subroutine
 !TODO
-!TODO        subroutine ommp_get_urey_energy(eub) bind(c, name='ommp_get_urey_energy')
-!TODO            
-!TODO            use mod_bonded, only: urey_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: eub
-!TODO
-!TODO            eub = 0.0
-!TODO            call urey_potential(eub)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_strbnd_energy(eba) bind(c, name='ommp_get_strbnd_energy')
-!TODO            
-!TODO            use mod_bonded, only: strbnd_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: eba
-!TODO
-!TODO            eba = 0.0
-!TODO            call strbnd_potential(eba)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_angle_energy(eang) bind(c, name='ommp_get_angle_energy')
-!TODO            
-!TODO            use mod_bonded, only: angle_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: eang
-!TODO
-!TODO            eang = 0.0
-!TODO            call angle_potential(eang)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_angtor_energy(eat) bind(c, name='ommp_get_angtor_energy')
-!TODO            
-!TODO            use mod_bonded, only: angtor_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: eat
-!TODO
-!TODO            eat = 0.0
-!TODO            call angtor_potential(eat)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_strtor_energy(ebt) bind(c, name='ommp_get_strtor_energy')
-!TODO            
-!TODO            use mod_bonded, only: strtor_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: ebt
-!TODO
-!TODO            ebt = 0.0
-!TODO            call strtor_potential(ebt)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_bond_energy(ebnd) bind(c, name='ommp_get_bond_energy')
-!TODO            
-!TODO            use mod_bonded, only: bond_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: ebnd
-!TODO
-!TODO            ebnd = 0.0
-!TODO            call bond_potential(ebnd)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_opb_energy(eopb) bind(c, name='ommp_get_opb_energy')
-!TODO            
-!TODO            use mod_bonded, only: opb_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: eopb
-!TODO
-!TODO            eopb = 0.0
-!TODO            call opb_potential(eopb)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_pitors_energy(epitors) bind(c, name='ommp_get_pitors_energy')
-!TODO            
-!TODO            use mod_bonded, only: pitors_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: epitors
-!TODO
-!TODO            epitors = 0.0
-!TODO            call pitors_potential(epitors)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_torsion_energy(et) bind(c, name='ommp_get_torsion_energy')
-!TODO            
-!TODO            use mod_bonded, only: torsion_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: et
-!TODO
-!TODO            et = 0.0
-!TODO            call torsion_potential(et)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_get_tortor_energy(ett) bind(c, name='ommp_get_tortor_energy')
-!TODO            
-!TODO            use mod_bonded, only: tortor_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: ett
-!TODO
-!TODO            ett = 0.0
-!TODO            call tortor_potential(ett)
-!TODO        end subroutine
-!TODO        
+        function C_ommp_get_urey_energy(s_prt) &
+                result(eub) bind(c, name='ommp_get_urey_energy')
+            
+            !! use mod_bonded, only: urey_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eub
+
+            call c_f_pointer(s_prt, s)
+
+            eub = 0.0
+            !! call urey_potential(eub)
+        end function
+        
+        function C_ommp_get_strbnd_energy(s_prt) &
+                result(eba) bind(c, name='ommp_get_strbnd_energy')
+            
+            !! use mod_bonded, only: strbnd_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eba
+
+            call c_f_pointer(s_prt, s)
+
+            eba = 0.0
+            !! call strbnd_potential(eba)
+        end function
+        
+        function C_ommp_get_angle_energy(s_prt) &
+                result(eang) bind(c, name='ommp_get_angle_energy')
+            
+            !!use mod_bonded, only: angle_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eang
+
+            call c_f_pointer(s_prt, s)
+
+            eang = 0.0
+            !! call angle_potential(eang)
+        end function
+        
+        function C_ommp_get_angtor_energy(s_prt) &
+                result(eat) bind(c, name='ommp_get_angtor_energy')
+            
+            !! use mod_bonded, only: angtor_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eat
+
+            call c_f_pointer(s_prt, s)
+
+            eat = 0.0
+            !! call angtor_potential(eat)
+        end function
+        
+        function C_ommp_get_strtor_energy(s_prt) &
+                result(ebt) bind(c, name='ommp_get_strtor_energy')
+            
+            !! use mod_bonded, only: strtor_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ebt
+
+            call c_f_pointer(s_prt, s)
+
+            ebt = 0.0
+            !! call strtor_potential(ebt)
+        end function
+        
+        function C_ommp_get_bond_energy(s_prt) &
+                result(ebnd) bind(c, name='ommp_get_bond_energy')
+            
+            !! use mod_bonded, only: bond_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ebnd
+
+            call c_f_pointer(s_prt, s)
+
+            ebnd = 0.0
+            !! call bond_potential(ebnd)
+        end function
+        
+        function C_ommp_get_opb_energy(s_prt) &
+            result(eopb) bind(c, name='ommp_get_opb_energy')
+            
+            !!use mod_bonded, only: opb_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eopb
+
+            call c_f_pointer(s_prt, s)
+
+            eopb = 0.0
+            !! call opb_potential(eopb)
+        end function
+        
+        function C_ommp_get_pitors_energy(s_prt) &
+                result(epitors) bind(c, name='ommp_get_pitors_energy')
+            
+            !! use mod_bonded, only: pitors_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: epitors
+
+            call c_f_pointer(s_prt, s)
+
+            epitors = 0.0
+            !! call pitors_potential(epitors)
+        end function
+        
+        function C_ommp_get_torsion_energy(s_prt) &
+                result(et) bind(c, name='ommp_get_torsion_energy')
+            
+            !! use mod_bonded, only: torsion_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: et
+
+            call c_f_pointer(s_prt, s)
+
+            et = 0.0
+            !! call torsion_potential(et)
+        end function
+        
+        function C_ommp_get_tortor_energy(s_prt) &
+                result(ett) bind(c, name='ommp_get_tortor_energy')
+            
+            !! use mod_bonded, only: tortor_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ett
+
+            call c_f_pointer(s_prt, s)
+
+            ett = 0.0
+            !! call tortor_potential(ett)
+        end function
+        
         function C_ommp_get_vdw_energy(s_prt) &
                 result(evdw) bind(c, name='ommp_get_vdw_energy')
             

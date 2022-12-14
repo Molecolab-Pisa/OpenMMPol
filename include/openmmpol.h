@@ -37,7 +37,7 @@ extern void ommp_terminate(OMMP_SYSTEM_PRT);
 extern void ommp_set_verbose(int32_t);
 extern void ommp_print_summary(OMMP_SYSTEM_PRT);
 extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
-//
+
 extern double ommp_get_polelec_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_fixedelec_energy(OMMP_SYSTEM_PRT);
 extern void ommp_set_external_field(OMMP_SYSTEM_PRT, double *, int32_t);
@@ -45,19 +45,19 @@ extern void ommp_set_external_field_nommm(OMMP_SYSTEM_PRT, double *, int32_t);
 //extern void ommp_potential_mm2ext(int32_t, double *, double *);
 //extern void ommp_potential_mmpol2ext(int32_t, double *, double *);
 //extern void ommp_potential_pol2ext(int32_t, double *, double *);
-//
-//extern void ommp_get_vdw_energy(double *);
-//extern void ommp_get_bond_energy(double *);
-//extern void ommp_get_angle_energy(double *);
-//extern void ommp_get_angtor_energy(double *);
-//extern void ommp_get_strtor_energy(double *);
-//extern void ommp_get_strbnd_energy(double *);
-//extern void ommp_get_opb_energy(double *);
-//extern void ommp_get_pitors_energy(double *);
-//extern void ommp_get_torsion_energy(double *);
-//extern void ommp_get_tortor_energy(double *);
-//extern void ommp_get_urey_energy(double *);
-//
+
+extern double ommp_get_vdw_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_bond_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_angle_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_angtor_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_strtor_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_strbnd_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_opb_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_pitors_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_torsion_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_tortor_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_urey_energy(OMMP_SYSTEM_PRT);
+
 extern int32_t ommp_get_n_ipd(OMMP_SYSTEM_PRT);
 //extern int32_t ommp_get_ld_cart(void);
 //extern int32_t ommp_get_mm_atoms(void);
