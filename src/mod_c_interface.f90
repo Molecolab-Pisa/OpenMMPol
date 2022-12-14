@@ -501,17 +501,23 @@ module mod_ommp_C_interface
 !TODO            call tortor_potential(ett)
 !TODO        end subroutine
 !TODO        
-!TODO        subroutine ommp_get_vdw_energy(evdw) bind(c, name='ommp_get_vdw_energy')
-!TODO            
-!TODO            use mod_nonbonded, only: vdw_potential
-!TODO
-!TODO            implicit none
-!TODO            real(ommp_real), intent(inout) :: evdw
-!TODO
-!TODO            evdw = 0.0
-!TODO            call vdw_potential(evdw)
-!TODO        end subroutine
-!TODO
+        function C_ommp_get_vdw_energy(s_prt) &
+                result(evdw) bind(c, name='ommp_get_vdw_energy')
+            
+            use mod_nonbonded, only: vdw_potential
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: evdw
+
+            call c_f_pointer(s_prt, s)
+
+            evdw = 0.0
+            call vdw_potential(s%vdw, evdw)
+
+        end function
+
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
             use mod_mmpol, only: mmpol_terminate
 

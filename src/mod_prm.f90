@@ -13,112 +13,122 @@ module mod_prm
     implicit none
     private
 
-    !! integer(ip), allocatable :: atclass(:), atz(:)
 
     !!public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
     !!          assign_angle, assign_urey, assign_strbnd, assign_opb, &
     !!          assign_pitors, assign_torsion, assign_tortors, &
     !!          assign_angtor, assign_strtor, terminate_prm
-    public assign_pol, assign_mpoles 
+    public :: assign_pol, assign_mpoles
+    public :: assign_vdw
     public :: check_keyword
 
     contains 
     
 #include "prm_keywords.f90"
 
-    !! TODO subroutine terminate_prm()
-    !! TODO     use mod_memory, only: mfree
-    !! TODO     
-    !! TODO     implicit none
-    !! TODO     
-    !! TODO     if(allocated(atclass)) call mfree('terminate_prm [atclass]', atclass)
-    !! TODO     if(allocated(atz)) call mfree('terminate_prm [atz]', atz)
+    subroutine read_atom_cards(top, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_io, only: fatal_error
+        
+        implicit none
+        
+        type(ommp_topology_type), intent(inout) :: top
+        !! Topology object
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
 
-    !! TODO end subroutine terminate_prm
-    !! TODO 
-    !! TODO subroutine read_atom_cards(prm_file)
-    !! TODO     use mod_memory, only: mallocate
-    !! TODO     use mod_mmpol, only: fatal_error
-    !! TODO     
-    !! TODO     implicit none
-    !! TODO     
-    !! TODO     character(len=*), intent(in) :: prm_file
-    !! TODO     !! name of the input PRM file
-
-    !! TODO     integer(ip), parameter :: iof_prminp = 201
-    !! TODO     integer(ip) :: ist, iat, toke, tokb, tokb1, nquote
-    !! TODO     character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-    !! TODO     integer(ip) :: natype
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: i, ist, iat, toke, tokb, tokb1, nquote
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip) :: natype
+        integer(ip), allocatable, dimension(:) :: typez, typeclass
 
 
-    !! TODO     ! open tinker xyz file
-    !! TODO     open(unit=iof_prminp, &
-    !! TODO          file=prm_file(1:len(trim(prm_file))), &
-    !! TODO          form='formatted', &
-    !! TODO          access='sequential', &
-    !! TODO          iostat=ist)
-    !! TODO     
-    !! TODO     if(ist /= 0) then
-    !! TODO        call fatal_error('Error while opening PRM input file')
-    !! TODO     end if
+        if(.not. top%attype_initialized) then
+            call fatal_error("Atom type array in topology should be initialized&
+                            & before performing atomclass asignament.")
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
 
-    !! TODO     ! Read all the lines of file just to count how large vector should be 
-    !! TODO     ! allocated 
-    !! TODO     ist = 0
-    !! TODO     natype = 0
-    !! TODO     do while(ist == 0) 
-    !! TODO         read(iof_prminp, '(A)', iostat=ist) line
-    !! TODO         line = str_to_lower(line)
-    !! TODO         if(line(:5) == 'atom ') natype = natype + 1
-    !! TODO     end do
-    !! TODO     ! ATOM 
-    !! TODO     call mallocate('read_prm [atclass]', natype, atclass)
-    !! TODO     call mallocate('read_prm [atz]', natype, atz)
-    !! TODO     atclass = 0
-    !! TODO     atz = 0
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated 
+        ist = 0
+        natype = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:5) == 'atom ') natype = natype + 1
+        end do
+        
+        call mallocate('read_prm [typeclass]', natype, typeclass)
+        call mallocate('read_prm [atz]', natype, typez)
+        typeclass = 0
+        typez = 0
 
-    !! TODO     ! Restart the reading from the beginning to actually save the parameters
-    !! TODO     rewind(iof_prminp)
-    !! TODO     ist = 0
-    !! TODO     do while(ist == 0) 
-    !! TODO         read(iof_prminp, '(A)', iostat=ist) line
-    !! TODO         line = str_to_lower(line)
-    !! TODO        
-    !! TODO         if(line(:5) == 'atom ') then
-    !! TODO             tokb = 6
-    !! TODO             toke = tokenize(line, tokb)
-    !! TODO             if(.not. isint(line(tokb:toke))) then
-    !! TODO                 write(errstring, *) "Wrong ATOM card"
-    !! TODO                 call fatal_error(errstring)
-    !! TODO             end if
-    !! TODO             read(line(tokb:toke), *) iat
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:5) == 'atom ') then
+                tokb = 6
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ATOM card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) iat
 
-    !! TODO             tokb = toke+1
-    !! TODO             toke = tokenize(line, tokb)
-    !! TODO             read(line(tokb:toke), *) atclass(iat)
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) typeclass(iat)
 
-    !! TODO             tokb = toke+1
-    !! TODO             toke = tokenize(line, tokb)
-    !! TODO             ! This token contain the atom name
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                ! This token contain the atom name
 
-    !! TODO             tokb = toke+1
-    !! TODO             toke = tokenize(line, tokb)
-    !! TODO             nquote = count_substr_occurence(line(tokb:toke), '"')
-    !! TODO             do while(nquote < 2)
-    !! TODO                 tokb1 = toke+1
-    !! TODO                 toke = tokenize(line, tokb1)
-    !! TODO                 nquote = nquote + count_substr_occurence(line(tokb1:toke), '"')
-    !! TODO             end do
-    !! TODO             ! This token contains the description string
-    !! TODO             tokb = toke+1
-    !! TODO             toke = tokenize(line, tokb)
-    !! TODO             read(line(tokb:toke), *) atz(iat)
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                nquote = count_substr_occurence(line(tokb:toke), '"')
+                do while(nquote < 2)
+                    tokb1 = toke+1
+                    toke = tokenize(line, tokb1)
+                    nquote = nquote + count_substr_occurence(line(tokb1:toke), '"')
+                end do
+                ! This token contains the description string
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) typez(iat)
 
-    !! TODO             ! Only partial reading of ATOM card is needed for now.
-    !! TODO         end if
-    !! TODO     end do
-    !! TODO     close(iof_prminp)
-    !! TODO end subroutine read_atom_cards
+                ! Only partial reading of ATOM card is needed for now.
+            end if
+        end do
+        close(iof_prminp)
+
+        do i = 1, top%mm_atoms
+            top%atclass(i) = typeclass(top%attype(i)) 
+            top%atz(i) = typez(top%attype(i)) 
+        end do
+        
+        top%atclass_initialized = .true.
+        top%atz_initialized = .true.
+        
+        call mfree('read_prm [typeclass]', typeclass)
+        call mfree('read_prm [atz]', typez)
+
+    end subroutine read_atom_cards
 
 !!    subroutine assign_bond(prm_file, my_attype)
 !!        use mod_memory, only: mallocate, mfree
@@ -2060,282 +2070,284 @@ module mod_prm
 !!    
 !!    end subroutine assign_angle
 !!
-!!    subroutine assign_vdw(prm_file, my_attype)
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_mmpol, only: fatal_error, mm_atoms
-!!        use mod_nonbonded, only: vdw_e, vdw_f, vdw_r, vdw_set_pair, &
-!!                                 vdw_screening, vdw_init
-!!        use mod_constants, only: angstrom2au, kcalmol2au
-!!        
-!!        implicit none
-!!        
-!!        character(len=*), intent(in) :: prm_file
-!!        !! name of the input PRM file
-!!        integer(ip), intent(in) :: my_attype(:)
-!!        !! List of atom types that shoukd be used to populate parameter
-!!        !! vectors
-!!
-!!        integer(ip), parameter :: iof_prminp = 201
-!!        integer(ip) :: ist, i, j, l, tokb, toke
-!!        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-!!        character(len=20) :: radrule, radsize, radtype, vdwtype, epsrule
-!!        integer(ip), allocatable :: vdwat(:), vdwpr_a(:), vdwpr_b(:)
-!!        real(rp), allocatable :: vdw_e_prm(:), vdw_r_prm(:), vdw_f_prm(:), &
-!!                                 vdwpr_r(:), vdwpr_e(:)
-!!        integer(ip) :: nvdw, ivdw, atc, nvdwpr, ivdwpr
-!!        logical :: done
-!!
-!!        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
-!!        
-!!        ! open tinker xyz file
-!!        open(unit=iof_prminp, &
-!!             file=prm_file(1:len(trim(prm_file))), &
-!!             form='formatted', &
-!!             access='sequential', &
-!!             iostat=ist)
-!!        
-!!        if(ist /= 0) then
-!!           call fatal_error('Error while opening PRM input file')
-!!        end if
-!!
-!!        ! Read all the lines of file just to count how large vector should be 
-!!        ! allocated 
-!!        ist = 0
-!!        nvdw = 0
-!!        nvdwpr = 0
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!            if(line(:4) == 'vdw ') nvdw = nvdw + 1
-!!            if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') &
-!!                nvdwpr = nvdwpr + 1
-!!        end do
-!!
-!!        ! VDW
-!!        call mallocate('read_prm [vdwat]', nvdw, vdwat)
-!!        call mallocate('read_prm [vdw_r_prm]', nvdw, vdw_r_prm)
-!!        call mallocate('read_prm [vdw_e_prm]', nvdw, vdw_e_prm)
-!!        call mallocate('read_prm [vdw_f_prm]', nvdw, vdw_f_prm)
-!!        vdw_f_prm = 1.0_rp
-!!        ivdw = 1
-!!
-!!        ! VDWPR
-!!        call mallocate('read_prm [vdwpr_a]', nvdwpr, vdwpr_a)
-!!        call mallocate('read_prm [vdwpr_b]', nvdwpr, vdwpr_b)
-!!        call mallocate('read_prm [vdwpr_e]', nvdwpr, vdwpr_e)
-!!        call mallocate('read_prm [vdwpr_r]', nvdwpr, vdwpr_r)
-!!        ivdwpr = 1
-!!
-!!        ! Default rules for VDW (from Tinker Manual)
-!!        radrule = "arithmetic"
-!!        radsize = "radius"
-!!        radtype = "r-min"
-!!        vdwtype = "lennard-jones"
-!!        epsrule = "geometric"
-!!
-!!        ! Restart the reading from the beginning to actually save the parameters
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:13) == 'vdw-12-scale ') then
-!!                tokb = 14
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW-12-SCALE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdw_screening(1)
-!!            
-!!            else if(line(:13) == 'vdw-13-scale ') then
-!!                tokb = 14
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW-12-SCALE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdw_screening(2)
-!!            
-!!            else if(line(:13) == 'vdw-14-scale ') then
-!!                tokb = 14
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW-12-SCALE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdw_screening(3)
-!!            
-!!            else if(line(:13) == 'vdw-15-scale ') then
-!!                tokb = 14
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW-12-SCALE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdw_screening(4)
-!!
-!!            else if(line(:12) == 'epsilonrule ') then
-!!                tokb = 12
-!!                toke = tokenize(line, tokb)
-!!                read(line(tokb:toke), *) epsrule
-!!            
-!!            else if(line(:8) == 'vdwtype ') then
-!!                tokb = 9
-!!                toke = tokenize(line, tokb)
-!!                read(line(tokb:toke), *) vdwtype
-!!            
-!!            else if(line(:11) == 'radiusrule ') then
-!!                tokb = 12
-!!                toke = tokenize(line, tokb)
-!!                read(line(tokb:toke), *) radrule
-!!
-!!            else if(line(:11) == 'radiussize ') then
-!!                tokb = 12
-!!                toke = tokenize(line, tokb)
-!!                read(line(tokb:toke), *) radsize
-!!
-!!            else if(line(:11) == 'radiustype ') then
-!!                tokb = 12
-!!                toke = tokenize(line, tokb)
-!!                read(line(tokb:toke), *) radtype
-!!
-!!            else if(line(:4) == 'vdw ') then
-!!                tokb = 5
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdwat(ivdw)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdw_r_prm(ivdw)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDW card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdw_e_prm(ivdw)
-!!                
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(toke > 0) then
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong VDW card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) vdw_f_prm(ivdw)
-!!                endif
-!!
-!!                ivdw = ivdw + 1
-!!            else if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') then
-!!                if(line(:6) == 'vdwpr ') then
-!!                    tokb = 7
-!!                else
-!!                    tokb = 9
-!!                end if
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDWPR card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdwpr_a(ivdwpr)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDWPR card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdwpr_b(ivdwpr)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDWPR card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdwpr_r(ivdwpr)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong VDWPR card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) vdwpr_e(ivdwpr)
-!!
-!!                ivdwpr = ivdwpr + 1
-!!            end if
-!!            i = i+1
-!!        end do
-!!        close(iof_prminp)
-!!        
-!!        call vdw_init(vdwtype, radrule, radsize, radtype, epsrule)
-!!        
-!!        do i=1, size(my_attype)
-!!            ! Atom class for current atom
-!!            atc = atclass(my_attype(i))
-!!            
-!!            ! VdW parameters
-!!            done = .false.
-!!            do j=1, nvdw
-!!                if(vdwat(j) == atc) then
-!!                    done = .true.
-!!                    vdw_e(i) = vdw_e_prm(j) * kcalmol2au
-!!                    vdw_r(i) = vdw_r_prm(j) * angstrom2au
-!!                    vdw_f(i) = vdw_f_prm(j)
-!!                    exit
-!!                end if
-!!            end do
-!!            if(.not. done) then
-!!                call fatal_error("VdW parameter not found!")
-!!            end if
-!!
-!!            ! VdW pair parameters
-!!            do l=1, nvdwpr
-!!                if(vdwpr_a(l) == atc) then
-!!                    do j=i+1, mm_atoms
-!!                        if(atclass(my_attype(j)) == vdwpr_b(l)) then
-!!                            call vdw_set_pair(i, j, &
-!!                                              vdwpr_r(l) * angstrom2au, &
-!!                                              vdwpr_e(l) * kcalmol2au)
-!!                        end if
-!!                    end do
-!!                else if(vdwpr_b(l) == atc) then
-!!                    do j=i+1, mm_atoms
-!!                        if(atclass(my_attype(j)) == vdwpr_a(l)) then
-!!                            call vdw_set_pair(i, j, &
-!!                                              vdwpr_r(l) * angstrom2au, &
-!!                                              vdwpr_e(l) * kcalmol2au)
-!!                        end if
-!!                    end do
-!!                end if
-!!            end do
-!!        end do
-!!        
-!!        call mfree('read_prm [vdwat]', vdwat)
-!!        call mfree('read_prm [vdw_r_prm]', vdw_r_prm)
-!!        call mfree('read_prm [vdw_e_prm]', vdw_e_prm)
-!!        call mfree('read_prm [vdw_f_prm]', vdw_f_prm)
-!!        call mfree('read_prm [vdwpr_a]', vdwpr_a)
-!!        call mfree('read_prm [vdwpr_b]', vdwpr_b)
-!!        call mfree('read_prm [vdwpr_e]', vdwpr_e)
-!!        call mfree('read_prm [vdwpr_r]', vdwpr_r)
-!!    
-!!    end subroutine assign_vdw
-!!    
-    subroutine assign_pol(eel, prm_file, my_attype)
+    subroutine assign_vdw(vdw, top, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_io, only: fatal_error
+        use mod_nonbonded, only: ommp_nonbonded_type, vdw_init, vdw_set_pair
+        use mod_constants, only: angstrom2au, kcalmol2au
+        
+        implicit none
+       
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        !! Non-bonded structure to be initialized
+        type(ommp_topology_type), intent(inout) :: top
+        !! Topology structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, l, tokb, toke
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        character(len=20) :: radrule, radsize, radtype, vdwtype, epsrule
+        integer(ip), allocatable :: vdwat(:), vdwpr_a(:), vdwpr_b(:)
+        real(rp), allocatable :: vdw_e_prm(:), vdw_r_prm(:), vdw_f_prm(:), &
+                                 vdwpr_r(:), vdwpr_e(:)
+        integer(ip) :: nvdw, ivdw, atc, nvdwpr, ivdwpr
+        logical :: done
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated 
+        ist = 0
+        nvdw = 0
+        nvdwpr = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:4) == 'vdw ') nvdw = nvdw + 1
+            if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') &
+                nvdwpr = nvdwpr + 1
+        end do
+
+        ! VDW
+        call mallocate('read_prm [vdwat]', nvdw, vdwat)
+        call mallocate('read_prm [vdw_r_prm]', nvdw, vdw_r_prm)
+        call mallocate('read_prm [vdw_e_prm]', nvdw, vdw_e_prm)
+        call mallocate('read_prm [vdw_f_prm]', nvdw, vdw_f_prm)
+        vdw_f_prm = 1.0_rp
+        ivdw = 1
+
+        ! VDWPR
+        call mallocate('read_prm [vdwpr_a]', nvdwpr, vdwpr_a)
+        call mallocate('read_prm [vdwpr_b]', nvdwpr, vdwpr_b)
+        call mallocate('read_prm [vdwpr_e]', nvdwpr, vdwpr_e)
+        call mallocate('read_prm [vdwpr_r]', nvdwpr, vdwpr_r)
+        ivdwpr = 1
+
+        ! Default rules for VDW (from Tinker Manual)
+        radrule = "arithmetic"
+        radsize = "radius"
+        radtype = "r-min"
+        vdwtype = "lennard-jones"
+        epsrule = "geometric"
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:13) == 'vdw-12-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw%vdw_screening(1)
+            
+            else if(line(:13) == 'vdw-13-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw%vdw_screening(2)
+            
+            else if(line(:13) == 'vdw-14-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw%vdw_screening(3)
+            
+            else if(line(:13) == 'vdw-15-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw%vdw_screening(4)
+
+            else if(line(:12) == 'epsilonrule ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) epsrule
+            
+            else if(line(:8) == 'vdwtype ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) vdwtype
+            
+            else if(line(:11) == 'radiusrule ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) radrule
+
+            else if(line(:11) == 'radiussize ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) radsize
+
+            else if(line(:11) == 'radiustype ') then
+                tokb = 12
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) radtype
+
+            else if(line(:4) == 'vdw ') then
+                tokb = 5
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwat(ivdw)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw_r_prm(ivdw)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDW card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdw_e_prm(ivdw)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(toke > 0) then
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong VDW card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) vdw_f_prm(ivdw)
+                endif
+
+                ivdw = ivdw + 1
+            else if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') then
+                if(line(:6) == 'vdwpr ') then
+                    tokb = 7
+                else
+                    tokb = 9
+                end if
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_a(ivdwpr)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_b(ivdwpr)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_r(ivdwpr)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong VDWPR card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) vdwpr_e(ivdwpr)
+
+                ivdwpr = ivdwpr + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+        
+        call vdw_init(vdw, top, vdwtype, radrule, radsize, radtype, epsrule)
+        
+        do i=1, top%mm_atoms
+            ! Atom class for current atom
+            atc = top%atclass(i)
+            
+            ! VdW parameters
+            done = .false.
+            do j=1, nvdw
+                if(vdwat(j) == atc) then
+                    done = .true.
+                    vdw%vdw_e(i) = vdw_e_prm(j) * kcalmol2au
+                    vdw%vdw_r(i) = vdw_r_prm(j) * angstrom2au
+                    vdw%vdw_f(i) = vdw_f_prm(j)
+                    exit
+                end if
+            end do
+            if(.not. done) then
+                call fatal_error("VdW parameter not found!")
+            end if
+
+            ! VdW pair parameters
+            do l=1, nvdwpr
+                if(vdwpr_a(l) == atc) then
+                    do j=i+1, top%mm_atoms
+                        if(top%atclass(j) == vdwpr_b(l)) then
+                            call vdw_set_pair(vdw, i, j, &
+                                              vdwpr_r(l) * angstrom2au, &
+                                              vdwpr_e(l) * kcalmol2au)
+                        end if
+                    end do
+                else if(vdwpr_b(l) == atc) then
+                    do j=i+1, top%mm_atoms
+                        if(top%atclass(j) == vdwpr_a(l)) then
+                            call vdw_set_pair(vdw, i, j, &
+                                              vdwpr_r(l) * angstrom2au, &
+                                              vdwpr_e(l) * kcalmol2au)
+                        end if
+                    end do
+                end if
+            end do
+        end do
+        
+        call mfree('read_prm [vdwat]', vdwat)
+        call mfree('read_prm [vdw_r_prm]', vdw_r_prm)
+        call mfree('read_prm [vdw_e_prm]', vdw_e_prm)
+        call mfree('read_prm [vdw_f_prm]', vdw_f_prm)
+        call mfree('read_prm [vdwpr_a]', vdwpr_a)
+        call mfree('read_prm [vdwpr_b]', vdwpr_b)
+        call mfree('read_prm [vdwpr_e]', vdwpr_e)
+        call mfree('read_prm [vdwpr_r]', vdwpr_r)
+    
+    end subroutine assign_vdw
+    
+    subroutine assign_pol(eel, prm_file)
         use mod_memory, only: mallocate, mfree, ip, rp
         use mod_mmpol, only: set_screening_parameters
         use mod_constants, only: angstrom2au
@@ -2346,9 +2358,6 @@ module mod_prm
         !! Electrostatics data structure to be initialized
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, k, l, iat, tokb, toke
@@ -2363,6 +2372,11 @@ module mod_prm
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
+
+        if(.not. top%attype_initialized) then
+            call fatal_error("Atom type array in topology should be initialized&
+                            & before performing polarization asignament.")
+        end if
 
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2620,10 +2634,10 @@ module mod_prm
 
         ! Now assign the parameters to the atoms
         eel%mmat_polgrp = 0
-        do i=1, size(my_attype)
+        do i=1, size(top%attype)
             ! Polarization
             do j=1, npolarize
-                if(polat(j) == my_attype(i)) then
+                if(polat(j) == top%attype(i)) then
                     eel%pol(i) = isopol(j) * angstrom2au**3
                     !TODO Thole factors.
                     ! Assign a polgroup label to each atom
@@ -2633,7 +2647,7 @@ module mod_prm
                     ! loop over the atoms connected to ith atom
                     do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
                         iat = top%conn(1)%ci(k)
-                        if(any(my_attype(iat) == pgspec(:,j))) then
+                        if(any(top%attype(iat) == pgspec(:,j))) then
                             ! The two atoms are in the same group
                             if(eel%mmat_polgrp(iat) == 0) then
                                 eel%mmat_polgrp(iat) = eel%mmat_polgrp(i)
@@ -2666,7 +2680,7 @@ module mod_prm
     
     end subroutine assign_pol
     
-    subroutine assign_mpoles(eel, prm_file, my_attype)
+    subroutine assign_mpoles(eel, prm_file)
         use mod_memory, only: mallocate, mfree
         use mod_mmpol, only: set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
@@ -2682,9 +2696,6 @@ module mod_prm
         !! The electrostatic object to be initialized
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, k, iat, tokb, toke
@@ -2697,6 +2708,11 @@ module mod_prm
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
+        
+        if(.not. top%attype_initialized) then
+            call fatal_error("Atom type array in topology should be initialized&
+                            & before performing multipoles asignament.")
+        end if
 
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2853,13 +2869,13 @@ module mod_prm
         eel%iy = 0
         eel%iz = 0
 
-        do i=1, size(my_attype)
+        do i=1, size(top%attype)
             ! Multipoles
             only12 = .false. ! Only search for params based on 12 connectivity
 
             do j=1, nmult
                 found13 = .false. ! Parameter found is based on 13 connectivity
-                if(multat(j) == my_attype(i)) then
+                if(multat(j) == top%attype(i)) then
                     ! For each center different multipoles are defined for 
                     ! different environment. So first check if the environment
                     ! is the correct one
@@ -2876,7 +2892,7 @@ module mod_prm
                         ax_found(2:3) = .true.
                         do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
                             iat = top%conn(1)%ci(k)
-                            if(my_attype(iat) == multax(1,j) &
+                            if(top%attype(iat) == multax(1,j) &
                                .and. .not. ax_found(1)) then
                                 ax_found(1) = .true.
                                 iax(1) = iat
@@ -2889,15 +2905,15 @@ module mod_prm
                         ! Using only 1,2 connectivity
                         do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
                             iat = top%conn(1)%ci(k)
-                            if(my_attype(iat) == multax(1,j) &
+                            if(top%attype(iat) == multax(1,j) &
                                .and. .not. ax_found(1)) then
                                 ax_found(1) = .true.
                                 iax(1) = iat
-                            else if(my_attype(iat) == multax(2,j) &
+                            else if(top%attype(iat) == multax(2,j) &
                                     .and. .not. ax_found(2)) then
                                 ax_found(2) = .true.
                                 iax(2) = iat
-                            else if(my_attype(iat) == multax(3,j) &
+                            else if(top%attype(iat) == multax(3,j) &
                                     .and. .not. ax_found(3)) then
                                 ax_found(3) = .true.
                                 iax(3) = iat
@@ -2909,12 +2925,12 @@ module mod_prm
                             do k=top%conn(1)%ri(iax(1)), top%conn(1)%ri(iax(1)+1)-1
                                 iat = top%conn(1)%ci(k)
                                 if(iat == i .or. iat == iax(1)) cycle
-                                if(my_attype(iat) == multax(2,j) &
+                                if(top%attype(iat) == multax(2,j) &
                                    .and. .not. ax_found(2) &
                                    .and. iat /= iax(1)) then
                                     ax_found(2) = .true.
                                     iax(2) = iat
-                                else if(my_attype(iat) == multax(3,j) &
+                                else if(top%attype(iat) == multax(3,j) &
                                         .and. .not. ax_found(3) & 
                                         .and. iat /= iax(1) &
                                         .and. iat /= iax(2)) then

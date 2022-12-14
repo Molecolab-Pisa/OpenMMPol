@@ -290,7 +290,7 @@ module mod_inputloader
         !! This function read a .mmp file (revision 2 and 3) are supported
         !! and initialize all the quantities need to describe the environment
         !! within this library.
-        use mod_mmpol, only: mmpol_prepare, mmpol_init
+        use mod_mmpol, only: mmpol_prepare, mmpol_init, mmpol_init_nonbonded
         use mod_topology, only: ommp_topology_type
         use mod_electrostatics, only: ommp_electrostatics_type
         
@@ -303,7 +303,8 @@ module mod_inputloader
         !!                   assign_opb, assign_pitors, assign_torsion, &
         !!                   assign_tortors, assign_angtor, assign_strtor, &
         !!                   check_keyword, terminate_prm
-        use mod_prm, only: assign_pol, assign_mpoles, check_keyword
+        use mod_prm, only: check_keyword, assign_pol, assign_mpoles, &
+                           assign_vdw
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -416,14 +417,18 @@ module mod_inputloader
         if( .not. check_keyword(prm_file)) then
             call fatal_error("PRM file cannot be completely understood")
         end if
-        
+    
+        top%attype = attype
+        top%attype_initialized = .true.
+        call mfree('mmpol_init_from_xyz [attype]', attype)
+
         call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
-        call assign_pol(eel, prm_file, attype)
-        call assign_mpoles(eel, prm_file, attype)
+        call assign_pol(eel, prm_file)
+        call assign_mpoles(eel, prm_file)
         
-        !TODO
-        !!call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
-        !1call assign_vdw(prm_file, attype)
+        call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
+        call mmpol_init_nonbonded(sys_obj)
+        call assign_vdw(sys_obj%vdw, top, prm_file)
         !TODO
         !!call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         !!call assign_bond(prm_file, attype)
@@ -438,7 +443,6 @@ module mod_inputloader
         !!call assign_strtor(prm_file, attype)
 
         !! call terminate_prm()
-        call mfree('mmpol_init_from_xyz [attype]', attype)
         
         call mmpol_prepare(sys_obj)
 

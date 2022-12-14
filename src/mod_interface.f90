@@ -161,5 +161,18 @@ module ommp_interface
 
         end function
         
+        function ommp_get_vdw_energy(sys_obj) result(evdw)
+            
+            use mod_nonbonded, only: vdw_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: evdw
+
+            evdw = 0.0
+            call vdw_potential(sys_obj%vdw, evdw)
+        
+        end function
+        
 end module ommp_interface
 

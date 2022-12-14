@@ -28,6 +28,14 @@ To build the package, just use cmake in the standard way; from the root director
   
 ``$ make``
 
+To compile with intel compilers use:
+
+``$ cmake -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DCMAKE_BUILD_TYPE=DEBUG ..``
+
+To compile with nvidia compilers use:
+
+``$ cmake -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_COMPILER=nvcc -DCMAKE_BUILD_TYPE=DEBUG ..``
+
 
 
 

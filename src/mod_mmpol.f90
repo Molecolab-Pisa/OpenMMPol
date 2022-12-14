@@ -9,6 +9,7 @@ module mod_mmpol
     use mod_topology, only: ommp_topology_type, topology_init, &
                             topology_terminate
     use mod_electrostatics, only: ommp_electrostatics_type
+    use mod_nonbonded, only: ommp_nonbonded_type
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -30,7 +31,8 @@ module mod_mmpol
         !TODO type(ommp_bonded_type), pointer :: bonded
         !! Data structure containing all the information needed to run the
         !! bonded terms calculations
-        !TODO type(ommp_nonbonded_type), pointer :: nonbonded
+        logical :: use_nonbonded = .false.
+        type(ommp_nonbonded_type), pointer :: vdw
         !! Data structure containing all the information needed to run the
         !! non-bonded terms calculations
     end type ommp_system
@@ -80,6 +82,18 @@ module mod_mmpol
         sys_obj%mmpol_is_init = .true.
 
     end subroutine mmpol_init
+
+    subroutine mmpol_init_nonbonded(sys_obj)
+        !! Enable nonbonded part of pontential
+        implicit none
+
+        type(ommp_system), intent(inout) :: sys_obj
+        !! The object to be initialized
+
+        allocate(sys_obj%vdw)
+        sys_obj%use_nonbonded = .true.
+
+    end subroutine mmpol_init_nonbonded
 
     subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 
@@ -167,6 +181,7 @@ module mod_mmpol
         !! calculation
         use mod_memory, only: mfree
         use mod_electrostatics, only: electrostatics_terminate
+        use mod_nonbonded, only: vdw_terminate
 
         implicit none 
 
@@ -177,6 +192,11 @@ module mod_mmpol
 
         call topology_terminate(sys_obj%top)
         deallocate(sys_obj%top)
+
+        if(sys_obj%use_nonbonded) then
+            call vdw_terminate(sys_obj%vdw)
+            sys_obj%use_nonbonded = .false.
+        end if
 
         sys_obj%mmpol_is_init = .false.
 

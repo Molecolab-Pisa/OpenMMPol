@@ -52,10 +52,10 @@ int main(int argc, char **argv){
     
     double *electric_field;
 
-    ommp_set_verbose(OMMP_VERBOSE_LOW);
-    ommp_init_xyz(argv[1], argv[2]);
+    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
+    OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
     
-    pol_atoms = ommp_get_pol_atoms();
+    pol_atoms = ommp_get_pol_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     
@@ -63,39 +63,39 @@ int main(int argc, char **argv){
         for(int k = 0; k < 3; k++)
             electric_field[j*3+k] = 0.0;
 
-    ommp_get_fixedelec_energy(&em);
-    ommp_set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
-    ommp_get_polelec_energy(&ep);
+    em = ommp_get_fixedelec_energy(my_system);
+    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_DEFAULT);
+    ep = ommp_get_polelec_energy(my_system);
     
-    ommp_get_vdw_energy(&ev);
-    ommp_get_bond_energy(&eb);
-    ommp_get_angle_energy(&ea);
-    ommp_get_strbnd_energy(&eba);
-    ommp_get_urey_energy(&eub);
-    ommp_get_opb_energy(&eopb);
-    ommp_get_pitors_energy(&ept);
-    ommp_get_torsion_energy(&et);
-    ommp_get_tortor_energy(&ett);
-    ommp_get_angtor_energy(&eat);
-    ommp_get_strtor_energy(&ebt);
+    ev = ommp_get_vdw_energy(my_system);
+    //ommp_get_bond_energy(&eb);
+    //ommp_get_angle_energy(&ea);
+    //ommp_get_strbnd_energy(&eba);
+    //ommp_get_urey_energy(&eub);
+    //ommp_get_opb_energy(&eopb);
+    //ommp_get_pitors_energy(&ept);
+    //ommp_get_torsion_energy(&et);
+    //ommp_get_tortor_energy(&ett);
+    //ommp_get_angtor_energy(&eat);
+    //ommp_get_strtor_energy(&ebt);
 
     FILE *fp = fopen(argv[3], "w+");
 
-    eaa = 0.0;
-    eopd = 0.0;
-    eid = 0.0;  
-    eit = 0.0;
-    er = 0.0;
-    edsp = 0.0;
-    ec = 0.0;
-    ecd = 0.0;
-    ed = 0.0;
-    ect = 0.0;
-    erxf = 0.0;
-    es = 0.0;
-    elf = 0.0;
-    eg = 0.0;
-    ex = 0.0;
+    //eaa = 0.0;
+    //eopd = 0.0;
+    //eid = 0.0;  
+    //eit = 0.0;
+    //er = 0.0;
+    //edsp = 0.0;
+    //ec = 0.0;
+    //ecd = 0.0;
+    //ed = 0.0;
+    //ect = 0.0;
+    //erxf = 0.0;
+    //es = 0.0;
+    //elf = 0.0;
+    //eg = 0.0;
+    //ex = 0.0;
     
     em *= AU2KCALMOL;
     ep *= AU2KCALMOL;
@@ -114,36 +114,36 @@ int main(int argc, char **argv){
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);
     fprintf(fp, "EV      %20.12e\n", ev);
-    fprintf(fp, "EB      %20.12e\n", eb);
-    fprintf(fp, "EA      %20.12e\n", ea);
-    fprintf(fp, "EBA     %20.12e\n", eba);
-    fprintf(fp, "EUB     %20.12e\n", eub);
-    fprintf(fp, "EOPB    %20.12e\n", eopb);
-    fprintf(fp, "EPT     %20.12e\n", ept);
-    fprintf(fp, "ET      %20.12e\n", et);
-    fprintf(fp, "ETT     %20.12e\n", ett);
+    //fprintf(fp, "EB      %20.12e\n", eb);
+    //fprintf(fp, "EA      %20.12e\n", ea);
+    //fprintf(fp, "EBA     %20.12e\n", eba);
+    //fprintf(fp, "EUB     %20.12e\n", eub);
+    //fprintf(fp, "EOPB    %20.12e\n", eopb);
+    //fprintf(fp, "EPT     %20.12e\n", ept);
+    //fprintf(fp, "ET      %20.12e\n", et);
+    //fprintf(fp, "ETT     %20.12e\n", ett);
 
-    fprintf(fp, "EAA     %20.12e\n", eaa); 
-    fprintf(fp, "EOPD    %20.12e\n", eopd);
-    fprintf(fp, "EID     %20.12e\n", eid); 
-    fprintf(fp, "EIT     %20.12e\n", eit); 
-    fprintf(fp, "EBT     %20.12e\n", ebt); 
-    fprintf(fp, "EAT     %20.12e\n", eat); 
-    fprintf(fp, "ER      %20.12e\n", er);
-    fprintf(fp, "EDSP    %20.12e\n", edsp);
-    fprintf(fp, "EC      %20.12e\n", ec);
-    fprintf(fp, "ECD     %20.12e\n", ecd);
-    fprintf(fp, "ED      %20.12e\n", ed);
-    fprintf(fp, "ECT     %20.12e\n", ect);
-    fprintf(fp, "ERXF    %20.12e\n", erxf);
-    fprintf(fp, "ES      %20.12e\n", es);
-    fprintf(fp, "ELF     %20.12e\n", elf);
-    fprintf(fp, "EG      %20.12e\n", eg);
-    fprintf(fp, "EX      %20.12e\n", ex);
+    //fprintf(fp, "EAA     %20.12e\n", eaa); 
+    //fprintf(fp, "EOPD    %20.12e\n", eopd);
+    //fprintf(fp, "EID     %20.12e\n", eid); 
+    //fprintf(fp, "EIT     %20.12e\n", eit); 
+    //fprintf(fp, "EBT     %20.12e\n", ebt); 
+    //fprintf(fp, "EAT     %20.12e\n", eat); 
+    //fprintf(fp, "ER      %20.12e\n", er);
+    //fprintf(fp, "EDSP    %20.12e\n", edsp);
+    //fprintf(fp, "EC      %20.12e\n", ec);
+    //fprintf(fp, "ECD     %20.12e\n", ecd);
+    //fprintf(fp, "ED      %20.12e\n", ed);
+    //fprintf(fp, "ECT     %20.12e\n", ect);
+    //fprintf(fp, "ERXF    %20.12e\n", erxf);
+    //fprintf(fp, "ES      %20.12e\n", es);
+    //fprintf(fp, "ELF     %20.12e\n", elf);
+    //fprintf(fp, "EG      %20.12e\n", eg);
+    //fprintf(fp, "EX      %20.12e\n", ex);
     
     fclose(fp);
     free(electric_field);
-    ommp_terminate();
+    ommp_terminate(my_system);
     
     return 0;
 }
