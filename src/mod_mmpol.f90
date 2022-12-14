@@ -10,6 +10,7 @@ module mod_mmpol
                             topology_terminate
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_nonbonded, only: ommp_nonbonded_type
+    use mod_bonded, only: ommp_bonded_type
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -28,11 +29,12 @@ module mod_mmpol
         type(ommp_electrostatics_type), allocatable :: eel
         !! Data structure containing all the information needed to run the
         !! elctrostatics related calculations
-        !TODO type(ommp_bonded_type), pointer :: bonded
+        logical :: use_bonded = .false.
+        type(ommp_bonded_type), allocatable :: bds
         !! Data structure containing all the information needed to run the
         !! bonded terms calculations
         logical :: use_nonbonded = .false.
-        type(ommp_nonbonded_type), pointer :: vdw
+        type(ommp_nonbonded_type), allocatable :: vdw
         !! Data structure containing all the information needed to run the
         !! non-bonded terms calculations
     end type ommp_system
@@ -94,6 +96,19 @@ module mod_mmpol
         sys_obj%use_nonbonded = .true.
 
     end subroutine mmpol_init_nonbonded
+    
+    subroutine mmpol_init_bonded(sys_obj)
+        !! Enable nonbonded part of pontential
+        implicit none
+
+        type(ommp_system), intent(inout), target :: sys_obj
+        !! The object to be initialized
+
+        allocate(sys_obj%bds)
+        sys_obj%use_bonded = .true.
+        sys_obj%bds%top => sys_obj%top
+
+    end subroutine mmpol_init_bonded
 
     subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 
@@ -182,6 +197,7 @@ module mod_mmpol
         use mod_memory, only: mfree
         use mod_electrostatics, only: electrostatics_terminate
         use mod_nonbonded, only: vdw_terminate
+        use mod_bonded, only: bonded_terminate 
 
         implicit none 
 
@@ -196,6 +212,11 @@ module mod_mmpol
         if(sys_obj%use_nonbonded) then
             call vdw_terminate(sys_obj%vdw)
             sys_obj%use_nonbonded = .false.
+        end if
+        
+        if(sys_obj%use_bonded) then
+            call bonded_terminate(sys_obj%bds)
+            sys_obj%use_bonded = .false.
         end if
 
         sys_obj%mmpol_is_init = .false.

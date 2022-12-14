@@ -474,7 +474,7 @@ module mod_ommp_C_interface
         function C_ommp_get_bond_energy(s_prt) &
                 result(ebnd) bind(c, name='ommp_get_bond_energy')
             
-            !! use mod_bonded, only: bond_potential
+            use mod_bonded, only: bond_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -484,7 +484,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             ebnd = 0.0
-            !! call bond_potential(ebnd)
+            call bond_potential(s%bds, ebnd)
         end function
         
         function C_ommp_get_opb_energy(s_prt) &

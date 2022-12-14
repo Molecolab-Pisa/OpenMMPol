@@ -16,7 +16,7 @@ endif()
 
 add_library(openmmpol SHARED 
             src/mod_adjacency_mat.f90
-            #src/mod_bonded.f90
+            src/mod_bonded.f90
             src/mod_constants.f90
             src/mod_c_interface.f90
             src/mod_electrostatics.f90

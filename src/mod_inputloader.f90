@@ -290,7 +290,8 @@ module mod_inputloader
         !! This function read a .mmp file (revision 2 and 3) are supported
         !! and initialize all the quantities need to describe the environment
         !! within this library.
-        use mod_mmpol, only: mmpol_prepare, mmpol_init, mmpol_init_nonbonded
+        use mod_mmpol, only: mmpol_prepare, mmpol_init, mmpol_init_nonbonded, &
+                             mmpol_init_bonded
         use mod_topology, only: ommp_topology_type
         use mod_electrostatics, only: ommp_electrostatics_type
         
@@ -304,7 +305,7 @@ module mod_inputloader
         !!                   assign_tortors, assign_angtor, assign_strtor, &
         !!                   check_keyword, terminate_prm
         use mod_prm, only: check_keyword, assign_pol, assign_mpoles, &
-                           assign_vdw
+                           assign_vdw, assign_bond
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -429,9 +430,10 @@ module mod_inputloader
         call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_nonbonded(sys_obj)
         call assign_vdw(sys_obj%vdw, top, prm_file)
-        !TODO
-        !!call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
-        !!call assign_bond(prm_file, attype)
+        
+        call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
+        call mmpol_init_bonded(sys_obj)
+        call assign_bond(sys_obj%bds, prm_file)
         !!call assign_angle(prm_file, attype)
         !!call assign_urey(prm_file, attype)
         !!call assign_strbnd(prm_file, attype)
