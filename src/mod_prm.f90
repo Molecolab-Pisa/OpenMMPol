@@ -20,7 +20,7 @@ module mod_prm
     !!          assign_angtor, assign_strtor, terminate_prm
     public :: assign_pol, assign_mpoles
     public :: assign_vdw
-    public :: assign_bond
+    public :: assign_bond, assign_angle
     public :: check_keyword
 
     contains 
@@ -155,7 +155,6 @@ module mod_prm
 
         top => bds%top
 
-        
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
         end if
@@ -1721,361 +1720,362 @@ module mod_prm
 !!       
 !!    end subroutine assign_angtor
 !!    
-!!    subroutine assign_angle(prm_file, my_attype)
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_mmpol, only: fatal_error, mm_atoms, conn
-!!        use mod_bonded, only: OMMP_ANG_SIMPLE, &
-!!                              OMMP_ANG_H0, &
-!!                              OMMP_ANG_H1, &
-!!                              OMMP_ANG_H2, &
-!!                              OMMP_ANG_INPLANE, &
-!!                              OMMP_ANG_INPLANE_H0, &
-!!                              OMMP_ANG_INPLANE_H1
-!!        use mod_bonded, only: angle_cubic, angle_quartic, &
-!!                              angle_pentic, angle_sextic, angleat, anglety, &
-!!                              kangle, eqangle, angle_init
-!!
-!!        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
-!!        
-!!        implicit none
-!!        
-!!        character(len=*), intent(in) :: prm_file
-!!        !! name of the input PRM file
-!!        integer(ip), intent(in) :: my_attype(:)
-!!        !! List of atom types that shoukd be used to populate parameter
-!!        !! vectors
-!!
-!!        integer(ip), parameter :: iof_prminp = 201
-!!        integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
-!!                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv
-!!        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-!!        integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
-!!        real(rp), allocatable :: kang(:), th0ang(:)
-!!        logical :: done
-!!
-!!        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
-!!        
-!!        ! open tinker xyz file
-!!        open(unit=iof_prminp, &
-!!             file=prm_file(1:len(trim(prm_file))), &
-!!             form='formatted', &
-!!             access='sequential', &
-!!             iostat=ist)
-!!        
-!!        if(ist /= 0) then
-!!           call fatal_error('Error while opening PRM input file')
-!!        end if
-!!
-!!        ! Read all the lines of file just to count how large vector should be 
-!!        ! allocated
-!!        ist = 0
-!!        nang = 1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!            if(line(:6) == 'angle ') nang = nang + 3 
-!!            ! One angle keyourd could stand for 3 parameters for different H-env
-!!            if(line(:7) == 'anglep ') nang = nang + 2
-!!            ! One angle keyourd could stand for 2 parameters for different H-env
-!!        end do
-!!
-!!        maxang = (conn(2)%ri(mm_atoms+1)-1) / 2
-!!        call mallocate('assign_angle [classa]', nang, classa)
-!!        call mallocate('assign_angle [classb]', nang, classb)
-!!        call mallocate('assign_angle [classc]', nang, classc)
-!!        call mallocate('assign_angle [eqang]', nang, th0ang)
-!!        call mallocate('assign_angle [kang]', nang, kang)
-!!        call mallocate('assign_angle [angtype]', nang, angtype)
-!!        call angle_init(maxang)
-!!
-!!        ! Restart the reading from the beginning to actually save the parameters
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        iang = 1
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:12) == 'angle-cubic ') then
-!!                tokb = 13
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE-CUBIC card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) angle_cubic
-!!                angle_cubic = angle_cubic * rad2deg
-!!            
-!!            else if(line(:14) == 'angle-quartic ') then
-!!                tokb = 15
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE-QUARTIC card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) angle_quartic
-!!                angle_quartic = angle_quartic * rad2deg**2
-!!            
-!!            else if(line(:13) == 'angle-pentic ') then
-!!                tokb = 13
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE-PENTIC card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) angle_pentic
-!!                angle_pentic = angle_pentic * rad2deg**3
-!!            
-!!            else if(line(:13) == 'angle-sextic ') then
-!!                tokb = 14
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE-SEXTIC card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) angle_sextic
-!!                angle_sextic = angle_sextic * rad2deg**4
-!!            
-!!            else if(line(:6) == 'angle ') then
-!!                tokb = 7
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classa(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classb(iang)
-!!                
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classc(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) kang(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLE card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) th0ang(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(toke < 0) then
-!!                    ! Only one angle parameter is specified so it is good 
-!!                    ! for all the H-envirnoment
-!!                    angtype(iang) = OMMP_ANG_SIMPLE
-!!                    iang = iang + 1
-!!                else
-!!                    ! Three equilibrim angles are specified for three different
-!!                    ! H-environment
-!!                    angtype(iang) = OMMP_ANG_H0
-!!                    iang = iang + 1
-!!                    
-!!                    classa(iang) = classa(iang-1)
-!!                    classb(iang) = classb(iang-1)
-!!                    classc(iang) = classc(iang-1)
-!!                    kang(iang) = kang(iang-1)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong ANGLE card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) th0ang(iang)
-!!                    angtype(iang) = OMMP_ANG_H1
-!!                    
-!!                    iang = iang + 1
-!!                    
-!!                    classa(iang) = classa(iang-1)
-!!                    classb(iang) = classb(iang-1)
-!!                    classc(iang) = classc(iang-1)
-!!                    kang(iang) = kang(iang-1)
-!!                    angtype(iang) = OMMP_ANG_H2
-!!                    tokb = toke + 1
-!!                    toke = tokenize(line, tokb)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong ANGLE card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) th0ang(iang)
-!!                    iang = iang + 1
-!!                end if
-!!            
-!!            else if(line(:7) == 'anglep ') then
-!!                tokb = 8
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLEP card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classa(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLEP card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classb(iang)
-!!                
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLEP card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classc(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLEP card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) kang(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGLEP card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) th0ang(iang)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(toke < 0) then
-!!                    ! Only one angle parameter is specified so it is good 
-!!                    ! for all the H-envirnoment
-!!                    angtype(iang) = OMMP_ANG_INPLANE
-!!                    iang = iang + 1
-!!                else
-!!                    ! Three equilibrim angles are specified for three different
-!!                    ! H-environment
-!!                    angtype(iang) = OMMP_ANG_INPLANE_H0
-!!                    iang = iang + 1
-!!                    
-!!                    classa(iang) = classa(iang-1)
-!!                    classb(iang) = classb(iang-1)
-!!                    classc(iang) = classc(iang-1)
-!!                    kang(iang) = kang(iang-1)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong ANGLEP card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) th0ang(iang)
-!!                    angtype(iang) = OMMP_ANG_INPLANE_H1
-!!                    
-!!                    iang = iang + 1
-!!                end if
-!!            end if
-!!            i = i+1
-!!        end do
-!!        close(iof_prminp)
-!!        nang = iang
-!!        
-!!        iang = 1
-!!        do a=1, mm_atoms
-!!            cla = atclass(my_attype(a))
-!!            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
-!!                b = conn(2)%ci(jb)
-!!                if(a > b) cycle
-!!                clb = atclass(my_attype(b))
-!!                
-!!                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-!!                    c = conn(1)%ci(jc)
-!!                    if(all(conn(1)%ci(conn(1)%ri(b):conn(1)%ri(b+1)-1) /= c)) cycle
-!!                    ! There is an angle in the form A-C-B
-!!                    clc = atclass(my_attype(c))
-!!                    done = .false.
-!!
-!!                    do j=1, nang
-!!                        if((cla == classa(j) &
-!!                            .and. clb == classc(j) &
-!!                            .and. clc == classb(j)) .or. &
-!!                           (clb == classa(j) &
-!!                            .and. cla == classc(j) &
-!!                            .and. clc == classb(j))) then
-!!                            
-!!                            if(angtype(j) == OMMP_ANG_SIMPLE .or. &
-!!                               angtype(j) == OMMP_ANG_INPLANE) then
-!!                                ! For those types no check of the H 
-!!                                ! environment is required
-!!                                done = .true.
-!!                                exit
-!!                            else
-!!                                ! Check the H-environment
-!!                                nhenv = 0
-!!                                do k=conn(1)%ri(c), conn(1)%ri(c+1)-1
-!!                                    if(atz(my_attype(conn(1)%ci(k))) == 1) &
-!!                                        nhenv = nhenv + 1
-!!                                end do
-!!                                if(atz(my_attype(a)) == 1) nhenv = nhenv-1 
-!!                                if(atz(my_attype(b)) == 1) nhenv = nhenv-1 
-!!                                
-!!                                if(nhenv == 0 .and. ( &
-!!                                   angtype(j) == OMMP_ANG_H0 .or. &
-!!                                   angtype(j) == OMMP_ANG_INPLANE_H0)) then
-!!                                    done = .true.
-!!                                    exit
-!!                                else if(nhenv == 1 .and. ( &
-!!                                        angtype(j) == OMMP_ANG_H1 .or. & 
-!!                                        angtype(j) == OMMP_ANG_INPLANE_H1)) then
-!!                                    done = .true.
-!!                                    exit
-!!                                else if(nhenv == 2 .and. (&
-!!                                        angtype(j) == OMMP_ANG_H2)) then
-!!                                    done = .true.
-!!                                    exit
-!!                                end if
-!!                            end if
-!!                        end if
-!!                    end do
-!!
-!!                    if(done) then
-!!                        angleat(1,iang) = a
-!!                        angleat(2,iang) = c
-!!                        angleat(3,iang) = b
-!!                        anglety(iang) = angtype(j)
-!!                        kangle(iang) = kang(j) * kcalmol2au
-!!                        eqangle(iang) = th0ang(j) * deg2rad
-!!                        iang = iang + 1
-!!                    else
-!!                        write(errstring, *) "No angle parameter found for &
-!!                            &atoms ", a, b, c
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                end do
-!!            end do
-!!        end do
-!!
-!!        call mfree('assign_angle [classa]', classa)
-!!        call mfree('assign_angle [classb]', classb)
-!!        call mfree('assign_angle [classc]', classc)
-!!        call mfree('assign_angle [eqang]', th0ang)
-!!        call mfree('assign_angle [kang]', kang)
-!!        call mfree('assign_angle [angtype]', angtype)
-!!    
-!!    end subroutine assign_angle
-!!
+    subroutine assign_angle(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: OMMP_ANG_SIMPLE, &
+                              OMMP_ANG_H0, &
+                              OMMP_ANG_H1, &
+                              OMMP_ANG_H2, &
+                              OMMP_ANG_INPLANE, &
+                              OMMP_ANG_INPLANE_H0, &
+                              OMMP_ANG_INPLANE_H1
+        use mod_bonded, only: angle_init, ommp_bonded_type
+
+        use mod_constants, only: kcalmol2au, rad2deg, deg2rad
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
+                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
+        real(rp), allocatable :: kang(:), th0ang(:)
+        logical :: done
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nang = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:6) == 'angle ') nang = nang + 3 
+            ! One angle keyourd could stand for 3 parameters for different H-env
+            if(line(:7) == 'anglep ') nang = nang + 2
+            ! One angle keyourd could stand for 2 parameters for different H-env
+        end do
+
+        maxang = (top%conn(2)%ri(top%mm_atoms+1)-1) / 2
+        call mallocate('assign_angle [classa]', nang, classa)
+        call mallocate('assign_angle [classb]', nang, classb)
+        call mallocate('assign_angle [classc]', nang, classc)
+        call mallocate('assign_angle [eqang]', nang, th0ang)
+        call mallocate('assign_angle [kang]', nang, kang)
+        call mallocate('assign_angle [angtype]', nang, angtype)
+        call angle_init(bds, maxang)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        iang = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:12) == 'angle-cubic ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE-CUBIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) bds%angle_cubic
+                bds%angle_cubic = bds%angle_cubic * rad2deg
+            
+            else if(line(:14) == 'angle-quartic ') then
+                tokb = 15
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE-QUARTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) bds%angle_quartic
+                bds%angle_quartic = bds%angle_quartic * rad2deg**2
+            
+            else if(line(:13) == 'angle-pentic ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE-PENTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) bds%angle_pentic
+                bds%angle_pentic = bds%angle_pentic * rad2deg**3
+            
+            else if(line(:13) == 'angle-sextic ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE-SEXTIC card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) bds%angle_sextic
+                bds%angle_sextic = bds%angle_sextic * rad2deg**4
+            
+            else if(line(:6) == 'angle ') then
+                tokb = 7
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(iang)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) kang(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) th0ang(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(toke < 0) then
+                    ! Only one angle parameter is specified so it is good 
+                    ! for all the H-envirnoment
+                    angtype(iang) = OMMP_ANG_SIMPLE
+                    iang = iang + 1
+                else
+                    ! Three equilibrim angles are specified for three different
+                    ! H-environment
+                    angtype(iang) = OMMP_ANG_H0
+                    iang = iang + 1
+                    
+                    classa(iang) = classa(iang-1)
+                    classb(iang) = classb(iang-1)
+                    classc(iang) = classc(iang-1)
+                    kang(iang) = kang(iang-1)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong ANGLE card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) th0ang(iang)
+                    angtype(iang) = OMMP_ANG_H1
+                    
+                    iang = iang + 1
+                    
+                    classa(iang) = classa(iang-1)
+                    classb(iang) = classb(iang-1)
+                    classc(iang) = classc(iang-1)
+                    kang(iang) = kang(iang-1)
+                    angtype(iang) = OMMP_ANG_H2
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong ANGLE card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) th0ang(iang)
+                    iang = iang + 1
+                end if
+            
+            else if(line(:7) == 'anglep ') then
+                tokb = 8
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLEP card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLEP card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(iang)
+                
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLEP card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLEP card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) kang(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGLEP card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) th0ang(iang)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(toke < 0) then
+                    ! Only one angle parameter is specified so it is good 
+                    ! for all the H-envirnoment
+                    angtype(iang) = OMMP_ANG_INPLANE
+                    iang = iang + 1
+                else
+                    ! Three equilibrim angles are specified for three different
+                    ! H-environment
+                    angtype(iang) = OMMP_ANG_INPLANE_H0
+                    iang = iang + 1
+                    
+                    classa(iang) = classa(iang-1)
+                    classb(iang) = classb(iang-1)
+                    classc(iang) = classc(iang-1)
+                    kang(iang) = kang(iang-1)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong ANGLEP card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) th0ang(iang)
+                    angtype(iang) = OMMP_ANG_INPLANE_H1
+                    
+                    iang = iang + 1
+                end if
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+        nang = iang
+        
+        iang = 1
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(2)%ri(a), top%conn(2)%ri(a+1)-1
+                b = top%conn(2)%ci(jb)
+                if(a > b) cycle
+                clb = top%atclass(b)
+                
+                do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(all(top%conn(1)%ci(top%conn(1)%ri(b):top%conn(1)%ri(b+1)-1) /= c)) cycle
+                    ! There is an angle in the form A-C-B
+                    clc = top%atclass(c)
+                    done = .false.
+
+                    do j=1, nang
+                        if((cla == classa(j) &
+                            .and. clb == classc(j) &
+                            .and. clc == classb(j)) .or. &
+                           (clb == classa(j) &
+                            .and. cla == classc(j) &
+                            .and. clc == classb(j))) then
+                            
+                            if(angtype(j) == OMMP_ANG_SIMPLE .or. &
+                               angtype(j) == OMMP_ANG_INPLANE) then
+                                ! For those types no check of the H 
+                                ! environment is required
+                                done = .true.
+                                exit
+                            else
+                                ! Check the H-environment
+                                nhenv = 0
+                                do k=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                                    if(top%atz(top%conn(1)%ci(k)) == 1) &
+                                        nhenv = nhenv + 1
+                                end do
+                                if(top%atz(a) == 1) nhenv = nhenv-1 
+                                if(top%atz(b) == 1) nhenv = nhenv-1 
+                                
+                                if(nhenv == 0 .and. ( &
+                                   angtype(j) == OMMP_ANG_H0 .or. &
+                                   angtype(j) == OMMP_ANG_INPLANE_H0)) then
+                                    done = .true.
+                                    exit
+                                else if(nhenv == 1 .and. ( &
+                                        angtype(j) == OMMP_ANG_H1 .or. & 
+                                        angtype(j) == OMMP_ANG_INPLANE_H1)) then
+                                    done = .true.
+                                    exit
+                                else if(nhenv == 2 .and. (&
+                                        angtype(j) == OMMP_ANG_H2)) then
+                                    done = .true.
+                                    exit
+                                end if
+                            end if
+                        end if
+                    end do
+
+                    if(done) then
+                        bds%angleat(1,iang) = a
+                        bds%angleat(2,iang) = c
+                        bds%angleat(3,iang) = b
+                        bds%anglety(iang) = angtype(j)
+                        bds%kangle(iang) = kang(j) * kcalmol2au
+                        bds%eqangle(iang) = th0ang(j) * deg2rad
+                        iang = iang + 1
+                    else
+                        write(errstring, *) "No angle parameter found for &
+                            &atoms ", a, b, c
+                        call fatal_error(errstring)
+                    end if
+                end do
+            end do
+        end do
+
+        call mfree('assign_angle [classa]', classa)
+        call mfree('assign_angle [classb]', classb)
+        call mfree('assign_angle [classc]', classc)
+        call mfree('assign_angle [eqang]', th0ang)
+        call mfree('assign_angle [kang]', kang)
+        call mfree('assign_angle [angtype]', angtype)
+    
+    end subroutine assign_angle
+
     subroutine assign_vdw(vdw, top, prm_file)
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error

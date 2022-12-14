@@ -305,7 +305,7 @@ module mod_inputloader
         !!                   assign_tortors, assign_angtor, assign_strtor, &
         !!                   check_keyword, terminate_prm
         use mod_prm, only: check_keyword, assign_pol, assign_mpoles, &
-                           assign_vdw, assign_bond
+                           assign_vdw, assign_bond, assign_angle
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -434,7 +434,7 @@ module mod_inputloader
         call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_bonded(sys_obj)
         call assign_bond(sys_obj%bds, prm_file)
-        !!call assign_angle(prm_file, attype)
+        call assign_angle(sys_obj%bds, prm_file)
         !!call assign_urey(prm_file, attype)
         !!call assign_strbnd(prm_file, attype)
         !!call assign_opb(prm_file, attype)
@@ -444,8 +444,6 @@ module mod_inputloader
         !!call assign_angtor(prm_file, attype)
         !!call assign_strtor(prm_file, attype)
 
-        !! call terminate_prm()
-        
         call mmpol_prepare(sys_obj)
 
     end subroutine mmpol_init_from_xyz

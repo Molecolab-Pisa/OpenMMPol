@@ -426,7 +426,7 @@ module mod_ommp_C_interface
         function C_ommp_get_angle_energy(s_prt) &
                 result(eang) bind(c, name='ommp_get_angle_energy')
             
-            !!use mod_bonded, only: angle_potential
+            use mod_bonded, only: angle_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -436,7 +436,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eang = 0.0
-            !! call angle_potential(eang)
+            call angle_potential(s%bds, eang)
         end function
         
         function C_ommp_get_angtor_energy(s_prt) &

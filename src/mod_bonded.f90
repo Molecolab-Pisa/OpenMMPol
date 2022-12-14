@@ -4,6 +4,7 @@ module mod_bonded
     
     use mod_memory, only: ip, rp
     use mod_topology, only: ommp_topology_type
+    use mod_io, only: fatal_error
     
     implicit none
     private
@@ -145,6 +146,7 @@ module mod_bonded
 
     public :: ommp_bonded_type
     public :: bond_init, bond_potential, bond_terminate
+    public :: angle_init, angle_potential, angle_terminate
     public :: bonded_terminate
     
     contains
@@ -226,134 +228,135 @@ module mod_bonded
         end if
         
     end subroutine bond_potential
-!!
-!!    subroutine angle_init(n)
-!!        !! Initialize arrays used in calculation of angle bending functions
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of angle bending functions in the potential
-!!        !! energy of the system
-!!
-!!        if( n < 1 ) return
-!!        use_angle = .true.
-!!
-!!        call mallocate('angle_init [angleat]', 3, n, angleat)
-!!        call mallocate('angle_init [anglety]', n, anglety)
-!!        call mallocate('angle_init [angauxat]', n, angauxat)
-!!        call mallocate('angle_init [kangle]', n, kangle)
-!!        call mallocate('angle_init [eqangle]', n, eqangle)
-!!        
-!!        nangle = n
-!!        angauxat = 0
-!!        angle_cubic = 0.0_rp
-!!        angle_quartic = 0.0_rp
-!!        angle_pentic = 0.0_rp
-!!        angle_sextic = 0.0_rp
-!!
-!!    end subroutine angle_init
-!!
-!!    subroutine angle_potential(V)
-!!        !! Compute angle-bending terms of the potential energy function.   
-!!        !! Simple angle terms are computed according to the formula:
-!!        !! \[U_{angle} = \sum_i k_i \Delta \theta_i^2 \large(1 +  
-!!        !!  \sum_{j=1}^4 k^{(j+2)} \Delta \theta_i^j \large)\]
-!!        !! \[\Delta \theta_i = \theta_i - \theta^{(eq)}_i\]    
-!!        !! Out-of plane angle are more complex. First, central atom has to be
-!!        !! a trigonal center, the other two atoms together with the auxliary 
-!!        !! atom (that is the remaining one connected to the trigonal center) 
-!!        !! define the projection plane. During the first run the auxiliary atom
-!!        !! is found and saved.
-!!        !! Then, the trigonal center is projected on the plane defined by the 
-!!        !! other three atoms, and the angle is the one defined by the projection
-!!        !! (which is the vertex, and the other two atoms -- the auxiliary is
-!!        !! excluded). Then the same formula used for simple angle terms is used.
-!!        use mod_mmpol, only: cmm, conn, fatal_error
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! Bond potential, result will be added to V
-!!        
-!!        integer(ip) :: i, j
-!!        real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
-!!        real(rp), dimension(3) :: v_dist, plv1, plv2, pln, a, b, c, prj_b, aux
-!!
-!!        if(.not. use_angle) return
-!!        
-!!        do i=1, nangle
-!!            if(anglety(i) == OMMP_ANG_SIMPLE .or. &
-!!               anglety(i) == OMMP_ANG_H0 .or. &
-!!               anglety(i) == OMMP_ANG_H1 .or. &
-!!               anglety(i) == OMMP_ANG_H2) then
-!!                dr1 = cmm(:, angleat(1,i)) - cmm(:, angleat(2,i))
-!!                dr2 = cmm(:, angleat(3,i)) - cmm(:, angleat(2,i))
-!!                l1 = sqrt(dot_product(dr1, dr1))
-!!                l2 = sqrt(dot_product(dr2, dr2))
-!!
-!!                thet = acos(dot_product(dr1, dr2)/(l1*l2))
-!!                
-!!                d_theta = thet-eqangle(i) 
-!!                
-!!                V = V + kangle(i) * d_theta**2 * (1.0 + angle_cubic*d_theta &
-!!                    + angle_quartic*d_theta**2 + angle_pentic*d_theta**3 &
-!!                    + angle_sextic*d_theta**4)
-!!
-!!            else if(anglety(i) == OMMP_ANG_INPLANE .or. &
-!!                    anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
-!!                    anglety(i) == OMMP_ANG_INPLANE_H1) then
-!!                if(angauxat(i) < 1) then
-!!                    ! Find the auxiliary atom used to define the projection
-!!                    ! plane
-!!                    if(conn(1)%ri(angleat(2,i)+1) - conn(1)%ri(angleat(2,i)) /= 3) then
-!!                        call fatal_error("Angle IN-PLANE defined for a non-&
-!!                                         &trigonal center")
-!!                    end if 
-!!                    do j=conn(1)%ri(angleat(2,i)), conn(1)%ri(angleat(2,i)+1)-1
-!!                        if(conn(1)%ci(j) /= angleat(1,i) .and. &
-!!                           conn(1)%ci(j) /= angleat(3,i)) then
-!!                            angauxat(i) = conn(1)%ci(j)
-!!                        endif
-!!                    end do
-!!                end if
-!!                a = cmm(:, angleat(1,i))
-!!                b = cmm(:, angleat(2,i)) !! Trigonal center
-!!                c = cmm(:, angleat(3,i))
-!!
-!!                aux = cmm(:, angauxat(i))
-!!                plv1 = a - aux
-!!                plv2 = c - aux
-!!                pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
-!!                pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
-!!                pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
-!!                !! Normal vector of the projection plane
-!!                pln = pln / sqrt(dot_product(pln, pln))
-!!
-!!                v_dist = b - aux
-!!                prj_b = b - dot_product(v_dist, pln) * pln 
-!!
-!!                dr1 = cmm(:, angleat(1,i)) - prj_b
-!!                dr2 = cmm(:, angleat(3,i)) - prj_b
-!!                l1 = sqrt(dot_product(dr1, dr1))
-!!                l2 = sqrt(dot_product(dr2, dr2))
-!!
-!!                thet = acos(dot_product(dr1, dr2)/(l1*l2))
-!!                
-!!                d_theta = thet-eqangle(i) 
-!!                
-!!                V = V + kangle(i) * d_theta**2 * (1.0 + angle_cubic*d_theta &
-!!                    + angle_quartic*d_theta**2 + angle_pentic*d_theta**3 &
-!!                    + angle_sextic*d_theta**4)
-!!            end if
-!!        end do
-!!    end subroutine angle_potential
+
+    subroutine angle_init(bds, n)
+        !! Initialize arrays used in calculation of angle bending functions
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of angle bending functions in the potential
+        !! energy of the system
+
+        if( n < 1 ) return
+        bds%use_angle = .true.
+
+        call mallocate('angle_init [angleat]', 3, n, bds%angleat)
+        call mallocate('angle_init [anglety]', n, bds%anglety)
+        call mallocate('angle_init [angauxat]', n, bds%angauxat)
+        call mallocate('angle_init [kangle]', n, bds%kangle)
+        call mallocate('angle_init [eqangle]', n, bds%eqangle)
+        
+        bds%nangle = n
+        bds%angauxat = 0
+        bds%angle_cubic = 0.0_rp
+        bds%angle_quartic = 0.0_rp
+        bds%angle_pentic = 0.0_rp
+        bds%angle_sextic = 0.0_rp
+
+    end subroutine angle_init
+
+    subroutine angle_potential(bds, V)
+        !! Compute angle-bending terms of the potential energy function.   
+        !! Simple angle terms are computed according to the formula:
+        !! \[U_{angle} = \sum_i k_i \Delta \theta_i^2 \large(1 +  
+        !!  \sum_{j=1}^4 k^{(j+2)} \Delta \theta_i^j \large)\]
+        !! \[\Delta \theta_i = \theta_i - \theta^{(eq)}_i\]    
+        !! Out-of plane angle are more complex. First, central atom has to be
+        !! a trigonal center, the other two atoms together with the auxliary 
+        !! atom (that is the remaining one connected to the trigonal center) 
+        !! define the projection plane. During the first run the auxiliary atom
+        !! is found and saved.
+        !! Then, the trigonal center is projected on the plane defined by the 
+        !! other three atoms, and the angle is the one defined by the projection
+        !! (which is the vertex, and the other two atoms -- the auxiliary is
+        !! excluded). Then the same formula used for simple angle terms is used.
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! Bond potential, result will be added to V
+        
+        integer(ip) :: i, j
+        real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
+        real(rp), dimension(3) :: v_dist, plv1, plv2, pln, a, b, c, prj_b, aux
+
+        if(.not. bds%use_angle) return
+        
+        do i=1, bds%nangle
+            if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
+               bds%anglety(i) == OMMP_ANG_H0 .or. &
+               bds%anglety(i) == OMMP_ANG_H1 .or. &
+               bds%anglety(i) == OMMP_ANG_H2) then
+                dr1 = bds%top%cmm(:, bds%angleat(1,i)) - bds%top%cmm(:, bds%angleat(2,i))
+                dr2 = bds%top%cmm(:, bds%angleat(3,i)) - bds%top%cmm(:, bds%angleat(2,i))
+                l1 = sqrt(dot_product(dr1, dr1))
+                l2 = sqrt(dot_product(dr2, dr2))
+
+                thet = acos(dot_product(dr1, dr2)/(l1*l2))
+                
+                d_theta = thet-bds%eqangle(i) 
+                
+                V = V + bds%kangle(i) * d_theta**2 * (1.0 + bds%angle_cubic*d_theta &
+                    + bds%angle_quartic*d_theta**2 + bds%angle_pentic*d_theta**3 &
+                    + bds%angle_sextic*d_theta**4)
+
+            else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
+                if(bds%angauxat(i) < 1) then
+                    ! Find the auxiliary atom used to define the projection
+                    ! plane
+                    if(bds%top%conn(1)%ri(bds%angleat(2,i)+1) - &
+                       bds%top%conn(1)%ri(bds%angleat(2,i)) /= 3) then
+                        call fatal_error("Angle IN-PLANE defined for a non-&
+                                         &trigonal center")
+                    end if 
+                    do j=bds%top%conn(1)%ri(bds%angleat(2,i)), &
+                         bds%top%conn(1)%ri(bds%angleat(2,i)+1)-1
+                        if(bds%top%conn(1)%ci(j) /= bds%angleat(1,i) .and. &
+                           bds%top%conn(1)%ci(j) /= bds%angleat(3,i)) then
+                            bds%angauxat(i) = bds%top%conn(1)%ci(j)
+                        endif
+                    end do
+                end if
+                a = bds%top%cmm(:, bds%angleat(1,i))
+                b = bds%top%cmm(:, bds%angleat(2,i)) !! Trigonal center
+                c = bds%top%cmm(:, bds%angleat(3,i))
+
+                aux = bds%top%cmm(:, bds%angauxat(i))
+                plv1 = a - aux
+                plv2 = c - aux
+                pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+                pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+                pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+                !! Normal vector of the projection plane
+                pln = pln / sqrt(dot_product(pln, pln))
+
+                v_dist = b - aux
+                prj_b = b - dot_product(v_dist, pln) * pln 
+
+                dr1 = bds%top%cmm(:, bds%angleat(1,i)) - prj_b
+                dr2 = bds%top%cmm(:, bds%angleat(3,i)) - prj_b
+                l1 = sqrt(dot_product(dr1, dr1))
+                l2 = sqrt(dot_product(dr2, dr2))
+
+                thet = acos(dot_product(dr1, dr2)/(l1*l2))
+                
+                d_theta = thet-bds%eqangle(i) 
+                
+                V = V + bds%kangle(i) * d_theta**2 * (1.0 + bds%angle_cubic*d_theta &
+                    + bds%angle_quartic*d_theta**2 + bds%angle_pentic*d_theta**3 &
+                    + bds%angle_sextic*d_theta**4)
+            end if
+        end do
+    end subroutine angle_potential
 !!    
 !!    subroutine strbnd_init(n)
 !!        !! Initialize arrays for calculation of stretch-bend cross term 
