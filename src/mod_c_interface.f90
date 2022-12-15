@@ -394,7 +394,7 @@ module mod_ommp_C_interface
         function C_ommp_get_urey_energy(s_prt) &
                 result(eub) bind(c, name='ommp_get_urey_energy')
             
-            !! use mod_bonded, only: urey_potential
+            use mod_bonded, only: urey_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -404,13 +404,13 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eub = 0.0
-            !! call urey_potential(eub)
+            call urey_potential(s%bds, eub)
         end function
         
         function C_ommp_get_strbnd_energy(s_prt) &
                 result(eba) bind(c, name='ommp_get_strbnd_energy')
             
-            !! use mod_bonded, only: strbnd_potential
+            use mod_bonded, only: strbnd_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -420,7 +420,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eba = 0.0
-            !! call strbnd_potential(eba)
+            call strbnd_potential(s%bds, eba)
         end function
         
         function C_ommp_get_angle_energy(s_prt) &
@@ -490,7 +490,7 @@ module mod_ommp_C_interface
         function C_ommp_get_opb_energy(s_prt) &
             result(eopb) bind(c, name='ommp_get_opb_energy')
             
-            !!use mod_bonded, only: opb_potential
+            use mod_bonded, only: opb_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -500,13 +500,13 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eopb = 0.0
-            !! call opb_potential(eopb)
+            call opb_potential(s%bds, eopb)
         end function
         
         function C_ommp_get_pitors_energy(s_prt) &
                 result(epitors) bind(c, name='ommp_get_pitors_energy')
             
-            !! use mod_bonded, only: pitors_potential
+            use mod_bonded, only: pitors_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -516,7 +516,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             epitors = 0.0
-            !! call pitors_potential(epitors)
+            call pitors_potential(s%bds, epitors)
         end function
         
         function C_ommp_get_torsion_energy(s_prt) &

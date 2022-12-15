@@ -147,6 +147,10 @@ module mod_bonded
     public :: ommp_bonded_type
     public :: bond_init, bond_potential, bond_terminate
     public :: angle_init, angle_potential, angle_terminate
+    public :: urey_init, urey_potential, urey_terminate
+    public :: strbnd_init, strbnd_potential, strbnd_terminate
+    public :: opb_init, opb_potential, opb_terminate
+    public :: pitors_init, pitors_potential, pitors_terminate
     public :: bonded_terminate
     
     contains
@@ -310,6 +314,7 @@ module mod_bonded
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
+                !! TODO MOVE THIS IN ASSIGNATION AND MAKE bds intent(in)
                 if(bds%angauxat(i) < 1) then
                     ! Find the auxiliary atom used to define the projection
                     ! plane
@@ -357,337 +362,339 @@ module mod_bonded
             end if
         end do
     end subroutine angle_potential
-!!    
-!!    subroutine strbnd_init(n)
-!!        !! Initialize arrays for calculation of stretch-bend cross term 
-!!        !! potential
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of stretch-bend functions in the potential
-!!        !! energy of the system
-!!
-!!        if( n < 1 ) return
-!!        use_strbnd = .true.
-!!
-!!        call mallocate('strbnd_init [strbndat]', 3, n, strbndat)
-!!        call mallocate('strbnd_init [strbndl10]', n, strbndl10)
-!!        call mallocate('strbnd_init [strbndl20]', n, strbndl20)
-!!        call mallocate('strbnd_init [strbndthet0]', n, strbndthet0)
-!!        call mallocate('strbnd_init [strbndk1]', n, strbndk1)
-!!        call mallocate('strbnd_init [strbndk2]', n, strbndk2)
-!!        nstrbnd = n
-!!
-!!    end subroutine strbnd_init
-!!
-!!    subroutine strbnd_potential(V)
-!!        !! Compute the stretch-bend cross term potential.   
-!!        !! Those terms are computed according the following formula:
-!!        !! \[U_{bond/angle} = (k_i \Delta l_i + k_j \Delta l_j) 
-!!        !! \Delta \theta_{ij} \]
-!!        !! where \(\theta_{ij}\) is the angle delimited by the bond \(i\) and 
-!!        !! \(j\).   
-!!        !! The force constants \(k_i\) and \(k_j\) are explicitely defined in
-!!        !! the FF, while the equilibrium values are the same as for stretching
-!!        !! and bending terms.
-!!
-!!        use mod_mmpol, only: cmm, fatal_error
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! Stretch-bend cross term potential, result will be added to V
-!!
-!!        integer(ip) :: i
-!!        real(rp) :: d_l1, d_l2, d_thet, dr1(3), dr2(3), l1, l2, thet
-!!        
-!!        if(.not. use_strbnd) return
-!!
-!!        do i=1, nstrbnd
-!!            dr1 = cmm(:, strbndat(2,i)) - cmm(:, strbndat(1,i))
-!!            l1 = norm2(dr1)
-!!            d_l1 = l1 - strbndl10(i)
-!!            
-!!            dr2 = cmm(:,strbndat(2,i)) - cmm(:, strbndat(3,i))
-!!            l2 = norm2(dr2)
-!!            d_l2 = l2 - strbndl20(i)
-!!
-!!            thet = acos(dot_product(dr1, dr2)/(l1*l2))
-!!            d_thet = thet - strbndthet0(i) 
-!!            
-!!            V = V + (d_l1*strbndk1(i) + d_l2*strbndk2(i)) * d_thet
-!!        end do
-!!    end subroutine strbnd_potential
-!!    
-!!    subroutine urey_init(n) 
-!!        !! Initialize Urey-Bradley potential arrays
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of Urey-Bradley functions in the potential
-!!        !! energy of the system
-!!        
-!!        if( n < 1 ) return
-!!        use_urey = .true.
-!!
-!!        call mallocate('urey_init [ureya]', 2, n, ureyat)
-!!        call mallocate('urey_init [kurey]', n, kurey)
-!!        call mallocate('urey_init [l0urey]', n, l0urey)
-!!        nurey = n
-!!        urey_cubic = 0.0_rp
-!!        urey_quartic = 0.0_rp
-!!
-!!    end subroutine urey_init
-!!
-!!    subroutine urey_potential(V)
-!!        !! Compute the Urey-Bradley potential.  
-!!        !! This is basically a virtual bond, with its stretching harminic 
-!!        !! potential that connect two otherwise un-connected bonds. The same
-!!        !! potential formula used for normal stretching is used.
-!!
-!!        use mod_constants, only : eps_rp
-!!        use mod_mmpol, only: cmm
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! Urey-Bradley potential, result will be added to V
-!!
-!!        integer :: i
-!!        logical :: use_cubic, use_quartic
-!!        real(rp) :: dr(3), l, dl, dl2
-!!        
-!!        if(.not. use_urey) return
-!!
-!!        use_cubic = (abs(urey_cubic) > eps_rp)
-!!        use_quartic = (abs(urey_quartic) > eps_rp)
-!!
-!!        if(.not. use_cubic .and. .not. use_quartic) then
-!!            ! This is just a regular harmonic potential
-!!            do i=1, nurey
-!!                dr = cmm(:,ureyat(1,i)) - cmm(:,ureyat(2,i))
-!!                l = sqrt(dot_product(dr, dr))
-!!                dl = l - l0urey(i)
-!!                V = V + kurey(i) * dl * dl
-!!            end do
-!!        else
-!!            do i=1, nurey
-!!                dr = cmm(:,ureyat(1,i)) - cmm(:,ureyat(2,i))
-!!                l = sqrt(dot_product(dr, dr))
-!!                dl = l - l0urey(i)
-!!                dl2 = dl * dl
-!!
-!!                V = V + kurey(i)*dl2 * (1.0_rp + urey_cubic*dl + urey_quartic*dl2)
-!!            end do
-!!        end if
-!!    end subroutine urey_potential
-!!
-!!    subroutine opb_init(n, opbtype)
-!!        !! Initialize arrays for out-of-plane bending potential calculation.   
-!!        !! @todo Currently only Allinger functional form is supported 
-!!        use mod_io, only: ommp_message
-!!        use mod_constants, only: OMMP_VERBOSE_LOW
-!!        use mod_mmpol, only: fatal_error
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of out of plane Bending functions in the potential
-!!        !! energy of the system
-!!        character(len=*) :: opbtype
-!!
-!!        select case(opbtype)
-!!            case('allinger')
-!!                continue
-!!            case('w-d-c')
-!!                call fatal_error('Out-of-plane bend W-D-C is not implemented')
-!!            case default
-!!                call ommp_message("Found OPB type: '"//opbtype//"'", OMMP_VERBOSE_LOW)
-!!                call fatal_error('Out-of-plane type specified is not understood')
-!!        end select
-!!
-!!        if( n < 1 ) return
-!!        use_opb = .true.
-!!
-!!        call mallocate('opb_init [opbat]', 4, n, opbat)
-!!        call mallocate('opb_init [kopb]', n, kopb)
-!!        nopb = n
-!!
-!!    end subroutine opb_init
-!!
-!!    subroutine opb_potential(V)
-!!        !! Computes the out-of-plane bending potential.  
-!!        !! With Allinger formula: similarly to in plane angles, here we are 
-!!        !! considering a trigonal center, where D is the central atom and 
-!!        !! A, B, C are connected to D. Allinger formula consider the angle 
-!!        !! between vector \(\vec{AD}\) and the normal vector of plane ABC, 
-!!        !! using \(\frac{\pi}{2}\) as implicit equilibrium value. The formula
-!!        !! for this potential term is:
-!!        !! \[U_{out-of-plane} = \sum_i k_i \chi_i^2 \large(1 + 
-!!        !! \sum_{j=1}^4 k^{(j+2)} \chi_i^j \large) \]
-!!
-!!        use mod_constants, only : pi
-!!        use mod_mmpol, only: cmm
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! out-of-plane potential, result will be added to V
-!!        real(rp), dimension(3) :: a, b, c, d, plv1, plv2, pln, vad
-!!        real(rp) :: lpln, lvad, thet, thet2, thet3, thet4
-!!        integer(ip) :: i
-!!
-!!        if(.not. use_opb) return
-!!        
-!!        do i=1, nopb
-!!            ! A* -- D -- C
-!!            !       |
-!!            !       B 
-!!            a = cmm(:,opbat(2,i))
-!!            d = cmm(:,opbat(1,i))
-!!            c = cmm(:,opbat(3,i))
-!!            b = cmm(:,opbat(4,i))
-!!
-!!            ! Compute the normal vector of the plane
-!!            plv1 = a - b
-!!            plv2 = a - c
-!!            pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
-!!            pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
-!!            pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
-!!            lpln = norm2(pln)
-!!
-!!            ! Vector from A to D
-!!            vad = a - d
-!!            lvad = norm2(vad)
-!!
-!!            thet = abs(pi/2.0 - acos(dot_product(vad, pln)/(lvad*lpln)))
-!!            thet2 = thet*thet
-!!            thet3 = thet2*thet
-!!            thet4 = thet3*thet
-!!            V = V +  kopb(i) * thet2 * (1 + opb_cubic*thet + opb_quartic*thet2 &
-!!                + opb_pentic*thet3 + opb_sextic*thet4)
-!!        end do
-!!    end subroutine opb_potential
-!!    
-!!    subroutine pitors_init(n)
-!!        !! Initialize arrays needed to compute pi-torsion potential
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of out of plane pi-torsion functions in the potential
-!!        !! enerpgy of the system
-!!        
-!!        if( n < 1 ) return
-!!        use_pitors = .true.
-!!
-!!        call mallocate('pitors_init [pitorsat]', 6, n, pitorsat)
-!!        call mallocate('pitors_init [kpitors]', n, kpitors)
-!!        npitors = n
-!!
-!!    end subroutine pitors_init
-!!
-!!    subroutine pitors_potential(V)
-!!        !! Compute pi-torsion terms of the potential.  
-!!        !! This potential is defined on a \(\pi\)-system, and uses the 
-!!        !! coordinates of six atoms A...F the central "double" bond is A-B, then
-!!        !! C and D are connected to A while E and F are connected to B. So two
-!!        !! plane ACD and BEF are defined. The potential is computed using the 
-!!        !! dihedral angle of the normal vector of those two planes, connected 
-!!        !! by segment A-B (\(\theta\)).  
-!!        !! The formula used is:
-!!        !! \[U_{\pi-torsion} = \sum_i k_i \large(1 + cos(2\theta-\pi) \large)\]
-!!
-!!        use mod_constants, only : pi
-!!        use mod_mmpol, only: cmm
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! pi-torsion potential, result will be added to V
-!!        real(rp), dimension(3) :: a, b, c, d, e, f, u, t, cd, plv1, plv2, pln1, pln2
-!!        real(rp) :: thet, costhet
-!!        integer(ip) :: i
-!!
-!!        if(.not. use_pitors) return
-!!        
-!!        do i=1, npitors
-!!            !
-!!            !  2(c)        5(e)         a => 1
-!!            !   \         /             b => 4
-!!            !    1(a) -- 4(b)  
-!!            !   /         \
-!!            !  3(d)        6(f)
-!!            
-!!            ! Atoms that defines the two planes
-!!            a = cmm(:,pitorsat(1,i))
-!!            c = cmm(:,pitorsat(2,i))
-!!            d = cmm(:,pitorsat(3,i))
-!!
-!!            b = cmm(:,pitorsat(4,i))
-!!            e = cmm(:,pitorsat(5,i))
-!!            f = cmm(:,pitorsat(6,i))
-!!
-!!
-!!            ! Compute the normal vector of the first plane
-!!            plv1 = d - b
-!!            plv2 = c - b
-!!            pln1(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
-!!            pln1(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
-!!            pln1(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
-!!
-!!            ! Compute the normal vector of the second plane
-!!            plv1 = f - a
-!!            plv2 = e - a
-!!            pln2(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
-!!            pln2(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
-!!            pln2(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
-!!
-!!            cd = b - a
-!!
-!!            t(1) = pln1(2)*cd(3) - pln1(3)*cd(2)
-!!            t(2) = pln1(3)*cd(1) - pln1(1)*cd(3)
-!!            t(3) = pln1(1)*cd(2) - pln1(2)*cd(1)
-!!            t = t / norm2(t)
-!!            
-!!            u(1) = cd(2)*pln2(3) - cd(3)*pln2(2)
-!!            u(2) = cd(3)*pln2(1) - cd(1)*pln2(3)
-!!            u(3) = cd(1)*pln2(2) - cd(2)*pln2(1)
-!!            u = u / norm2(u)
-!!            
-!!            costhet = dot_product(u,t)
-!!            
-!!            thet = acos(costhet)
-!!
-!!            V = V +  kpitors(i) * (1 + cos(2.0*thet-pi))
-!!        end do
-!!
-!!    end subroutine pitors_potential
+   
+    subroutine strbnd_init(bds, n)
+        !! Initialize arrays for calculation of stretch-bend cross term 
+        !! potential
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of stretch-bend functions in the potential
+        !! energy of the system
+
+        if( n < 1 ) return
+        bds%use_strbnd = .true.
+
+        call mallocate('strbnd_init [strbndat]', 3, n, bds%strbndat)
+        call mallocate('strbnd_init [strbndl10]', n, bds%strbndl10)
+        call mallocate('strbnd_init [strbndl20]', n, bds%strbndl20)
+        call mallocate('strbnd_init [strbndthet0]', n, bds%strbndthet0)
+        call mallocate('strbnd_init [strbndk1]', n, bds%strbndk1)
+        call mallocate('strbnd_init [strbndk2]', n, bds%strbndk2)
+        bds%nstrbnd = n
+
+    end subroutine strbnd_init
+
+    subroutine strbnd_potential(bds, V)
+        !! Compute the stretch-bend cross term potential.   
+        !! Those terms are computed according the following formula:
+        !! \[U_{bond/angle} = (k_i \Delta l_i + k_j \Delta l_j) 
+        !! \Delta \theta_{ij} \]
+        !! where \(\theta_{ij}\) is the angle delimited by the bond \(i\) and 
+        !! \(j\).   
+        !! The force constants \(k_i\) and \(k_j\) are explicitely defined in
+        !! the FF, while the equilibrium values are the same as for stretching
+        !! and bending terms.
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! Stretch-bend cross term potential, result will be added to V
+
+        integer(ip) :: i
+        real(rp) :: d_l1, d_l2, d_thet, dr1(3), dr2(3), l1, l2, thet
+        
+        if(.not. bds%use_strbnd) return
+
+        do i=1, bds%nstrbnd
+            dr1 = bds%top%cmm(:, bds%strbndat(2,i)) - &
+                  bds%top%cmm(:, bds%strbndat(1,i))
+            l1 = norm2(dr1)
+            d_l1 = l1 - bds%strbndl10(i)
+            
+            dr2 = bds%top%cmm(:, bds%strbndat(2,i)) - &
+                  bds%top%cmm(:, bds%strbndat(3,i))
+            l2 = norm2(dr2)
+            d_l2 = l2 - bds%strbndl20(i)
+
+            thet = acos(dot_product(dr1, dr2)/(l1*l2))
+            d_thet = thet - bds%strbndthet0(i) 
+            
+            V = V + (d_l1*bds%strbndk1(i) + d_l2*bds%strbndk2(i)) * d_thet
+        end do
+    end subroutine strbnd_potential
+    
+    subroutine urey_init(bds, n) 
+        !! Initialize Urey-Bradley potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of Urey-Bradley functions in the potential
+        !! energy of the system
+        
+        if( n < 1 ) return
+        bds%use_urey = .true.
+
+        call mallocate('urey_init [ureya]', 2, n, bds%ureyat)
+        call mallocate('urey_init [kurey]', n, bds%kurey)
+        call mallocate('urey_init [l0urey]', n, bds%l0urey)
+        bds%nurey = n
+        bds%urey_cubic = 0.0_rp
+        bds%urey_quartic = 0.0_rp
+
+    end subroutine urey_init
+
+    subroutine urey_potential(bds, V)
+        !! Compute the Urey-Bradley potential.  
+        !! This is basically a virtual bond, with its stretching harminic 
+        !! potential that connect two otherwise un-connected bonds. The same
+        !! potential formula used for normal stretching is used.
+
+        use mod_constants, only : eps_rp
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! Urey-Bradley potential, result will be added to V
+
+        integer :: i
+        logical :: use_cubic, use_quartic
+        real(rp) :: dr(3), l, dl, dl2
+        
+        if(.not. bds%use_urey) return
+
+        use_cubic = (abs(bds%urey_cubic) > eps_rp)
+        use_quartic = (abs(bds%urey_quartic) > eps_rp)
+
+        if(.not. use_cubic .and. .not. use_quartic) then
+            ! This is just a regular harmonic potential
+            do i=1, bds%nurey
+                dr = bds%top%cmm(:,bds%ureyat(1,i)) - &
+                     bds%top%cmm(:,bds%ureyat(2,i))
+                l = sqrt(dot_product(dr, dr))
+                dl = l - bds%l0urey(i)
+                V = V + bds%kurey(i) * dl * dl
+            end do
+        else
+            do i=1, bds%nurey
+                dr = bds%top%cmm(:,bds%ureyat(1,i)) - &
+                     bds%top%cmm(:,bds%ureyat(2,i))
+                l = sqrt(dot_product(dr, dr))
+                dl = l - bds%l0urey(i)
+                dl2 = dl * dl
+
+                V = V + bds%kurey(i)*dl2 * (1.0_rp + bds%urey_cubic*dl + &
+                                            bds%urey_quartic*dl2)
+            end do
+        end if
+    end subroutine urey_potential
+
+    subroutine opb_init(bds, n, opbtype)
+        !! Initialize arrays for out-of-plane bending potential calculation.   
+        !! @todo Currently only Allinger functional form is supported 
+        use mod_io, only: ommp_message
+        use mod_constants, only: OMMP_VERBOSE_LOW
+        use mod_mmpol, only: fatal_error
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of out of plane Bending functions in the potential
+        !! energy of the system
+        character(len=*) :: opbtype
+
+        select case(opbtype)
+            case('allinger')
+                continue
+            case('w-d-c')
+                call fatal_error('Out-of-plane bend W-D-C is not implemented')
+            case default
+                call ommp_message("Found OPB type: '"//opbtype//"'", OMMP_VERBOSE_LOW)
+                call fatal_error('Out-of-plane type specified is not understood')
+        end select
+
+        if( n < 1 ) return
+        bds%use_opb = .true.
+
+        call mallocate('opb_init [opbat]', 4, n, bds%opbat)
+        call mallocate('opb_init [kopb]', n, bds%kopb)
+        bds%nopb = n
+
+    end subroutine opb_init
+
+    subroutine opb_potential(bds, V)
+        !! Computes the out-of-plane bending potential.  
+        !! With Allinger formula: similarly to in plane angles, here we are 
+        !! considering a trigonal center, where D is the central atom and 
+        !! A, B, C are connected to D. Allinger formula consider the angle 
+        !! between vector \(\vec{AD}\) and the normal vector of plane ABC, 
+        !! using \(\frac{\pi}{2}\) as implicit equilibrium value. The formula
+        !! for this potential term is:
+        !! \[U_{out-of-plane} = \sum_i k_i \chi_i^2 \large(1 + 
+        !! \sum_{j=1}^4 k^{(j+2)} \chi_i^j \large) \]
+
+        use mod_constants, only : pi
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! out-of-plane potential, result will be added to V
+        real(rp), dimension(3) :: a, b, c, d, plv1, plv2, pln, vad
+        real(rp) :: lpln, lvad, thet, thet2, thet3, thet4
+        integer(ip) :: i
+
+        if(.not. bds%use_opb) return
+        
+        do i=1, bds%nopb
+            ! A* -- D -- C
+            !       |
+            !       B 
+            a = bds%top%cmm(:,bds%opbat(2,i))
+            d = bds%top%cmm(:,bds%opbat(1,i))
+            c = bds%top%cmm(:,bds%opbat(3,i))
+            b = bds%top%cmm(:,bds%opbat(4,i))
+
+            ! Compute the normal vector of the plane
+            plv1 = a - b
+            plv2 = a - c
+            pln(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+            pln(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+            pln(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+            lpln = norm2(pln)
+
+            ! Vector from A to D
+            vad = a - d
+            lvad = norm2(vad)
+
+            thet = abs(pi/2.0 - acos(dot_product(vad, pln)/(lvad*lpln)))
+            thet2 = thet*thet
+            thet3 = thet2*thet
+            thet4 = thet3*thet
+            V = V +  bds%kopb(i) * thet2 * (1 + bds%opb_cubic*thet &
+                + bds%opb_quartic*thet2 + bds%opb_pentic*thet3 &
+                + bds%opb_sextic*thet4)
+        end do
+    end subroutine opb_potential
+    
+    subroutine pitors_init(bds, n)
+        !! Initialize arrays needed to compute pi-torsion potential
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of out of plane pi-torsion functions in the potential
+        !! enerpgy of the system
+        
+        if( n < 1 ) return
+
+        bds%use_pitors = .true.
+
+        call mallocate('pitors_init [pitorsat]', 6, n, bds%pitorsat)
+        call mallocate('pitors_init [kpitors]', n, bds%kpitors)
+        bds%npitors = n
+
+    end subroutine pitors_init
+
+    subroutine pitors_potential(bds, V)
+        !! Compute pi-torsion terms of the potential.  
+        !! This potential is defined on a \(\pi\)-system, and uses the 
+        !! coordinates of six atoms A...F the central "double" bond is A-B, then
+        !! C and D are connected to A while E and F are connected to B. So two
+        !! plane ACD and BEF are defined. The potential is computed using the 
+        !! dihedral angle of the normal vector of those two planes, connected 
+        !! by segment A-B (\(\theta\)).  
+        !! The formula used is:
+        !! \[U_{\pi-torsion} = \sum_i k_i \large(1 + cos(2\theta-\pi) \large)\]
+
+        use mod_constants, only : pi
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! pi-torsion potential, result will be added to V
+        real(rp), dimension(3) :: a, b, c, d, e, f, u, t, cd, plv1, plv2, pln1, pln2
+        real(rp) :: thet, costhet
+        integer(ip) :: i
+
+        if(.not. bds%use_pitors) return
+        
+        do i=1, bds%npitors
+            !
+            !  2(c)        5(e)         a => 1
+            !   \         /             b => 4
+            !    1(a) -- 4(b)  
+            !   /         \
+            !  3(d)        6(f)
+            
+            ! Atoms that defines the two planes
+            a = bds%top%cmm(:,bds%pitorsat(1,i))
+            c = bds%top%cmm(:,bds%pitorsat(2,i))
+            d = bds%top%cmm(:,bds%pitorsat(3,i))
+
+            b = bds%top%cmm(:,bds%pitorsat(4,i))
+            e = bds%top%cmm(:,bds%pitorsat(5,i))
+            f = bds%top%cmm(:,bds%pitorsat(6,i))
+
+
+            ! Compute the normal vector of the first plane
+            plv1 = d - b
+            plv2 = c - b
+            pln1(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+            pln1(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+            pln1(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+
+            ! Compute the normal vector of the second plane
+            plv1 = f - a
+            plv2 = e - a
+            pln2(1) = plv1(2)*plv2(3) - plv1(3)*plv2(2)
+            pln2(2) = plv1(3)*plv2(1) - plv1(1)*plv2(3)
+            pln2(3) = plv1(1)*plv2(2) - plv1(2)*plv2(1)
+
+            cd = b - a
+
+            t(1) = pln1(2)*cd(3) - pln1(3)*cd(2)
+            t(2) = pln1(3)*cd(1) - pln1(1)*cd(3)
+            t(3) = pln1(1)*cd(2) - pln1(2)*cd(1)
+            t = t / norm2(t)
+            
+            u(1) = cd(2)*pln2(3) - cd(3)*pln2(2)
+            u(2) = cd(3)*pln2(1) - cd(1)*pln2(3)
+            u(3) = cd(1)*pln2(2) - cd(2)*pln2(1)
+            u = u / norm2(u)
+            
+            costhet = dot_product(u,t)
+            
+            thet = acos(costhet)
+            
+            V = V +  bds%kpitors(i) * (1 + cos(2.0*thet-pi))
+        end do
+
+    end subroutine pitors_potential
 !!    
 !!    subroutine torsion_init(n)
 !!        !! Initialize torsion potential arrays
