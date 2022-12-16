@@ -442,7 +442,7 @@ module mod_ommp_C_interface
         function C_ommp_get_angtor_energy(s_prt) &
                 result(eat) bind(c, name='ommp_get_angtor_energy')
             
-            !! use mod_bonded, only: angtor_potential
+            use mod_bonded, only: angtor_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -452,13 +452,13 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eat = 0.0
-            !! call angtor_potential(eat)
+            call angtor_potential(s%bds, eat)
         end function
         
         function C_ommp_get_strtor_energy(s_prt) &
                 result(ebt) bind(c, name='ommp_get_strtor_energy')
             
-            !! use mod_bonded, only: strtor_potential
+            use mod_bonded, only: strtor_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -468,7 +468,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             ebt = 0.0
-            !! call strtor_potential(ebt)
+            call strtor_potential(s%bds, ebt)
         end function
         
         function C_ommp_get_bond_energy(s_prt) &
@@ -522,7 +522,7 @@ module mod_ommp_C_interface
         function C_ommp_get_torsion_energy(s_prt) &
                 result(et) bind(c, name='ommp_get_torsion_energy')
             
-            !! use mod_bonded, only: torsion_potential
+            use mod_bonded, only: torsion_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -532,13 +532,13 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             et = 0.0
-            !! call torsion_potential(et)
+            call torsion_potential(s%bds, et)
         end function
         
         function C_ommp_get_tortor_energy(s_prt) &
                 result(ett) bind(c, name='ommp_get_tortor_energy')
             
-            !! use mod_bonded, only: tortor_potential
+            use mod_bonded, only: tortor_potential
 
             implicit none
             type(c_ptr), value :: s_prt
@@ -548,7 +548,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             ett = 0.0
-            !! call tortor_potential(ett)
+            call tortor_potential(s%bds, ett)
         end function
         
         function C_ommp_get_vdw_energy(s_prt) &

@@ -151,6 +151,10 @@ module mod_bonded
     public :: strbnd_init, strbnd_potential, strbnd_terminate
     public :: opb_init, opb_potential, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
+    public :: torsion_init, torsion_potential, torsion_terminate
+    public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
+    public :: strtor_init, strtor_potential, strtor_terminate
+    public :: angtor_init, angtor_potential, angtor_terminate
     public :: bonded_terminate
     
     contains
@@ -695,511 +699,516 @@ module mod_bonded
         end do
 
     end subroutine pitors_potential
-!!    
-!!    subroutine torsion_init(n)
-!!        !! Initialize torsion potential arrays
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of torsion functions in the potential
-!!        !! energy of the system
-!!        
-!!        if( n < 1 ) return
-!!        use_torsion = .true.
-!!
-!!        call mallocate('torsion_init [torsionat]', 4, n, torsionat)
-!!        call mallocate('torsion_init [torsamp]', 6, n, torsamp)
-!!        call mallocate('torsion_init [torsphase]', 6, n, torsphase)
-!!        call mallocate('torsion_init [torsn]', 6, n, torsn)
-!!
-!!        ntorsion = n
-!!
-!!    end subroutine torsion_init
-!!
-!!    subroutine torsion_potential(V)
-!!        !! Compute torsion potential
-!!        use mod_constants, only: pi, eps_rp
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! torsion potential, result will be added to V
-!!        real(rp) :: thet, costhet
-!!        integer(ip) :: i, j
-!!        
-!!        if(.not. use_torsion) return
-!!
-!!        do i=1, ntorsion
-!!            ! Atoms that defines the dihedral angle
-!!            costhet = cos_torsion(torsionat(:,i))
-!!            
-!!            if(costhet + 1.0 <= eps_rp) then
-!!                thet = pi
-!!            else
-!!                thet = acos(costhet)
-!!            end if
-!!
-!!            do j=1, 6
-!!                if(torsn(j,i) < 1) exit
-!!                V = V + torsamp(j,i) * (1+cos(real(torsn(j,i))*thet - torsphase(j,i)))
-!!            end do
-!!        end do
-!!
-!!    end subroutine torsion_potential
-!!    
-!!    subroutine angtor_init(n)
-!!        !! Initialize angle-torsion coupling potential arrays
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of angle torsion coupling functions in the potential
-!!        !! energy of the system
-!!        
-!!        if( n < 1 ) return
-!!        use_angtor = .true.
-!!
-!!        call mallocate('angtor_init [angtorat]', 4, n, angtorat)
-!!        call mallocate('angtor_init [angtork]', 6, n, angtork)
-!!        call mallocate('angtor_init [angtor_t]', n, angtor_t)
-!!        call mallocate('angtor_init [angtor_a]', 2, n, angtor_a)
-!!
-!!        nangtor = n
-!!
-!!    end subroutine angtor_init
-!!    
-!!    subroutine strtor_init(n)
-!!        
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        
-!!        if( n < 1 ) return
-!!        use_strtor = .true.
-!!
-!!        call mallocate('strtor_init [strtorat]', 4, n, strtorat)
-!!        call mallocate('strtor_init [strtork]', 9, n, strtork)
-!!        call mallocate('strtor_init [strtor_t]', n, strtor_t)
-!!        call mallocate('strtor_init [strtor_a]', 3, n, strtor_b)
-!!
-!!        nstrtor = n
-!!
-!!    end subroutine strtor_init
-!!    
-!!    subroutine angtor_potential(V)
-!!        use mod_mmpol, only: cmm
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        real(rp) :: thet, costhet, dihef(3), delta_a(2), vat, l1, l2, &
-!!                    dr1(3), dr2(3), angle1, angle2
-!!        integer(ip) :: i, j, k, ia1, ia2
-!!        
-!!        if(.not. use_torsion) return
-!!
-!!        do i=1, nangtor
-!!            ! Atoms that defines the dihedral angle
-!!            costhet = cos_torsion(angtorat(:,i))
-!!            thet = acos(costhet)
-!!            do j=1, 3
-!!                dihef(j) = 1.0 + cos(j*thet+torsphase(j,angtor_t(i)))
-!!            end do
-!!
-!!            ia1 = angtor_a(1,i)
-!!            ia2 = angtor_a(2,i)
-!!            
-!!            dr1 = cmm(:, angleat(1,ia1)) - cmm(:, angleat(2,ia1))
-!!            dr2 = cmm(:, angleat(3,ia1)) - cmm(:, angleat(2,ia1))
-!!            l1 = norm2(dr1)
-!!            l2 = norm2(dr2)
-!!            angle1 = acos(dot_product(dr1, dr2)/(l1*l2))
-!!
-!!            dr1 = cmm(:, angleat(1,ia2)) - cmm(:, angleat(2,ia2))
-!!            dr2 = cmm(:, angleat(3,ia2)) - cmm(:, angleat(2,ia2))
-!!            l1 = norm2(dr1)
-!!            l2 = norm2(dr2)
-!!            angle2 = acos(dot_product(dr1, dr2)/(l1*l2))
-!!           
-!!            delta_a(1) = angle1 - eqangle(angtor_a(1,i))
-!!            delta_a(2) = angle2 - eqangle(angtor_a(2,i))
-!!
-!!            do j=1,2
-!!                vat = 0.0
-!!                do k=1, 3
-!!                    vat = vat + angtork((j-1)*3+k,i) * dihef(k)
-!!                end do
-!!                V = V + vat * delta_a(j)
-!!            end do
-!!        end do
-!!
-!!    end subroutine angtor_potential
-!!    
-!!    subroutine strtor_potential(V)
-!!        use mod_mmpol, only: cmm
-!!        use mod_constants
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        real(rp) :: thet, costhet, dihef(3), dr(3), r(3), vst
-!!        integer(ip) :: i, j, k, ib1, ib2, ib3
-!!        
-!!        if(.not. use_torsion) return
-!!
-!!        do i=1, nstrtor
-!!            ! Atoms that defines the dihedral angle
-!!            costhet = cos_torsion(strtorat(:,i))
-!!            thet = acos(costhet)
-!!            do j=1, 3
-!!                dihef(j) = 1.0 + cos(j*thet+torsphase(j,strtor_t(i)))
-!!            end do
-!!
-!!            ib1 = strtor_b(1,i) 
-!!            ib2 = strtor_b(2,i)
-!!            ib3 = strtor_b(3,i)
-!!            r(1) = norm2(cmm(:, bondat(1,ib1)) - cmm(:, bondat(2,ib1)))
-!!            r(2) = norm2(cmm(:, bondat(1,ib2)) - cmm(:, bondat(2,ib2)))
-!!            r(3) = norm2(cmm(:, bondat(1,ib3)) - cmm(:, bondat(2,ib3)))
-!!            dr(1) = r(1) - l0bond(ib1)  
-!!            dr(2) = r(2) - l0bond(ib2)  
-!!            dr(3) = r(3) - l0bond(ib3)  
-!!            
-!!            do j=1,3
-!!                vst = 0.0
-!!                do k=1, 3
-!!                    vst = vst + strtork((j-1)*3+k,i) * dihef(k)
-!!                end do
-!!                V = V + vst * dr(j)
-!!            end do
-!!        end do
-!!
-!!    end subroutine strtor_potential
-!!    
-!!    subroutine tortor_init(n)
-!!        !! Initialize torsion-torsion correction potential arrays
-!!
-!!        use mod_memory, only: mallocate
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip) :: n
-!!        !! Number of torsion-torsion 'map' functions in the potential
-!!        !! energy of the system
-!!
-!!        if( n < 1 ) return
-!!        use_tortor = .true.
-!!        
-!!        call mallocate('torsion_init [tortorprm]', n, tortorprm )
-!!        call mallocate('torsion_init [tortorat]', 5, n, tortorat)
-!!
-!!        ntortor = n
-!!
-!!    end subroutine tortor_init
-!!
-!!    subroutine tortor_newmap(d1, d2, ang1, ang2, v)
-!!        !! Store in module memory the data describing a new torsion-torsion 
-!!        !! map
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_utils, only: cyclic_spline
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        integer(ip), intent(in) :: d1, d2
-!!        !! Dimensions of the new map to be saved
-!!        real(rp), intent(in) :: ang1(:)
-!!        !! Value of torsion1 for the new map 
-!!        real(rp), intent(in) :: ang2(:)
-!!        !! Value of torsion2 for the new map 
-!!        real(rp), intent(in) :: v(:)
-!!        !! Value of potential for the new map 
-!!
-!!        integer :: i, j, ii
-!!        real(rp), allocatable, dimension(:) :: a, b, c, d, dx, dy, dxy, tmpx, tmpy
-!!        
-!!        real(rp), allocatable :: rtmp(:)
-!!        integer(ip), allocatable :: itmp(:,:)
-!!        integer(ip) :: n_data, n_map
-!!
-!!        if(allocated(ttmap_ang1)) then
-!!            ! Reallocate the arrays to make space for the new data
-!!            n_data = size(ttmap_ang1)
-!!            call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
-!!            
-!!            rtmp = ttmap_ang1
-!!            call mfree('torstors_newmap [ttmap_ang1]', ttmap_ang1)
-!!            call mallocate('torstors_newmap [ttmap_ang1]', &
-!!                           n_data+d1*d2,  ttmap_ang1)
-!!            ttmap_ang1(:n_data) = rtmp
-!!            
-!!            rtmp = ttmap_ang2
-!!            call mfree('torstors_newmap [ttmap_ang2]', ttmap_ang2)
-!!            call mallocate('torstors_newmap [ttmap_ang2]', &
-!!                           n_data+d1*d2,  ttmap_ang2)
-!!            ttmap_ang2(:n_data) = rtmp
-!!            
-!!            
-!!            call mfree('torstors_newmap [rtmp]', rtmp)
-!!            n_data = size(ttmap_v)
-!!            call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
-!!            
-!!            rtmp = ttmap_v
-!!            call mfree('torstors_newmap [ttmap_v]', ttmap_v)
-!!            call mallocate('torstors_newmap [ttmap_v]', &
-!!                           n_data+d1*d2,  ttmap_v)
-!!            ttmap_v(:n_data) = rtmp
-!!            
-!!            rtmp = ttmap_vx
-!!            call mfree('torstors_newmap [ttmap_vx]', ttmap_vx)
-!!            call mallocate('torstors_newmap [ttmap_vx]', &
-!!                           n_data+d1*d2,  ttmap_vx)
-!!            ttmap_vx(:n_data) = rtmp
-!!
-!!            rtmp = ttmap_vy
-!!            call mfree('torstors_newmap [ttmap_vy]', ttmap_vy)
-!!            call mallocate('torstors_newmap [ttmap_vy]', &
-!!                           n_data+d1*d2,  ttmap_vy)
-!!            ttmap_vy(:n_data) = rtmp
-!!
-!!            rtmp = ttmap_vxy
-!!            call mfree('torstors_newmap [ttmap_vxy]', ttmap_vxy)
-!!            call mallocate('torstors_newmap [ttmap_vxy]', &
-!!                           n_data+d1*d2,  ttmap_vxy)
-!!            ttmap_vxy(:n_data) = rtmp
-!!            call mfree('torstors_newmap [rtmp]', rtmp)
-!!
-!!            n_map = size(ttmap_shape, 2)
-!!            call mallocate('torstors_newmap [itmp]', 2, n_map, itmp)
-!!            itmp = ttmap_shape
-!!            call mfree('torstors_newmap [ttmap_shape]', ttmap_shape)
-!!            call mallocate('torstors_newmap [ttmap_shape]', &
-!!                           2, n_map+1, ttmap_shape)
-!!            ttmap_shape(:,:n_map) = itmp
-!!
-!!            call mfree('torstors_newmap [itmp]', itmp)
-!!        else 
-!!            ! First allocation, n_data and n_map are just set for consistency
-!!            n_data = 0
-!!            n_map = 0
-!!            call mallocate('torstors_newmap [ttmap_ang1]', d1*d2,  ttmap_ang1)
-!!            call mallocate('torstors_newmap [ttmap_ang2]', d1*d2,  ttmap_ang2)
-!!            call mallocate('torstors_newmap [ttmap_v]', d1*d2,  ttmap_v)
-!!            call mallocate('torstors_newmap [ttmap_vx]', d1*d2,  ttmap_vx)
-!!            call mallocate('torstors_newmap [ttmap_vy]', d1*d2,  ttmap_vy)
-!!            call mallocate('torstors_newmap [ttmap_vxy]', d1*d2,  ttmap_vxy)
-!!            call mallocate('torstors_newmap [ttmap_shape]', 2, 1, ttmap_shape)
-!!        end if
-!!
-!!        call mallocate('tortor_newmap [a]', max(d1,d2), a)
-!!        call mallocate('tortor_newmap [b]', max(d1,d2), b)
-!!        call mallocate('tortor_newmap [c]', max(d1,d2), c)
-!!        call mallocate('tortor_newmap [d]', max(d1,d2), d)
-!!        call mallocate('tortor_newmap [dx]', d1*d2, dx)
-!!        call mallocate('tortor_newmap [dy]', d1*d2, dy)
-!!        call mallocate('tortor_newmap [dxy]', d1*d2, dxy)
-!!
-!!        ! This part of the code computes df/dx, df/dy and d^2f/dxdy on the grid.
-!!        ! Since we are basically interpolating on a sphere, we extract the 
-!!        ! coordinate on a meridian, we interpolate it with a cubic spline, and
-!!        ! finally we compute the derivative of this curve at the grid intersection
-!!        ! The same is done in the second direction.
-!!        ! To compute the mixed derivative we apply the same procedure but using
-!!        ! the derivative data (basically we apply the procedure used to compute
-!!        ! df/dx but using  df/dy data instead of actual f values.
-!!        do i=1, d2
-!!            call cyclic_spline(d1, ang1((i-1)*d1+1:i*d1), v((i-1)*d1+1:i*d1), &
-!!                               a(1:d1), b(1:d1), c(1:d1), d(1:d1))
-!!            dx((i-1)*d1+1:i*d1) = b(1:d1)
-!!        end do
-!!        
-!!        ! df/dy since in this direction data are not contiguous, wa allocate 
-!!        ! temporary arrays
-!!        call mallocate('tortor_newmap [tmpx]', d2, tmpx)
-!!        call mallocate('tortor_newmap [tmpy]', d2, tmpy)
-!!        do i=1, d1
-!!            ii = 1
-!!            do j=i, (d2-1)*d1+i, d2
-!!                tmpx(ii) = ang2(j)
-!!                tmpy(ii) = v(j)
-!!                ii = ii + 1
-!!            end do
-!!            call cyclic_spline(d2, tmpx, tmpy, &
-!!                               a(1:d2), b(1:d2), c(1:d2), d(1:d2))
-!!            
-!!            ii = 1
-!!            do j=i, (d2-1)*d1+i, d2
-!!                dy(j) = b(ii)
-!!                ii = ii + 1
-!!            end do
-!!        end do
-!!        
-!!        ! d^2f/dxdy in this case we use df/dx procedure to exploit data contiguity.
-!!        do i=1, d2
-!!            call cyclic_spline(d1, ang1((i-1)*d1+1:i*d1), dy((i-1)*d1+1:i*d1), &
-!!                               a(1:d1), b(1:d1), c(1:d1), d(1:d1))
-!!            dxy((i-1)*d1+1:i*d1) = b(1:d1)
-!!        end do
-!!        call mfree('tortor_newmap [tmpx]', tmpx)
-!!        call mfree('tortor_newmap [tmpy]', tmpy)
-!!
-!!        ttmap_ang1(n_data+1:) = ang1
-!!        ttmap_ang2(n_data+1:) = ang2
-!!        ttmap_shape(1,n_map+1) = d1
-!!        ttmap_shape(2,n_map+1) = d2
-!!        ttmap_v(n_data+1:) = v
-!!        ttmap_vx(n_data+1:) = dx
-!!        ttmap_vy(n_data+1:) = dy
-!!        ttmap_vxy(n_data+1:) = dxy
-!!        
-!!        call mfree('tortor_newmap [a]', a)
-!!        call mfree('tortor_newmap [b]', b)
-!!        call mfree('tortor_newmap [c]', c)
-!!        call mfree('tortor_newmap [d]', d)
-!!        call mfree('tortor_newmap [dx]', dx)
-!!        call mfree('tortor_newmap [dy]', dy)
-!!        call mfree('tortor_newmap [dxy]', dxy)
-!!
-!!    end subroutine tortor_newmap
-!!
-!!    subroutine tortor_potential(V)
-!!        !! Compute torsion potential
-!!
-!!        use mod_utils, only: compute_bicubic_interp
-!!
-!!        implicit none
-!!
-!!        type(ommp_bonded_type) :: bds
-!!        ! Bonded potential data structure
-!!        real(rp), intent(inout) :: V
-!!        !! torsion potential, result will be added to V
-!!        real(rp) :: thetx, thety, vtt
-!!
-!!        integer(ip) :: i, j, iprm, ibeg, iend
-!!
-!!        if(.not. use_tortor) return
-!!        
-!!        do i=1, ntortor
-!!            ! Atoms that defines the two angles
-!!            iprm = tortorprm(i)
-!!            ibeg = 1
-!!            do j=1, iprm-1
-!!                ibeg = ibeg + ttmap_shape(1,j)*ttmap_shape(2,j)
-!!            end do
-!!            iend = ibeg + ttmap_shape(1,iprm)*ttmap_shape(2,iprm) - 1
-!!           
-!!            thetx = ang_torsion(tortorat(1:4,i))
-!!            thety = ang_torsion(tortorat(2:5,i))
-!!           
-!!            call compute_bicubic_interp(thetx, thety, vtt, &
-!!                                        ttmap_shape(1,iprm), &
-!!                                        ttmap_shape(2,iprm), &
-!!                                        ttmap_ang1(ibeg:iend), &
-!!                                        ttmap_ang2(ibeg:iend), &
-!!                                        ttmap_v(ibeg:iend), &
-!!                                        ttmap_vx(ibeg:iend), &
-!!                                        ttmap_vy(ibeg:iend), &
-!!                                        ttmap_vxy(ibeg:iend))
-!!            V = V + vtt
-!!        end do
-!!
-!!    end subroutine tortor_potential
-!!
-!!    pure function cos_torsion(idx)
-!!        !! Compute the cosine of torsional angle between four atoms specified
-!!        !! with indices idx
-!!        use mod_mmpol, only: cmm
-!!        
-!!        implicit none
-!!
-!!        integer(ip), intent(in) :: idx(4)
-!!        real(rp) :: cos_torsion
-!!
-!!        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
-!!            
-!!        a = cmm(:,idx(1))
-!!        b = cmm(:,idx(2))
-!!        c = cmm(:,idx(3))
-!!        d = cmm(:,idx(4))
-!!
-!!        ab = b - a
-!!        cd = d - c
-!!        cb = b - c
-!!
-!!        t(1) = ab(2)*cb(3) - ab(3)*cb(2)
-!!        t(2) = ab(3)*cb(1) - ab(1)*cb(3)
-!!        t(3) = ab(1)*cb(2) - ab(2)*cb(1)
-!!        t = t / norm2(t)
-!!            
-!!        u(1) = cb(2)*cd(3) - cb(3)*cd(2)
-!!        u(2) = cb(3)*cd(1) - cb(1)*cd(3)
-!!        u(3) = cb(1)*cd(2) - cb(2)*cd(1)
-!!        u = u / norm2(u)
-!!            
-!!        cos_torsion = dot_product(u,t)
-!!        return 
-!!
-!!    end function
-!!    
-!!    pure function ang_torsion(idx)
-!!        !! Compute the torsional angle between four atoms specified
-!!        !! with indices idx; results are in range [-pi;pi]
-!!        use mod_mmpol, only: cmm
-!!        
-!!        implicit none
-!!
-!!        integer(ip), intent(in) :: idx(4)
-!!        real(rp) :: cos_torsion, ang_torsion
-!!
-!!        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
-!!            
-!!        a = cmm(:,idx(1))
-!!        b = cmm(:,idx(2))
-!!        c = cmm(:,idx(3))
-!!        d = cmm(:,idx(4))
-!!
-!!        ab = b - a
-!!        cd = d - c
-!!        cb = b - c
-!!
-!!        t(1) = ab(2)*cb(3) - ab(3)*cb(2)
-!!        t(2) = ab(3)*cb(1) - ab(1)*cb(3)
-!!        t(3) = ab(1)*cb(2) - ab(2)*cb(1)
-!!        t = t / norm2(t)
-!!            
-!!        u(1) = cb(2)*cd(3) - cb(3)*cd(2)
-!!        u(2) = cb(3)*cd(1) - cb(1)*cd(3)
-!!        u(3) = cb(1)*cd(2) - cb(2)*cd(1)
-!!        u = u / norm2(u)
-!!            
-!!        cos_torsion = dot_product(u,t)
-!!        ang_torsion = acos(cos_torsion)
-!!        if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
-!!        return 
-!!
-!!    end function
+    
+    subroutine torsion_init(bds, n)
+        !! Initialize torsion potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of torsion functions in the potential
+        !! energy of the system
+        
+        if( n < 1 ) return
+        bds%use_torsion = .true.
+
+        call mallocate('torsion_init [torsionat]', 4, n, bds%torsionat)
+        call mallocate('torsion_init [torsamp]', 6, n, bds%torsamp)
+        call mallocate('torsion_init [torsphase]', 6, n, bds%torsphase)
+        call mallocate('torsion_init [torsn]', 6, n, bds%torsn)
+
+        bds%ntorsion = n
+
+    end subroutine torsion_init
+
+    subroutine torsion_potential(bds, V)
+        !! Compute torsion potential
+        use mod_constants, only: pi, eps_rp
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! torsion potential, result will be added to V
+        real(rp) :: thet, costhet
+        integer(ip) :: i, j
+        
+        if(.not. bds%use_torsion) return
+
+        do i=1, bds%ntorsion
+            ! Atoms that defines the dihedral angle
+            costhet = cos_torsion(bds%top, bds%torsionat(:,i))
+            
+            if(costhet + 1.0 <= eps_rp) then
+                thet = pi
+            else
+                thet = acos(costhet)
+            end if
+
+            do j=1, 6
+                if(bds%torsn(j,i) < 1) exit
+                V = V + bds%torsamp(j,i) * (1+cos(real(bds%torsn(j,i))*thet &
+                                            - bds%torsphase(j,i)))
+            end do
+        end do
+
+    end subroutine torsion_potential
+    
+    subroutine angtor_init(bds, n)
+        !! Initialize angle-torsion coupling potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of angle torsion coupling functions in the potential
+        !! energy of the system
+        
+        if( n < 1 ) return
+        bds%use_angtor = .true.
+
+        call mallocate('angtor_init [angtorat]', 4, n, bds%angtorat)
+        call mallocate('angtor_init [angtork]', 6, n, bds%angtork)
+        call mallocate('angtor_init [angtor_t]', n, bds%angtor_t)
+        call mallocate('angtor_init [angtor_a]', 2, n, bds%angtor_a)
+
+        bds%nangtor = n
+
+    end subroutine angtor_init
+    
+    subroutine strtor_init(bds, n)
+        
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        
+        if( n < 1 ) return
+        bds%use_strtor = .true.
+
+        call mallocate('strtor_init [strtorat]', 4, n, bds%strtorat)
+        call mallocate('strtor_init [strtork]', 9, n, bds%strtork)
+        call mallocate('strtor_init [strtor_t]', n, bds%strtor_t)
+        call mallocate('strtor_init [strtor_a]', 3, n, bds%strtor_b)
+
+        bds%nstrtor = n
+
+    end subroutine strtor_init
+    
+    subroutine angtor_potential(bds, V)
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        real(rp) :: thet, costhet, dihef(3), delta_a(2), vat, l1, l2, &
+                    dr1(3), dr2(3), angle1, angle2
+        integer(ip) :: i, j, k, ia1, ia2
+        
+        if(.not. bds%use_angtor) return
+
+        do i=1, bds%nangtor
+            ! Atoms that defines the dihedral angle
+            costhet = cos_torsion(bds%top, bds%angtorat(:,i))
+            thet = acos(costhet)
+            do j=1, 3
+                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            end do
+
+            ia1 = bds%angtor_a(1,i)
+            ia2 = bds%angtor_a(2,i)
+            
+            dr1 = bds%top%cmm(:, bds%angleat(1,ia1)) - &
+                  bds%top%cmm(:, bds%angleat(2,ia1))
+            dr2 = bds%top%cmm(:, bds%angleat(3,ia1)) - &
+                  bds%top%cmm(:, bds%angleat(2,ia1))
+            l1 = norm2(dr1)
+            l2 = norm2(dr2)
+            angle1 = acos(dot_product(dr1, dr2)/(l1*l2))
+
+            dr1 = bds%top%cmm(:, bds%angleat(1,ia2)) - &
+                  bds%top%cmm(:, bds%angleat(2,ia2))
+            dr2 = bds%top%cmm(:, bds%angleat(3,ia2)) - &
+                  bds%top%cmm(:, bds%angleat(2,ia2))
+            l1 = norm2(dr1)
+            l2 = norm2(dr2)
+            angle2 = acos(dot_product(dr1, dr2)/(l1*l2))
+           
+            delta_a(1) = angle1 - bds%eqangle(bds%angtor_a(1,i))
+            delta_a(2) = angle2 - bds%eqangle(bds%angtor_a(2,i))
+
+            do j=1,2
+                vat = 0.0
+                do k=1, 3
+                    vat = vat + bds%angtork((j-1)*3+k,i) * dihef(k)
+                end do
+                V = V + vat * delta_a(j)
+            end do
+        end do
+
+    end subroutine angtor_potential
+    
+    subroutine strtor_potential(bds, V)
+        use mod_constants
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        real(rp) :: thet, costhet, dihef(3), dr(3), r(3), vst
+        integer(ip) :: i, j, k, ib1, ib2, ib3
+        
+        if(.not. bds%use_torsion) return
+
+        do i=1, bds%nstrtor
+            ! Atoms that defines the dihedral angle
+            costhet = cos_torsion(bds%top, bds%strtorat(:,i))
+            thet = acos(costhet)
+            do j=1, 3
+                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%strtor_t(i)))
+            end do
+
+            ib1 = bds%strtor_b(1,i) 
+            ib2 = bds%strtor_b(2,i)
+            ib3 = bds%strtor_b(3,i)
+            r(1) = norm2(bds%top%cmm(:, bds%bondat(1,ib1)) - &
+                         bds%top%cmm(:, bds%bondat(2,ib1)))
+            r(2) = norm2(bds%top%cmm(:, bds%bondat(1,ib2)) - &
+                         bds%top%cmm(:, bds%bondat(2,ib2)))
+            r(3) = norm2(bds%top%cmm(:, bds%bondat(1,ib3)) - &
+                         bds%top%cmm(:, bds%bondat(2,ib3)))
+            dr(1) = r(1) - bds%l0bond(ib1)  
+            dr(2) = r(2) - bds%l0bond(ib2)  
+            dr(3) = r(3) - bds%l0bond(ib3)  
+            
+            do j=1,3
+                vst = 0.0
+                do k=1, 3
+                    vst = vst + bds%strtork((j-1)*3+k,i) * dihef(k)
+                end do
+                V = V + vst * dr(j)
+            end do
+        end do
+
+    end subroutine strtor_potential
+    
+    subroutine tortor_init(bds, n)
+        !! Initialize torsion-torsion correction potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of torsion-torsion 'map' functions in the potential
+        !! energy of the system
+
+        if( n < 1 ) return
+        bds%use_tortor = .true.
+        
+        call mallocate('torsion_init [tortorprm]', n, bds%tortorprm )
+        call mallocate('torsion_init [tortorat]', 5, n, bds%tortorat)
+
+        bds%ntortor = n
+
+    end subroutine tortor_init
+
+    subroutine tortor_newmap(bds, d1, d2, ang1, ang2, v)
+        !! Store in module memory the data describing a new torsion-torsion 
+        !! map
+        use mod_memory, only: mallocate, mfree
+        use mod_utils, only: cyclic_spline
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip), intent(in) :: d1, d2
+        !! Dimensions of the new map to be saved
+        real(rp), intent(in) :: ang1(:)
+        !! Value of torsion1 for the new map 
+        real(rp), intent(in) :: ang2(:)
+        !! Value of torsion2 for the new map 
+        real(rp), intent(in) :: v(:)
+        !! Value of potential for the new map 
+
+        integer :: i, j, ii
+        real(rp), allocatable, dimension(:) :: a, b, c, d, dx, dy, dxy, tmpx, tmpy
+        
+        real(rp), allocatable :: rtmp(:)
+        integer(ip), allocatable :: itmp(:,:)
+        integer(ip) :: n_data, n_map
+
+        if(allocated(bds%ttmap_ang1)) then
+            ! Reallocate the arrays to make space for the new data
+            n_data = size(bds%ttmap_ang1)
+            call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
+            
+            rtmp = bds%ttmap_ang1
+            call mfree('torstors_newmap [ttmap_ang1]', bds%ttmap_ang1)
+            call mallocate('torstors_newmap [ttmap_ang1]', &
+                           n_data+d1*d2,  bds%ttmap_ang1)
+            bds%ttmap_ang1(:n_data) = rtmp
+            
+            rtmp = bds%ttmap_ang2
+            call mfree('torstors_newmap [ttmap_ang2]', bds%ttmap_ang2)
+            call mallocate('torstors_newmap [ttmap_ang2]', &
+                           n_data+d1*d2,  bds%ttmap_ang2)
+            bds%ttmap_ang2(:n_data) = rtmp
+            
+            
+            call mfree('torstors_newmap [rtmp]', rtmp)
+            n_data = size(bds%ttmap_v)
+            call mallocate('torstors_newmap [rtmp]', n_data, rtmp)
+            
+            rtmp = bds%ttmap_v
+            call mfree('torstors_newmap [ttmap_v]', bds%ttmap_v)
+            call mallocate('torstors_newmap [ttmap_v]', &
+                           n_data+d1*d2,  bds%ttmap_v)
+            bds%ttmap_v(:n_data) = rtmp
+            
+            rtmp = bds%ttmap_vx
+            call mfree('torstors_newmap [ttmap_vx]', bds%ttmap_vx)
+            call mallocate('torstors_newmap [ttmap_vx]', &
+                           n_data+d1*d2,  bds%ttmap_vx)
+            bds%ttmap_vx(:n_data) = rtmp
+
+            rtmp = bds%ttmap_vy
+            call mfree('torstors_newmap [ttmap_vy]', bds%ttmap_vy)
+            call mallocate('torstors_newmap [ttmap_vy]', &
+                           n_data+d1*d2,  bds%ttmap_vy)
+            bds%ttmap_vy(:n_data) = rtmp
+
+            rtmp = bds%ttmap_vxy
+            call mfree('torstors_newmap [ttmap_vxy]', bds%ttmap_vxy)
+            call mallocate('torstors_newmap [ttmap_vxy]', &
+                           n_data+d1*d2,  bds%ttmap_vxy)
+            bds%ttmap_vxy(:n_data) = rtmp
+            call mfree('torstors_newmap [rtmp]', rtmp)
+
+            n_map = size(bds%ttmap_shape, 2)
+            call mallocate('torstors_newmap [itmp]', 2, n_map, itmp)
+            itmp = bds%ttmap_shape
+            call mfree('torstors_newmap [ttmap_shape]', bds%ttmap_shape)
+            call mallocate('torstors_newmap [ttmap_shape]', &
+                           2, n_map+1, bds%ttmap_shape)
+            bds%ttmap_shape(:,:n_map) = itmp
+
+            call mfree('torstors_newmap [itmp]', itmp)
+        else 
+            ! First allocation, n_data and n_map are just set for consistency
+            n_data = 0
+            n_map = 0
+            call mallocate('torstors_newmap [ttmap_ang1]', d1*d2,  bds%ttmap_ang1)
+            call mallocate('torstors_newmap [ttmap_ang2]', d1*d2,  bds%ttmap_ang2)
+            call mallocate('torstors_newmap [ttmap_v]', d1*d2,  bds%ttmap_v)
+            call mallocate('torstors_newmap [ttmap_vx]', d1*d2,  bds%ttmap_vx)
+            call mallocate('torstors_newmap [ttmap_vy]', d1*d2,  bds%ttmap_vy)
+            call mallocate('torstors_newmap [ttmap_vxy]', d1*d2,  bds%ttmap_vxy)
+            call mallocate('torstors_newmap [ttmap_shape]', 2, 1, bds%ttmap_shape)
+        end if
+
+        call mallocate('tortor_newmap [a]', max(d1,d2), a)
+        call mallocate('tortor_newmap [b]', max(d1,d2), b)
+        call mallocate('tortor_newmap [c]', max(d1,d2), c)
+        call mallocate('tortor_newmap [d]', max(d1,d2), d)
+        call mallocate('tortor_newmap [dx]', d1*d2, dx)
+        call mallocate('tortor_newmap [dy]', d1*d2, dy)
+        call mallocate('tortor_newmap [dxy]', d1*d2, dxy)
+
+        ! This part of the code computes df/dx, df/dy and d^2f/dxdy on the grid.
+        ! Since we are basically interpolating on a sphere, we extract the 
+        ! coordinate on a meridian, we interpolate it with a cubic spline, and
+        ! finally we compute the derivative of this curve at the grid intersection
+        ! The same is done in the second direction.
+        ! To compute the mixed derivative we apply the same procedure but using
+        ! the derivative data (basically we apply the procedure used to compute
+        ! df/dx but using  df/dy data instead of actual f values.
+        do i=1, d2
+            call cyclic_spline(d1, ang1((i-1)*d1+1:i*d1), v((i-1)*d1+1:i*d1), &
+                               a(1:d1), b(1:d1), c(1:d1), d(1:d1))
+            dx((i-1)*d1+1:i*d1) = b(1:d1)
+        end do
+        
+        ! df/dy since in this direction data are not contiguous, wa allocate 
+        ! temporary arrays
+        call mallocate('tortor_newmap [tmpx]', d2, tmpx)
+        call mallocate('tortor_newmap [tmpy]', d2, tmpy)
+        do i=1, d1
+            ii = 1
+            do j=i, (d2-1)*d1+i, d2
+                tmpx(ii) = ang2(j)
+                tmpy(ii) = v(j)
+                ii = ii + 1
+            end do
+            call cyclic_spline(d2, tmpx, tmpy, &
+                               a(1:d2), b(1:d2), c(1:d2), d(1:d2))
+            
+            ii = 1
+            do j=i, (d2-1)*d1+i, d2
+                dy(j) = b(ii)
+                ii = ii + 1
+            end do
+        end do
+        
+        ! d^2f/dxdy in this case we use df/dx procedure to exploit data contiguity.
+        do i=1, d2
+            call cyclic_spline(d1, ang1((i-1)*d1+1:i*d1), dy((i-1)*d1+1:i*d1), &
+                               a(1:d1), b(1:d1), c(1:d1), d(1:d1))
+            dxy((i-1)*d1+1:i*d1) = b(1:d1)
+        end do
+        call mfree('tortor_newmap [tmpx]', tmpx)
+        call mfree('tortor_newmap [tmpy]', tmpy)
+
+        bds%ttmap_ang1(n_data+1:) = ang1
+        bds%ttmap_ang2(n_data+1:) = ang2
+        bds%ttmap_shape(1,n_map+1) = d1
+        bds%ttmap_shape(2,n_map+1) = d2
+        bds%ttmap_v(n_data+1:) = v
+        bds%ttmap_vx(n_data+1:) = dx
+        bds%ttmap_vy(n_data+1:) = dy
+        bds%ttmap_vxy(n_data+1:) = dxy
+        
+        call mfree('tortor_newmap [a]', a)
+        call mfree('tortor_newmap [b]', b)
+        call mfree('tortor_newmap [c]', c)
+        call mfree('tortor_newmap [d]', d)
+        call mfree('tortor_newmap [dx]', dx)
+        call mfree('tortor_newmap [dy]', dy)
+        call mfree('tortor_newmap [dxy]', dxy)
+
+    end subroutine tortor_newmap
+
+    subroutine tortor_potential(bds, V)
+        !! Compute torsion potential
+
+        use mod_utils, only: compute_bicubic_interp
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! torsion potential, result will be added to V
+        real(rp) :: thetx, thety, vtt
+
+        integer(ip) :: i, j, iprm, ibeg, iend
+
+        if(.not. bds%use_tortor) return
+        
+        do i=1, bds%ntortor
+            ! Atoms that defines the two angles
+            iprm = bds%tortorprm(i)
+            ibeg = 1
+            do j=1, iprm-1
+                ibeg = ibeg + bds%ttmap_shape(1,j)*bds%ttmap_shape(2,j)
+            end do
+            iend = ibeg + bds%ttmap_shape(1,iprm)*bds%ttmap_shape(2,iprm) - 1
+           
+            thetx = ang_torsion(bds%top, bds%tortorat(1:4,i))
+            thety = ang_torsion(bds%top, bds%tortorat(2:5,i))
+           
+            call compute_bicubic_interp(thetx, thety, vtt, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+            V = V + vtt
+        end do
+
+    end subroutine tortor_potential
+
+    pure function cos_torsion(top, idx)
+        !! Compute the cosine of torsional angle between four atoms specified
+        !! with indices idx
+        
+        implicit none
+
+        type(ommp_topology_type), intent(in) :: top
+        integer(ip), intent(in) :: idx(4)
+        real(rp) :: cos_torsion
+
+        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
+            
+        a = top%cmm(:,idx(1))
+        b = top%cmm(:,idx(2))
+        c = top%cmm(:,idx(3))
+        d = top%cmm(:,idx(4))
+
+        ab = b - a
+        cd = d - c
+        cb = b - c
+
+        t(1) = ab(2)*cb(3) - ab(3)*cb(2)
+        t(2) = ab(3)*cb(1) - ab(1)*cb(3)
+        t(3) = ab(1)*cb(2) - ab(2)*cb(1)
+        t = t / norm2(t)
+            
+        u(1) = cb(2)*cd(3) - cb(3)*cd(2)
+        u(2) = cb(3)*cd(1) - cb(1)*cd(3)
+        u(3) = cb(1)*cd(2) - cb(2)*cd(1)
+        u = u / norm2(u)
+            
+        cos_torsion = dot_product(u,t)
+        return 
+
+    end function
+    
+    pure function ang_torsion(top, idx)
+        !! Compute the torsional angle between four atoms specified
+        !! with indices idx; results are in range [-pi;pi]
+        
+        implicit none
+
+        type(ommp_topology_type), intent(in) :: top
+        integer(ip), intent(in) :: idx(4)
+        real(rp) :: cos_torsion, ang_torsion
+
+        real(rp), dimension(3) :: a, b, c, d, ab, cd, cb, t, u
+            
+        a = top%cmm(:,idx(1))
+        b = top%cmm(:,idx(2))
+        c = top%cmm(:,idx(3))
+        d = top%cmm(:,idx(4))
+
+        ab = b - a
+        cd = d - c
+        cb = b - c
+
+        t(1) = ab(2)*cb(3) - ab(3)*cb(2)
+        t(2) = ab(3)*cb(1) - ab(1)*cb(3)
+        t(3) = ab(1)*cb(2) - ab(2)*cb(1)
+        t = t / norm2(t)
+            
+        u(1) = cb(2)*cd(3) - cb(3)*cd(2)
+        u(2) = cb(3)*cd(1) - cb(1)*cd(3)
+        u(3) = cb(1)*cd(2) - cb(2)*cd(1)
+        u = u / norm2(u)
+            
+        cos_torsion = dot_product(u,t)
+        ang_torsion = acos(cos_torsion)
+        if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
+
+    end function
 
     subroutine bonded_terminate(bds)
         !! Just terminate every "submodule" in bonded, 

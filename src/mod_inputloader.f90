@@ -299,14 +299,11 @@ module mod_inputloader
         use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
         use mod_adjacency_mat, only: adj_mat_from_conn, yale_sparse, &
                                      build_conn_upto_n
-        !!use mod_prm, only: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-        !!                   assign_angle, assign_urey, assign_strbnd, &
-        !!                   assign_opb, assign_pitors, assign_torsion, &
-        !!                   assign_tortors, assign_angtor, assign_strtor, &
-        !!                   check_keyword, terminate_prm
         use mod_prm, only: check_keyword, assign_pol, assign_mpoles, &
                            assign_vdw, assign_bond, assign_angle, assign_urey, &
-                           assign_strbnd, assign_opb, assign_pitors
+                           assign_strbnd, assign_opb, assign_pitors, &
+                           assign_torsion, assign_tortors, assign_angtor, &
+                           assign_strtor
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -440,10 +437,10 @@ module mod_inputloader
         call assign_strbnd(sys_obj%bds, prm_file)
         call assign_opb(sys_obj%bds, prm_file)
         call assign_pitors(sys_obj%bds, prm_file)
-        !!call assign_torsion(prm_file, attype)
-        !!call assign_tortors(prm_file, attype)
-        !!call assign_angtor(prm_file, attype)
-        !!call assign_strtor(prm_file, attype)
+        call assign_torsion(sys_obj%bds, prm_file)
+        call assign_tortors(sys_obj%bds, prm_file)
+        call assign_angtor(sys_obj%bds, prm_file)
+        call assign_strtor(sys_obj%bds, prm_file)
 
         call mmpol_prepare(sys_obj)
 

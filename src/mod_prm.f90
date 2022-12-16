@@ -22,7 +22,8 @@ module mod_prm
     public :: assign_pol, assign_mpoles
     public :: assign_vdw
     public :: assign_bond, assign_angle, assign_urey, assign_strbnd, assign_opb
-    public :: assign_pitors
+    public :: assign_pitors, assign_torsion, assign_tortors, assign_angtor
+    public :: assign_strtor
     public :: check_keyword
 
     contains 
@@ -1106,632 +1107,640 @@ module mod_prm
         call mfree('assign_pitors [tmpk]', tmpk)
     
     end subroutine assign_pitors
-!!    
-!!    subroutine assign_torsion(prm_file, my_attype)
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_mmpol, only: fatal_error, mm_atoms, conn
-!!        use mod_bonded, only: torsion_init, torsionat, torsamp, torsphase, torsn
-!!        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
-!!        
-!!        implicit none
-!!        
-!!        character(len=*), intent(in) :: prm_file
-!!        !! name of the input PRM file
-!!        integer(ip), intent(in) :: my_attype(:)
-!!        !! List of atom types that shoukd be used to populate parameter
-!!        !! vectors
-!!
-!!        integer(ip), parameter :: iof_prminp = 201
-!!        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
-!!                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
-!!        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-!!        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-!!                                    t_n(:,:), tmpat(:,:), tmpprm(:)
-!!        real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
-!!        real(rp) :: amp, phase, torsion_unit
-!!
-!!        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
-!!        
-!!        ! open tinker xyz file
-!!        open(unit=iof_prminp, &
-!!             file=prm_file(1:len(trim(prm_file))), &
-!!             form='formatted', &
-!!             access='sequential', &
-!!             iostat=ist)
-!!        
-!!        if(ist /= 0) then
-!!           call fatal_error('Error while opening PRM input file')
-!!        end if
-!!
-!!        ! Read all the lines of file just to count how large vector should be 
-!!        ! allocated
-!!        ist = 0
-!!        nt = 1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!            if(line(:8) == 'torsion ') nt = nt + 1
-!!        end do
-!!
-!!        maxt = conn(4)%ri(mm_atoms+1)-1 
-!!        call mallocate('assign_torsion [classa]', nt, classa)
-!!        call mallocate('assign_torsion [classb]', nt, classb)
-!!        call mallocate('assign_torsion [classc]', nt, classc)
-!!        call mallocate('assign_torsion [classd]', nt, classd)
-!!        call mallocate('assign_torsion [t_amp]', 6, nt, t_amp)
-!!        call mallocate('assign_torsion [t_pha]', 6, nt, t_pha)
-!!        call mallocate('assign_torsion [t_n]', 6, nt, t_n)
-!!        call mallocate('assign_torsion [tmpat]', 4, maxt, tmpat)
-!!        call mallocate('assign_torsion [tmpprm]', maxt, tmpprm)
-!!
-!!        ! Restart the reading from the beginning to actually save the parameters
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        it = 1
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:12) == 'torsionunit ') then
-!!                tokb = 13
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isreal(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORSIONUNIT card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) torsion_unit
-!!
-!!            else if(line(:8) == 'torsion ') then
-!!                tokb = 9
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORSION card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classa(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORSION card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classb(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORSION card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classc(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORSION card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classd(it)
-!!                
-!!                ji = 1
-!!                t_n(:,it) = -1
-!!                do j=1, 6
-!!                    tokb = toke + 1
-!!                    toke = tokenize(line, tokb)
-!!                    if(toke < 0) exit
-!!
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong TORSION card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) amp
-!!                    
-!!                    tokb = toke + 1
-!!                    toke = tokenize(line, tokb)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong TORSION card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) phase
-!!                
-!!                    tokb = toke + 1
-!!                    toke = tokenize(line, tokb)
-!!                    if(.not. isint(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong TORSION card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) period
-!!
-!!                    if(abs(amp) > eps_rp) then
-!!                        t_amp(ji, it) = amp 
-!!                        t_pha(ji, it) = phase
-!!                        t_n(ji, it) = period
-!!                        ji = ji + 1
-!!                    end if
-!!                end do
-!!
-!!                if(j == 1) then
-!!                    ! No parameter found
-!!                    write(errstring, *) "Wrong TORSION card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                
-!!                it = it + 1
-!!            end if
-!!            i = i+1
-!!        end do
-!!        close(iof_prminp)
-!!
-!!        it = 1
-!!        do a=1, mm_atoms
-!!            cla = atclass(my_attype(a))
-!!            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-!!                b = conn(1)%ci(jb)
-!!                clb = atclass(my_attype(b))
-!!                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-!!                    c = conn(1)%ci(jc)
-!!                    if(c == a) cycle
-!!                    clc = atclass(my_attype(c))
-!!                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-!!                        d = conn(1)%ci(jd)
-!!                        if(d == a .or. d == b) cycle
-!!                        if(a > d) cycle
-!!                        cld = atclass(my_attype(d))
-!!                        ! There is a dihedral A-B-C-D
-!!                        do iprm=1, nt
-!!                            if((classa(iprm) == cla .and. &
-!!                                classb(iprm) == clb .and. &
-!!                                classc(iprm) == clc .and. &
-!!                                classd(iprm) == cld) .or. &
-!!                               (classa(iprm) == cld .and. &
-!!                                classb(iprm) == clc .and. &
-!!                                classc(iprm) == clb .and. &
-!!                                 classd(iprm) == cla)) then
-!!                                ! The parameter is ok
-!!                                tmpat(:,it) = [a, b, c, d]
-!!                                tmpprm(it) = iprm
-!!                                it = it+1
-!!                                exit
-!!                            end if
-!!                        end do
-!!                    end do
-!!                end do
-!!            end do
-!!        end do
-!!
-!!        call torsion_init(it-1)
-!!        do i=1, it-1
-!!           torsionat(:,i) = tmpat(:,i) 
-!!           torsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * torsion_unit
-!!           torsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
-!!           torsn(:,i) = t_n(:,tmpprm(i))
-!!        end do
-!!        
-!!        call mfree('assign_torsion [classa]', classa)
-!!        call mfree('assign_torsion [classb]', classb)
-!!        call mfree('assign_torsion [classc]', classc)
-!!        call mfree('assign_torsion [classd]', classd)
-!!        call mfree('assign_torsion [t_amp]', t_amp)
-!!        call mfree('assign_torsion [t_pha]', t_pha)
-!!        call mfree('assign_torsion [t_n]', t_n)
-!!        call mfree('assign_torsion [tmpat]', tmpat)
-!!        call mfree('assign_torsion [tmpprm]', tmpprm)
-!!       
-!!    end subroutine assign_torsion
-!!    
-!!    subroutine assign_strtor(prm_file, my_attype)
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_mmpol, only: fatal_error, mm_atoms, conn
-!!        use mod_bonded, only: strtor_init, strtorat, strtork, &
-!!                              strtor_t, strtor_b, torsionat, bondat
-!!        use mod_constants, only: kcalmol2au, deg2rad, eps_rp, angstrom2au
-!!        
-!!        implicit none
-!!        
-!!        character(len=*), intent(in) :: prm_file
-!!        !! name of the input PRM file
-!!        integer(ip), intent(in) :: my_attype(:)
-!!        !! List of atom types that shoukd be used to populate parameter
-!!        !! vectors
-!!
-!!        integer(ip), parameter :: iof_prminp = 201
-!!        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
-!!                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
-!!        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-!!        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-!!                                    tmpat(:,:), tmpprm(:)
-!!        real(rp), allocatable :: kat(:,:)
-!!        real(rp) :: phase, torsion_unit
-!!        logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
-!!
-!!        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
-!!        
-!!        ! open tinker xyz file
-!!        open(unit=iof_prminp, &
-!!             file=prm_file(1:len(trim(prm_file))), &
-!!             form='formatted', &
-!!             access='sequential', &
-!!             iostat=ist)
-!!        
-!!        if(ist /= 0) then
-!!           call fatal_error('Error while opening PRM input file')
-!!        end if
-!!
-!!        ! Read all the lines of file just to count how large vector should be 
-!!        ! allocated
-!!        ist = 0
-!!        nt = 1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!            if(line(:8) == 'strtors ') nt = nt + 1
-!!        end do
-!!
-!!        maxt = conn(4)%ri(mm_atoms+1)-1 
-!!        call mallocate('assign_strtor [classa]', nt, classa)
-!!        call mallocate('assign_strtor [classb]', nt, classb)
-!!        call mallocate('assign_strtor [classc]', nt, classc)
-!!        call mallocate('assign_strtor [classd]', nt, classd)
-!!        call mallocate('assign_strtor [kat]', 9, nt, kat)
-!!        call mallocate('assign_strtor [tmpat]', 4, maxt, tmpat)
-!!        call mallocate('assign_strtor [tmpprm]', maxt, tmpprm)
-!!
-!!        ! Restart the reading from the beginning to actually save the parameters
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        it = 1
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:8) == 'strtors ') then
-!!                tokb = 9
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong STRTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classa(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong STRTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classb(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong STRTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classc(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong STRTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classd(it)
-!!                
-!!                do j=1, 9
-!!                    tokb = toke + 1
-!!                    toke = tokenize(line, tokb)
-!!
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong STRTORS card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) kat(j,it)
-!!                end do
-!!
-!!                it = it + 1
-!!            end if
-!!            i = i+1
-!!        end do
-!!        close(iof_prminp)
-!!
-!!        it = 1
-!!        do a=1, mm_atoms
-!!            cla = atclass(my_attype(a))
-!!            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-!!                b = conn(1)%ci(jb)
-!!                clb = atclass(my_attype(b))
-!!                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-!!                    c = conn(1)%ci(jc)
-!!                    if(c == a) cycle
-!!                    clc = atclass(my_attype(c))
-!!                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-!!                        d = conn(1)%ci(jd)
-!!                        if(d == a .or. d == b) cycle
-!!                        if(a > d) cycle
-!!                        cld = atclass(my_attype(d))
-!!                        ! There is a dihedral A-B-C-D
-!!                        do iprm=1, nt
-!!                            if((classa(iprm) == cla .and. &
-!!                                classb(iprm) == clb .and. &
-!!                                classc(iprm) == clc .and. &
-!!                                classd(iprm) == cld) .or. &
-!!                               (classa(iprm) == cld .and. &
-!!                                classb(iprm) == clc .and. &
-!!                                classc(iprm) == clb .and. &
-!!                                 classd(iprm) == cla)) then
-!!                                ! The parameter is ok
-!!                                tmpat(:,it) = [a, b, c, d]
-!!                                tmpprm(it) = iprm
-!!                                it = it+1
-!!                                exit
-!!                            end if
-!!                        end do
-!!                    end do
-!!                end do
-!!            end do
-!!        end do
-!!
-!!        call strtor_init(it-1)
-!!        do i=1, it-1
-!!            strtorat(:,i) = tmpat(:,i) 
-!!            if(classa(tmpprm(i)) == atclass(my_attype(strtorat(1,i)))) then
-!!                strtork(:,i) = kat(:,tmpprm(i))
-!!            else
-!!                strtork(1:3,i) = kat(7:9,tmpprm(i))
-!!                strtork(4:6,i) = kat(4:6,tmpprm(i))
-!!                strtork(7:9,i) = kat(1:3,tmpprm(i))
-!!            end if
-!!            strtork(:,i) = strtork(:,i) * kcalmol2au / angstrom2au
-!!
-!!            tor_done = .false.
-!!            do j=1, size(torsionat, 2)
-!!                if(all(strtorat(:,i) == torsionat(:,j))) then
-!!                    tor_done = .true.
-!!                    strtor_t(i) = j
-!!                    exit
-!!                end if
-!!            end do
-!!            
-!!            bnd1_done = .false.
-!!            bnd2_done = .false.
-!!            bnd3_done = .false.
-!!            do j=1, size(bondat, 2)
-!!                if(all(strtorat(1:2,i) == bondat(:,j)) .or. &
-!!                   all(strtorat(2:1:-1,i) == bondat(:,j))) then
-!!                    bnd1_done = .true.
-!!                    strtor_b(1,i) = j
-!!                else if(all(strtorat(2:3,i) == bondat(:,j)) .or. &
-!!                   all(strtorat(3:2:-1,i) == bondat(:,j))) then
-!!                    bnd2_done = .true.
-!!                    strtor_b(2,i) = j
-!!                else if(all(strtorat(3:4,i) == bondat(:,j)) .or. &
-!!                   all(strtorat(4:3:-1,i) == bondat(:,j))) then
-!!                    bnd3_done = .true.
-!!                    strtor_b(3,i) = j
-!!                end if
-!!                if(bnd1_done .and. bnd2_done .and. bnd3_done) exit
-!!            end do
-!!
-!!            if(.not. (tor_done .and. bnd1_done .and. bnd2_done .and. bnd3_done)) then
-!!                call fatal_error('Ill defined stretching-torsion coupling parameter')
-!!            end if
-!!        end do
-!!        
-!!        call mfree('assign_strtor [classa]', classa)
-!!        call mfree('assign_strtor [classb]', classb)
-!!        call mfree('assign_strtor [classc]', classc)
-!!        call mfree('assign_strtor [classd]', classd)
-!!        call mfree('assign_strtor [kat]', kat)
-!!        call mfree('assign_strtor [tmpat]', tmpat)
-!!        call mfree('assign_strtor [tmpprm]', tmpprm)
-!!       
-!!    end subroutine assign_strtor
-!!
-!!    subroutine assign_angtor(prm_file, my_attype)
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_mmpol, only: fatal_error, mm_atoms, conn
-!!        use mod_bonded, only: angtor_init, angtorat, angtork, &
-!!                              angtor_t, angtor_a, torsionat, angleat
-!!        use mod_constants, only: kcalmol2au
-!!        
-!!        implicit none
-!!        
-!!        character(len=*), intent(in) :: prm_file
-!!        !! name of the input PRM file
-!!        integer(ip), intent(in) :: my_attype(:)
-!!        !! List of atom types that shoukd be used to populate parameter
-!!        !! vectors
-!!
-!!        integer(ip), parameter :: iof_prminp = 201
-!!        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
-!!                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
-!!        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-!!        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-!!                                    tmpat(:,:), tmpprm(:)
-!!        real(rp), allocatable :: kat(:,:)
-!!        logical :: tor_done, ang1_done, ang2_done
-!!
-!!        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
-!!        
-!!        ! open tinker xyz file
-!!        open(unit=iof_prminp, &
-!!             file=prm_file(1:len(trim(prm_file))), &
-!!             form='formatted', &
-!!             access='sequential', &
-!!             iostat=ist)
-!!        
-!!        if(ist /= 0) then
-!!           call fatal_error('Error while opening PRM input file')
-!!        end if
-!!
-!!        ! Read all the lines of file just to count how large vector should be 
-!!        ! allocated
-!!        ist = 0
-!!        nt = 1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!            if(line(:8) == 'angtors ') nt = nt + 1
-!!        end do
-!!
-!!        maxt = conn(4)%ri(mm_atoms+1)-1 
-!!        call mallocate('assign_angtor [classa]', nt, classa)
-!!        call mallocate('assign_angtor [classb]', nt, classb)
-!!        call mallocate('assign_angtor [classc]', nt, classc)
-!!        call mallocate('assign_angtor [classd]', nt, classd)
-!!        call mallocate('assign_angtor [kat]', 6, nt, kat)
-!!        call mallocate('assign_angtor [tmpat]', 4, maxt, tmpat)
-!!        call mallocate('assign_angtor [tmpprm]', maxt, tmpprm)
-!!
-!!        ! Restart the reading from the beginning to actually save the parameters
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        it = 1
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:8) == 'angtors ') then
-!!                tokb = 9
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classa(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classb(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGOTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classc(it)
-!!
-!!                tokb = toke + 1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong ANGTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classd(it)
-!!                
-!!                do j=1, 6
-!!                    tokb = toke + 1
-!!                    toke = tokenize(line, tokb)
-!!
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong ANGTORS card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) kat(j,it)
-!!                end do
-!!
-!!                it = it + 1
-!!            end if
-!!            i = i+1
-!!        end do
-!!        close(iof_prminp)
-!!
-!!        it = 1
-!!        do a=1, mm_atoms
-!!            cla = atclass(my_attype(a))
-!!            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-!!                b = conn(1)%ci(jb)
-!!                clb = atclass(my_attype(b))
-!!                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-!!                    c = conn(1)%ci(jc)
-!!                    if(c == a) cycle
-!!                    clc = atclass(my_attype(c))
-!!                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-!!                        d = conn(1)%ci(jd)
-!!                        if(d == a .or. d == b) cycle
-!!                        if(a > d) cycle
-!!                        cld = atclass(my_attype(d))
-!!                        ! There is a dihedral A-B-C-D
-!!                        do iprm=1, nt
-!!                            if((classa(iprm) == cla .and. &
-!!                                classb(iprm) == clb .and. &
-!!                                classc(iprm) == clc .and. &
-!!                                classd(iprm) == cld) .or. &
-!!                               (classa(iprm) == cld .and. &
-!!                                classb(iprm) == clc .and. &
-!!                                classc(iprm) == clb .and. &
-!!                                 classd(iprm) == cla)) then
-!!                                ! The parameter is ok
-!!                                tmpat(:,it) = [a, b, c, d]
-!!                                tmpprm(it) = iprm
-!!                                it = it+1
-!!                                exit
-!!                            end if
-!!                        end do
-!!                    end do
-!!                end do
-!!            end do
-!!        end do
-!!
-!!        call angtor_init(it-1)
-!!        do i=1, it-1
-!!            angtorat(:,i) = tmpat(:,i) 
-!!            if(classa(tmpprm(i)) == atclass(my_attype(angtorat(1,i)))) then
-!!                angtork(:,i) = kat(:,tmpprm(i)) * kcalmol2au
-!!            else
-!!                angtork(1:3,i) = kat(4:6,tmpprm(i)) * kcalmol2au
-!!                angtork(4:6,i) = kat(1:3,tmpprm(i)) * kcalmol2au
-!!            end if
-!!
-!!            tor_done = .false.
-!!            do j=1, size(torsionat, 2)
-!!                if(all(angtorat(:,i) == torsionat(:,j))) then
-!!                    tor_done = .true.
-!!                    angtor_t(i) = j
-!!                    exit
-!!                end if
-!!            end do
-!!            
-!!            ang1_done = .false.
-!!            ang2_done = .false.
-!!            do j=1, size(angleat, 2)
-!!                if(all(angtorat(1:3,i) == angleat(:,j)) .or. &
-!!                   all(angtorat(1:3,i) == angleat(3:1:-1,j))) then
-!!                    ang1_done = .true.
-!!                    angtor_a(1,i) = j
-!!                else if(all(angtorat(2:4,i) == angleat(:,j)) .or. &
-!!                        all(angtorat(2:4,i) == angleat(3:1:-1,j))) then
-!!                    ang2_done = .true.
-!!                    angtor_a(2,i) = j
-!!                end if
-!!                if(ang1_done .and. ang2_done) exit
-!!            end do
-!!
-!!            if(.not. (tor_done .and. ang1_done .and. ang2_done)) then
-!!                call fatal_error('Ill defined angle-torsion coupling parameter')
-!!            end if
-!!            
-!!        end do
-!!        
-!!        call mfree('assign_angtor [classa]', classa)
-!!        call mfree('assign_angtor [classb]', classb)
-!!        call mfree('assign_angtor [classc]', classc)
-!!        call mfree('assign_angtor [classd]', classd)
-!!        call mfree('assign_angtor [kat]', kat)
-!!        call mfree('assign_angtor [tmpat]', tmpat)
-!!        call mfree('assign_angtor [tmpprm]', tmpprm)
-!!       
-!!    end subroutine assign_angtor
-!!    
+    
+    subroutine assign_torsion(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: torsion_init
+        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    t_n(:,:), tmpat(:,:), tmpprm(:)
+        real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
+        real(rp) :: amp, phase, torsion_unit
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'torsion ') nt = nt + 1
+        end do
+
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        call mallocate('assign_torsion [classa]', nt, classa)
+        call mallocate('assign_torsion [classb]', nt, classb)
+        call mallocate('assign_torsion [classc]', nt, classc)
+        call mallocate('assign_torsion [classd]', nt, classd)
+        call mallocate('assign_torsion [t_amp]', 6, nt, t_amp)
+        call mallocate('assign_torsion [t_pha]', 6, nt, t_pha)
+        call mallocate('assign_torsion [t_n]', 6, nt, t_n)
+        call mallocate('assign_torsion [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_torsion [tmpprm]', maxt, tmpprm)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:12) == 'torsionunit ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSIONUNIT card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) torsion_unit
+
+            else if(line(:8) == 'torsion ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                ji = 1
+                t_n(:,it) = -1
+                do j=1, 6
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(toke < 0) exit
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORSION card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) amp
+                    
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORSION card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) phase
+                
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isint(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORSION card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) period
+
+                    if(abs(amp) > eps_rp) then
+                        t_amp(ji, it) = amp 
+                        t_pha(ji, it) = phase
+                        t_n(ji, it) = period
+                        ji = ji + 1
+                    end if
+                end do
+
+                if(j == 1) then
+                    ! No parameter found
+                    write(errstring, *) "Wrong TORSION card"
+                    call fatal_error(errstring)
+                end if
+                
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(c == a) cycle
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
+                        if(d == a .or. d == b) cycle
+                        if(a > d) cycle
+                        cld = top%atclass(d)
+                        ! There is a dihedral A-B-C-D
+                        do iprm=1, nt
+                            if((classa(iprm) == cla .and. &
+                                classb(iprm) == clb .and. &
+                                classc(iprm) == clc .and. &
+                                classd(iprm) == cld) .or. &
+                               (classa(iprm) == cld .and. &
+                                classb(iprm) == clc .and. &
+                                classc(iprm) == clb .and. &
+                                 classd(iprm) == cla)) then
+                                ! The parameter is ok
+                                tmpat(:,it) = [a, b, c, d]
+                                tmpprm(it) = iprm
+                                it = it+1
+                                exit
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+        call torsion_init(bds, it-1)
+        do i=1, it-1
+           bds%torsionat(:,i) = tmpat(:,i) 
+           bds%torsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * torsion_unit
+           bds%torsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
+           bds%torsn(:,i) = t_n(:,tmpprm(i))
+        end do
+        
+        call mfree('assign_torsion [classa]', classa)
+        call mfree('assign_torsion [classb]', classb)
+        call mfree('assign_torsion [classc]', classc)
+        call mfree('assign_torsion [classd]', classd)
+        call mfree('assign_torsion [t_amp]', t_amp)
+        call mfree('assign_torsion [t_pha]', t_pha)
+        call mfree('assign_torsion [t_n]', t_n)
+        call mfree('assign_torsion [tmpat]', tmpat)
+        call mfree('assign_torsion [tmpprm]', tmpprm)
+       
+    end subroutine assign_torsion
+    
+    subroutine assign_strtor(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: strtor_init
+        use mod_constants, only: kcalmol2au, deg2rad, eps_rp, angstrom2au
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    tmpat(:,:), tmpprm(:)
+        real(rp), allocatable :: kat(:,:)
+        real(rp) :: phase, torsion_unit
+        logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'strtors ') nt = nt + 1
+        end do
+
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        call mallocate('assign_strtor [classa]', nt, classa)
+        call mallocate('assign_strtor [classb]', nt, classb)
+        call mallocate('assign_strtor [classc]', nt, classc)
+        call mallocate('assign_strtor [classd]', nt, classd)
+        call mallocate('assign_strtor [kat]', 9, nt, kat)
+        call mallocate('assign_strtor [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_strtor [tmpprm]', maxt, tmpprm)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:8) == 'strtors ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong STRTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                do j=1, 9
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong STRTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) kat(j,it)
+                end do
+
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(c == a) cycle
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
+                        if(d == a .or. d == b) cycle
+                        if(a > d) cycle
+                        cld = top%atclass(d)
+                        ! There is a dihedral A-B-C-D
+                        do iprm=1, nt
+                            if((classa(iprm) == cla .and. &
+                                classb(iprm) == clb .and. &
+                                classc(iprm) == clc .and. &
+                                classd(iprm) == cld) .or. &
+                               (classa(iprm) == cld .and. &
+                                classb(iprm) == clc .and. &
+                                classc(iprm) == clb .and. &
+                                 classd(iprm) == cla)) then
+                                ! The parameter is ok
+                                tmpat(:,it) = [a, b, c, d]
+                                tmpprm(it) = iprm
+                                it = it+1
+                                exit
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+        call strtor_init(bds, it-1)
+        do i=1, it-1
+            bds%strtorat(:,i) = tmpat(:,i) 
+            if(classa(tmpprm(i)) == top%atclass(bds%strtorat(1,i))) then
+                bds%strtork(:,i) = kat(:,tmpprm(i))
+            else
+                bds%strtork(1:3,i) = kat(7:9,tmpprm(i))
+                bds%strtork(4:6,i) = kat(4:6,tmpprm(i))
+                bds%strtork(7:9,i) = kat(1:3,tmpprm(i))
+            end if
+            bds%strtork(:,i) = bds%strtork(:,i) * kcalmol2au / angstrom2au
+
+            tor_done = .false.
+            do j=1, size(bds%torsionat, 2)
+                if(all(bds%strtorat(:,i) == bds%torsionat(:,j))) then
+                    tor_done = .true.
+                    bds%strtor_t(i) = j
+                    exit
+                end if
+            end do
+            
+            bnd1_done = .false.
+            bnd2_done = .false.
+            bnd3_done = .false.
+            do j=1, size(bds%bondat, 2)
+                if(all(bds%strtorat(1:2,i) == bds%bondat(:,j)) .or. &
+                   all(bds%strtorat(2:1:-1,i) == bds%bondat(:,j))) then
+                    bnd1_done = .true.
+                    bds%strtor_b(1,i) = j
+                else if(all(bds%strtorat(2:3,i) == bds%bondat(:,j)) .or. &
+                        all(bds%strtorat(3:2:-1,i) == bds%bondat(:,j))) then
+                    bnd2_done = .true.
+                    bds%strtor_b(2,i) = j
+                else if(all(bds%strtorat(3:4,i) == bds%bondat(:,j)) .or. &
+                        all(bds%strtorat(4:3:-1,i) == bds%bondat(:,j))) then
+                    bnd3_done = .true.
+                    bds%strtor_b(3,i) = j
+                end if
+                if(bnd1_done .and. bnd2_done .and. bnd3_done) exit
+            end do
+
+            if(.not. (tor_done .and. bnd1_done .and. bnd2_done .and. bnd3_done)) then
+                call fatal_error('Ill defined stretching-torsion coupling parameter')
+            end if
+        end do
+        
+        call mfree('assign_strtor [classa]', classa)
+        call mfree('assign_strtor [classb]', classb)
+        call mfree('assign_strtor [classc]', classc)
+        call mfree('assign_strtor [classd]', classd)
+        call mfree('assign_strtor [kat]', kat)
+        call mfree('assign_strtor [tmpat]', tmpat)
+        call mfree('assign_strtor [tmpprm]', tmpprm)
+       
+    end subroutine assign_strtor
+
+    subroutine assign_angtor(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: angtor_init
+        use mod_constants, only: kcalmol2au
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    tmpat(:,:), tmpprm(:)
+        real(rp), allocatable :: kat(:,:)
+        logical :: tor_done, ang1_done, ang2_done
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'angtors ') nt = nt + 1
+        end do
+
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        call mallocate('assign_angtor [classa]', nt, classa)
+        call mallocate('assign_angtor [classb]', nt, classb)
+        call mallocate('assign_angtor [classc]', nt, classc)
+        call mallocate('assign_angtor [classd]', nt, classd)
+        call mallocate('assign_angtor [kat]', 6, nt, kat)
+        call mallocate('assign_angtor [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_angtor [tmpprm]', maxt, tmpprm)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:8) == 'angtors ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGOTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ANGTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                do j=1, 6
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong ANGTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) kat(j,it)
+                end do
+
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(c == a) cycle
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
+                        if(d == a .or. d == b) cycle
+                        if(a > d) cycle
+                        cld = top%atclass(d)
+                        ! There is a dihedral A-B-C-D
+                        do iprm=1, nt
+                            if((classa(iprm) == cla .and. &
+                                classb(iprm) == clb .and. &
+                                classc(iprm) == clc .and. &
+                                classd(iprm) == cld) .or. &
+                               (classa(iprm) == cld .and. &
+                                classb(iprm) == clc .and. &
+                                classc(iprm) == clb .and. &
+                                 classd(iprm) == cla)) then
+                                ! The parameter is ok
+                                tmpat(:,it) = [a, b, c, d]
+                                tmpprm(it) = iprm
+                                it = it+1
+                                exit
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+        end do
+        
+        call angtor_init(bds, it-1)
+        do i=1, it-1
+            bds%angtorat(:,i) = tmpat(:,i) 
+            if(classa(tmpprm(i)) == top%atclass(bds%angtorat(1,i))) then
+                bds%angtork(:,i) = kat(:,tmpprm(i)) * kcalmol2au
+            else
+                bds%angtork(1:3,i) = kat(4:6,tmpprm(i)) * kcalmol2au
+                bds%angtork(4:6,i) = kat(1:3,tmpprm(i)) * kcalmol2au
+            end if
+
+            tor_done = .false.
+            do j=1, size(bds%torsionat, 2)
+                if(all(bds%angtorat(:,i) == bds%torsionat(:,j))) then
+                    tor_done = .true.
+                    bds%angtor_t(i) = j
+                    exit
+                end if
+            end do
+            
+            ang1_done = .false.
+            ang2_done = .false.
+            do j=1, size(bds%angleat, 2)
+                if(all(bds%angtorat(1:3,i) == bds%angleat(:,j)) .or. &
+                   all(bds%angtorat(1:3,i) == bds%angleat(3:1:-1,j))) then
+                    ang1_done = .true.
+                    bds%angtor_a(1,i) = j
+                else if(all(bds%angtorat(2:4,i) == bds%angleat(:,j)) .or. &
+                        all(bds%angtorat(2:4,i) == bds%angleat(3:1:-1,j))) then
+                    ang2_done = .true.
+                    bds%angtor_a(2,i) = j
+                end if
+                if(ang1_done .and. ang2_done) exit
+            end do
+
+            if(.not. (tor_done .and. ang1_done .and. ang2_done)) then
+                call fatal_error('Ill defined angle-torsion coupling parameter')
+            end if
+            
+        end do
+        
+        call mfree('assign_angtor [classa]', classa)
+        call mfree('assign_angtor [classb]', classb)
+        call mfree('assign_angtor [classc]', classc)
+        call mfree('assign_angtor [classd]', classd)
+        call mfree('assign_angtor [kat]', kat)
+        call mfree('assign_angtor [tmpat]', tmpat)
+        call mfree('assign_angtor [tmpprm]', tmpprm)
+       
+    end subroutine assign_angtor
+    
     subroutine assign_angle(bds, prm_file)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: OMMP_ANG_SIMPLE, &
@@ -2983,253 +2992,256 @@ module mod_prm
         call mfree('read_prm [cmult]', cmult)
     
     end subroutine assign_mpoles
-!!    
-!!    subroutine assign_tortors(prm_file, my_attype)
-!!        use mod_memory, only: mallocate, mfree
-!!        use mod_mmpol, only: fatal_error, mm_atoms, conn
-!!        use mod_bonded, only: tortorat, tortorprm, tortor_newmap, tortor_init
-!!        use mod_constants, only: deg2rad, kcalmol2au
-!!        
-!!        implicit none
-!!        
-!!        character(len=*), intent(in) :: prm_file
-!!        !! name of the input PRM file
-!!        integer(ip), intent(in) :: my_attype(:)
-!!        !! List of atom types that shoukd be used to populate parameter
-!!        !! vectors
-!!
-!!        integer(ip), parameter :: iof_prminp = 201
-!!        integer(ip) :: ist, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
-!!                       cla, clb, clc, a, b, c, jc, jb, itt, ndata, ntt, ibeg, iend, maxtt
-!!        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-!!        integer(ip), allocatable :: classx(:,:), map_dimension(:,:), tmpat(:,:), tmpprm(:), savedmap(:)
-!!        real(rp), allocatable :: data_map(:), ang_map(:,:)
-!!
-!!        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
-!!        
-!!        ! open tinker xyz file
-!!        open(unit=iof_prminp, &
-!!             file=prm_file(1:len(trim(prm_file))), &
-!!             form='formatted', &
-!!             access='sequential', &
-!!             iostat=ist)
-!!        
-!!        if(ist /= 0) then
-!!           call fatal_error('Error while opening PRM input file')
-!!        end if
-!!
-!!        ! Read all the lines of file just to count how large vector should be 
-!!        ! allocated
-!!        ist = 0
-!!        ntt = 0
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!            if(line(:8) == 'tortors ') ntt = ntt + 1
-!!        end do
-!!
-!!        maxtt = conn(4)%ri(mm_atoms+1)-1 
-!!        call mallocate('assign_tortors [classx]', 5, ntt, classx)
-!!        call mallocate('assign_tortors [map_dimension]', 2, ntt, map_dimension)
-!!        call mallocate('assign_tortors [savedmap]', ntt, savedmap)
-!!        call mallocate('assign_tortors [tmpat]', 5, maxtt, tmpat)
-!!        call mallocate('assign_tortors [tmpprm]', maxtt, tmpprm)
-!!
-!!        ! Restart the reading from the beginning to actually save the parameters
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        itt = 1
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:8) == 'tortors ') then
-!!                tokb = 9
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classx(1,itt)
-!!                
-!!                tokb = toke+1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classx(2,itt)
-!!        
-!!                tokb = toke+1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classx(3,itt)
-!!        
-!!                tokb = toke+1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classx(4,itt)
-!!        
-!!                tokb = toke+1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) classx(5,itt)
-!!
-!!                tokb = toke+1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) map_dimension(1,itt)
-!!                
-!!                tokb = toke+1
-!!                toke = tokenize(line, tokb)
-!!                if(.not. isint(line(tokb:toke))) then
-!!                    write(errstring, *) "Wrong TORTORS card"
-!!                    call fatal_error(errstring)
-!!                end if
-!!                read(line(tokb:toke), *) map_dimension(2,itt)
-!!                
-!!                itt = itt + 1
-!!            end if
-!!            i = i+1
-!!        end do
-!!
-!!        ! Allocate data space and finally read the map
-!!        ndata = dot_product(map_dimension(1,:), map_dimension(2,:))
-!!        call mallocate('assign_tortors [data_map]', ndata, data_map)
-!!        call mallocate('assign_tortors [ang_map]', 2, ndata, ang_map)
-!!        
-!!        rewind(iof_prminp)
-!!        ist = 0
-!!        itt = 1
-!!        i=1
-!!        do while(ist == 0) 
-!!            read(iof_prminp, '(A)', iostat=ist) line
-!!            line = str_to_lower(line)
-!!           
-!!            if(line(:8) == 'tortors ') then
-!!                ndata = map_dimension(1,itt)*map_dimension(2,itt)
-!!                do j=1, ndata
-!!                    read(iof_prminp, '(A)', iostat=ist) line
-!!                    
-!!                    tokb = tokenize(line)
-!!                    toke = tokenize(line, tokb)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong TORTORS data card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) ang_map(1, i)
-!!                    
-!!                    tokb = toke+1
-!!                    toke = tokenize(line, tokb)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong TORTORS data card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) ang_map(2, i)
-!!                    
-!!                    tokb = toke+1
-!!                    toke = tokenize(line, tokb)
-!!                    if(.not. isreal(line(tokb:toke))) then
-!!                        write(errstring, *) "Wrong TORTORS data card"
-!!                        call fatal_error(errstring)
-!!                    end if
-!!                    read(line(tokb:toke), *) data_map(i)
-!!                    i = i + 1
-!!                end do
-!!                itt = itt + 1
-!!            end if
-!!        end do
-!!        close(iof_prminp)
-!!        
-!!        it = 1
-!!        do a=1, mm_atoms
-!!            cla = atclass(my_attype(a))
-!!            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-!!                b = conn(1)%ci(jb)
-!!                clb = atclass(my_attype(b))
-!!                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-!!                    c = conn(1)%ci(jc)
-!!                    if(c == a) cycle
-!!                    clc = atclass(my_attype(c))
-!!                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-!!                        d = conn(1)%ci(jd)
-!!                        if(d == a .or. d == b) cycle
-!!                        cld = atclass(my_attype(d))
-!!                        do je=conn(1)%ri(d), conn(1)%ri(d+1)-1
-!!                            e = conn(1)%ci(je)
-!!                            if(e == a .or. e == b .or. e == c) cycle
-!!                            if(a > e) cycle
-!!                            cle = atclass(my_attype(e))
-!!                            ! There is a dihedral pair A-B-C-D-E
-!!                            do iprm=1, ntt
-!!                                if((classx(1,iprm) == cla .and. &
-!!                                    classx(2,iprm) == clb .and. &
-!!                                    classx(3,iprm) == clc .and. &
-!!                                    classx(4,iprm) == cld .and. &
-!!                                    classx(5,iprm) == cle) .or. &
-!!                                   (classx(1,iprm) == cle .and. &
-!!                                    classx(2,iprm) == cld .and. &
-!!                                    classx(3,iprm) == clc .and. &
-!!                                    classx(4,iprm) == clb .and. &
-!!                                    classx(5,iprm) == cla)) then
-!!                                    ! The parameter is ok
-!!                                    tmpat(:,it) = [a, b, c, d, e]
-!!                                    tmpprm(it) = iprm
-!!                                    it = it+1
-!!                                    exit
-!!                                end if
-!!                            end do
-!!                        end do
-!!                    end do
-!!                end do
-!!            end do
-!!        end do
-!!        
-!!        call tortor_init(it-1)
-!!        savedmap = -1
-!!        iprm = 1
-!!        do i=1, it-1
-!!            if(savedmap(tmpprm(i)) < 0) then
-!!                ! If needed, save the map in the module
-!!                ibeg = 1 
-!!                do j=1, tmpprm(i)-1
-!!                    ibeg = ibeg + map_dimension(1,j)*map_dimension(2,j)
-!!                end do
-!!                iend = ibeg + map_dimension(1,tmpprm(i))*map_dimension(2,tmpprm(i)) - 1
-!!                call tortor_newmap(map_dimension(1,tmpprm(i)), &
-!!                                   map_dimension(2,tmpprm(i)), &
-!!                                   ang_map(1,ibeg:iend) * deg2rad, &
-!!                                   ang_map(2,ibeg:iend) * deg2rad, &
-!!                                   data_map(ibeg:iend) * kcalmol2au)
-!!                savedmap(tmpprm(i)) = iprm
-!!                iprm = iprm + 1
-!!            end if
-!!
-!!            tortorat(:,i) = tmpat(:,i)
-!!            tortorprm(i) = savedmap(tmpprm(i))
-!!        end do
-!!
-!!        call mfree('assign_tortors [classx]', classx)
-!!        call mfree('assign_tortors [map_dimension]', map_dimension)
-!!        call mfree('assign_tortors [savedmap]', savedmap)
-!!        call mfree('assign_tortors [data_map]', data_map)
-!!        call mfree('assign_tortors [ang_map]', ang_map)
-!!        call mfree('assign_tortors [tmpat]', tmpat)
-!!        call mfree('assign_tortors [tmpprm]', tmpprm)
-!!    
-!!    end subroutine assign_tortors
+    
+    subroutine assign_tortors(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: tortor_newmap, tortor_init
+        use mod_constants, only: deg2rad, kcalmol2au
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
+                       cla, clb, clc, a, b, c, jc, jb, itt, ndata, ntt, ibeg, iend, maxtt
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classx(:,:), map_dimension(:,:), tmpat(:,:), tmpprm(:), savedmap(:)
+        real(rp), allocatable :: data_map(:), ang_map(:,:)
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist)
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        ntt = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'tortors ') ntt = ntt + 1
+        end do
+
+        maxtt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        call mallocate('assign_tortors [classx]', 5, ntt, classx)
+        call mallocate('assign_tortors [map_dimension]', 2, ntt, map_dimension)
+        call mallocate('assign_tortors [savedmap]', ntt, savedmap)
+        call mallocate('assign_tortors [tmpat]', 5, maxtt, tmpat)
+        call mallocate('assign_tortors [tmpprm]', maxtt, tmpprm)
+
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        itt = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:8) == 'tortors ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classx(1,itt)
+                
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classx(2,itt)
+        
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classx(3,itt)
+        
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classx(4,itt)
+        
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classx(5,itt)
+
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) map_dimension(1,itt)
+                
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong TORTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) map_dimension(2,itt)
+                
+                itt = itt + 1
+            end if
+            i = i+1
+        end do
+
+        ! Allocate data space and finally read the map
+        ndata = dot_product(map_dimension(1,:), map_dimension(2,:))
+        call mallocate('assign_tortors [data_map]', ndata, data_map)
+        call mallocate('assign_tortors [ang_map]', 2, ndata, ang_map)
+        
+        rewind(iof_prminp)
+        ist = 0
+        itt = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+           
+            if(line(:8) == 'tortors ') then
+                ndata = map_dimension(1,itt)*map_dimension(2,itt)
+                do j=1, ndata
+                    read(iof_prminp, '(A)', iostat=ist) line
+                    
+                    tokb = tokenize(line)
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORTORS data card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) ang_map(1, i)
+                    
+                    tokb = toke+1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORTORS data card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) ang_map(2, i)
+                    
+                    tokb = toke+1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong TORTORS data card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) data_map(i)
+                    i = i + 1
+                end do
+                itt = itt + 1
+            end if
+        end do
+        close(iof_prminp)
+        
+        it = 1
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(c == a) cycle
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
+                        if(d == a .or. d == b) cycle
+                        cld = top%atclass(d)
+                        do je=top%conn(1)%ri(d), top%conn(1)%ri(d+1)-1
+                            e = top%conn(1)%ci(je)
+                            if(e == a .or. e == b .or. e == c) cycle
+                            if(a > e) cycle
+                            cle = top%atclass(e)
+                            ! There is a dihedral pair A-B-C-D-E
+                            do iprm=1, ntt
+                                if((classx(1,iprm) == cla .and. &
+                                    classx(2,iprm) == clb .and. &
+                                    classx(3,iprm) == clc .and. &
+                                    classx(4,iprm) == cld .and. &
+                                    classx(5,iprm) == cle) .or. &
+                                   (classx(1,iprm) == cle .and. &
+                                    classx(2,iprm) == cld .and. &
+                                    classx(3,iprm) == clc .and. &
+                                    classx(4,iprm) == clb .and. &
+                                    classx(5,iprm) == cla)) then
+                                    ! The parameter is ok
+                                    tmpat(:,it) = [a, b, c, d, e]
+                                    tmpprm(it) = iprm
+                                    it = it+1
+                                    exit
+                                end if
+                            end do
+                        end do
+                    end do
+                end do
+            end do
+        end do
+        
+        call tortor_init(bds, it-1)
+        savedmap = -1
+        iprm = 1
+        do i=1, it-1
+            if(savedmap(tmpprm(i)) < 0) then
+                ! If needed, save the map in the module
+                ibeg = 1 
+                do j=1, tmpprm(i)-1
+                    ibeg = ibeg + map_dimension(1,j)*map_dimension(2,j)
+                end do
+                iend = ibeg + map_dimension(1,tmpprm(i))*map_dimension(2,tmpprm(i)) - 1
+                call tortor_newmap(bds, map_dimension(1,tmpprm(i)), &
+                                   map_dimension(2,tmpprm(i)), &
+                                   ang_map(1,ibeg:iend) * deg2rad, &
+                                   ang_map(2,ibeg:iend) * deg2rad, &
+                                   data_map(ibeg:iend) * kcalmol2au)
+                savedmap(tmpprm(i)) = iprm
+                iprm = iprm + 1
+            end if
+
+            bds%tortorat(:,i) = tmpat(:,i)
+            bds%tortorprm(i) = savedmap(tmpprm(i))
+        end do
+
+        call mfree('assign_tortors [classx]', classx)
+        call mfree('assign_tortors [map_dimension]', map_dimension)
+        call mfree('assign_tortors [savedmap]', savedmap)
+        call mfree('assign_tortors [data_map]', data_map)
+        call mfree('assign_tortors [ang_map]', ang_map)
+        call mfree('assign_tortors [tmpat]', tmpat)
+        call mfree('assign_tortors [tmpprm]', tmpprm)
+    
+    end subroutine assign_tortors
 
 end module mod_prm
