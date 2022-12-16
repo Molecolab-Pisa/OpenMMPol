@@ -13,26 +13,27 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 endif()
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
+set(LIBRARY_SRC
+    src/mod_adjacency_mat.f90
+    src/mod_bonded.f90
+    src/mod_constants.f90
+    src/mod_c_interface.f90
+    src/mod_electrostatics.f90
+    src/mod_inputloader.f90
+    src/mod_interface.f90
+    src/mod_io.f90
+    #src/mod_iohdf5.f90
+    src/mod_memory.f90
+    src/mod_mmpol.f90
+    src/mod_nonbonded.f90
+    src/mod_polarization.f90
+    src/mod_prm.f90
+    src/mod_solvers.f90
+    src/mod_topology.f90
+    src/mod_utils.f90
+    src/rotate_multipoles.f90)
 
-add_library(openmmpol SHARED 
-            src/mod_adjacency_mat.f90
-            src/mod_bonded.f90
-            src/mod_constants.f90
-            src/mod_c_interface.f90
-            src/mod_electrostatics.f90
-            src/mod_inputloader.f90
-            src/mod_interface.f90
-            src/mod_io.f90
-            #src/mod_iohdf5.f90
-            src/mod_memory.f90
-            src/mod_mmpol.f90
-            src/mod_nonbonded.f90
-            src/mod_polarization.f90
-            src/mod_prm.f90
-            src/mod_solvers.f90
-            src/mod_topology.f90
-            src/mod_utils.f90
-            src/rotate_multipoles.f90)
+add_library(openmmpol SHARED ${LIBRARY_SRC}) 
 
 # LAPACK
 find_package(LAPACK REQUIRED COMPONENTS Fortran)
@@ -61,6 +62,9 @@ if (HDF5_FOUND)
     endif() 
 endif()
 
+#python
+find_package(pybind11 CONFIG REQUIRED)
+
 # Enable preprocessor for Fortran
 target_compile_options(openmmpol PRIVATE -cpp)
 # cmake 3.18 is needed for this
@@ -73,6 +77,7 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
 endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
+
 
 include_directories(include) # Directory for .h files
 
@@ -159,4 +164,18 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(F03_test_potential_xyz PRIVATE -Wall -Wextra -pedantic -std=f2003)
 endif ()
 
+# Python
+add_library(openmmpol_static STATIC
+            ${LIBRARY_SRC})
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs)
+endif()
+target_compile_options(openmmpol_static PRIVATE -fPIC -cpp)
+target_link_libraries(openmmpol_static OpenMP::OpenMP_Fortran) #TODO
+target_link_libraries(openmmpol_static ${LAPACK_LIBRARIES})
+pybind11_add_module(pyopenmmpol MODULE src/pyommp_interface.cpp)
+target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO="0.0.0")
+target_link_libraries(pyopenmmpol PRIVATE openmmpol_static)
+
+# Tests
 include(tests/CMakeLists.txt)

@@ -26,9 +26,13 @@
 
 typedef void* OMMP_SYSTEM_PRT;
 
-extern OMMP_SYSTEM_PRT ommp_init_mmp(char *);
-extern OMMP_SYSTEM_PRT ommp_init_xyz(char *, char *);
-extern void ommp_save_mmp(OMMP_SYSTEM_PRT, char *, int32_t);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern OMMP_SYSTEM_PRT ommp_init_mmp(const char *);
+extern OMMP_SYSTEM_PRT ommp_init_xyz(const char *, const char *);
+extern void ommp_save_mmp(OMMP_SYSTEM_PRT, const char *, int32_t);
 extern void ommp_terminate(OMMP_SYSTEM_PRT);
 //#ifdef USE_HDF5
 //extern void ommp_write_hdf5(char *);
@@ -36,7 +40,7 @@ extern void ommp_terminate(OMMP_SYSTEM_PRT);
 //#endif
 extern void ommp_set_verbose(int32_t);
 extern void ommp_print_summary(OMMP_SYSTEM_PRT);
-extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, char *);
+extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, const char *);
 
 extern double ommp_get_polelec_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_fixedelec_energy(OMMP_SYSTEM_PRT);
@@ -69,3 +73,6 @@ extern void *ommp_get_ipd(OMMP_SYSTEM_PRT);
 extern void *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 //
 //extern bool ommp_ff_is_amoeba(void);
+#ifdef __cplusplus
+}
+#endif
