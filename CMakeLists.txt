@@ -153,4 +153,10 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(F03_test_energy PRIVATE -Wall -Wextra -pedantic -std=f2003)
 endif ()
 
+add_executable(F03_test_potential_xyz src/test_programs/F03/test_potential_xyz.f90)
+target_link_libraries(F03_test_potential_xyz openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F03_test_potential_xyz PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif ()
+
 include(tests/CMakeLists.txt)

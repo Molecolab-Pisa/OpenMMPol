@@ -22,7 +22,8 @@ module ommp_interface
                              OMMP_MATV_DEFAULT, &
                              OMMP_AMOEBA_D, OMMP_AMOEBA_P, &
                              OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
-                             OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE
+                             OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
+                             OMMP_AU2KCALMOL => au2kcalmol
     
     use mod_mmpol, only: ommp_system
     use mod_electrostatics, only: ommp_electrostatics_type
@@ -174,5 +175,134 @@ module ommp_interface
         
         end function
         
+        function ommp_get_bond_energy(sys_obj) result(eb)
+            
+            use mod_bonded, only: bond_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: eb
+
+            eb = 0.0
+            call bond_potential(sys_obj%bds, eb)
+        
+        end function
+        
+        function ommp_get_angle_energy(sys_obj) result(ea)
+            
+            use mod_bonded, only: angle_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ea
+
+            ea = 0.0
+            call angle_potential(sys_obj%bds, ea)
+        
+        end function
+        
+        function ommp_get_strbnd_energy(sys_obj) result(eba)
+            
+            use mod_bonded, only: strbnd_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: eba
+
+            eba = 0.0
+            call strbnd_potential(sys_obj%bds, eba)
+        
+        end function
+        
+        function ommp_get_urey_energy(sys_obj) result(eub)
+            
+            use mod_bonded, only: urey_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: eub
+
+            eub = 0.0
+            call urey_potential(sys_obj%bds, eub)
+        
+        end function
+        
+        function ommp_get_opb_energy(sys_obj) result(eopb)
+            
+            use mod_bonded, only: opb_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: eopb
+
+            eopb = 0.0
+            call opb_potential(sys_obj%bds, eopb)
+        
+        end function
+        
+        function ommp_get_pitors_energy(sys_obj) result(ept)
+            
+            use mod_bonded, only: pitors_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ept
+
+            ept = 0.0
+            call pitors_potential(sys_obj%bds, ept)
+        
+        end function
+        
+        function ommp_get_torsion_energy(sys_obj) result(et)
+            
+            use mod_bonded, only: torsion_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: et
+
+            et = 0.0
+            call torsion_potential(sys_obj%bds, et)
+        
+        end function
+        
+        function ommp_get_tortor_energy(sys_obj) result(ett)
+            
+            use mod_bonded, only: tortor_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ett
+
+            ett = 0.0
+            call tortor_potential(sys_obj%bds, ett)
+        
+        end function
+        
+        function ommp_get_strtor_energy(sys_obj) result(est)
+            
+            use mod_bonded, only: strtor_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: est
+
+            est = 0.0
+            call strtor_potential(sys_obj%bds, est)
+        
+        end function
+        
+        function ommp_get_angtor_energy(sys_obj) result(eat)
+            
+            use mod_bonded, only: angtor_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: eat
+
+            eat = 0.0
+            call angtor_potential(sys_obj%bds, eat)
+        
+        end function
 end module ommp_interface
 
