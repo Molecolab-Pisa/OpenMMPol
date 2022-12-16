@@ -512,7 +512,6 @@ module mod_bonded
         !! @todo Currently only Allinger functional form is supported 
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_LOW
-        use mod_mmpol, only: fatal_error
         use mod_memory, only: mallocate
 
         implicit none
