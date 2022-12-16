@@ -239,7 +239,7 @@ module mod_inputloader
      
         call ommp_message("Populating utility arrays", OMMP_VERBOSE_DEBUG)
         call mmpol_prepare(sys_obj)
-        
+        close(iof_mmpinp) 
         call ommp_message("Initialization from MMP file done.", OMMP_VERBOSE_DEBUG)
 
     end subroutine mmpol_init_from_mmp
