@@ -171,7 +171,13 @@ class OMMPSystem{
         void *handler;
 };
 
+void set_verbose(int32_t v){
+    ommp_set_verbose(v);
+}
+
 PYBIND11_MODULE(pyopenmmpol, m){
+    m.def("set_verbose", &set_verbose);
+
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
              "pyOpenMMPol creator, takes the path to a .mmp file as input.", 
@@ -208,4 +214,5 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("static_dipoles", &OMMPSystem::get_static_dipoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 3], else None")
         .def_property_readonly("static_quadrupoles", &OMMPSystem::get_static_quadrupoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 6], else None")
         .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]");
+
 }

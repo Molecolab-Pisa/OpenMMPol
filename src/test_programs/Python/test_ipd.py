@@ -31,10 +31,10 @@ infile = args.mmpol
 outfile = args.out_file
 #solver = args.solver
 
-#if(args.verbose):
-#    ommp.set_verbose(3)
-#else:
-#    ommp.set_verbose(1)
+if(args.verbose):
+    ommp.set_verbose(3)
+else:
+    ommp.set_verbose(1)
 
 my_system = ommp.OMMPSystem(infile)
 

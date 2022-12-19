@@ -70,7 +70,7 @@ module mod_io
         integer(ip) :: outunit
         character(len=12) :: pre
 
-        if(level == OMMP_VERBOSE_NONE) return
+        if(level >= verbose) return
 
         if(present(u)) then
             outunit = u
