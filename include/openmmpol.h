@@ -62,17 +62,19 @@ extern double ommp_get_torsion_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_tortor_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_urey_energy(OMMP_SYSTEM_PRT);
 
+extern bool ommp_ff_is_amoeba(OMMP_SYSTEM_PRT);
+
 extern int32_t ommp_get_n_ipd(OMMP_SYSTEM_PRT);
-//extern int32_t ommp_get_ld_cart(void);
-//extern int32_t ommp_get_mm_atoms(void);
+extern int32_t ommp_get_ld_cart(OMMP_SYSTEM_PRT);
+extern int32_t ommp_get_mm_atoms(OMMP_SYSTEM_PRT);
 extern int32_t ommp_get_pol_atoms(OMMP_SYSTEM_PRT);
-//extern void *ommp_get_cmm(void);
-//extern void *ommp_get_cpol(void);
-//extern void *ommp_get_q(void);
-extern void *ommp_get_ipd(OMMP_SYSTEM_PRT);
-extern void *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
-//
-//extern bool ommp_ff_is_amoeba(void);
+
+extern double *ommp_get_cmm(OMMP_SYSTEM_PRT);
+extern double *ommp_get_cpol(OMMP_SYSTEM_PRT);
+extern double *ommp_get_q(OMMP_SYSTEM_PRT);
+extern double *ommp_get_ipd(OMMP_SYSTEM_PRT);
+extern double *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
+
 #ifdef __cplusplus
 }
 #endif

@@ -29,32 +29,38 @@ module mod_ommp_C_interface
         !!TODO     return
         !!TODO end function c_ommp_is_initialized
         !!TODO 
-        !!TODO function ommp_get_cmm() bind(c, name='ommp_get_cmm')
-        !!TODO     !! Return the c-pointer to the array containing the coordinates of
-        !!TODO     !! MM atoms.
-        !!TODO     use mod_mmpol, only: cmm
-        !!TODO     type(c_ptr) :: ommp_get_cmm
+        function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_cmm
 
-        !!TODO     ommp_get_cmm = c_loc(cmm)
-        !!TODO end function ommp_get_cmm
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_cmm = c_loc(s%top%cmm)
+        end function C_ommp_get_cmm
 
-        !!TODO function ommp_get_cpol() bind(c, name='ommp_get_cpol')
-        !!TODO     !! Return the c-pointer to the array containing the coordinates of
-        !!TODO     !! polarizable atoms.
-        !!TODO     use mod_mmpol, only: cpol
-        !!TODO     type(c_ptr) :: ommp_get_cpol
+        function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! polarizable atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_cpol
 
-        !!TODO     ommp_get_cpol = c_loc(cpol)
-        !!TODO end function ommp_get_cpol
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_cpol = c_loc(s%eel%cpol)
+        end function C_ommp_get_cpol
 
-        !!TODO function ommp_get_q() bind(c, name='ommp_get_q')
-        !!TODO     !! Return the c-pointer to the array containing the static source of 
-        !!TODO     !! the electrostatic field.
-        !!TODO     use mod_mmpol, only: q
-        !!TODO     type(c_ptr) :: ommp_get_q
+        function C_ommp_get_q(s_prt) bind(c, name='ommp_get_q')
+            !! Return the c-pointer to the array containing the static source of 
+            !! the electrostatic field.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_q
 
-        !!TODO     ommp_get_q = c_loc(q)
-        !!TODO end function ommp_get_q
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_q = c_loc(s%eel%q)
+        end function C_ommp_get_q
 
         function C_ommp_get_ipd(s_prt) bind(c, name='ommp_get_ipd')
             !! Return the c-pointer to the array containing the induced dipoles 
@@ -103,37 +109,41 @@ module mod_ommp_C_interface
             C_ommp_get_pol_atoms = s%eel%pol_atoms
         end function C_ommp_get_pol_atoms
 
-        function ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
+        function C_ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
             !! Return the number of dipole's set for the current Force-Field.
             implicit none
 
             type(c_ptr), value :: s_prt
             type(ommp_system), pointer :: s
-            integer(ommp_integer) :: ommp_get_n_ipd
+            integer(ommp_integer) :: C_ommp_get_n_ipd
 
             call c_f_pointer(s_prt, s)
-            ommp_get_n_ipd = s%eel%n_ipd
-        end function ommp_get_n_ipd
+            C_ommp_get_n_ipd = s%eel%n_ipd
+        end function C_ommp_get_n_ipd
 
-        !!TODO function ommp_get_ld_cart() bind(c, name='ommp_get_ld_cart')
-        !!TODO     use mod_mmpol, only: ld_cart
-        !!TODO     implicit none
+        function C_ommp_get_ld_cart(s_prt) bind(c, name='ommp_get_ld_cart')
+            implicit none
 
-        !!TODO     integer(ommp_integer) :: ommp_get_ld_cart
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_ld_cart
 
-        !!TODO     ommp_get_ld_cart = ld_cart
-        !!TODO end function ommp_get_ld_cart
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_ld_cart = s%eel%ld_cart
+        end function C_ommp_get_ld_cart
 
-        !!TODO function ommp_ff_is_amoeba() bind(c, name='ommp_ff_is_amoeba')
-        !!TODO     !! Return true if the current forcefield is AMOEBA, and false in
-        !!TODO     !! all other cases.
-        !!TODO     use mod_mmpol, only: amoeba
-        !!TODO     implicit none
+        function C_ommp_ff_is_amoeba(s_prt) bind(c, name='ommp_ff_is_amoeba')
+            !! Return true if the current forcefield is AMOEBA, and false in
+            !! all other cases.
+            implicit none
 
-        !!TODO     logical(c_bool) :: ommp_ff_is_amoeba
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_ff_is_amoeba
 
-        !!TODO     ommp_ff_is_amoeba = amoeba
-        !!TODO end function ommp_ff_is_amoeba
+            call c_f_pointer(s_prt, s)
+            C_ommp_ff_is_amoeba = s%amoeba
+        end function C_ommp_ff_is_amoeba
         
         subroutine C_ommp_set_verbose(verb) bind(c, name='ommp_set_verbose')
             !! Set the verbosity level of the library to verb
