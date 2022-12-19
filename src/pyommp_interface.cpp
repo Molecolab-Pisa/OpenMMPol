@@ -69,9 +69,9 @@ class OMMPSystem{
             double *mem = ommp_get_ipd(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
                                  py::format_descriptor<double>::format(),
-                                 2,
-                                 {get_pol_atoms(), 3},
-                                 {3*sizeof(double), sizeof(double)});
+                                 3,
+                                 {get_n_ipd(), get_pol_atoms(), 3},
+                                 {get_pol_atoms()*3*sizeof(double), 3*sizeof(double), sizeof(double)});
             return py_cdarray(bufinfo);
         }
         
@@ -149,6 +149,24 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
+        void set_external_field(py_cdarray ext_field, 
+                                bool nomm = false, 
+                                int32_t solver = OMMP_SOLVER_DEFAULT){
+            if(ext_field.ndim() != 2 || 
+               ext_field.shape(0) != get_pol_atoms() ||
+               ext_field.shape(1) != 3){
+                throw py::value_error("ext_field should be shaped [pol_atoms, 3]");
+            }
+
+            if(! nomm)
+                ommp_set_external_field(handler, ext_field.data(), solver);
+            else
+                ommp_set_external_field_nomm(handler, ext_field.data(), solver);
+            return ;
+        }
+
+
+
     private: 
         void *handler;
 };
@@ -171,6 +189,12 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "Save the data of OMMPSystem into a .mmp file (note that some informations are dropped in the process).", 
              py::arg("outfile"), 
              py::arg("version") = 3)
+        .def("set_external_field", 
+             &OMMPSystem::set_external_field,
+             "Set the external electric field and solves the linear system.",
+             py::arg("external_field"),
+             py::arg("nomm") = false,
+             py::arg("solver") = OMMP_SOLVER_DEFAULT)
         .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms, "Number of polarizable atoms")
         .def_property_readonly("mm_atoms", &OMMPSystem::get_mm_atoms, "Number of atoms")
         .def_property_readonly("_ld_cart", &OMMPSystem::get_ld_cart, "Dimension of static site descriptor; 1 for Wang FF, 10 for Amoeba FF.")
