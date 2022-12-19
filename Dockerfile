@@ -6,8 +6,11 @@ RUN zypper --non-interactive in gcc \
                                 gcc-fortran \ 
                                 make \
                                 cmake \
+                                python-pybind11-common-devel \
                                 python3-numpy \
                                 python3-pip \
+                                python3-pybind11 \
+                                python3-pybind11-devel \
                                 python3 \
                                 lapack-devel \
                                 liblapack3 \ 
