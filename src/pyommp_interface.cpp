@@ -1,9 +1,19 @@
 #include "openmmpol.h"
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <string>
 
 namespace py = pybind11;
+
+std::map<std::string, int32_t> solvers{
+    {"default", OMMP_SOLVER_DEFAULT},
+    {"conjugate gradient", OMMP_SOLVER_CG},
+    {"cg", OMMP_SOLVER_CG},
+    {"inversion", OMMP_SOLVER_INVERSION},
+    {"diis", OMMP_SOLVER_DIIS}
+};
+
 typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_ciarray;
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 
@@ -151,17 +161,21 @@ class OMMPSystem{
 
         void set_external_field(py_cdarray ext_field, 
                                 bool nomm = false, 
-                                int32_t solver = OMMP_SOLVER_DEFAULT){
+                                std::string solver = "default"){
             if(ext_field.ndim() != 2 || 
                ext_field.shape(0) != get_pol_atoms() ||
                ext_field.shape(1) != 3){
                 throw py::value_error("ext_field should be shaped [pol_atoms, 3]");
             }
 
+            if(solvers.find(solver) == solvers.end()){
+                throw py::value_error("Selected solver is not available!");
+            }
+
             if(! nomm)
-                ommp_set_external_field(handler, ext_field.data(), solver);
+                ommp_set_external_field(handler, ext_field.data(), solvers[solver]);
             else
-                ommp_set_external_field_nomm(handler, ext_field.data(), solver);
+                ommp_set_external_field_nomm(handler, ext_field.data(), solvers[solver]);
             return ;
         }
 
@@ -177,6 +191,7 @@ void set_verbose(int32_t v){
 
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
+    m.attr("available_solvers") = solvers;
 
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
@@ -200,7 +215,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "Set the external electric field and solves the linear system.",
              py::arg("external_field"),
              py::arg("nomm") = false,
-             py::arg("solver") = OMMP_SOLVER_DEFAULT)
+             py::arg("solver") = "default")
         .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms, "Number of polarizable atoms")
         .def_property_readonly("mm_atoms", &OMMPSystem::get_mm_atoms, "Number of atoms")
         .def_property_readonly("_ld_cart", &OMMPSystem::get_ld_cart, "Dimension of static site descriptor; 1 for Wang FF, 10 for Amoeba FF.")

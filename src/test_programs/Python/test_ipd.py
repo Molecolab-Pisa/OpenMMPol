@@ -18,18 +18,18 @@ parser.add_argument("--electric-field", "-f",
 parser.add_argument("--out-file", "-o",
                     help="""Formatted file where to print the
                             results""", default=None)
-#parser.add_argument("--solver", "-s",
-#                    help="""Solver method for the linear
-#                            system""",
-#                    default='default',
-#                    choices=ommp.available_solvers.keys())
+parser.add_argument("--solver", "-s",
+                    help="""Solver method for the linear
+                            system""",
+                    default='default',
+                    choices=ommp.available_solvers.keys())
 
 args = parser.parse_args()
 
 ext_field_file = args.electric_field
 infile = args.mmpol
 outfile = args.out_file
-#solver = args.solver
+solver = args.solver
 
 if(args.verbose):
     ommp.set_verbose(3)
@@ -43,7 +43,7 @@ if ext_field_file is not None:
 else:
     ef = np.zeros((my_system.pol_atoms, 3))
 
-my_system.set_external_field(ef)
+my_system.set_external_field(ef, solver=solver)
 ipd = my_system.ipd
 
 if outfile is None:
