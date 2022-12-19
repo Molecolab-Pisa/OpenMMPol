@@ -9,8 +9,16 @@ typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> 
 
 class OMMPSystem{
     public:
-        OMMPSystem(std::string mmp_filename) : handler(nullptr){
+        OMMPSystem(){
+            handler = nullptr;
+        }
+
+        OMMPSystem(std::string mmp_filename){
             handler = ommp_init_mmp(mmp_filename.c_str());
+        }
+        
+        OMMPSystem(std::string xyz_filename, std::string prm_filename){
+            handler = ommp_init_xyz(xyz_filename.c_str(), prm_filename.c_str());
         }
 
         ~OMMPSystem(){
@@ -108,6 +116,8 @@ class OMMPSystem{
         }
         
         py_cdarray get_static_dipoles(){
+            if(! is_amoeba()) return py::none();
+
             double *mem = ommp_get_q(handler);
             py::buffer_info bufinfo(&(mem[1]), sizeof(double),
                                     py::format_descriptor<double>::format(),
@@ -118,12 +128,24 @@ class OMMPSystem{
         }
 
         py_cdarray get_static_quadrupoles(){
+            if(! is_amoeba()) return py::none();
+            
             double *mem = ommp_get_q(handler);
             py::buffer_info bufinfo(&(mem[4]), sizeof(double),
                                     py::format_descriptor<double>::format(),
                                     2,
                                     {get_mm_atoms(), 6},
                                     {get_ld_cart()*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_ciarray get_polar_mm(){
+            int32_t *mem = ommp_get_polar_mm(handler);
+            py::buffer_info bufinfo(mem, sizeof(int),
+                                    py::format_descriptor<int>::format(),
+                                    1,
+                                    {get_pol_atoms()},
+                                    {sizeof(int)});
             return py_cdarray(bufinfo);
         }
 
@@ -133,19 +155,33 @@ class OMMPSystem{
 
 PYBIND11_MODULE(pyopenmmpol, m){
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
-        .def(py::init<std::string>(), "provola", "mmp_filename")
-        .def("print_summary", &OMMPSystem::print_summary, "provolotto", py::arg("outfile") = "")
-        .def("save_mmp_file", &OMMPSystem::save_mmp_file, "blblb", py::arg("outfile"), py::arg("version") = 3)
-        .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms)
-        .def_property_readonly("mm_atoms", &OMMPSystem::get_mm_atoms)
-        .def_property_readonly("ld_cart", &OMMPSystem::get_ld_cart)
-        .def_property_readonly("n_ipd", &OMMPSystem::get_n_ipd)
-        .def_property_readonly("is_amoeba", &OMMPSystem::is_amoeba)
-        .def_property_readonly("ipd", &OMMPSystem::get_ipd)
-        .def_property_readonly("cmm", &OMMPSystem::get_cmm)
-        .def_property_readonly("cpol", &OMMPSystem::get_cpol)
-        .def_property_readonly("_q", &OMMPSystem::get_q)
-        .def_property_readonly("static_charges", &OMMPSystem::get_static_charges)
-        .def_property_readonly("static_dipoles", &OMMPSystem::get_static_dipoles)
-        .def_property_readonly("static_quadrupoles", &OMMPSystem::get_static_quadrupoles);
+        .def(py::init<std::string>(), 
+             "pyOpenMMPol creator, takes the path to a .mmp file as input.", 
+             py::arg("mmp_filename"))
+        .def(py::init<std::string, std::string>(), 
+             "pyOpenMMPol creator, takes the path to a Tinker .xyz and .prm files as input.", 
+             py::arg("xyz_filename"), 
+             py::arg("prm_filename"))
+        .def("print_summary", 
+             &OMMPSystem::print_summary, 
+             "Output a summary of loaded quantites, if outfile is specified, it is printed on file.", 
+             py::arg("outfile") = "")
+        .def("save_mmp_file", 
+             &OMMPSystem::save_mmp_file, 
+             "Save the data of OMMPSystem into a .mmp file (note that some informations are dropped in the process).", 
+             py::arg("outfile"), 
+             py::arg("version") = 3)
+        .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms, "Number of polarizable atoms")
+        .def_property_readonly("mm_atoms", &OMMPSystem::get_mm_atoms, "Number of atoms")
+        .def_property_readonly("_ld_cart", &OMMPSystem::get_ld_cart, "Dimension of static site descriptor; 1 for Wang FF, 10 for Amoeba FF.")
+        .def_property_readonly("n_ipd", &OMMPSystem::get_n_ipd, "Number of induced dipoles sets; 1 for Wang FF, 2 for Amoeba FF.")
+        .def_property_readonly("is_amoeba", &OMMPSystem::is_amoeba, "Flag for Amoeba FF")
+        .def_property_readonly("ipd", &OMMPSystem::get_ipd, "Induced dipoles (read only)")
+        .def_property_readonly("cmm", &OMMPSystem::get_cmm, "Coordinates of atoms (read only) [mm_atoms, 3]")
+        .def_property_readonly("cpol", &OMMPSystem::get_cpol, "Coordinates of polarizable atoms (read only) [pol_atoms, 3]")
+        .def_property_readonly("_q", &OMMPSystem::get_q, "Full descriptor of static sites (read only) [mm_atoms, _ld_cart]")
+        .def_property_readonly("static_charges", &OMMPSystem::get_static_charges, "Static charges (read only) [mm_atoms]")
+        .def_property_readonly("static_dipoles", &OMMPSystem::get_static_dipoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 3], else None")
+        .def_property_readonly("static_quadrupoles", &OMMPSystem::get_static_quadrupoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 6], else None")
+        .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]");
 }

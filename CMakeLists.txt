@@ -62,8 +62,6 @@ if (HDF5_FOUND)
     endif() 
 endif()
 
-#python
-find_package(pybind11 CONFIG REQUIRED)
 
 # Enable preprocessor for Fortran
 target_compile_options(openmmpol PRIVATE -cpp)
@@ -165,17 +163,25 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 endif ()
 
 # Python
-add_library(openmmpol_static STATIC
-            ${LIBRARY_SRC})
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs)
+option(PYTHON "Build python module (Generally you want to use ./setup.py build_ext for this)" OFF)
+if (PYTHON)
+    #python
+    find_package(pybind11 CONFIG REQUIRED)
+    add_library(openmmpol_static STATIC
+                ${LIBRARY_SRC})
+    if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs)
+    endif()
+    target_compile_options(openmmpol_static PRIVATE -fPIC -cpp)
+    target_link_libraries(openmmpol_static OpenMP::OpenMP_Fortran)
+    target_link_libraries(openmmpol_static ${LAPACK_LIBRARIES})
+    pybind11_add_module(pyopenmmpol MODULE src/pyommp_interface.cpp)
+    target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO="0.7")
+    target_link_libraries(pyopenmmpol PRIVATE openmmpol_static)
+
+    set_target_properties(pyopenmmpol PROPERTIES LIBRARY_OUTPUT_DIRECTORY  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+    set_target_properties(pyopenmmpol PROPERTIES OUTPUT_NAME pyopenmmpol)
 endif()
-target_compile_options(openmmpol_static PRIVATE -fPIC -cpp)
-target_link_libraries(openmmpol_static OpenMP::OpenMP_Fortran) #TODO
-target_link_libraries(openmmpol_static ${LAPACK_LIBRARIES})
-pybind11_add_module(pyopenmmpol MODULE src/pyommp_interface.cpp)
-target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO="0.0.0")
-target_link_libraries(pyopenmmpol PRIVATE openmmpol_static)
 
 # Tests
 include(tests/CMakeLists.txt)

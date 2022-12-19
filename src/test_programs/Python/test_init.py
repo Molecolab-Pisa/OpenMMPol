@@ -1,14 +1,20 @@
 import pyopenmmpol as ommp
+import sys
 
-infile = "/home/mattia/LibEnv/open-mmpol/tests/N-methylacetamide/input_AMOEBA.mmp"
-outfile = None
+if len(sys.argv) not in [1, 2]:
+    print("Syntax expected")
+    print("    $ test_init.exe <INPUT FILE> [<OUTPUT FILE>]")
+    exit(0)
+elif len(sys.argv) == 1:
+    outfile = None
+else:
+    outfile = sys.argv[1]
 
-ommp.set_verbose(3)
-ommp.init_mmp(infile)
+my_system = ommp.OMMPSystem(sys.argv[0])
 
 if outfile is not None:
-    ommp.print_summary_to_file(outfile)
+    my_system.print_summary(outfile)
 else:
-    ommp.print_summary()
+    my_system.print_summary()
 
-ommp.terminate()
+del my_system

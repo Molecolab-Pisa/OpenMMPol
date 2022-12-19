@@ -73,7 +73,7 @@ extern double *ommp_get_cmm(OMMP_SYSTEM_PRT);
 extern double *ommp_get_cpol(OMMP_SYSTEM_PRT);
 extern double *ommp_get_q(OMMP_SYSTEM_PRT);
 extern double *ommp_get_ipd(OMMP_SYSTEM_PRT);
-extern double *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
+extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 
 #ifdef __cplusplus
 }
