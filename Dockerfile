@@ -1,5 +1,5 @@
 FROM opensuse/leap:latest
-LABEL version="1.2"
+LABEL version="1.3"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive in gcc \
                                 gcc-c++ \ 
