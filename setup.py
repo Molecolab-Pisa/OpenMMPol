@@ -13,7 +13,6 @@ class CMakeExtension(Extension):
 class CMakeBuild(build_ext):
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        print("PORCODIO", extdir)
         if not extdir.endswith(os.path.sep):
             extdir += os.path.sep
 
