@@ -171,7 +171,7 @@ module ommp_interface
             real(ommp_real) :: evdw
 
             evdw = 0.0
-            call vdw_potential(sys_obj%vdw, evdw)
+            if(sys_obj%use_nonbonded) call vdw_potential(sys_obj%vdw, evdw)
         
         end function
         
@@ -184,7 +184,7 @@ module ommp_interface
             real(ommp_real) :: eb
 
             eb = 0.0
-            call bond_potential(sys_obj%bds, eb)
+            if(sys_obj%use_bonded) call bond_potential(sys_obj%bds, eb)
         
         end function
         
@@ -197,7 +197,7 @@ module ommp_interface
             real(ommp_real) :: ea
 
             ea = 0.0
-            call angle_potential(sys_obj%bds, ea)
+            if(sys_obj%use_bonded) call angle_potential(sys_obj%bds, ea)
         
         end function
         
@@ -210,7 +210,7 @@ module ommp_interface
             real(ommp_real) :: eba
 
             eba = 0.0
-            call strbnd_potential(sys_obj%bds, eba)
+            if(sys_obj%use_bonded) call strbnd_potential(sys_obj%bds, eba)
         
         end function
         
@@ -223,7 +223,7 @@ module ommp_interface
             real(ommp_real) :: eub
 
             eub = 0.0
-            call urey_potential(sys_obj%bds, eub)
+            if(sys_obj%use_bonded) call urey_potential(sys_obj%bds, eub)
         
         end function
         
@@ -236,7 +236,7 @@ module ommp_interface
             real(ommp_real) :: eopb
 
             eopb = 0.0
-            call opb_potential(sys_obj%bds, eopb)
+            if(sys_obj%use_bonded) call opb_potential(sys_obj%bds, eopb)
         
         end function
         
@@ -249,7 +249,7 @@ module ommp_interface
             real(ommp_real) :: ept
 
             ept = 0.0
-            call pitors_potential(sys_obj%bds, ept)
+            if(sys_obj%use_bonded) call pitors_potential(sys_obj%bds, ept)
         
         end function
         
@@ -262,7 +262,7 @@ module ommp_interface
             real(ommp_real) :: et
 
             et = 0.0
-            call torsion_potential(sys_obj%bds, et)
+            if(sys_obj%use_bonded) call torsion_potential(sys_obj%bds, et)
         
         end function
         
@@ -275,7 +275,7 @@ module ommp_interface
             real(ommp_real) :: ett
 
             ett = 0.0
-            call tortor_potential(sys_obj%bds, ett)
+            if(sys_obj%use_bonded) call tortor_potential(sys_obj%bds, ett)
         
         end function
         
@@ -288,7 +288,7 @@ module ommp_interface
             real(ommp_real) :: est
 
             est = 0.0
-            call strtor_potential(sys_obj%bds, est)
+            if(sys_obj%use_bonded) call strtor_potential(sys_obj%bds, est)
         
         end function
         
@@ -301,8 +301,55 @@ module ommp_interface
             real(ommp_real) :: eat
 
             eat = 0.0
-            call angtor_potential(sys_obj%bds, eat)
+            if(sys_obj%use_bonded) call angtor_potential(sys_obj%bds, eat)
         
         end function
+
+#ifdef USE_HDF5
+        subroutine ommp_init_hdf5(s, filename, namespace)
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
+            use mod_iohdf5, only: mmpol_init_from_hdf5
+            
+            implicit none
+            
+            type(ommp_system), pointer :: s
+            character(len=*) :: filename, namespace
+            integer(ommp_integer) :: ok
+
+            allocate(s)
+            call mmpol_init_from_hdf5(filename, namespace, s, ok)
+            
+        end subroutine ommp_init_hdf5
+        
+        subroutine ommp_save_as_hdf5(s, filename, namespace) 
+            
+            use mod_iohdf5, only: save_system_as_hdf5 
+
+            implicit none
+            
+            character(len=*) :: filename, namespace
+            type(ommp_system), pointer :: s
+            integer(kind=4) :: err
+
+            call save_system_as_hdf5(filename, s, err, namespace, .false.)
+            
+        end subroutine ommp_save_as_hdf5
+        
+        subroutine ommp_checkpoint(s, filename, namespace)
+            
+            use mod_iohdf5, only: save_system_as_hdf5 
+
+            implicit none
+            
+            character(len=*) :: filename, namespace
+            type(ommp_system), pointer :: s
+            integer(kind=4) :: err
+
+            call save_system_as_hdf5(filename, s, err, namespace, .true.)
+            
+        end subroutine ommp_checkpoint
+#endif
 end module ommp_interface
 
