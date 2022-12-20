@@ -53,8 +53,6 @@ if not os.path.isfile("src/pyommp_interface.cpp"):
 setup(
     name="pyopenmmpol",
     description="Python interface of OpenMMPol library",
-    # long_description=read_readme(),
-    #long_description_content_type="text/markdown",
     version="0.7",
     author="Molecolab Group",
     author_email="benedetta.mennucci@unipi.it",
