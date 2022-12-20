@@ -179,7 +179,57 @@ class OMMPSystem{
             return ;
         }
 
+        double get_bond_energy(void){
+            return ommp_get_bond_energy(handler);
+        }
 
+        double get_angle_energy(void){
+            return ommp_get_angle_energy(handler);
+        }
+
+        double get_angtor_energy(void){
+            return ommp_get_angtor_energy(handler);
+        }
+
+        double get_strtor_energy(void){
+            return ommp_get_strtor_energy(handler);
+        }
+
+        double get_strbnd_energy(void){
+            return ommp_get_strbnd_energy(handler);
+        }
+
+        double get_opb_energy(void){
+            return ommp_get_opb_energy(handler);
+        }
+
+        double get_pitors_energy(void){
+            return ommp_get_pitors_energy(handler);
+        }
+
+        double get_torsion_energy(void){
+            return ommp_get_torsion_energy(handler);
+        }
+
+        double get_tortor_energy(void){
+            return ommp_get_tortor_energy(handler);
+        }
+
+        double get_urey_energy(void){
+            return ommp_get_urey_energy(handler);
+        }
+
+        double get_polelec_energy(void){
+            return ommp_get_polelec_energy(handler);
+        }
+
+        double get_fixedelec_energy(void){
+            return ommp_get_fixedelec_energy(handler);
+        }
+
+        double get_vdw_energy(void){
+            return ommp_get_vdw_energy(handler);
+        }
 
     private: 
         void *handler;
@@ -216,6 +266,22 @@ PYBIND11_MODULE(pyopenmmpol, m){
              py::arg("external_field"),
              py::arg("nomm") = false,
              py::arg("solver") = "default")
+        
+        .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
+        .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")
+        .def("get_torsion_energy", &OMMPSystem::get_torsion_energy, "Compute the energy of dihedral torsion")
+        .def("get_opb_energy", &OMMPSystem::get_opb_energy, "Compute the energy of out-of-plane bending")
+        .def("get_urey_energy", &OMMPSystem::get_urey_energy, "Compute the energy of Urey-Bradley terms")
+        .def("get_pitors_energy", &OMMPSystem::get_pitors_energy, "Compute the energy of Pi-system torsion terms")
+        .def("get_strbnd_energy", &OMMPSystem::get_strbnd_energy, "Compute the energy of stretching-bending couplings")
+        .def("get_strtor_energy", &OMMPSystem::get_strtor_energy, "Compute the energy of stretching torsion couplings")
+        .def("get_angtor_energy", &OMMPSystem::get_angtor_energy, "Compute the energy of bending torsion couplings")
+        .def("get_tortor_energy", &OMMPSystem::get_tortor_energy, "Compute the energy of torsion-torsion cmap")
+        
+        .def("get_vdw_energy", &OMMPSystem::get_vdw_energy, "Compute the energy of Van der Waals terms")
+        .def("get_fixedelec_energy", &OMMPSystem::get_fixedelec_energy, "Compute the energy of fixed electrostatics")
+        .def("get_polelec_energy", &OMMPSystem::get_polelec_energy, "Compute the energy of polarizable electrostatics")
+
         .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms, "Number of polarizable atoms")
         .def_property_readonly("mm_atoms", &OMMPSystem::get_mm_atoms, "Number of atoms")
         .def_property_readonly("_ld_cart", &OMMPSystem::get_ld_cart, "Dimension of static site descriptor; 1 for Wang FF, 10 for Amoeba FF.")

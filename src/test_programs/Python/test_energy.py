@@ -29,21 +29,23 @@ args = parser.parse_args()
 ext_field_file = args.electric_field
 infile = args.mmpol
 outfile = args.out_file
+solver = args.solver
+
 if(args.verbose):
     ommp.set_verbose(3)
 else:
     ommp.set_verbose(1)
 
-ommp.init_mmp(infile)
+my_system = ommp.OMMPSystem(infile)
 
 if ext_field_file is not None:
     ef = np.loadtxt(ext_field_file)
 else:
-    ef = np.zeros((ommp.get_pol_atoms(), 3))
+    ef = np.zeros((my_system.pol_atoms, 3))
 
-ommp.set_external_field(ef, 'cg')
-em = ommp.get_fixedelec_energy()
-ep = ommp.get_polelec_energy()
+my_system.set_external_field(ef, solver=solver)
+em = my_system.get_fixedelec_energy()
+ep = my_system.get_polelec_energy()
 
 if outfile is None:
     print('{:20.12f}'.format(em))
