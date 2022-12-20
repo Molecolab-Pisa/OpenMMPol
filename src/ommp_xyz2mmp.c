@@ -7,7 +7,7 @@
 int main(int argc, char **argv){
     if(argc != 4){
         printf("Syntax expected\n");
-        printf("    $ test_init_xyz.exe <INPUt XYZ FILE> <INPUT PRM FILE> <OUTPUT MMP FILE>\n");
+        printf("    $ xyz2mmp <INPUt XYZ FILE> <INPUT PRM FILE> <OUTPUT MMP FILE>\n");
         return 0;
     }
     
