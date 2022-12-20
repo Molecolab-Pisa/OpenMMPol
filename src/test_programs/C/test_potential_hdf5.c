@@ -4,6 +4,41 @@
 
 #include "openmmpol.h"
 
+int countLines(char *fin){
+    FILE *fp = fopen(fin, "r");
+    
+    char c;
+    int lines = 1;
+
+    if(fp == NULL) return 0;
+
+    do{
+        c = fgetc(fp);
+        if(c == '\n') lines++;
+    }while(c != EOF);
+
+    fclose(fp);
+  
+    return lines - 1;
+}
+
+double **read_ef(char *fin){
+    double **ef;
+    
+    int pol_atoms = countLines(fin);
+
+    ef = (double **) malloc(sizeof(double *) * 3 * pol_atoms);
+
+    FILE *fp = fopen(fin, "r");
+    for(int i =0; i < pol_atoms; i++){
+        ef[i] = (double *) malloc(sizeof(double) * 3);
+        fscanf(fp, "%lf %lf %lf", &(ef[i][0]), &(ef[i][1]),  &(ef[i][2]));
+    }
+    fclose(fp);
+
+    return ef;
+}
+
 int main(int argc, char **argv){
     if(argc != 3){
         printf("Syntax expected\n");
@@ -18,9 +53,9 @@ int main(int argc, char **argv){
     double *electric_field;
 
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);
-    ommp_init_hdf5(argv[1]);
+    OMMP_SYSTEM_PRT my_system = ommp_init_hdf5(argv[1], "system");
     
-    pol_atoms = ommp_get_pol_atoms();
+    pol_atoms = ommp_get_pol_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     
@@ -28,21 +63,21 @@ int main(int argc, char **argv){
         for(int k = 0; k < 3; k++)
             electric_field[j*3+k] = 0.0;
 
-    ommp_get_fixedelec_energy(&em);
-    ommp_set_external_field(electric_field, OMMP_SOLVER_DEFAULT);
-    ommp_get_polelec_energy(&ep);
-
-    ommp_get_vdw_energy(&ev);
-    ommp_get_bond_energy(&eb);
-    ommp_get_angle_energy(&ea);
-    ommp_get_strbnd_energy(&eba);
-    ommp_get_urey_energy(&eub);
-    ommp_get_opb_energy(&eopb);
-    ommp_get_pitors_energy(&ept);
-    ommp_get_torsion_energy(&et);
-    ommp_get_tortor_energy(&ett);
-    ommp_get_angtor_energy(&eat);
-    ommp_get_strtor_energy(&ebt);
+    em = ommp_get_fixedelec_energy(my_system);
+    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_DEFAULT);
+    ep = ommp_get_polelec_energy(my_system);
+    
+    ev =   ommp_get_vdw_energy(my_system);
+    eb =   ommp_get_bond_energy(my_system);
+    ea =   ommp_get_angle_energy(my_system);
+    eba =  ommp_get_strbnd_energy(my_system);
+    eub =  ommp_get_urey_energy(my_system);
+    eopb = ommp_get_opb_energy(my_system);
+    ept =  ommp_get_pitors_energy(my_system);
+    et =   ommp_get_torsion_energy(my_system);
+    ett =  ommp_get_tortor_energy(my_system);
+    eat =  ommp_get_angtor_energy(my_system);
+    ebt =  ommp_get_strtor_energy(my_system);
 
     FILE *fp = fopen(argv[2], "w+");
 
@@ -108,7 +143,7 @@ int main(int argc, char **argv){
     
     fclose(fp);
     free(electric_field);
-    ommp_terminate();
+    ommp_terminate(my_system);
     
     return 0;
 }

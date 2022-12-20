@@ -414,7 +414,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eub = 0.0
-            call urey_potential(s%bds, eub)
+            if(s%use_bonded) call urey_potential(s%bds, eub)
         end function
         
         function C_ommp_get_strbnd_energy(s_prt) &
@@ -430,7 +430,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eba = 0.0
-            call strbnd_potential(s%bds, eba)
+            if(s%use_bonded) call strbnd_potential(s%bds, eba)
         end function
         
         function C_ommp_get_angle_energy(s_prt) &
@@ -446,7 +446,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eang = 0.0
-            call angle_potential(s%bds, eang)
+            if(s%use_bonded) call angle_potential(s%bds, eang)
         end function
         
         function C_ommp_get_angtor_energy(s_prt) &
@@ -462,7 +462,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eat = 0.0
-            call angtor_potential(s%bds, eat)
+            if(s%use_bonded) call angtor_potential(s%bds, eat)
         end function
         
         function C_ommp_get_strtor_energy(s_prt) &
@@ -478,7 +478,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             ebt = 0.0
-            call strtor_potential(s%bds, ebt)
+            if(s%use_bonded) call strtor_potential(s%bds, ebt)
         end function
         
         function C_ommp_get_bond_energy(s_prt) &
@@ -494,7 +494,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             ebnd = 0.0
-            call bond_potential(s%bds, ebnd)
+            if(s%use_bonded) call bond_potential(s%bds, ebnd)
         end function
         
         function C_ommp_get_opb_energy(s_prt) &
@@ -510,7 +510,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             eopb = 0.0
-            call opb_potential(s%bds, eopb)
+            if(s%use_bonded) call opb_potential(s%bds, eopb)
         end function
         
         function C_ommp_get_pitors_energy(s_prt) &
@@ -526,7 +526,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             epitors = 0.0
-            call pitors_potential(s%bds, epitors)
+            if(s%use_bonded) call pitors_potential(s%bds, epitors)
         end function
         
         function C_ommp_get_torsion_energy(s_prt) &
@@ -542,7 +542,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             et = 0.0
-            call torsion_potential(s%bds, et)
+            if(s%use_bonded) call torsion_potential(s%bds, et)
         end function
         
         function C_ommp_get_tortor_energy(s_prt) &
@@ -558,7 +558,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             ett = 0.0
-            call tortor_potential(s%bds, ett)
+            if(s%use_bonded) call tortor_potential(s%bds, ett)
         end function
         
         function C_ommp_get_vdw_energy(s_prt) &
@@ -574,7 +574,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
 
             evdw = 0.0
-            call vdw_potential(s%vdw, evdw)
+            if(s%use_nonbonded) call vdw_potential(s%vdw, evdw)
 
         end function
 
@@ -591,42 +591,78 @@ module mod_ommp_C_interface
             deallocate(s)
 
         end subroutine
-!TODO
-!TODO#ifdef USE_HDF5
-!TODO        subroutine ommp_init_hdf5(filename) bind(c, name='ommp_init_hdf5')
-!TODO            !! This function is an interface for saving an HDF5 file 
-!TODO            !! with all the data contained in mmpol module using
-!TODO            !! [[mod_io:mmpol_save_as_hdf5]]
-!TODO            use mod_iohdf5, only: mmpol_init_from_hdf5
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
-!TODO            character(len=OMMP_STR_CHAR_MAX) :: hdf5in
-!TODO            integer(ommp_integer) :: ok
-!TODO
-!TODO            call c2f_string(filename, hdf5in)
-!TODO            call mmpol_init_from_hdf5(hdf5in, ok)
-!TODO            
-!TODO        end subroutine ommp_init_hdf5
-!TODO        
-!TODO        function ommp_write_hdf5(filename) bind(c, name='ommp_write_hdf5')
-!TODO            !! This function is an interface for saving an HDF5 file 
-!TODO            !! with all the data contained in mmpol module using
-!TODO            !! [[mod_io:mmpol_save_as_hdf5]]
-!TODO            use mod_iohdf5, only: mmpol_save_as_hdf5
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
-!TODO            character(len=OMMP_STR_CHAR_MAX) :: hdf5out
-!TODO            integer(ommp_integer) :: ommp_write_hdf5
-!TODO
-!TODO            call c2f_string(filename, hdf5out)
-!TODO            call mmpol_save_as_hdf5(hdf5out, ommp_write_hdf5)
-!TODO            
-!TODO        end function ommp_write_hdf5
-!TODO#endif
+
+#ifdef USE_HDF5
+        function C_ommp_init_hdf5(filename, namespace) &
+                result(c_prt) bind(c, name='ommp_init_hdf5')
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
+            use mod_iohdf5, only: mmpol_init_from_hdf5
+            
+            implicit none
+            
+            type(ommp_system), pointer :: s
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
+                                                  namespace(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5in, nms
+            integer(ommp_integer) :: ok
+            type(c_ptr) :: c_prt
+
+            allocate(s)
+
+            call c2f_string(filename, hdf5in)
+            call c2f_string(namespace, nms)
+            call mmpol_init_from_hdf5(hdf5in, trim(nms), s, ok)
+            
+            c_prt = c_loc(s)
+            
+        end function C_ommp_init_hdf5
+        
+        subroutine C_ommp_save_as_hdf5(s_prt, filename, namespace) &
+                bind(c, name='ommp_save_as_hdf5')
+            
+            use mod_iohdf5, only: save_system_as_hdf5 
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
+                                                  namespace(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5out, nms
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(kind=4) :: err
+
+            call c_f_pointer(s_prt, s)
+
+            call c2f_string(filename, hdf5out)
+            call c2f_string(namespace, nms)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .false.)
+            
+        end subroutine C_ommp_save_as_hdf5
+        
+        subroutine C_ommp_checkpoint(s_prt, filename, namespace) &
+                bind(c, name='ommp_checkpoint')
+            
+            use mod_iohdf5, only: save_system_as_hdf5 
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
+                                                  namespace(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5out, nms
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(kind=4) :: err
+
+            call c_f_pointer(s_prt, s)
+
+            call c2f_string(filename, hdf5out)
+            call c2f_string(namespace, nms)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .true.)
+            
+        end subroutine C_ommp_checkpoint
+#endif
 
 end module mod_ommp_C_interface
 

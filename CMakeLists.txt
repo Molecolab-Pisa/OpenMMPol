@@ -22,7 +22,7 @@ set(LIBRARY_SRC
     src/mod_inputloader.f90
     src/mod_interface.f90
     src/mod_io.f90
-    #src/mod_iohdf5.f90
+    src/mod_iohdf5.f90
     src/mod_memory.f90
     src/mod_mmpol.f90
     src/mod_nonbonded.f90
@@ -114,24 +114,24 @@ target_link_libraries(ommp_xyz2mmp openmmpol)
 target_compile_options(ommp_xyz2mmp PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET ommp_xyz2mmp PROPERTY C_STANDARD 99)
 
-#if (HDF5_WORKS)
-#    add_executable(ommp_pp src/ommp_compile.c)
-#    target_link_libraries(ommp_pp openmmpol)
-#    target_compile_options(ommp_pp PRIVATE -Wall -Wextra -pedantic)
-#    set_property(TARGET ommp_pp PROPERTY C_STANDARD 99)
-#    
-#    add_executable(C_test_init_hdf5 src/test_programs/test_init_hdf5.c)
-#    target_link_libraries(C_test_init_hdf5 openmmpol)
-#    target_compile_options(C_test_init_hdf5 PRIVATE -Wall -Wextra -pedantic)
-#    set_property(TARGET C_test_init_hdf5 PROPERTY C_STANDARD 99)
-#    
-#    add_executable(C_test_potential_hdf5 src/test_programs/test_potential_hdf5.c)
-#    target_link_libraries(C_test_potential_hdf5 openmmpol)
-#    target_compile_options(C_test_potential_hdf5 PRIVATE -Wall -Wextra -pedantic)
-#    set_property(TARGET C_test_potential_hdf5 PROPERTY C_STANDARD 99)
-#endif ()
-#
-#
+if (HDF5_WORKS)
+    add_executable(ommp_pp src/ommp_compile.c)
+    target_link_libraries(ommp_pp openmmpol)
+    target_compile_options(ommp_pp PRIVATE -Wall -Wextra -pedantic)
+    set_property(TARGET ommp_pp PROPERTY C_STANDARD 99)
+    
+    add_executable(C_test_init_hdf5 src/test_programs/C/test_init_hdf5.c)
+    target_link_libraries(C_test_init_hdf5 openmmpol)
+    target_compile_options(C_test_init_hdf5 PRIVATE -Wall -Wextra -pedantic)
+    set_property(TARGET C_test_init_hdf5 PROPERTY C_STANDARD 99)
+    
+    add_executable(C_test_potential_hdf5 src/test_programs/C/test_potential_hdf5.c)
+    target_link_libraries(C_test_potential_hdf5 openmmpol)
+    target_compile_options(C_test_potential_hdf5 PRIVATE -Wall -Wextra -pedantic)
+    set_property(TARGET C_test_potential_hdf5 PROPERTY C_STANDARD 99)
+endif ()
+
+
 add_executable(F03_test_init src/test_programs/F03/test_init.f90)
 target_link_libraries(F03_test_init openmmpol)
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
