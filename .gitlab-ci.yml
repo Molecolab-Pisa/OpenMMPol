@@ -30,21 +30,21 @@ cmake-config:
         paths:
             - build
 
-cmake-config-intel:
-    stage: configure
-    image: $CI_REGISTRY_IMAGE:latest
-    before_script:
-        - source /opt/intel/oneapi/setvars.sh
-    script:
-        - mkdir build_intel
-        - cd build_intel
-        - CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
-          CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
-          FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort 
-          cmake -DCMAKE_BUILD_TYPE=RELEASE ..
-    artifacts:
-        paths:
-            - build_intel
+              #cmake-config-intel:
+              #    stage: configure
+              #    image: $CI_REGISTRY_IMAGE:latest
+              #    before_script:
+              #        - source /opt/intel/oneapi/setvars.sh
+              #    script:
+              #        - mkdir build_intel
+              #        - cd build_intel
+              #        - CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
+              #          CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
+              #          FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort 
+              #          cmake -DCMAKE_BUILD_TYPE=RELEASE ..
+              #    artifacts:
+              #        paths:
+              #            - build_intel
 
 cmake-config-nvidia:
     stage: configure
