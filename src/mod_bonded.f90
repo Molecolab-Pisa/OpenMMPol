@@ -870,7 +870,7 @@ module mod_bonded
         real(rp) :: thet, costhet, dihef(3), dr(3), r(3), vst
         integer(ip) :: i, j, k, ib1, ib2, ib3
         
-        if(.not. bds%use_torsion) return
+        if(.not. bds%use_strtor) return
 
         do i=1, bds%nstrtor
             ! Atoms that defines the dihedral angle
