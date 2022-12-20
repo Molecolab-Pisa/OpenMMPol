@@ -20,8 +20,8 @@ RUN zypper --non-interactive in gcc \
                                 zlib-devel
 RUN pip install -Iv ford==6.1.11
 RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py
-RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
-RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
-                                                            intel-hpckit
-RUN zypper --non-interactive addrepo https://developer.download.nvidia.com/hpc-sdk/sles/nvhpc.repo
-RUN zypper --non-interactive --gpg-auto-import-keys install nvhpc
+#RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
+#RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
+#                                                            intel-hpckit
+#RUN zypper --non-interactive addrepo https://developer.download.nvidia.com/hpc-sdk/sles/nvhpc.repo
+#RUN zypper --non-interactive --gpg-auto-import-keys install nvhpc
