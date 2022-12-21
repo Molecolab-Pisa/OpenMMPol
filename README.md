@@ -1,5 +1,5 @@
 # Open-MMPol
-![alt text](logo/logo.png "Title Text"){width=100 height=100px}
+<img src="logo/logo.png" width="100">
 
 ## Description
 
