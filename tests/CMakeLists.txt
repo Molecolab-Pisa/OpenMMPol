@@ -8,7 +8,7 @@ file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/param
 
 #==== MEMORY TEST ====#
 set(VALGRINDOPT --track-origins=yes --leak-check=full --show-leak-kinds=all) 
-set(TESTLANG C)
+set(TESTLANG "C" CACHE STRING "Language to be used for the test suite, the very same test programs are implemented in C99 (C) and Fortran2003 (F03).")
 add_test(NAME memcheck_NMA_loading_AMOEBA
          COMMAND valgrind ${VALGRINDOPT} bin/${TESTLANG}_test_init ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp Testing/output)
 
