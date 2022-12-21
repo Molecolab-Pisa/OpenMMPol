@@ -1,5 +1,5 @@
 # Open-MMPol
-<img src="logo/logo.png" width="100">
+<img src="logo/logo.png" width="200">
 
 ## Description
 
