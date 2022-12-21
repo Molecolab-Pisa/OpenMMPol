@@ -578,6 +578,24 @@ module mod_ommp_C_interface
 
         end function
 
+        subroutine C_ommp_update_coordinates(s_prt, new_c_p) &
+                bind(C, name='ommp_update_coordinates')
+            use mod_mmpol, only: update_coordinates
+            
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: new_c_p
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: new_c(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(new_c_p, new_c, [3, s%top%mm_atoms])
+            
+            call update_coordinates(s, new_c)
+        end subroutine
+
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
             use mod_mmpol, only: mmpol_terminate
 

@@ -178,6 +178,17 @@ class OMMPSystem{
                 ommp_set_external_field_nomm(handler, ext_field.data(), solvers[solver]);
             return ;
         }
+        
+        void update_coordinates(py_cdarray c){ 
+            if(c.ndim() != 2 || 
+               c.shape(0) != get_mm_atoms() ||
+               c.shape(1) != 3){
+                throw py::value_error("ext_field should be shaped [mm_atoms, 3]");
+            }
+
+            ommp_update_coordinates(handler, c.data());
+            return ;
+        }
 
         double get_bond_energy(void){
             return ommp_get_bond_energy(handler);
@@ -266,6 +277,11 @@ PYBIND11_MODULE(pyopenmmpol, m){
              py::arg("external_field"),
              py::arg("nomm") = false,
              py::arg("solver") = "default")
+        
+        .def("update_coordinates", 
+             &OMMPSystem::update_coordinates,
+             "Update system's coordinates.",
+             py::arg("coord"))
         
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")

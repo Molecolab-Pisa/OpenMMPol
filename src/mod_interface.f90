@@ -304,6 +304,17 @@ module ommp_interface
             if(sys_obj%use_bonded) call angtor_potential(sys_obj%bds, eat)
         
         end function
+        
+        subroutine ommp_update_coordinates(s, new_c)
+            use mod_mmpol, only: update_coordinates
+            
+            implicit none
+            
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(in) :: new_c(3,s%top%mm_atoms)
+
+            call update_coordinates(s, new_c)
+        end subroutine
 
 #ifdef USE_HDF5
         subroutine ommp_init_hdf5(s, filename, namespace)

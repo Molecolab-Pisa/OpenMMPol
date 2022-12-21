@@ -344,6 +344,47 @@ module mod_mmpol
         end if
         
     end subroutine set_screening_parameters
+
+    subroutine update_coordinates(sys_obj, new_c) 
+        !! Interface to change the coordinates of the system (eg. during a 
+        !! MD or a geometry optimization). This function clears all the 
+        !! relevant, flags and update the needed quantities. All those 
+        !! operations are needed for a correct functionality of the program 
+        !! therefore coordinates should never be updated without passing from
+        !! this interface.
+       
+        use mod_memory, only: mfree
+        implicit none
+
+        type(ommp_system), intent(inout), target :: sys_obj
+        !! System data structure
+        real(rp), dimension(3,sys_obj%top%mm_atoms), intent(in) :: new_c
+        !! New coordinates to be updated
+
+        type(ommp_topology_type), pointer :: top
+        type(ommp_electrostatics_type), pointer :: eel
+        integer(ip) :: i
+        real(rp) :: xx(3) ! TODO remove this variable
+
+        top => sys_obj%top
+        eel => sys_obj%eel
+
+        ! 1. Copy coordinates
+        top%cmm = new_c
+
+        ! 2. Update electrostatics module
+        ! 2.1 Coordinates
+        do i=1, eel%pol_atoms
+            eel%cpol(:,i) = top%cmm(:,eel%polar_mm(i))
+        end do
+        ! 2.2 Flags and allocated quantities
+        eel%M2M_done = .false.
+        eel%M2D_done = .false.
+        eel%ipd_done = .false.
+        if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
+        ! 2.3 Multipoles rotation
+        call rotate_multipoles(sys_obj%eel, .false.,xx,xx)
+    end subroutine
     
     subroutine mmpol_ommp_print_summary(sys_obj, of_name)
         !! Prints a complete summary of all the quantities stored 

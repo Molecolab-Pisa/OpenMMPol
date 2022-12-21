@@ -76,6 +76,8 @@ extern double *ommp_get_q(OMMP_SYSTEM_PRT);
 extern double *ommp_get_ipd(OMMP_SYSTEM_PRT);
 extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 
+extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
+
 #ifdef __cplusplus
 }
 #endif
