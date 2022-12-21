@@ -76,7 +76,6 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 
-
 include_directories(include) # Directory for .h files
 
 add_executable(C_test_init_xyz src/test_programs/C/test_init_xyz.c)
@@ -184,11 +183,17 @@ if (PYTHON)
     add_library(openmmpol_static STATIC
                 ${LIBRARY_SRC})
     if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-        target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs)
+        target_compile_options(openmmpol_static PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs)
+        target_compile_options(openmmpol_static PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
     endif()
     target_compile_options(openmmpol_static PRIVATE -fPIC -cpp)
     target_link_libraries(openmmpol_static OpenMP::OpenMP_Fortran)
     target_link_libraries(openmmpol_static ${LAPACK_LIBRARIES})
+    if (HDF5_WORKS)
+        target_link_libraries(openmmpol_static ${HDF5_Fortran_LIBRARIES})
+        add_definitions(-DUSE_HDF5)
+    endif()
+
     pybind11_add_module(pyopenmmpol MODULE src/pyommp_interface.cpp)
     target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO="0.7")
     target_link_libraries(pyopenmmpol PRIVATE openmmpol_static)

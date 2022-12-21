@@ -696,9 +696,16 @@ module mod_mmpol
         write(of_unit, '(I0,T2)') 0
        
         ! 25. Integer array, size (N): atomic numbers
-        do i=1, top%mm_atoms
-            write(of_unit, '(I0,T2)') 1
-        end do
+        if(top%atz_initialized) then
+            do i=1, top%mm_atoms
+                write(of_unit, '(I0,T2)') top%atz(i)
+            end do
+        else
+            do i=1, top%mm_atoms
+                write(of_unit, '(I0,T2)') 1
+            end do
+        end if
+
 
         ! 26. Real array, size (N, 3): coordinates
         do i=1, top%mm_atoms
