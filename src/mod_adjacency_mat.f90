@@ -65,8 +65,8 @@ module mod_adjacency_mat
             
             type(yale_sparse), intent(inout) :: m !! Matrix to free
 
-            deallocate(m%ri)
-            deallocate(m%ci)
+            if(allocated(m%ri)) deallocate(m%ri)
+            if(allocated(m%ci)) deallocate(m%ci)
             m%n=0_ip
         end subroutine matfree
 

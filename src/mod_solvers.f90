@@ -21,8 +21,8 @@ module mod_solvers
                              OMMP_VERBOSE_LOW, &
                              OMMP_VERBOSE_DEBUG, &
                              OMMP_STR_CHAR_MAX
-    use mod_mmpol, only: fatal_error
-    use mod_io, only: ommp_message
+    use mod_io, only: ommp_message, fatal_error
+    use mod_electrostatics, only: ommp_electrostatics_type
 
     implicit none
     private
@@ -83,8 +83,8 @@ module mod_solvers
       
     end subroutine inversion_solver
 
-    subroutine conjugate_gradient_solver(n, rhs, x, matvec, precnd, arg_tol, &
-                                         arg_n_iter)
+    subroutine conjugate_gradient_solver(n, rhs, x, eel, matvec, precnd, &
+                                         arg_tol, arg_n_iter)
         !! Conjugate gradient solver (TODO)
         ! TODO add more printing
     
@@ -111,6 +111,8 @@ module mod_solvers
         !! Right hand side of the linear system
         real(rp), dimension(n), intent(inout) :: x
         !! In input, initial guess for the solver, in output the solution
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! Electrostatics data structure
         external :: matvec
         !! Routine to perform matrix-vector product
         external :: precnd
@@ -150,17 +152,17 @@ module mod_solvers
         if(rms_norm < eps_rp) call precnd(rhs, x)
 
         ! compute the residual:
-        call matvec(x, z, .true.)
+        call matvec(eel, x, z, .true.)
         r = rhs - z
         ! apply the preconditioner and get the first direction:
-        call precnd(r, z)
+        call precnd(eel, r, z)
         p = z
         gold = dot_product(r, z)
         gama = 0.0_rp
 
         do it = 1, n_iter
             ! compute the step:
-            call matvec(p, h, .true.)
+            call matvec(eel, p, h, .true.)
             gama = dot_product(h, p)
 
             ! unlikely quick return:
@@ -175,7 +177,7 @@ module mod_solvers
             r = r - alpha * h
 
             ! apply the preconditioner:
-            call precnd(r, z)
+            call precnd(eel, r, z)
             gnew = dot_product(r, z)
             rms_norm = sqrt(gnew/dble(n))
 
@@ -206,7 +208,7 @@ module mod_solvers
 
     end subroutine conjugate_gradient_solver
 
-    subroutine jacobi_diis_solver(n, rhs, x, matvec, inv_diag, arg_tol, &
+    subroutine jacobi_diis_solver(n, rhs, x, eel, matvec, inv_diag, arg_tol, &
                                   arg_n_iter, arg_diis_max)
     
         use mod_constants, only: eps_rp
@@ -239,6 +241,8 @@ module mod_solvers
         !! Right hand side of the linear system
         real(rp), dimension(n), intent(inout) :: x
         !! In input, initial guess for the solver, in output the solution
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! Electrostatics data structure
         real(rp), dimension(n), intent(in) :: inv_diag
         !! Element-wise inverse of diagonal of LHS matrix
         external :: matvec
@@ -300,7 +304,7 @@ module mod_solvers
         ! Jacobi iterations
         do it = 1, n_iter
             ! y = rhs - O x
-            call matvec(x, y, .false.)
+            call matvec(eel, x, y, .false.)
             y = rhs - y
 
             ! x_new = D^-1 y

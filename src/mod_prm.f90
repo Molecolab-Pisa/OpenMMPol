@@ -3,6 +3,10 @@ module mod_prm
     !! the asignament of parameters based on atom type and connectivity.
 
     use mod_memory, only: ip, rp
+    use mod_io, only: fatal_error
+    use mod_topology, only: ommp_topology_type
+    use mod_bonded, only: ommp_bonded_type
+    use mod_electrostatics, only: ommp_electrostatics_type
     use mod_constants, only: OMMP_STR_CHAR_MAX
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower
@@ -10,43 +14,45 @@ module mod_prm
     implicit none
     private
 
-    integer(ip), allocatable :: atclass(:), atz(:)
 
-    public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
-              assign_angle, assign_urey, assign_strbnd, assign_opb, &
-              assign_pitors, assign_torsion, assign_tortors, &
-              assign_angtor, assign_strtor, terminate_prm
+    !!public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
+    !!          assign_angle, assign_urey, assign_strbnd, assign_opb, &
+    !!          assign_pitors, assign_torsion, assign_tortors, &
+    !!          assign_angtor, assign_strtor, terminate_prm
+    public :: assign_pol, assign_mpoles
+    public :: assign_vdw
+    public :: assign_bond, assign_angle, assign_urey, assign_strbnd, assign_opb
+    public :: assign_pitors, assign_torsion, assign_tortors, assign_angtor
+    public :: assign_strtor
     public :: check_keyword
 
     contains 
     
 #include "prm_keywords.f90"
 
-    subroutine terminate_prm()
-        use mod_memory, only: mfree
+    subroutine read_atom_cards(top, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_io, only: fatal_error
         
         implicit none
         
-        if(allocated(atclass)) call mfree('terminate_prm [atclass]', atclass)
-        if(allocated(atz)) call mfree('terminate_prm [atz]', atz)
-
-    end subroutine terminate_prm
-    
-    subroutine read_atom_cards(prm_file)
-        use mod_memory, only: mallocate
-        use mod_mmpol, only: fatal_error
-        
-        implicit none
-        
+        type(ommp_topology_type), intent(inout) :: top
+        !! Topology object
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, iat, toke, tokb, tokb1, nquote
+        integer(ip) :: i, ist, iat, toke, tokb, tokb1, nquote
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip) :: natype
+        integer(ip), allocatable, dimension(:) :: typez, typeclass
 
 
+        if(.not. top%attype_initialized) then
+            call fatal_error("Atom type array in topology should be initialized&
+                            & before performing atomclass asignament.")
+        end if
+        
         ! open tinker xyz file
         open(unit=iof_prminp, &
              file=prm_file(1:len(trim(prm_file))), &
@@ -67,11 +73,11 @@ module mod_prm
             line = str_to_lower(line)
             if(line(:5) == 'atom ') natype = natype + 1
         end do
-        ! ATOM 
-        call mallocate('read_prm [atclass]', natype, atclass)
-        call mallocate('read_prm [atz]', natype, atz)
-        atclass = 0
-        atz = 0
+        
+        call mallocate('read_prm [typeclass]', natype, typeclass)
+        call mallocate('read_prm [atz]', natype, typez)
+        typeclass = 0
+        typez = 0
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -91,7 +97,7 @@ module mod_prm
 
                 tokb = toke+1
                 toke = tokenize(line, tokb)
-                read(line(tokb:toke), *) atclass(iat)
+                read(line(tokb:toke), *) typeclass(iat)
 
                 tokb = toke+1
                 toke = tokenize(line, tokb)
@@ -108,28 +114,38 @@ module mod_prm
                 ! This token contains the description string
                 tokb = toke+1
                 toke = tokenize(line, tokb)
-                read(line(tokb:toke), *) atz(iat)
+                read(line(tokb:toke), *) typez(iat)
 
                 ! Only partial reading of ATOM card is needed for now.
             end if
         end do
         close(iof_prminp)
+
+        do i = 1, top%mm_atoms
+            top%atclass(i) = typeclass(top%attype(i)) 
+            top%atz(i) = typez(top%attype(i)) 
+        end do
+        
+        top%atclass_initialized = .true.
+        top%atz_initialized = .true.
+        
+        call mfree('read_prm [typeclass]', typeclass)
+        call mfree('read_prm [atz]', typez)
+
     end subroutine read_atom_cards
 
-    subroutine assign_bond(prm_file, my_attype)
+    subroutine assign_bond(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: bond_init, bond_potential, bondat, &
-                              kbond, l0bond, bond_cubic, bond_quartic
+        use mod_io, only: fatal_error
+        use mod_bonded, only: bond_init, ommp_bonded_type
         use mod_constants, only: angstrom2au, kcalmol2au
         
         implicit none
-        
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, l, jat, tokb, toke, ibnd, nbnd, &
@@ -138,21 +154,27 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:)
         real(rp), allocatable :: kbnd(:), l0bnd(:)
         logical :: done
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! We assume that all pair of bonded atoms have a bonded 
         ! parameter
-        call bond_init((conn(1)%ri(mm_atoms+1)-1) / 2)
-        kbond = 0
-        l0bond = 0
+        call bond_init(bds, (top%conn(1)%ri(top%mm_atoms+1)-1) / 2)
+        bds%kbond = 0
+        bds%l0bond = 0
+
         l=1
-        do i=1, mm_atoms
-            do j=conn(1)%ri(i), conn(1)%ri(i+1)-1
-                jat = conn(1)%ci(j)
+        do i=1, top%mm_atoms
+            do j=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
+                jat = top%conn(1)%ci(j)
                 if(i < jat) then
-                    bondat(1,l) = i
-                    bondat(2,l) = jat
+                    bds%bondat(1,l) = i
+                    bds%bondat(2,l) = jat
                     l = l+1
                 end if
             end do
@@ -200,9 +222,9 @@ module mod_prm
                     write(errstring, *) "Wrong BOND-CUBIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) bond_cubic
+                read(line(tokb:toke), *) bds%bond_cubic
                 ! This parameter is 1/Angstrom
-                bond_cubic = bond_cubic / angstrom2au
+                bds%bond_cubic = bds%bond_cubic / angstrom2au
             
             else if(line(:13) == 'bond-quartic ') then
                 tokb = 14
@@ -211,8 +233,8 @@ module mod_prm
                     write(errstring, *) "Wrong BOND-QUARTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) bond_quartic
-                bond_quartic = bond_quartic / (angstrom2au**2)
+                read(line(tokb:toke), *) bds%bond_quartic
+                bds%bond_quartic = bds%bond_quartic / (angstrom2au**2)
             
             else if(line(:5) == 'bond ') then
                 tokb = 6
@@ -253,18 +275,18 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        do i=1, size(bondat,2)
+        do i=1, size(bds%bondat,2)
             ! Atom class for current pair
-            cla = atclass(my_attype(bondat(1,i)))
-            clb = atclass(my_attype(bondat(2,i)))
+            cla = top%atclass(bds%bondat(1,i))
+            clb = top%atclass(bds%bondat(2,i))
             
             done = .false.
             do j=1, nbnd
                 if((classa(j)==cla .and. classb(j)==clb) .or. &
                    (classa(j)==clb .and. classb(j)==cla)) then
                     done = .true.
-                    kbond(i) = kbnd(j) * kcalmol2au / (angstrom2au**2)
-                    l0bond(i) = l0bnd(j) * angstrom2au
+                    bds%kbond(i) = kbnd(j) * kcalmol2au / (angstrom2au**2)
+                    bds%l0bond(i) = l0bnd(j) * angstrom2au
                     exit
                 end if
             end do
@@ -280,20 +302,18 @@ module mod_prm
     
     end subroutine assign_bond
     
-    subroutine assign_urey(prm_file, my_attype)
+    subroutine assign_urey(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: urey_init, urey_potential, ureyat, &
-                              kurey, l0urey, urey_cubic, urey_quartic
+        use mod_bonded, only: urey_init
         use mod_constants, only: angstrom2au, kcalmol2au
         
         implicit none
         
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, iub, nub, &
@@ -302,8 +322,13 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), ubtmp(:)
         real(rp), allocatable :: kub(:), l0ub(:)
         logical :: done
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -326,7 +351,7 @@ module mod_prm
             if(line(:9) == 'ureybrad ') nub = nub + 1
         end do
 
-        maxub = conn(2)%ri(mm_atoms+1)-1 
+        maxub = top%conn(2)%ri(top%mm_atoms+1)-1 
         ! Maximum number of UB terms (each angle have an UB term)
         call mallocate('assign_urey [classa]', nub, classa)
         call mallocate('assign_urey [classb]', nub, classb)
@@ -351,9 +376,9 @@ module mod_prm
                     write(errstring, *) "Wrong UREY-CUBIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) urey_cubic
+                read(line(tokb:toke), *) bds%urey_cubic
                 ! This parameter is 1/Angstrom
-                urey_cubic = urey_cubic / angstrom2au
+                bds%urey_cubic = bds%urey_cubic / angstrom2au
             
             else if(line(:13) == 'urey-quartic ') then
                 tokb = 14
@@ -362,8 +387,8 @@ module mod_prm
                     write(errstring, *) "Wrong UREY-QUARTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) urey_quartic
-                urey_quartic = urey_quartic / (angstrom2au**2)
+                read(line(tokb:toke), *) bds%urey_quartic
+                bds%urey_quartic = bds%urey_quartic / (angstrom2au**2)
             
             else if(line(:9) == 'ureybrad ') then
                 tokb = 10
@@ -413,19 +438,20 @@ module mod_prm
         close(iof_prminp)
         
         ubtmp = -1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
-                b = conn(2)%ci(jb)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(2)%ri(a), top%conn(2)%ri(a+1)-1
+                b = top%conn(2)%ci(jb)
                 done = .false.
                 if(a > b) cycle
-                clb = atclass(my_attype(b))
+                clb = top%atclass(b)
                 
-                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                    c = conn(1)%ci(jc)
-                    if(all(conn(1)%ci(conn(1)%ri(b):conn(1)%ri(b+1)-1) /= c)) cycle
+                do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(all(top%conn(1)%ci(top%conn(1)%ri(b): &
+                                          top%conn(1)%ri(b+1)-1) /= c)) cycle
                     ! There is an angle in the form A-C-B
-                    clc = atclass(my_attype(c))
+                    clc = top%atclass(c)
                     do j=1, nub
                         if((cla == classa(j) &
                             .and. clb == classc(j) &
@@ -448,15 +474,15 @@ module mod_prm
             end do
         end do
 
-        call urey_init(count(ubtmp > 0))
+        call urey_init(bds, count(ubtmp > 0))
         iub = 1
-        do a=1, mm_atoms
-            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
+        do a=1, top%mm_atoms
+            do jb=top%conn(2)%ri(a), top%conn(2)%ri(a+1)-1
                 if(ubtmp(jb) > 0) then
-                    ureyat(1,iub) = a
-                    ureyat(2,iub) = conn(2)%ci(jb)
-                    kurey(iub) = kub(ubtmp(jb)) * kcalmol2au / (angstrom2au**2) 
-                    l0urey(iub) = l0ub(ubtmp(jb)) * angstrom2au
+                    bds%ureyat(1,iub) = a
+                    bds%ureyat(2,iub) = top%conn(2)%ci(jb)
+                    bds%kurey(iub) = kub(ubtmp(jb)) * kcalmol2au / (angstrom2au**2) 
+                    bds%l0urey(iub) = l0ub(ubtmp(jb)) * angstrom2au
                     iub = iub + 1
                 end if
             end do
@@ -471,22 +497,17 @@ module mod_prm
         
     end subroutine assign_urey
     
-    subroutine assign_strbnd(prm_file, my_attype)
+    subroutine assign_strbnd(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: strbnd_init, strbndat, strbndk1, strbndk2, &
-                              strbndl10, strbndl20, strbndthet0, &
-                              bondat, l0bond, angleat, eqangle 
-
+        use mod_bonded, only: strbnd_init 
         use mod_constants, only: kcalmol2au, angstrom2au
         
         implicit none
-        
+       
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, isb, nstrbnd, &
@@ -497,8 +518,13 @@ module mod_prm
                                     sbattmp(:, :)
         real(rp), allocatable :: k1(:), k2(:)
         logical :: done, thet_done, l1_done, l2_done
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -521,7 +547,7 @@ module mod_prm
             if(line(:7) == 'strbnd ') nstrbnd = nstrbnd + 1
         end do
 
-        maxsb = (conn(2)%ri(mm_atoms+1)-1) / 2
+        maxsb = (top%conn(2)%ri(top%mm_atoms+1)-1) / 2
         call mallocate('assign_angle [classa]', nstrbnd, classa)
         call mallocate('assign_angle [classb]', nstrbnd, classb)
         call mallocate('assign_angle [classc]', nstrbnd, classc)
@@ -587,18 +613,19 @@ module mod_prm
         close(iof_prminp)
         
         isb = 1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
-                b = conn(2)%ci(jb)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(2)%ri(a), top%conn(2)%ri(a+1)-1
+                b = top%conn(2)%ci(jb)
                 if(a > b) cycle
-                clb = atclass(my_attype(b))
+                clb = top%atclass(b)
                 
-                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                    c = conn(1)%ci(jc)
-                    if(all(conn(1)%ci(conn(1)%ri(b):conn(1)%ri(b+1)-1) /= c)) cycle
+                do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(all(top%conn(1)%ci(top%conn(1)%ri(b):&
+                                          top%conn(1)%ri(b+1)-1) /= c)) cycle
                     ! There is an angle in the form A-C-B
-                    clc = atclass(my_attype(c))
+                    clc = top%atclass(c)
                     done = .false.
 
                     do j=1, nstrbnd
@@ -625,24 +652,24 @@ module mod_prm
             end do
         end do
 
-        call strbnd_init(isb-1)
+        call strbnd_init(bds, isb-1)
 
         do i=1, isb-1
             ! First assign the parameters
-            strbndat(:,i) = sbattmp(:,i)
+            bds%strbndat(:,i) = sbattmp(:,i)
             j = abs(sbtmp(i))
             if(sbtmp(i) > 0) then
-                strbndk1(i) = k1(j) * kcalmol2au / angstrom2au
-                strbndk2(i) = k2(j) * kcalmol2au / angstrom2au
+                bds%strbndk1(i) = k1(j) * kcalmol2au / angstrom2au
+                bds%strbndk2(i) = k2(j) * kcalmol2au / angstrom2au
             else
-                strbndk1(i) = k2(j) * kcalmol2au / angstrom2au
-                strbndk2(i) = k1(j) * kcalmol2au / angstrom2au
+                bds%strbndk1(i) = k2(j) * kcalmol2au / angstrom2au
+                bds%strbndk2(i) = k1(j) * kcalmol2au / angstrom2au
             end if
             
-            l1a = min(strbndat(1,i), strbndat(2,i))
-            l1b = max(strbndat(1,i), strbndat(2,i))
-            l2a = min(strbndat(3,i), strbndat(2,i))
-            l2b = max(strbndat(3,i), strbndat(2,i))
+            l1a = min(bds%strbndat(1,i), bds%strbndat(2,i))
+            l1b = max(bds%strbndat(1,i), bds%strbndat(2,i))
+            l2a = min(bds%strbndat(3,i), bds%strbndat(2,i))
+            l2b = max(bds%strbndat(3,i), bds%strbndat(2,i))
            
             ! Now search for the corresponding bond and angle parameters to
             ! set the equilibrium distances and angle
@@ -650,22 +677,22 @@ module mod_prm
             l2_done = .false.
             thet_done = .false.
 
-            do j=1, size(bondat, 2)
-                if(l1a == bondat(1,j) .and. l1b == bondat(2,j)) then
+            do j=1, size(bds%bondat, 2)
+                if(l1a == bds%bondat(1,j) .and. l1b == bds%bondat(2,j)) then
                     l1_done = .true.
-                    strbndl10(i) = l0bond(j)
-                else if(l2a == bondat(1,j) .and. l2b == bondat(2,j)) then
+                    bds%strbndl10(i) = bds%l0bond(j)
+                else if(l2a == bds%bondat(1,j) .and. l2b == bds%bondat(2,j)) then
                     l2_done = .true.
-                    strbndl20(i) = l0bond(j)
+                    bds%strbndl20(i) = bds%l0bond(j)
                 end if
 
                 if(l1_done .and. l2_done) exit
             end do
             
-            do j=1, size(angleat, 2)
-                if(all(strbndat(:,i) == angleat(:,j))) then
+            do j=1, size(bds%angleat, 2)
+                if(all(bds%strbndat(:,i) == bds%angleat(:,j))) then
                     thet_done = .true.
-                    strbndthet0(i) = eqangle(j)
+                    bds%strbndthet0(i) = bds%eqangle(j)
                     exit
                 end if
             end do
@@ -685,21 +712,18 @@ module mod_prm
     
     end subroutine assign_strbnd
     
-    subroutine assign_opb(prm_file, my_attype)
+    subroutine assign_opb(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: opb_cubic, opb_quartic, &
-                              opb_pentic, opb_sextic, opbat, kopb, opb_init
+        use mod_bonded, only: opb_init
 
         use mod_constants, only: kcalmol2au, rad2deg
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, tokb, toke, iopb, nopb, &
@@ -708,8 +732,13 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
                                     classd(:), tmpat(:,:)
         real(rp), allocatable :: kopbend(:), tmpk(:)
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -732,7 +761,7 @@ module mod_prm
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
-        maxopb = mm_atoms*3
+        maxopb = top%mm_atoms*3
         call mallocate('assign_opb [classa]', nopb, classa)
         call mallocate('assign_opb [classb]', nopb, classb)
         call mallocate('assign_opb [classc]', nopb, classc)
@@ -762,8 +791,8 @@ module mod_prm
                     write(errstring, *) "Wrong OPBEND-CUBIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) opb_cubic
-                opb_cubic = opb_cubic * rad2deg
+                read(line(tokb:toke), *) bds%opb_cubic
+                bds%opb_cubic = bds%opb_cubic * rad2deg
             
             else if(line(:15) == 'opbend-quartic ') then
                 tokb = 16
@@ -772,8 +801,8 @@ module mod_prm
                     write(errstring, *) "Wrong OPBEND-QUARTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) opb_quartic
-                opb_quartic = opb_quartic * rad2deg**2
+                read(line(tokb:toke), *) bds%opb_quartic
+                bds%opb_quartic = bds%opb_quartic * rad2deg**2
             
             else if(line(:14) == 'opbend-pentic ') then
                 tokb = 15
@@ -782,8 +811,8 @@ module mod_prm
                     write(errstring, *) "Wrong OPBEND-PENTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) opb_pentic
-                opb_pentic = opb_pentic * rad2deg**3
+                read(line(tokb:toke), *) bds%opb_pentic
+                bds%opb_pentic = bds%opb_pentic * rad2deg**3
             
             else if(line(:14) == 'opbend-sextic ') then
                 tokb = 15
@@ -792,8 +821,8 @@ module mod_prm
                     write(errstring, *) "Wrong OPBEND-SEXTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) opb_sextic
-                opb_sextic = opb_sextic * rad2deg**4
+                read(line(tokb:toke), *) bds%opb_sextic
+                bds%opb_sextic = bds%opb_sextic * rad2deg**4
             
             else if(line(:7) == 'opbend ') then
                 tokb = 8
@@ -843,27 +872,27 @@ module mod_prm
         close(iof_prminp)
        
         iopb = 1
-        do a=1, mm_atoms
+        do a=1, top%mm_atoms
             ! Check if the center is trigonal
-            if(conn(1)%ri(a+1) - conn(1)%ri(a) /= 3) cycle
-            cla = atclass(my_attype(a))
+            if(top%conn(1)%ri(a+1) - top%conn(1)%ri(a) /= 3) cycle
+            cla = top%atclass(a)
             ! Loop over the atoms connected to the trignonal center
-            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                b = conn(1)%ci(jb)
-                clb = atclass(my_attype(b))
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
               
                 c = -1
                 d = -1
                 clc = 0
                 cld = 0
-                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                    if(conn(1)%ci(jc) == b) cycle
+                do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                    if(top%conn(1)%ci(jc) == b) cycle
                     if(c < 0) then
-                        c = conn(1)%ci(jc)
-                        clc = atclass(my_attype(c))
+                        c = top%conn(1)%ci(jc)
+                        clc = top%atclass(c)
                     else if(d < 0) then
-                        d = conn(1)%ci(jc)
-                        cld = atclass(my_attype(d))
+                        d = top%conn(1)%ci(jc)
+                        cld = top%atclass(d)
                     end if
                 end do
 
@@ -892,11 +921,11 @@ module mod_prm
             end do
         end do
 
-        call opb_init(iopb-1, trim(opb_type))
+        call opb_init(bds, iopb-1, trim(opb_type))
         
         do i=1, iopb-1
-            kopb(i) = tmpk(i) * kcalmol2au
-            opbat(:,i) = tmpat(:,i)
+            bds%kopb(i) = tmpk(i) * kcalmol2au
+            bds%opbat(:,i) = tmpat(:,i)
         end do
 
         call mfree('assign_opb [classa]', classa)
@@ -909,19 +938,17 @@ module mod_prm
     
     end subroutine assign_opb
     
-    subroutine assign_pitors(prm_file, my_attype)
+    subroutine assign_pitors(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: kpitors, pitorsat, pitors_init
+        use mod_bonded, only: pitors_init
         use mod_constants, only: kcalmol2au
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, tokb, toke, ipitors, npitors, &
@@ -929,8 +956,13 @@ module mod_prm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), tmpat(:,:)
         real(rp), allocatable :: kpi(:), tmpk(:)
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -953,7 +985,7 @@ module mod_prm
             if(line(:7) == 'pitors ') npitors = npitors + 1
         end do
 
-        maxpi = mm_atoms 
+        maxpi = top%mm_atoms 
         ! TODO This is maybe excessive, all trivalent atomso should be enough
         call mallocate('assign_pitors [classa]', npitors, classa)
         call mallocate('assign_pitors [classb]', npitors, classb)
@@ -1002,19 +1034,19 @@ module mod_prm
         close(iof_prminp)
        
         ipitors = 1
-        do a=1, mm_atoms
+        do a=1, top%mm_atoms
             ! Check if the center is trigonal
-            if(conn(1)%ri(a+1) - conn(1)%ri(a) /= 3) cycle
-            cla = atclass(my_attype(a))
+            if(top%conn(1)%ri(a+1) - top%conn(1)%ri(a) /= 3) cycle
+            cla = top%atclass(a)
             ! Loop over the atoms connected to the trignonal center
-            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                b = conn(1)%ci(jb)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
                 ! This avoid to compute the functions two times
                 if(a > b) cycle
                 
                 !Check if the second center is trigonal
-                if(conn(1)%ri(b+1) - conn(1)%ri(b) /= 3) cycle
-                clb = atclass(my_attype(b))
+                if(top%conn(1)%ri(b+1) - top%conn(1)%ri(b) /= 3) cycle
+                clb = top%atclass(b)
 
                 do iprm=1, npitors
                     if((cla == classa(iprm) .and. clb == classb(iprm)) .or. &
@@ -1030,8 +1062,8 @@ module mod_prm
                         
                         tmpat(:,ipitors) = 0
                         tmpat(1,ipitors) = a
-                        do i=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                            c = conn(1)%ci(i)
+                        do i=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                            c = top%conn(1)%ci(i)
                             if(c /= b) then
                                 if(tmpat(2,ipitors) == 0) then
                                     tmpat(2,ipitors) = c
@@ -1042,8 +1074,8 @@ module mod_prm
                         end do
 
                         tmpat(4,ipitors) = b
-                        do i=conn(1)%ri(b), conn(1)%ri(b+1)-1
-                            c = conn(1)%ci(i)
+                        do i=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                            c = top%conn(1)%ci(i)
                             if(c /= a) then
                                 if(tmpat(5,ipitors) == 0) then
                                     tmpat(5,ipitors) = c
@@ -1060,12 +1092,12 @@ module mod_prm
                 end do
             end do
         end do
-
-        call pitors_init(ipitors-1)
+        
+        call pitors_init(bds, ipitors-1)
         
         do i=1, ipitors-1
-            kpitors(i) = tmpk(i) * kcalmol2au
-            pitorsat(:,i) = tmpat(:,i)
+            bds%kpitors(i) = tmpk(i) * kcalmol2au
+            bds%pitorsat(:,i) = tmpat(:,i)
         end do
 
         call mfree('assign_pitors [classa]', classa)
@@ -1076,19 +1108,17 @@ module mod_prm
     
     end subroutine assign_pitors
     
-    subroutine assign_torsion(prm_file, my_attype)
+    subroutine assign_torsion(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: torsion_init, torsionat, torsamp, torsphase, torsn
+        use mod_bonded, only: torsion_init
         use mod_constants, only: kcalmol2au, deg2rad, eps_rp
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
@@ -1098,8 +1128,13 @@ module mod_prm
                                     t_n(:,:), tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
         real(rp) :: amp, phase, torsion_unit
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -1122,7 +1157,7 @@ module mod_prm
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
 
-        maxt = conn(4)%ri(mm_atoms+1)-1 
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
         call mallocate('assign_torsion [classa]', nt, classa)
         call mallocate('assign_torsion [classb]', nt, classb)
         call mallocate('assign_torsion [classc]', nt, classc)
@@ -1234,20 +1269,20 @@ module mod_prm
         close(iof_prminp)
 
         it = 1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                b = conn(1)%ci(jb)
-                clb = atclass(my_attype(b))
-                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-                    c = conn(1)%ci(jc)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
                     if(c == a) cycle
-                    clc = atclass(my_attype(c))
-                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-                        d = conn(1)%ci(jd)
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
                         if(d == a .or. d == b) cycle
                         if(a > d) cycle
-                        cld = atclass(my_attype(d))
+                        cld = top%atclass(d)
                         ! There is a dihedral A-B-C-D
                         do iprm=1, nt
                             if((classa(iprm) == cla .and. &
@@ -1270,12 +1305,12 @@ module mod_prm
             end do
         end do
 
-        call torsion_init(it-1)
+        call torsion_init(bds, it-1)
         do i=1, it-1
-           torsionat(:,i) = tmpat(:,i) 
-           torsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * torsion_unit
-           torsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
-           torsn(:,i) = t_n(:,tmpprm(i))
+           bds%torsionat(:,i) = tmpat(:,i) 
+           bds%torsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * torsion_unit
+           bds%torsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
+           bds%torsn(:,i) = t_n(:,tmpprm(i))
         end do
         
         call mfree('assign_torsion [classa]', classa)
@@ -1290,20 +1325,17 @@ module mod_prm
        
     end subroutine assign_torsion
     
-    subroutine assign_strtor(prm_file, my_attype)
+    subroutine assign_strtor(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: strtor_init, strtorat, strtork, &
-                              strtor_t, strtor_b, torsionat, bondat
+        use mod_bonded, only: strtor_init
         use mod_constants, only: kcalmol2au, deg2rad, eps_rp, angstrom2au
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
@@ -1314,8 +1346,14 @@ module mod_prm
         real(rp), allocatable :: kat(:,:)
         real(rp) :: phase, torsion_unit
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -1338,7 +1376,7 @@ module mod_prm
             if(line(:8) == 'strtors ') nt = nt + 1
         end do
 
-        maxt = conn(4)%ri(mm_atoms+1)-1 
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
         call mallocate('assign_strtor [classa]', nt, classa)
         call mallocate('assign_strtor [classb]', nt, classb)
         call mallocate('assign_strtor [classc]', nt, classc)
@@ -1407,20 +1445,20 @@ module mod_prm
         close(iof_prminp)
 
         it = 1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                b = conn(1)%ci(jb)
-                clb = atclass(my_attype(b))
-                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-                    c = conn(1)%ci(jc)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
                     if(c == a) cycle
-                    clc = atclass(my_attype(c))
-                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-                        d = conn(1)%ci(jd)
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
                         if(d == a .or. d == b) cycle
                         if(a > d) cycle
-                        cld = atclass(my_attype(d))
+                        cld = top%atclass(d)
                         ! There is a dihedral A-B-C-D
                         do iprm=1, nt
                             if((classa(iprm) == cla .and. &
@@ -1443,23 +1481,23 @@ module mod_prm
             end do
         end do
 
-        call strtor_init(it-1)
+        call strtor_init(bds, it-1)
         do i=1, it-1
-            strtorat(:,i) = tmpat(:,i) 
-            if(classa(tmpprm(i)) == atclass(my_attype(strtorat(1,i)))) then
-                strtork(:,i) = kat(:,tmpprm(i))
+            bds%strtorat(:,i) = tmpat(:,i) 
+            if(classa(tmpprm(i)) == top%atclass(bds%strtorat(1,i))) then
+                bds%strtork(:,i) = kat(:,tmpprm(i))
             else
-                strtork(1:3,i) = kat(7:9,tmpprm(i))
-                strtork(4:6,i) = kat(4:6,tmpprm(i))
-                strtork(7:9,i) = kat(1:3,tmpprm(i))
+                bds%strtork(1:3,i) = kat(7:9,tmpprm(i))
+                bds%strtork(4:6,i) = kat(4:6,tmpprm(i))
+                bds%strtork(7:9,i) = kat(1:3,tmpprm(i))
             end if
-            strtork(:,i) = strtork(:,i) * kcalmol2au / angstrom2au
+            bds%strtork(:,i) = bds%strtork(:,i) * kcalmol2au / angstrom2au
 
             tor_done = .false.
-            do j=1, size(torsionat, 2)
-                if(all(strtorat(:,i) == torsionat(:,j))) then
+            do j=1, size(bds%torsionat, 2)
+                if(all(bds%strtorat(:,i) == bds%torsionat(:,j))) then
                     tor_done = .true.
-                    strtor_t(i) = j
+                    bds%strtor_t(i) = j
                     exit
                 end if
             end do
@@ -1467,19 +1505,19 @@ module mod_prm
             bnd1_done = .false.
             bnd2_done = .false.
             bnd3_done = .false.
-            do j=1, size(bondat, 2)
-                if(all(strtorat(1:2,i) == bondat(:,j)) .or. &
-                   all(strtorat(2:1:-1,i) == bondat(:,j))) then
+            do j=1, size(bds%bondat, 2)
+                if(all(bds%strtorat(1:2,i) == bds%bondat(:,j)) .or. &
+                   all(bds%strtorat(2:1:-1,i) == bds%bondat(:,j))) then
                     bnd1_done = .true.
-                    strtor_b(1,i) = j
-                else if(all(strtorat(2:3,i) == bondat(:,j)) .or. &
-                   all(strtorat(3:2:-1,i) == bondat(:,j))) then
+                    bds%strtor_b(1,i) = j
+                else if(all(bds%strtorat(2:3,i) == bds%bondat(:,j)) .or. &
+                        all(bds%strtorat(3:2:-1,i) == bds%bondat(:,j))) then
                     bnd2_done = .true.
-                    strtor_b(2,i) = j
-                else if(all(strtorat(3:4,i) == bondat(:,j)) .or. &
-                   all(strtorat(4:3:-1,i) == bondat(:,j))) then
+                    bds%strtor_b(2,i) = j
+                else if(all(bds%strtorat(3:4,i) == bds%bondat(:,j)) .or. &
+                        all(bds%strtorat(4:3:-1,i) == bds%bondat(:,j))) then
                     bnd3_done = .true.
-                    strtor_b(3,i) = j
+                    bds%strtor_b(3,i) = j
                 end if
                 if(bnd1_done .and. bnd2_done .and. bnd3_done) exit
             end do
@@ -1499,20 +1537,17 @@ module mod_prm
        
     end subroutine assign_strtor
 
-    subroutine assign_angtor(prm_file, my_attype)
+    subroutine assign_angtor(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: angtor_init, angtorat, angtork, &
-                              angtor_t, angtor_a, torsionat, angleat
+        use mod_bonded, only: angtor_init
         use mod_constants, only: kcalmol2au
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
@@ -1522,8 +1557,13 @@ module mod_prm
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
         logical :: tor_done, ang1_done, ang2_done
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -1546,7 +1586,7 @@ module mod_prm
             if(line(:8) == 'angtors ') nt = nt + 1
         end do
 
-        maxt = conn(4)%ri(mm_atoms+1)-1 
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
         call mallocate('assign_angtor [classa]', nt, classa)
         call mallocate('assign_angtor [classb]', nt, classb)
         call mallocate('assign_angtor [classc]', nt, classc)
@@ -1615,20 +1655,20 @@ module mod_prm
         close(iof_prminp)
 
         it = 1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                b = conn(1)%ci(jb)
-                clb = atclass(my_attype(b))
-                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-                    c = conn(1)%ci(jc)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
                     if(c == a) cycle
-                    clc = atclass(my_attype(c))
-                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-                        d = conn(1)%ci(jd)
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
                         if(d == a .or. d == b) cycle
                         if(a > d) cycle
-                        cld = atclass(my_attype(d))
+                        cld = top%atclass(d)
                         ! There is a dihedral A-B-C-D
                         do iprm=1, nt
                             if((classa(iprm) == cla .and. &
@@ -1650,37 +1690,37 @@ module mod_prm
                 end do
             end do
         end do
-
-        call angtor_init(it-1)
+        
+        call angtor_init(bds, it-1)
         do i=1, it-1
-            angtorat(:,i) = tmpat(:,i) 
-            if(classa(tmpprm(i)) == atclass(my_attype(angtorat(1,i)))) then
-                angtork(:,i) = kat(:,tmpprm(i)) * kcalmol2au
+            bds%angtorat(:,i) = tmpat(:,i) 
+            if(classa(tmpprm(i)) == top%atclass(bds%angtorat(1,i))) then
+                bds%angtork(:,i) = kat(:,tmpprm(i)) * kcalmol2au
             else
-                angtork(1:3,i) = kat(4:6,tmpprm(i)) * kcalmol2au
-                angtork(4:6,i) = kat(1:3,tmpprm(i)) * kcalmol2au
+                bds%angtork(1:3,i) = kat(4:6,tmpprm(i)) * kcalmol2au
+                bds%angtork(4:6,i) = kat(1:3,tmpprm(i)) * kcalmol2au
             end if
 
             tor_done = .false.
-            do j=1, size(torsionat, 2)
-                if(all(angtorat(:,i) == torsionat(:,j))) then
+            do j=1, size(bds%torsionat, 2)
+                if(all(bds%angtorat(:,i) == bds%torsionat(:,j))) then
                     tor_done = .true.
-                    angtor_t(i) = j
+                    bds%angtor_t(i) = j
                     exit
                 end if
             end do
             
             ang1_done = .false.
             ang2_done = .false.
-            do j=1, size(angleat, 2)
-                if(all(angtorat(1:3,i) == angleat(:,j)) .or. &
-                   all(angtorat(1:3,i) == angleat(3:1:-1,j))) then
+            do j=1, size(bds%angleat, 2)
+                if(all(bds%angtorat(1:3,i) == bds%angleat(:,j)) .or. &
+                   all(bds%angtorat(1:3,i) == bds%angleat(3:1:-1,j))) then
                     ang1_done = .true.
-                    angtor_a(1,i) = j
-                else if(all(angtorat(2:4,i) == angleat(:,j)) .or. &
-                        all(angtorat(2:4,i) == angleat(3:1:-1,j))) then
+                    bds%angtor_a(1,i) = j
+                else if(all(bds%angtorat(2:4,i) == bds%angleat(:,j)) .or. &
+                        all(bds%angtorat(2:4,i) == bds%angleat(3:1:-1,j))) then
                     ang2_done = .true.
-                    angtor_a(2,i) = j
+                    bds%angtor_a(2,i) = j
                 end if
                 if(ang1_done .and. ang2_done) exit
             end do
@@ -1701,9 +1741,8 @@ module mod_prm
        
     end subroutine assign_angtor
     
-    subroutine assign_angle(prm_file, my_attype)
+    subroutine assign_angle(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
         use mod_bonded, only: OMMP_ANG_SIMPLE, &
                               OMMP_ANG_H0, &
                               OMMP_ANG_H1, &
@@ -1711,19 +1750,16 @@ module mod_prm
                               OMMP_ANG_INPLANE, &
                               OMMP_ANG_INPLANE_H0, &
                               OMMP_ANG_INPLANE_H1
-        use mod_bonded, only: angle_cubic, angle_quartic, &
-                              angle_pentic, angle_sextic, angleat, anglety, &
-                              kangle, eqangle, angle_init
+        use mod_bonded, only: angle_init
 
         use mod_constants, only: kcalmol2au, rad2deg, deg2rad
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
@@ -1732,8 +1768,13 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
         real(rp), allocatable :: kang(:), th0ang(:)
         logical :: done
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -1759,14 +1800,14 @@ module mod_prm
             ! One angle keyourd could stand for 2 parameters for different H-env
         end do
 
-        maxang = (conn(2)%ri(mm_atoms+1)-1) / 2
+        maxang = (top%conn(2)%ri(top%mm_atoms+1)-1) / 2
         call mallocate('assign_angle [classa]', nang, classa)
         call mallocate('assign_angle [classb]', nang, classb)
         call mallocate('assign_angle [classc]', nang, classc)
         call mallocate('assign_angle [eqang]', nang, th0ang)
         call mallocate('assign_angle [kang]', nang, kang)
         call mallocate('assign_angle [angtype]', nang, angtype)
-        call angle_init(maxang)
+        call angle_init(bds, maxang)
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -1784,8 +1825,8 @@ module mod_prm
                     write(errstring, *) "Wrong ANGLE-CUBIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) angle_cubic
-                angle_cubic = angle_cubic * rad2deg
+                read(line(tokb:toke), *) bds%angle_cubic
+                bds%angle_cubic = bds%angle_cubic * rad2deg
             
             else if(line(:14) == 'angle-quartic ') then
                 tokb = 15
@@ -1794,8 +1835,8 @@ module mod_prm
                     write(errstring, *) "Wrong ANGLE-QUARTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) angle_quartic
-                angle_quartic = angle_quartic * rad2deg**2
+                read(line(tokb:toke), *) bds%angle_quartic
+                bds%angle_quartic = bds%angle_quartic * rad2deg**2
             
             else if(line(:13) == 'angle-pentic ') then
                 tokb = 13
@@ -1804,8 +1845,8 @@ module mod_prm
                     write(errstring, *) "Wrong ANGLE-PENTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) angle_pentic
-                angle_pentic = angle_pentic * rad2deg**3
+                read(line(tokb:toke), *) bds%angle_pentic
+                bds%angle_pentic = bds%angle_pentic * rad2deg**3
             
             else if(line(:13) == 'angle-sextic ') then
                 tokb = 14
@@ -1814,8 +1855,8 @@ module mod_prm
                     write(errstring, *) "Wrong ANGLE-SEXTIC card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) angle_sextic
-                angle_sextic = angle_sextic * rad2deg**4
+                read(line(tokb:toke), *) bds%angle_sextic
+                bds%angle_sextic = bds%angle_sextic * rad2deg**4
             
             else if(line(:6) == 'angle ') then
                 tokb = 7
@@ -1973,18 +2014,18 @@ module mod_prm
         nang = iang
         
         iang = 1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(2)%ri(a), conn(2)%ri(a+1)-1
-                b = conn(2)%ci(jb)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(2)%ri(a), top%conn(2)%ri(a+1)-1
+                b = top%conn(2)%ci(jb)
                 if(a > b) cycle
-                clb = atclass(my_attype(b))
+                clb = top%atclass(b)
                 
-                do jc=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                    c = conn(1)%ci(jc)
-                    if(all(conn(1)%ci(conn(1)%ri(b):conn(1)%ri(b+1)-1) /= c)) cycle
+                do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                    c = top%conn(1)%ci(jc)
+                    if(all(top%conn(1)%ci(top%conn(1)%ri(b):top%conn(1)%ri(b+1)-1) /= c)) cycle
                     ! There is an angle in the form A-C-B
-                    clc = atclass(my_attype(c))
+                    clc = top%atclass(c)
                     done = .false.
 
                     do j=1, nang
@@ -2004,12 +2045,12 @@ module mod_prm
                             else
                                 ! Check the H-environment
                                 nhenv = 0
-                                do k=conn(1)%ri(c), conn(1)%ri(c+1)-1
-                                    if(atz(my_attype(conn(1)%ci(k))) == 1) &
+                                do k=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                                    if(top%atz(top%conn(1)%ci(k)) == 1) &
                                         nhenv = nhenv + 1
                                 end do
-                                if(atz(my_attype(a)) == 1) nhenv = nhenv-1 
-                                if(atz(my_attype(b)) == 1) nhenv = nhenv-1 
+                                if(top%atz(a) == 1) nhenv = nhenv-1 
+                                if(top%atz(b) == 1) nhenv = nhenv-1 
                                 
                                 if(nhenv == 0 .and. ( &
                                    angtype(j) == OMMP_ANG_H0 .or. &
@@ -2031,12 +2072,12 @@ module mod_prm
                     end do
 
                     if(done) then
-                        angleat(1,iang) = a
-                        angleat(2,iang) = c
-                        angleat(3,iang) = b
-                        anglety(iang) = angtype(j)
-                        kangle(iang) = kang(j) * kcalmol2au
-                        eqangle(iang) = th0ang(j) * deg2rad
+                        bds%angleat(1,iang) = a
+                        bds%angleat(2,iang) = c
+                        bds%angleat(3,iang) = b
+                        bds%anglety(iang) = angtype(j)
+                        bds%kangle(iang) = kang(j) * kcalmol2au
+                        bds%eqangle(iang) = th0ang(j) * deg2rad
                         iang = iang + 1
                     else
                         write(errstring, *) "No angle parameter found for &
@@ -2056,20 +2097,20 @@ module mod_prm
     
     end subroutine assign_angle
 
-    subroutine assign_vdw(prm_file, my_attype)
+    subroutine assign_vdw(vdw, top, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms
-        use mod_nonbonded, only: vdw_e, vdw_f, vdw_r, vdw_set_pair, &
-                                 vdw_screening, vdw_init
+        use mod_io, only: fatal_error
+        use mod_nonbonded, only: ommp_nonbonded_type, vdw_init, vdw_set_pair
         use mod_constants, only: angstrom2au, kcalmol2au
         
         implicit none
-        
+       
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        !! Non-bonded structure to be initialized
+        type(ommp_topology_type), intent(inout) :: top
+        !! Topology structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, l, tokb, toke
@@ -2081,7 +2122,9 @@ module mod_prm
         integer(ip) :: nvdw, ivdw, atc, nvdwpr, ivdwpr
         logical :: done
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2144,7 +2187,7 @@ module mod_prm
                     write(errstring, *) "Wrong VDW-12-SCALE card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) vdw_screening(1)
+                read(line(tokb:toke), *) vdw%vdw_screening(1)
             
             else if(line(:13) == 'vdw-13-scale ') then
                 tokb = 14
@@ -2153,7 +2196,7 @@ module mod_prm
                     write(errstring, *) "Wrong VDW-12-SCALE card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) vdw_screening(2)
+                read(line(tokb:toke), *) vdw%vdw_screening(2)
             
             else if(line(:13) == 'vdw-14-scale ') then
                 tokb = 14
@@ -2162,7 +2205,7 @@ module mod_prm
                     write(errstring, *) "Wrong VDW-12-SCALE card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) vdw_screening(3)
+                read(line(tokb:toke), *) vdw%vdw_screening(3)
             
             else if(line(:13) == 'vdw-15-scale ') then
                 tokb = 14
@@ -2171,7 +2214,7 @@ module mod_prm
                     write(errstring, *) "Wrong VDW-12-SCALE card"
                     call fatal_error(errstring)
                 end if
-                read(line(tokb:toke), *) vdw_screening(4)
+                read(line(tokb:toke), *) vdw%vdw_screening(4)
 
             else if(line(:12) == 'epsilonrule ') then
                 tokb = 12
@@ -2277,20 +2320,20 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call vdw_init(vdwtype, radrule, radsize, radtype, epsrule)
+        call vdw_init(vdw, top, vdwtype, radrule, radsize, radtype, epsrule)
         
-        do i=1, size(my_attype)
+        do i=1, top%mm_atoms
             ! Atom class for current atom
-            atc = atclass(my_attype(i))
+            atc = top%atclass(i)
             
             ! VdW parameters
             done = .false.
             do j=1, nvdw
                 if(vdwat(j) == atc) then
                     done = .true.
-                    vdw_e(i) = vdw_e_prm(j) * kcalmol2au
-                    vdw_r(i) = vdw_r_prm(j) * angstrom2au
-                    vdw_f(i) = vdw_f_prm(j)
+                    vdw%vdw_e(i) = vdw_e_prm(j) * kcalmol2au
+                    vdw%vdw_r(i) = vdw_r_prm(j) * angstrom2au
+                    vdw%vdw_f(i) = vdw_f_prm(j)
                     exit
                 end if
             end do
@@ -2301,17 +2344,17 @@ module mod_prm
             ! VdW pair parameters
             do l=1, nvdwpr
                 if(vdwpr_a(l) == atc) then
-                    do j=i+1, mm_atoms
-                        if(atclass(my_attype(j)) == vdwpr_b(l)) then
-                            call vdw_set_pair(i, j, &
+                    do j=i+1, top%mm_atoms
+                        if(top%atclass(j) == vdwpr_b(l)) then
+                            call vdw_set_pair(vdw, i, j, &
                                               vdwpr_r(l) * angstrom2au, &
                                               vdwpr_e(l) * kcalmol2au)
                         end if
                     end do
                 else if(vdwpr_b(l) == atc) then
-                    do j=i+1, mm_atoms
-                        if(atclass(my_attype(j)) == vdwpr_a(l)) then
-                            call vdw_set_pair(i, j, &
+                    do j=i+1, top%mm_atoms
+                        if(top%atclass(j) == vdwpr_a(l)) then
+                            call vdw_set_pair(vdw, i, j, &
                                               vdwpr_r(l) * angstrom2au, &
                                               vdwpr_e(l) * kcalmol2au)
                         end if
@@ -2331,19 +2374,17 @@ module mod_prm
     
     end subroutine assign_vdw
     
-    subroutine assign_pol(prm_file, my_attype)
+    subroutine assign_pol(eel, prm_file)
         use mod_memory, only: mallocate, mfree, ip, rp
-        use mod_mmpol, only: fatal_error, pol, mmat_polgrp, conn, mm_atoms
-        use mod_mmpol, only: mscale, set_screening_parameters
+        use mod_mmpol, only: set_screening_parameters
         use mod_constants, only: angstrom2au
         
         implicit none
         
+        type(ommp_electrostatics_type), intent(inout), target :: eel
+        !! Electrostatics data structure to be initialized
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, k, l, iat, tokb, toke
@@ -2354,7 +2395,15 @@ module mod_prm
         real(rp) :: usc(4), psc(4), pisc(4), dsc(4)
 
         integer(ip) :: npolarize, ipolarize
+        
+        type(ommp_topology_type), pointer :: top
 
+        top => eel%top
+
+        if(.not. top%attype_initialized) then
+            call fatal_error("Atom type array in topology should be initialized&
+                            & before performing polarization asignament.")
+        end if
 
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2608,38 +2657,38 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call set_screening_parameters(mscale, psc, dsc, usc, pisc)
+        call set_screening_parameters(eel, eel%mscale, psc, dsc, usc, pisc)
 
         ! Now assign the parameters to the atoms
-        mmat_polgrp = 0
-        do i=1, size(my_attype)
+        eel%mmat_polgrp = 0
+        do i=1, size(top%attype)
             ! Polarization
             do j=1, npolarize
-                if(polat(j) == my_attype(i)) then
-                    pol(i) = isopol(j) * angstrom2au**3
+                if(polat(j) == top%attype(i)) then
+                    eel%pol(i) = isopol(j) * angstrom2au**3
                     !TODO Thole factors.
                     ! Assign a polgroup label to each atom
-                    if(mmat_polgrp(i) == 0) &
-                        mmat_polgrp(i) = maxval(mmat_polgrp) + 1
+                    if(eel%mmat_polgrp(i) == 0) &
+                        eel%mmat_polgrp(i) = maxval(eel%mmat_polgrp) + 1
                     
                     ! loop over the atoms connected to ith atom
-                    do k=conn(1)%ri(i), conn(1)%ri(i+1)-1
-                        iat = conn(1)%ci(k)
-                        if(any(my_attype(iat) == pgspec(:,j))) then
+                    do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
+                        iat = top%conn(1)%ci(k)
+                        if(any(top%attype(iat) == pgspec(:,j))) then
                             ! The two atoms are in the same group
-                            if(mmat_polgrp(iat) == 0) then
-                                mmat_polgrp(iat) = mmat_polgrp(i)
-                            else if(mmat_polgrp(iat) /= mmat_polgrp(i)) then
+                            if(eel%mmat_polgrp(iat) == 0) then
+                                eel%mmat_polgrp(iat) = eel%mmat_polgrp(i)
+                            else if(eel%mmat_polgrp(iat) /= eel%mmat_polgrp(i)) then
                                 ! TODO This code have never been tested, as no
                                 ! suitable case have been found
-                                do l=1, mm_atoms
-                                    if(mmat_polgrp(l) == 0) then
+                                do l=1, top%mm_atoms
+                                    if(eel%mmat_polgrp(l) == 0) then
                                         continue
-                                    else if(mmat_polgrp(l) == mmat_polgrp(iat) &
-                                            .or. mmat_polgrp(l) == mmat_polgrp(i)) then
-                                        mmat_polgrp(l) = min(mmat_polgrp(iat), mmat_polgrp(i))
-                                    else if(mmat_polgrp(l) > max(mmat_polgrp(iat),mmat_polgrp(i))) then
-                                        mmat_polgrp(l) = mmat_polgrp(l) - 1
+                                    else if(eel%mmat_polgrp(l) == eel%mmat_polgrp(iat) &
+                                            .or. eel%mmat_polgrp(l) == eel%mmat_polgrp(i)) then
+                                        eel%mmat_polgrp(l) = min(eel%mmat_polgrp(iat), eel%mmat_polgrp(i))
+                                    else if(eel%mmat_polgrp(l) > max(eel%mmat_polgrp(iat),eel%mmat_polgrp(i))) then
+                                        eel%mmat_polgrp(l) = eel%mmat_polgrp(l) - 1
                                     else
                                         continue
                                     end if
@@ -2658,12 +2707,9 @@ module mod_prm
     
     end subroutine assign_pol
     
-    subroutine assign_mpoles(prm_file, my_attype)
+    subroutine assign_mpoles(eel, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, q, mol_frame, iz, ix, iy, &
-                             conn
-        use mod_mmpol, only: pscale, dscale, uscale, pscale_intra, &
-                             set_screening_parameters
+        use mod_mmpol, only: set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
                                  AMOEBA_ROT_Z_THEN_X, &
                                  AMOEBA_ROT_BISECTOR, &
@@ -2673,11 +2719,10 @@ module mod_prm
         
         implicit none
         
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        !! The electrostatic object to be initialized
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, k, iat, tokb, toke
@@ -2687,7 +2732,14 @@ module mod_prm
         real(rp) :: msc(4)
         integer(ip) :: nmult, imult, iax(3)
         logical :: ax_found(3), found13, only12
+        type(ommp_topology_type), pointer :: top
 
+        top => eel%top
+        
+        if(.not. top%attype_initialized) then
+            call fatal_error("Atom type array in topology should be initialized&
+                            & before performing multipoles asignament.")
+        end if
 
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2836,20 +2888,21 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call set_screening_parameters(msc, pscale, dscale, uscale, pscale_intra)
+        call set_screening_parameters(eel, msc, eel%pscale, eel%dscale, &
+                                      eel%uscale, eel%pscale_intra)
 
-        mol_frame = 0
-        ix = 0
-        iy = 0
-        iz = 0
+        eel%mol_frame = 0
+        eel%ix = 0
+        eel%iy = 0
+        eel%iz = 0
 
-        do i=1, size(my_attype)
+        do i=1, size(top%attype)
             ! Multipoles
             only12 = .false. ! Only search for params based on 12 connectivity
 
             do j=1, nmult
                 found13 = .false. ! Parameter found is based on 13 connectivity
-                if(multat(j) == my_attype(i)) then
+                if(multat(j) == top%attype(i)) then
                     ! For each center different multipoles are defined for 
                     ! different environment. So first check if the environment
                     ! is the correct one
@@ -2864,9 +2917,9 @@ module mod_prm
                     else if(multframe(j) == AMOEBA_ROT_Z_ONLY) then
                         ! Assignament with only-z
                         ax_found(2:3) = .true.
-                        do k=conn(1)%ri(i), conn(1)%ri(i+1)-1
-                            iat = conn(1)%ci(k)
-                            if(my_attype(iat) == multax(1,j) &
+                        do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
+                            iat = top%conn(1)%ci(k)
+                            if(top%attype(iat) == multax(1,j) &
                                .and. .not. ax_found(1)) then
                                 ax_found(1) = .true.
                                 iax(1) = iat
@@ -2877,17 +2930,17 @@ module mod_prm
                         if(multax(3,j) == 0) ax_found(3) = .true.
                         
                         ! Using only 1,2 connectivity
-                        do k=conn(1)%ri(i), conn(1)%ri(i+1)-1
-                            iat = conn(1)%ci(k)
-                            if(my_attype(iat) == multax(1,j) &
+                        do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
+                            iat = top%conn(1)%ci(k)
+                            if(top%attype(iat) == multax(1,j) &
                                .and. .not. ax_found(1)) then
                                 ax_found(1) = .true.
                                 iax(1) = iat
-                            else if(my_attype(iat) == multax(2,j) &
+                            else if(top%attype(iat) == multax(2,j) &
                                     .and. .not. ax_found(2)) then
                                 ax_found(2) = .true.
                                 iax(2) = iat
-                            else if(my_attype(iat) == multax(3,j) &
+                            else if(top%attype(iat) == multax(3,j) &
                                     .and. .not. ax_found(3)) then
                                 ax_found(3) = .true.
                                 iax(3) = iat
@@ -2896,15 +2949,15 @@ module mod_prm
 
                         ! Using also 1,3 connectivity
                         if(ax_found(1) .and. .not. ax_found(2)) then
-                            do k=conn(1)%ri(iax(1)), conn(1)%ri(iax(1)+1)-1
-                                iat = conn(1)%ci(k)
+                            do k=top%conn(1)%ri(iax(1)), top%conn(1)%ri(iax(1)+1)-1
+                                iat = top%conn(1)%ci(k)
                                 if(iat == i .or. iat == iax(1)) cycle
-                                if(my_attype(iat) == multax(2,j) &
+                                if(top%attype(iat) == multax(2,j) &
                                    .and. .not. ax_found(2) &
                                    .and. iat /= iax(1)) then
                                     ax_found(2) = .true.
                                     iax(2) = iat
-                                else if(my_attype(iat) == multax(3,j) &
+                                else if(top%attype(iat) == multax(3,j) &
                                         .and. .not. ax_found(3) & 
                                         .and. iat /= iax(1) &
                                         .and. iat /= iax(2)) then
@@ -2918,11 +2971,11 @@ module mod_prm
 
                     ! Everything is done, no further improvement is possible
                     if(all(ax_found) .and. .not. (only12 .and. found13)) then
-                        ix(i) = iax(2)
-                        iy(i) = iax(3)
-                        iz(i) = iax(1)
-                        mol_frame(i) = multframe(j)
-                        q(:,i) = cmult(:,j) 
+                        eel%ix(i) = iax(2)
+                        eel%iy(i) = iax(3)
+                        eel%iz(i) = iax(1)
+                        eel%mol_frame(i) = multframe(j)
+                        eel%q(:,i) = cmult(:,j) 
                         if(.not. found13) then
                             exit ! No further improvement is possible
                         else
@@ -2940,19 +2993,17 @@ module mod_prm
     
     end subroutine assign_mpoles
     
-    subroutine assign_tortors(prm_file, my_attype)
+    subroutine assign_tortors(bds, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: fatal_error, mm_atoms, conn
-        use mod_bonded, only: tortorat, tortorprm, tortor_newmap, tortor_init
+        use mod_bonded, only: tortor_newmap, tortor_init
         use mod_constants, only: deg2rad, kcalmol2au
         
         implicit none
         
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
-        integer(ip), intent(in) :: my_attype(:)
-        !! List of atom types that shoukd be used to populate parameter
-        !! vectors
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
@@ -2960,8 +3011,13 @@ module mod_prm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classx(:,:), map_dimension(:,:), tmpat(:,:), tmpprm(:), savedmap(:)
         real(rp), allocatable :: data_map(:), ang_map(:,:)
+        type(ommp_topology_type), pointer :: top
 
-        if(.not. allocated(atclass)) call read_atom_cards(prm_file)
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2984,7 +3040,7 @@ module mod_prm
             if(line(:8) == 'tortors ') ntt = ntt + 1
         end do
 
-        maxtt = conn(4)%ri(mm_atoms+1)-1 
+        maxtt = top%conn(4)%ri(top%mm_atoms+1)-1 
         call mallocate('assign_tortors [classx]', 5, ntt, classx)
         call mallocate('assign_tortors [map_dimension]', 2, ntt, map_dimension)
         call mallocate('assign_tortors [savedmap]', ntt, savedmap)
@@ -3111,24 +3167,24 @@ module mod_prm
         close(iof_prminp)
         
         it = 1
-        do a=1, mm_atoms
-            cla = atclass(my_attype(a))
-            do jb=conn(1)%ri(a), conn(1)%ri(a+1)-1
-                b = conn(1)%ci(jb)
-                clb = atclass(my_attype(b))
-                do jc=conn(1)%ri(b), conn(1)%ri(b+1)-1
-                    c = conn(1)%ci(jc)
+        do a=1, top%mm_atoms
+            cla = top%atclass(a)
+            do jb=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                b = top%conn(1)%ci(jb)
+                clb = top%atclass(b)
+                do jc=top%conn(1)%ri(b), top%conn(1)%ri(b+1)-1
+                    c = top%conn(1)%ci(jc)
                     if(c == a) cycle
-                    clc = atclass(my_attype(c))
-                    do jd=conn(1)%ri(c), conn(1)%ri(c+1)-1
-                        d = conn(1)%ci(jd)
+                    clc = top%atclass(c)
+                    do jd=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                        d = top%conn(1)%ci(jd)
                         if(d == a .or. d == b) cycle
-                        cld = atclass(my_attype(d))
-                        do je=conn(1)%ri(d), conn(1)%ri(d+1)-1
-                            e = conn(1)%ci(je)
+                        cld = top%atclass(d)
+                        do je=top%conn(1)%ri(d), top%conn(1)%ri(d+1)-1
+                            e = top%conn(1)%ci(je)
                             if(e == a .or. e == b .or. e == c) cycle
                             if(a > e) cycle
-                            cle = atclass(my_attype(e))
+                            cle = top%atclass(e)
                             ! There is a dihedral pair A-B-C-D-E
                             do iprm=1, ntt
                                 if((classx(1,iprm) == cla .and. &
@@ -3154,7 +3210,7 @@ module mod_prm
             end do
         end do
         
-        call tortor_init(it-1)
+        call tortor_init(bds, it-1)
         savedmap = -1
         iprm = 1
         do i=1, it-1
@@ -3165,7 +3221,7 @@ module mod_prm
                     ibeg = ibeg + map_dimension(1,j)*map_dimension(2,j)
                 end do
                 iend = ibeg + map_dimension(1,tmpprm(i))*map_dimension(2,tmpprm(i)) - 1
-                call tortor_newmap(map_dimension(1,tmpprm(i)), &
+                call tortor_newmap(bds, map_dimension(1,tmpprm(i)), &
                                    map_dimension(2,tmpprm(i)), &
                                    ang_map(1,ibeg:iend) * deg2rad, &
                                    ang_map(2,ibeg:iend) * deg2rad, &
@@ -3174,8 +3230,8 @@ module mod_prm
                 iprm = iprm + 1
             end if
 
-            tortorat(:,i) = tmpat(:,i)
-            tortorprm(i) = savedmap(tmpprm(i))
+            bds%tortorat(:,i) = tmpat(:,i)
+            bds%tortorprm(i) = savedmap(tmpprm(i))
         end do
 
         call mfree('assign_tortors [classx]', classx)

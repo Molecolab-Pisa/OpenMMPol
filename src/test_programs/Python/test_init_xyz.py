@@ -13,19 +13,9 @@ parser.add_argument("--xyz",
 parser.add_argument("--prm",
                     help=".prm forcefield file to be used as input",
                     required=True)
-parser.add_argument("--electric-field", "-f",
-                    help="""File containing a formatted matrix (3xN)
-                         with N number of induced dipoles,
-                         containing the electric field at
-                         polarizable sites""")
 parser.add_argument("--out-file", "-o",
                     help="""Formatted file where to print the
                             results""", default=None)
-parser.add_argument("--solver", "-s",
-                    help="""Solver method for the linear
-                            system""",
-                    default='default',
-                    choices=ommp.available_solvers.keys())
 
 args = parser.parse_args()
 
@@ -37,12 +27,11 @@ if(args.verbose):
 else:
     ommp.set_verbose(1)
 
-ommp.init_xyz(inprm, inxyz)
+my_system = ommp.OMMPSystem(inxyz, inprm)
 
 if outfile is None:
-    ommp.print_summary()
+    my_system.print_summary()
 else:
-    ommp.print_summary_to_file(outfile)
+    my_system.print_summary_to_file(outfile)
 
-ommp.terminate()
-
+del my_system

@@ -33,32 +33,33 @@ args = parser.parse_args()
 inxyz = args.xyz
 inprm = args.prm
 outfile = args.out_file
+solver = args.solver
 if(args.verbose):
     ommp.set_verbose(3)
 else:
     ommp.set_verbose(1)
 ext_field_file = args.electric_field
 
-ommp.init_xyz(inprm, inxyz)
+ms = ommp.OMMPSystem(inxyz, inprm)
 au2kcalmol = pc.physical_constants['Hartree energy'][0]/(1000.0 * pc.calorie / pc.N_A )
 
 if ext_field_file is not None:
     ef = np.loadtxt(ext_field_file)
-    ommp.set_external_field(ef, 'cg')
+    ms.set_external_field(ef, solver)
 
-em = ommp.get_fixedelec_energy() * au2kcalmol
-ep = ommp.get_polelec_energy() * au2kcalmol
-ev = ommp.get_vdw_energy() * au2kcalmol
-eb = ommp.get_bond_energy() * au2kcalmol
-ea = ommp.get_angle_energy() * au2kcalmol
-eba = ommp.get_strbnd_energy() * au2kcalmol
-eub = ommp.get_urey_energy() * au2kcalmol
-eopb = ommp.get_opb_energy() * au2kcalmol
-ept = ommp.get_pitors_energy() * au2kcalmol
-et = ommp.get_torsion_energy() * au2kcalmol
-ett = ommp.get_tortor_energy() * au2kcalmol
-eat = ommp.get_angtor_energy() * au2kcalmol
-ebt = ommp.get_strtor_energy() * au2kcalmol
+em =   ms.get_fixedelec_energy() * au2kcalmol
+ep =   ms.get_polelec_energy() * au2kcalmol
+ev =   ms.get_vdw_energy() * au2kcalmol
+eb =   ms.get_bond_energy() * au2kcalmol
+ea =   ms.get_angle_energy() * au2kcalmol
+eba =  ms.get_strbnd_energy() * au2kcalmol
+eub =  ms.get_urey_energy() * au2kcalmol
+eopb = ms.get_opb_energy() * au2kcalmol
+ept =  ms.get_pitors_energy() * au2kcalmol
+et =   ms.get_torsion_energy() * au2kcalmol
+ett =  ms.get_tortor_energy() * au2kcalmol
+eat =  ms.get_angtor_energy() * au2kcalmol
+ebt =  ms.get_strtor_energy() * au2kcalmol
 eaa = 0.0
 eopd = 0.0
 eid = 0.0
@@ -105,5 +106,5 @@ print("ELF     {:20.12e}".format(elf))
 print("EG      {:20.12e}".format(eg))
 print("EX      {:20.12e}".format(ex))
 
-ommp.terminate()
+del ms
 

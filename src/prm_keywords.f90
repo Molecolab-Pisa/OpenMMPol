@@ -298,7 +298,6 @@ end function
 
 function check_keyword(prm_file)
     use mod_memory, only : ip
-    use mod_mmpol, only : fatal_error
     use mod_utils, only : starts_with_alpha, str_to_lower, tokenize
     use mod_io, only : ommp_message
     use mod_constants, only: OMMP_VERBOSE_HIGH, OMMP_VERBOSE_LOW

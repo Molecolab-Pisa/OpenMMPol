@@ -16,13 +16,13 @@ int main(int argc, char **argv){
     strcpy(infile2, argv[2]);
     
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);
-    ommp_init_mmp(infile1);
-    ommp_terminate();
-    ommp_init_mmp(infile2);
+    OMMP_SYSTEM_PRT my_system = ommp_init_mmp(infile1);
+    ommp_print_summary(my_system);
+    ommp_terminate(my_system);
     
-    ommp_print_summary();
-    
-    ommp_terminate();
+    my_system = ommp_init_mmp(infile2);
+    ommp_print_summary(my_system);
+    ommp_terminate(my_system);
     
     return 0;
 }

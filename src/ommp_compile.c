@@ -12,11 +12,11 @@ int main(int argc, char **argv){
     }
     
     ommp_set_verbose(OMMP_VERBOSE_LOW);
-    ommp_init_xyz(argv[1], argv[2]);
+    OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
 
-    ommp_write_hdf5(argv[3]);
+    ommp_save_as_hdf5(my_system, argv[3], "system");
     
-    ommp_terminate();
+    ommp_terminate(my_system);
     
     return 0;
 }

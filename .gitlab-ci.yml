@@ -95,7 +95,7 @@ compile-FORTRAN:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make F_test_init
+        - make F03_test_init F03_test_ipd F03_test_energy F03_test_init_xyz F03_test_potential_xyz
     artifacts:
         paths:
             - build/bin
@@ -124,7 +124,7 @@ compile-C-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp  C_test_potential_hdf5 C_test_init_hdf5
     artifacts:
         paths:
             - build_intel/bin
@@ -138,7 +138,7 @@ compile-FORTRAN-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - make F_test_init
+        - make F03_test_init F03_test_ipd F03_test_energy F03_test_init_xyz F03_test_potential_xyz
     artifacts:
         paths:
             - build_intel/bin
@@ -170,7 +170,7 @@ compile-C-nvidia:
         - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
     script:
         - cd build_nvidia
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp  C_test_potential_hdf5 C_test_init_hdf5
     artifacts:
         paths:
             - build_nvidia/bin
@@ -186,7 +186,7 @@ compile-FORTRAN-nvidia:
         - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
     script:
         - cd build_nvidia
-        - make F_test_init
+        - make F03_test_init F03_test_ipd F03_test_energy F03_test_init_xyz F03_test_potential_xyz
     artifacts:
         paths:
             - build_nvidia/bin

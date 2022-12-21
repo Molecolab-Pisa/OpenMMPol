@@ -17,17 +17,14 @@ int main(int argc, char **argv){
     if(argc == 3)
         strcpy(outfile, argv[2]);
         
-    // printf("Input file: '%s'\n", infile);
-
+    OMMP_SYSTEM_PRT my_system = ommp_init_mmp(infile);
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);
-    ommp_init_mmp(infile);
-    
     if(argc == 3)
-        ommp_print_summary_to_file(outfile);
+        ommp_print_summary_to_file(my_system, outfile);
     else
-        ommp_print_summary();
+        ommp_print_summary(my_system);
     
-    ommp_terminate();
+    ommp_terminate(my_system);
     
     return 0;
 }

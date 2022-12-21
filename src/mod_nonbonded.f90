@@ -3,34 +3,55 @@ module mod_nonbonded
     use mod_memory, only: rp, ip
     use mod_constants, only: OMMP_STR_CHAR_MAX
     use mod_adjacency_mat, only: yale_sparse
+    use mod_topology, only: ommp_topology_type
 
     implicit none
     private
 
-    real(rp), allocatable, dimension(:) :: vdw_r, vdw_e, vdw_f
-    
-    type(yale_sparse) :: vdw_pair
-    real(rp), allocatable :: vdw_pair_r(:), vdw_pair_e(:)
     integer(ip), parameter :: pair_allocation_chunk = 20
-    
-    real(rp), dimension(4) :: vdw_screening
 
-    logical :: use_nonbonded = .false.
+    type ommp_nonbonded_type
+        !! Derived type for storing the information relative to the calculation
+        !! of non-bonding interactions
+        type(ommp_topology_type), pointer :: top
+        !! Data structure for topology
+        real(rp), allocatable, dimension(:) :: vdw_r
+        !! VdW radii for the atoms of the system
+        real(rp), allocatable, dimension(:) :: vdw_e
+        !! Vdw energies for the atoms of fthe system
+        real(rp), allocatable, dimension(:) :: vdw_f
+        !! Scale factor for displacing the interaction center
     
-    public :: vdw_init, vdw_terminate, vdw_potential, vdw_set_pair
-    public :: vdw_r, vdw_e, vdw_f, vdw_screening, vdw_pair, vdw_pair_r, &
-              vdw_pair_e, use_nonbonded
+        type(yale_sparse) :: vdw_pair
+        !! If a pair is present in this sparse matrix, its VdW interaction
+        !! should be calculated using the corresponding radius and energy
+        !! not the standard ones, derived from the single-atom values.
+        real(rp), allocatable :: vdw_pair_r(:)
+        !! Radii for the VdW atom pairs
+        real(rp), allocatable :: vdw_pair_e(:)
+        !! VdW energies for atom pairs
+    
+        real(rp), dimension(4) :: vdw_screening
+        !! Screening factors for 1,2 1,3 and 1,4 neighbours.
+    end type ommp_nonbonded_type
+
+   
+    public :: ommp_nonbonded_type
+    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential
 
     contains
 
-    subroutine vdw_init(vdw_type, radius_rule, radius_size, radius_type, epsrule)
-        !! Initialize the non-bonded module allocating the parameters vectors
+    subroutine vdw_init(vdw, top, vdw_type, radius_rule, radius_size, &
+                        radius_type, epsrule)
+        !! Initialize the non-bonded object allocating the parameters vectors
         
         use mod_memory, only: mallocate
-        use mod_mmpol, only: mm_atoms, fatal_error
+        use mod_io, only: fatal_error
 
         implicit none
 
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        type(ommp_topology_type), intent(in), target :: top
         character(len=*) :: vdw_type, radius_rule, radius_size, radius_type, &
                             epsrule
 
@@ -93,53 +114,55 @@ module mod_nonbonded
                 call fatal_error("epsilonrule specified is not understood")
         end select
 
-        if(.not. use_nonbonded) then
-            call mallocate('vdw_init [vdw_r]', mm_atoms, vdw_r)
-            call mallocate('vdw_init [vdw_e]', mm_atoms, vdw_e)
-            call mallocate('vdw_init [vdw_f]', mm_atoms, vdw_f)
-            call mallocate('vdw_init [vdw_pair%ri]', mm_atoms+1, vdw_pair%ri)
-            vdw_pair%ri = 1 ! The matrix is empty for now
-            call mallocate('vdw_init [vdw_pair%ci]', pair_allocation_chunk, vdw_pair%ci)
-            call mallocate('vdw_init [vdw_pair_r]', pair_allocation_chunk, vdw_pair_r)
-            call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, vdw_pair_e)
+        vdw%top => top
+        call mallocate('vdw_init [vdw_r]', top%mm_atoms, vdw%vdw_r)
+        call mallocate('vdw_init [vdw_e]', top%mm_atoms, vdw%vdw_e)
+        call mallocate('vdw_init [vdw_f]', top%mm_atoms, vdw%vdw_f)
+        call mallocate('vdw_init [vdw_pair%ri]', top%mm_atoms+1, &
+                       vdw%vdw_pair%ri)
+        vdw%vdw_pair%ri = 1 ! The matrix is empty for now
+        call mallocate('vdw_init [vdw_pair%ci]', pair_allocation_chunk, &
+                       vdw%vdw_pair%ci)
+        call mallocate('vdw_init [vdw_pair_r]', pair_allocation_chunk, &
+                       vdw%vdw_pair_r)
+        call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, &
+                       vdw%vdw_pair_e)
 
-            vdw_f = 1.0_rp
-            use_nonbonded = .true.
-        end if
-
+        vdw%vdw_f = 1.0_rp
     end subroutine vdw_init
 
-    subroutine vdw_terminate()
+    subroutine vdw_terminate(vdw)
         use mod_memory, only: mfree
         use mod_adjacency_mat, only: matfree
 
         implicit none
         
-        if(.not. use_nonbonded) return
-
-        call mfree('vdw_terminate [vdw_r]', vdw_r)
-        call mfree('vdw_terminate [vdw_e]', vdw_e)
-        call mfree('vdw_terminate [vdw_f]', vdw_f)
-        call matfree(vdw_pair)
-        call mfree('vdw_terminate [vdw_pair_r]', vdw_pair_r)
-        call mfree('vdw_terminate [vdw_pair_e]', vdw_pair_e)
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        
+        call mfree('vdw_terminate [vdw_r]', vdw%vdw_r)
+        call mfree('vdw_terminate [vdw_e]', vdw%vdw_e)
+        call mfree('vdw_terminate [vdw_f]', vdw%vdw_f)
+        call matfree(vdw%vdw_pair)
+        call mfree('vdw_terminate [vdw_pair_r]', vdw%vdw_pair_r)
+        call mfree('vdw_terminate [vdw_pair_e]', vdw%vdw_pair_e)
 
     end subroutine
 
-    subroutine vdw_set_pair(ia, ib, r, e)
+    subroutine vdw_set_pair(vdw, ia, ib, r, e)
         !! Set VdW interaction parameters for a specific atom pair, those
         !! parameters overwrite the one obtained combining the mono-atomic
         !! ones. If a specific interaction is already set for this atom pair,
         !! it is overwritten with a warning print
         
-        use mod_mmpol, only: fatal_error, mm_atoms
-        use mod_io, only: ommp_message
+        use mod_io, only: ommp_message, fatal_error
         use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_adjacency_mat, only: reallocate_mat
         use mod_memory, only: mallocate, mfree
 
         implicit none
 
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        !! Nonbonded data structure
         integer(ip), intent(in) :: ia
         !! First atom for which the interaction is defined
         integer(ip), intent(in) :: ib
@@ -161,50 +184,51 @@ module mod_nonbonded
         ! min(ia, ib) as row index and max(ia, ib) as column index
         jr = min(ia, ib)
         jc = max(ia, ib)
-        if(any(vdw_pair%ci(vdw_pair%ri(jr):vdw_pair%ri(jr+1)-1) == jc)) then
+        if(any(vdw%vdw_pair%ci(vdw%vdw_pair%ri(jr):&
+                               vdw%vdw_pair%ri(jr+1)-1) == jc)) then
             ! The pair is already present in the matrix
             write(msg, "(A, I5, I5, A)") "VdW parameter for pair ", jr, jc, "will be overwritten"
             call ommp_message(msg, OMMP_VERBOSE_LOW)
 
-            do i=vdw_pair%ri(jr), vdw_pair%ri(jr+1)-1
-                if(vdw_pair%ci(i) == jc) then
-                    vdw_pair_r = r
-                    vdw_pair_e = e
+            do i=vdw%vdw_pair%ri(jr), vdw%vdw_pair%ri(jr+1)-1
+                if(vdw%vdw_pair%ci(i) == jc) then
+                    vdw%vdw_pair_r = r
+                    vdw%vdw_pair_e = e
                 end if
             end do
         else
             ! The pair is not present and should be created
             ! 1. check if there is space in the vectors
-            if(size(vdw_pair%ci) < vdw_pair%ri(mm_atoms+1) + 1) then
+            if(size(vdw%vdw_pair%ci) < vdw%vdw_pair%ri(vdw%top%mm_atoms+1) + 1) then
                 ! 1b. if there is no space, allocate a new chunk
-                oldsize = size(vdw_pair%ci)
+                oldsize = size(vdw%vdw_pair%ci)
                 newsize = oldsize + pair_allocation_chunk
-                call reallocate_mat(vdw_pair, newsize)
+                call reallocate_mat(vdw%vdw_pair, newsize)
                 call mallocate('vdw_set_pair [tmp]', oldsize, tmp)
-                tmp = vdw_pair_r
-                call mfree('vdw_set_pair [vdw_pair_r]', vdw_pair_r)
-                call mallocate('vdw_set_pair [vdw_pair_r]', newsize, vdw_pair_r)
-                vdw_pair_r(1:oldsize) = tmp
-                tmp = vdw_pair_e
-                call mfree('vdw_set_pair [vdw_pair_e]', vdw_pair_e)
-                call mallocate('vdw_set_pair [vdw_pair_e]', newsize, vdw_pair_e)
-                vdw_pair_e(1:oldsize) = tmp
+                tmp = vdw%vdw_pair_r
+                call mfree('vdw_set_pair [vdw_pair_r]', vdw%vdw_pair_r)
+                call mallocate('vdw_set_pair [vdw_pair_r]', newsize, vdw%vdw_pair_r)
+                vdw%vdw_pair_r(1:oldsize) = tmp
+                tmp = vdw%vdw_pair_e
+                call mfree('vdw_set_pair [vdw_pair_e]', vdw%vdw_pair_e)
+                call mallocate('vdw_set_pair [vdw_pair_e]', newsize, vdw%vdw_pair_e)
+                vdw%vdw_pair_e(1:oldsize) = tmp
                 call mfree('vdw_set_pair [tmp]', tmp)
             end if
             ! 2. rewrite the r and e vectors
-            do i=vdw_pair%ri(mm_atoms+1)-1, vdw_pair%ri(jr+1), -1
-                vdw_pair%ci(i+1) = vdw_pair%ci(i)
-                vdw_pair_r(i+1) = vdw_pair_r(i)
-                vdw_pair_e(i+1) = vdw_pair_e(i)
+            do i=vdw%vdw_pair%ri(vdw%top%mm_atoms+1)-1, vdw%vdw_pair%ri(jr+1), -1
+                vdw%vdw_pair%ci(i+1) = vdw%vdw_pair%ci(i)
+                vdw%vdw_pair_r(i+1) = vdw%vdw_pair_r(i)
+                vdw%vdw_pair_e(i+1) = vdw%vdw_pair_e(i)
             end do
             
             ! 3. rewrite the index vectors
-            vdw_pair%ri(jr+1:) = vdw_pair%ri(jr+1:) + 1
+            vdw%vdw_pair%ri(jr+1:) = vdw%vdw_pair%ri(jr+1:) + 1
 
             ! 4. write the new parameters
-            vdw_pair_r(vdw_pair%ri(jr+1)-1) = r
-            vdw_pair_e(vdw_pair%ri(jr+1)-1) = e
-            vdw_pair%ci(vdw_pair%ri(jr+1)-1) = jc
+            vdw%vdw_pair_r(vdw%vdw_pair%ri(jr+1)-1) = r
+            vdw%vdw_pair_e(vdw%vdw_pair%ri(jr+1)-1) = e
+            vdw%vdw_pair%ci(vdw%vdw_pair%ri(jr+1)-1) = jc
         end if
 
     end subroutine vdw_set_pair
@@ -229,43 +253,51 @@ module mod_nonbonded
 
     end subroutine vdw_buffered_7_14
 
-    subroutine vdw_potential(V)
+    subroutine vdw_potential(vdw, V)
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm
 
-        use mod_mmpol, only : mm_atoms, cmm, conn, fatal_error
+        use mod_io, only : fatal_error
         use mod_constants, only: eps_rp
         implicit none
 
+        type(ommp_nonbonded_type), intent(in), target :: vdw
+        !! Nonbonded data structure
         real(rp), intent(inout) :: V
+        !! Potential, result will be added
 
         integer(ip) :: i, j, l, ipair, ineigh
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
+        type(ommp_topology_type), pointer :: top
 
-        do i=1, mm_atoms
-            if(abs(vdw_f(i) - 1.0) < eps_rp) then
-                ci = cmm(:,i)
+        top => vdw%top
+
+        do i=1, top%mm_atoms
+            if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
+                ci = top%cmm(:,i)
             else
                 ! Scale factors are used only for monovalent atoms, in that
                 ! case the vdw center is displaced along the axis connecting
                 ! the atom to its neighbour
-                if(conn(1)%ri(i+1) - conn(1)%ri(i) /= 1) then
-                    call fatal_error("Scale factors are only expected for monovalent atoms")
+                if(top%conn(1)%ri(i+1) - top%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
                 end if
-                ineigh = conn(1)%ci(conn(1)%ri(i))
+                ineigh = top%conn(1)%ci(top%conn(1)%ri(i))
 
-                ci = cmm(:,ineigh) + (cmm(:,i) - cmm(:,ineigh)) * vdw_f(i)
+                ci = top%cmm(:,ineigh) + (top%cmm(:,i) - top%cmm(:,ineigh)) &
+                     * vdw%vdw_f(i)
             endif
                 
-            do j=i+1, mm_atoms
+            do j=i+1, top%mm_atoms
                 ! Compute the screening factor for this pair
                 s = 1.0
                 do ineigh=1,4
                     ! Look if j is at distance ineigh from i
-                    if(any(conn(ineigh)%ci(conn(ineigh)%ri(i): &
-                                           conn(ineigh)%ri(i+1)-1) == j)) then
+                    if(any(top%conn(ineigh)%ci(top%conn(ineigh)%ri(i): &
+                                               top%conn(ineigh)%ri(i+1)-1) == j)) then
                        
-                        s = vdw_screening(ineigh)
+                        s = vdw%vdw_screening(ineigh)
                         ! Exit the loop
                         exit 
                     end if
@@ -273,38 +305,41 @@ module mod_nonbonded
                 
                 if(s > eps_rp) then
                     ipair = -1
-                    do l=vdw_pair%ri(i), vdw_pair%ri(i+1)-1
-                        if(vdw_pair%ci(l) == j) then
+                    do l=vdw%vdw_pair%ri(i), vdw%vdw_pair%ri(i+1)-1
+                        if(vdw%vdw_pair%ci(l) == j) then
                             ipair = l
                             exit
                         end if
                     end do
 
                     if(ipair > 0) then
-                        Rij0 = vdw_pair_r(ipair)
-                        eij = vdw_pair_e(ipair)
+                        Rij0 = vdw%vdw_pair_r(ipair)
+                        eij = vdw%vdw_pair_e(ipair)
                     else 
-                        Rij0 = (vdw_r(i)**3 + vdw_r(j)**3)/(vdw_r(i)**2 + vdw_r(j)**2)
-                        eij = (4*vdw_e(i)*vdw_e(j))/(vdw_e(i)**0.5 + vdw_e(j)**0.5)**2
+                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
+                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
+                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
+                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
                     end if
                 
-                    if(abs(vdw_f(j) - 1.0) < eps_rp) then
-                        cj = cmm(:,j)
+                    if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
+                        cj = top%cmm(:,j)
                     else
                         ! Scale factors are used only for monovalent atoms, in that
                         ! case the vdw center is displaced along the axis connecting
                         ! the atom to its neighbour
-                        if(conn(1)%ri(j+1) - conn(1)%ri(j) /= 1) then
-                            write(*,*) "ATOM i J ", i, j
-                            call fatal_error("Scale factors are only expected for monovalent atoms")
+                        if(top%conn(1)%ri(j+1) - top%conn(1)%ri(j) /= 1) then
+                            call fatal_error("Scale factors are only expected &
+                                             & for monovalent atoms")
                         end if
-                        ineigh = conn(1)%ci(conn(1)%ri(j))
+                        ineigh = top%conn(1)%ci(top%conn(1)%ri(j))
 
-                        cj = cmm(:,ineigh) + (cmm(:,j) - cmm(:,ineigh)) * vdw_f(j)
+                        cj = top%cmm(:,ineigh) + &
+                             (top%cmm(:,j) - top%cmm(:,ineigh)) * vdw%vdw_f(j)
                     endif
                     Rij = ((ci(1)-cj(1))**2 + (ci(2)-cj(2))**2 + (ci(3)-cj(3))**2)**0.5
-                    vtmp = 0.0
                     
+                    vtmp = 0.0
                     call vdw_buffered_7_14(Rij, Rij0, Eij, vtmp)
                     v = v + vtmp*s
                 end if
