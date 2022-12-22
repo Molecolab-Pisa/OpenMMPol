@@ -19,6 +19,7 @@ set(LIBRARY_SRC
     src/mod_constants.f90
     src/mod_c_interface.f90
     src/mod_electrostatics.f90
+    src/mod_geomgrad.f90
     src/mod_inputloader.f90
     src/mod_interface.f90
     src/mod_io.f90

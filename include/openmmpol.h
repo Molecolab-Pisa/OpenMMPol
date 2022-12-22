@@ -78,6 +78,8 @@ extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 
 extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
+extern void ommp_fixedelec_numgeomgrad(OMMP_SYSTEM_PRT, double *);
+
 #ifdef __cplusplus
 }
 #endif
