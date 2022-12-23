@@ -6,4 +6,4 @@
 *.exe
 **/__pycache__
 doc/*
-build/*
+build*/*
