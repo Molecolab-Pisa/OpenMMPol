@@ -353,54 +353,66 @@ module mod_ommp_C_interface
             emm = 0.0
             call energy_MM_MM(s%eel, emm)
         end function
-!TODO
-!TODO        subroutine ommp_potential_mmpol2ext(n, cext, v) &
-!TODO                bind(c, name='ommp_potential_mmpol2ext')
-!TODO            ! Compute the electric potential of static sites at
-!TODO            ! arbitrary coordinates
-!TODO            use mod_electrostatics, only: potential_D2E, &
-!TODO                                          potential_M2E
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            integer(ommp_integer), intent(in), value :: n
-!TODO            real(ommp_real), intent(in) :: cext(3,n)
-!TODO            real(ommp_real), intent(inout) :: v(n)
-!TODO            
-!TODO            call potential_M2E(cext, v)
-!TODO            call potential_D2E(cext, v)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_potential_pol2ext(n, cext, v) &
-!TODO                bind(c, name='ommp_potential_pol2ext')
-!TODO            ! Compute the electric potential of static sites at
-!TODO            ! arbitrary coordinates
-!TODO            use mod_electrostatics, only: potential_D2E
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            integer(ommp_integer), intent(in), value :: n
-!TODO            real(ommp_real), intent(in) :: cext(3,n)
-!TODO            real(ommp_real), intent(inout) :: v(n)
-!TODO            
-!TODO            call potential_D2E(cext, v)
-!TODO        end subroutine
-!TODO        
-!TODO        subroutine ommp_potential_mm2ext(n, cext, v) &
-!TODO                bind(c, name='ommp_potential_mm2ext')
-!TODO            ! Compute the electric potential of static sites at
-!TODO            ! arbitrary coordinates
-!TODO            use mod_electrostatics, only: potential_M2E
-!TODO
-!TODO            implicit none
-!TODO            
-!TODO            integer(ommp_integer), intent(in), value :: n
-!TODO            real(ommp_real), intent(in) :: cext(3,n)
-!TODO            real(ommp_real), intent(inout) :: v(n)
-!TODO            
-!TODO            call potential_M2E(cext, v)
-!TODO        end subroutine
-!TODO
+
+        subroutine C_ommp_potential_mmpol2ext(s_prt, n, cext, v) &
+                bind(c, name='ommp_potential_mmpol2ext')
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_D2E, &
+                                          potential_M2E
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            integer(ommp_integer), intent(in), value :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+
+            type(ommp_system), pointer :: s
+            call c_f_pointer(s_prt, s)
+            
+            call potential_M2E(s%eel, cext, v)
+            call potential_D2E(s%eel, cext, v)
+        end subroutine
+        
+        subroutine C_ommp_potential_pol2ext(s_prt, n, cext, v) &
+                bind(c, name='ommp_potential_pol2ext')
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_D2E
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            integer(ommp_integer), intent(in), value :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            type(ommp_system), pointer :: s
+            call c_f_pointer(s_prt, s)
+            
+            call potential_D2E(s%eel, cext, v)
+        end subroutine
+        
+        subroutine C_ommp_potential_mm2ext(s_prt, n, cext, v) &
+                bind(c, name='ommp_potential_mm2ext')
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_M2E
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            integer(ommp_integer), intent(in), value :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            type(ommp_system), pointer :: s
+            call c_f_pointer(s_prt, s)
+            
+            call potential_M2E(s%eel, cext, v)
+        end subroutine
+
         function C_ommp_get_urey_energy(s_prt) &
                 result(eub) bind(c, name='ommp_get_urey_energy')
             
