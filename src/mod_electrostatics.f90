@@ -111,6 +111,8 @@ module mod_electrostatics
         !! electric_field of MM permanent multipoles at MM sites; 
         real(rp), allocatable :: Egrd_M2M(:,:)
         !! electric_field gradient of MM permanent multipoles at MM sites;
+        real(rp), allocatable :: EHes_M2M(:,:) 
+        !! electric field Hessian of MM permanent multipoles at MM sites;
 
         logical :: M2D_done = .false.
         !! Flag to set when M2D electrostatics have been computed.
@@ -246,6 +248,7 @@ module mod_electrostatics
     subroutine thole_init(eel)
         ! This routine compute the thole factors and stores
         ! them in a vector. TODO add reference
+        ! TODO in AMOEBA should be read from FF
        
         use mod_constants, only: OMMP_VERBOSE_LOW, eps_rp
         implicit none
@@ -476,7 +479,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_grdE, do_HE
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(out) :: V, E(3), grdE(6), HE(9)
+        real(rp), intent(out) :: V, E(3), grdE(6), HE(10)
         !! Electric potential
         
         if(do_V) then
@@ -503,8 +506,35 @@ module mod_electrostatics
         end if
 
         if(do_HE) then
-            HE = 0.0
-            call fatal_error("Field Hessian not implemented")
+            ! xxx
+            HE(1) = HE(1) + (15.0_rp * kernel(4) * dr(1) * dr(1) * dr(1) - &
+                             9.0_rp * kernel(3) * dr(1)) * q
+            ! xxy
+            HE(2) = HE(2) + (15.0_rp * kernel(4) * dr(1) * dr(1) * dr(2) - &
+                             3.0_rp * kernel(3) * dr(2)) * q
+            ! xxz
+            HE(3) = HE(3) + (15.0_rp * kernel(4) * dr(1) * dr(1) * dr(2) - &
+                             3.0_rp * kernel(3) * dr(2)) * q
+            ! xyy
+            HE(4) = HE(4) + (15.0_rp * kernel(4) * dr(2) * dr(2) * dr(1) - & 
+                             3.0_rp * kernel(3) * dr(1)) * q 
+            ! xyz
+            HE(5) = HE(5) + 15.0_rp * kernel(4) * dr(1) * dr(2) * dr(3) * q
+            ! xzz
+            HE(6) = HE(6) + (15.0_rp * kernel(4) * dr(3) * dr(3) * dr(1) - &
+                             3.0_rp * kernel(3) * dr(3)) * q
+            ! yyy
+            HE(7) = HE(7) + (15.0_rp * kernel(4) * dr(2) * dr(2) * dr(2) - & 
+                             9.0_rp * kernel(3) * dr(2)) * q 
+            ! yyz
+            HE(8) = HE(8) + (15.0_rp * kernel(4) * dr(2) * dr(2) * dr(3) - &
+                             3.0_rp * kernel(3) * dr(3)) * q
+            ! yzz
+            HE(9) = HE(9) + (15.0_rp * kernel(4) * dr(3) * dr(3) * dr(2) - &
+                             3.0_rp * kernel(3) * dr(2)) * q
+            ! zzz
+            HE(10) = HE(10) + (15.0_rp * kernel(4) * dr(3) * dr(3) * dr(3) - &
+                               9.0_rp * kernel(3) * dr(3)) * q
         end if
 
     end subroutine q_elec_prop
@@ -523,7 +553,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_grdE, do_HE
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(out) :: V, E(3), grdE(6), HE(9)
+        real(rp), intent(out) :: V, E(3), grdE(6), HE(10)
         !! Electric potential
         
         real(rp) :: mu_dot_dr
@@ -560,8 +590,60 @@ module mod_electrostatics
         end if
 
         if(do_HE) then
-            HE = 0.0
-            call fatal_error("Field Hessian not implemented")
+            ! xxx
+            HE(1) = HE(1) + 105.0_rp * mu_dot_dr * kernel(5) * dr(1)*dr(1)*dr(1) &
+                          - 45.0_rp * kernel(4) * dr(1) * (mu(1)*dr(1) + mu_dot_dr) &
+                          + 9.0_rp * kernel(3) * mu(1)
+            ! xxy
+            HE(2) = HE(2) + 105.0_rp * kernel(5) * mu_dot_dr * dr(1)*dr(1)*dr(2) &
+                          - 15.0_rp * kernel(4) * (mu(2)*dr(1)*dr(1) + &
+                                                   2.0_rp *mu(1)*dr(1)*dr(2) + &
+                                                   mu_dot_dr*dr(2)) &
+                          + 3.0_rp * kernel(3) * mu(2)
+
+            ! xxz
+            HE(3) = HE(3) + 105.0_rp * kernel(5) * mu_dot_dr * dr(1)*dr(1)*dr(3) &
+                          - 15.0_rp * kernel(4) * (mu(3)*dr(1)*dr(1) + &
+                                                   2.0_rp *mu(1)*dr(1)*dr(3) + &
+                                                   mu_dot_dr*dr(3)) &
+                          + 3.0_rp * kernel(3) * mu(3)
+            ! xyy
+            HE(4) = HE(4) + 105.0_rp * kernel(5) * mu_dot_dr * dr(2)*dr(2)*dr(1) &
+                          - 15.0_rp * kernel(4) * (mu(1)*dr(2)*dr(2) + &
+                                                   2.0_rp *mu(2)*dr(2)*dr(1) + &
+                                                   mu_dot_dr*dr(1)) &
+                          + 3.0_rp * kernel(3) * mu(1)
+            ! xyz
+            HE(5) = HE(5) + 105.0_rp * mu_dot_dr * kernel(5) * dr(1)*dr(2)*dr(3) &
+                          - 15.0_rp * kernel(4) * (mu(1)*dr(2)*dr(3) + &
+                                                   dr(1)*mu(2)*dr(3) + &
+                                                   dr(1)*dr(2)*mu(3))
+            ! xzz
+            HE(6) = HE(6) + 105.0_rp * kernel(5) * mu_dot_dr * dr(3)*dr(3)*dr(1) &
+                          - 15.0_rp * kernel(4) * (mu(1)*dr(3)*dr(3) + &
+                                                   2.0_rp *mu(3)*dr(3)*dr(1) + &
+                                                   mu_dot_dr*dr(1)) &
+                          + 3.0_rp * kernel(3) * mu(1)
+            ! yyy
+            HE(7) = HE(7) + 105.0_rp * mu_dot_dr * kernel(5) * dr(2)*dr(2)*dr(2) &
+                          - 45.0_rp * kernel(4) * dr(2) * (mu(2)*dr(2) + mu_dot_dr) &
+                          + 9.0_rp * kernel(3) * mu(2)
+            ! yyz
+            HE(8) = HE(8) + 105.0_rp * kernel(5) * mu_dot_dr * dr(2)*dr(2)*dr(3) &
+                          - 15.0_rp * kernel(4) * (mu(3)*dr(2)*dr(2) + &
+                                                   2.0_rp *mu(2)*dr(2)*dr(3) + &
+                                                   mu_dot_dr*dr(3)) &
+                          + 3.0_rp * kernel(3) * mu(3)
+            ! yzz
+            HE(9) = HE(9) + 105.0_rp * kernel(5) * mu_dot_dr * dr(3)*dr(3)*dr(2) &
+                          - 15.0_rp * kernel(4) * (mu(2)*dr(3)*dr(3) + &
+                                                   2.0_rp *mu(3)*dr(3)*dr(2) + &
+                                                   mu_dot_dr*dr(2)) &
+                          + 3.0_rp * kernel(3) * mu(2)
+            ! zzz
+            HE(10) = HE(10) + 105.0_rp * mu_dot_dr * kernel(5) * dr(3)*dr(3)*dr(3) &
+                            - 45.0_rp * kernel(4) * dr(3) * (mu(3)*dr(3) + mu_dot_dr) &
+                            + 9.0_rp * kernel(3) * mu(3)
         end if
     end subroutine mu_elec_prop
     
@@ -579,7 +661,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_grdE, do_HE
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(out) :: V, E(3), grdE(6), HE(9)
+        real(rp), intent(out) :: V, E(3), grdE(6), HE(10)
         !! Electric potential
         
         real(rp) :: quadxr(3), quadxr_dot_r
@@ -627,8 +709,60 @@ module mod_electrostatics
         end if
 
         if(do_HE) then
-            HE = 0.0
-            call fatal_error("Field Hessian not implemented")
+            ! xxx
+            HE(1) = HE(1) + 945*kernel(6)*dr(1)*dr(1)*dr(1)*quadxr_dot_r &
+                          - 315*kernel(5)*dr(1)*(2*quadxr(1)*dr(1) + quadxr_dot_r) &
+                          + 90*kernel(4)*(quad(1)*dr(1) + quadxr(1))   
+            ! xxy
+            HE(2) = HE(2) + 945*kernel(6)*dr(1)*dr(1)*dr(2)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(1)*dr(1)*dr(2) + &
+                                           2*quadxr(2)*dr(1)*dr(1) + &
+                                           dr(2)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(1)*dr(2) + 2*quad(2)*dr(1) + quadxr(2)) 
+            ! xxz
+            HE(3) = HE(3) + 945*kernel(6)*dr(1)*dr(1)*dr(3)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(1)*dr(1)*dr(3) + &
+                                           2*quadxr(3)*dr(1)*dr(1) + &
+                                           dr(3)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(1)*dr(3) + 2*quad(3)*dr(1) + quadxr(3)) 
+            ! xyy
+            HE(4) = HE(4) + 945*kernel(6)*dr(2)*dr(2)*dr(1)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(2)*dr(2)*dr(1) + &
+                                           2*quadxr(1)*dr(2)*dr(2) + &
+                                           dr(1)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(2)*dr(1) + 2*quad(1)*dr(2) + quadxr(1)) 
+            ! xyz
+            HE(5) = HE(5) + 945*kernel(6)*dr(1)*dr(2)*dr(3)*quadxr_dot_r &
+                          - 210*kernel(5)*(quadxr(1)*dr(2)*dr(3) + &
+                                           quadxr(2)*dr(1)*dr(3) + &
+                                           quadxr(3)*dr(1)*dr(2)) &
+                          + 30*kernel(4)*(quad(2)*dr(3) + quad(4)*dr(2) + quad(5)*dr(1))  
+            ! xzz
+            HE(6) = HE(6) + 945*kernel(6)*dr(3)*dr(3)*dr(1)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(3)*dr(3)*dr(1) + &
+                                           2*quadxr(1)*dr(3)*dr(3) + &
+                                           dr(1)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(3)*dr(1) + 2*quad(1)*dr(3) + quadxr(1)) 
+            ! yyy
+            HE(7) = HE(7) + 945*kernel(6)*dr(2)*dr(2)*dr(2)*quadxr_dot_r &
+                          - 315*kernel(5)*dr(2)*(2*quadxr(2)*dr(2) + quadxr_dot_r) &
+                          + 90*kernel(4)*(quad(2)*dr(2) + quadxr(2))   
+            ! yyz
+            HE(8) = HE(8) + 945*kernel(6)*dr(2)*dr(2)*dr(3)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(2)*dr(2)*dr(3) + &
+                                           2*quadxr(3)*dr(2)*dr(2) + &
+                                           dr(3)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(2)*dr(3) + 2*quad(3)*dr(2) + quadxr(3)) 
+            ! yzz
+            HE(9) = HE(9) + 945*kernel(6)*dr(3)*dr(3)*dr(2)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(3)*dr(3)*dr(2) + &
+                                           2*quadxr(2)*dr(3)*dr(3) + &
+                                           dr(2)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(3)*dr(2) + 2*quad(2)*dr(3) + quadxr(2)) 
+            ! zzz
+            HE(10) = HE(10) + 945*kernel(6)*dr(3)*dr(3)*dr(3)*quadxr_dot_r &
+                            - 315*kernel(5)*dr(3)*(2*quadxr(3)*dr(3) + quadxr_dot_r) &
+                            + 90*kernel(4)*(quad(3)*dr(3) + quadxr(3))   
         end if
     end subroutine quad_elec_prop
 
@@ -717,7 +851,7 @@ module mod_electrostatics
         !! results will be added
 
 
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
         integer(ip) :: i, j
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
@@ -825,7 +959,7 @@ module mod_electrostatics
         real(rp), intent(inout) :: V(eel%top%mm_atoms)
         !! Potential on MM sites, results will be added
 
-        real(rp) :: kernel(3), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
+        real(rp) :: kernel(3), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
         integer(ip) :: i, j
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
@@ -914,7 +1048,7 @@ module mod_electrostatics
 
         integer(ip) :: i, j
         logical :: to_scale, to_do
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
         !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpE) reduction(+: E)
         do i=1, eel%pol_atoms
@@ -985,7 +1119,7 @@ module mod_electrostatics
         integer(ip) :: i, j
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale, &
                    amoeba
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), &
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
                     scalf_p, scalf_d, scalf
         type(ommp_topology_type), pointer :: top
         
@@ -1081,7 +1215,7 @@ module mod_electrostatics
         !! Coordinates at which the electric field is requested
 
         integer(ip) :: i, j, n_cpt
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9)
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
 
         n_cpt = size(cpt, 2)
 
@@ -1134,7 +1268,7 @@ module mod_electrostatics
         !! Coordinates at which the electric field is requested
 
         integer(ip) :: i, j, n_cpt
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9)
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
 
         n_cpt = size(cpt, 2)
 
