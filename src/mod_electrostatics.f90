@@ -912,8 +912,8 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2 
 
         if(eel%amoeba) then
-            !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, & 
-            !$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
+            !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, & 
+            !!$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
@@ -963,7 +963,7 @@ module mod_electrostatics
                     end if
                 end do
             end do
-            !$omp end parallel do
+            !!$omp end parallel do
         else
             !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, &  
             !!$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
