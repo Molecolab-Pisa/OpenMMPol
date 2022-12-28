@@ -201,6 +201,18 @@ class OMMPSystem{
                                     {3*sizeof(double), sizeof(double)});
             return py_cdarray(bufinfo);
         }
+        
+        py_cdarray get_fixedelec_grad_a(void){
+            double *mem = new double[get_mm_atoms()*3];
+            ommp_fixedelec_anageomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
 
         double get_bond_energy(void){
             return ommp_get_bond_energy(handler);
@@ -294,6 +306,8 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::update_coordinates,
              "Update system's coordinates.",
              py::arg("coord"))
+        .def("do_fixedelec_grad_a",
+             &OMMPSystem::get_fixedelec_grad_a)
         .def("do_fixedelec_grad_n",
              &OMMPSystem::get_fixedelec_grad_n)
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")

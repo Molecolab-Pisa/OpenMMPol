@@ -4,6 +4,7 @@ module mod_electrostatics
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type
 
+    !! TODO Check the signs in electrostatic elemental functions
     implicit none 
     private
 
@@ -105,6 +106,9 @@ module mod_electrostatics
         !- Intermediate data allocate here -!
         logical :: M2M_done = .false.
         !! flag to set when M2M electrostatic quantities are computed.
+        logical :: M2Mgg_done = .false.
+        !! flag to set when M2M electrostatic quantities for geometrical
+        !! gradients are computed.
         real(rp), allocatable :: V_M2M(:)
         !! potential of MM permanent multipoles at MM sites; 
         real(rp), allocatable :: E_M2M(:,:)
@@ -295,7 +299,6 @@ module mod_electrostatics
         integer(ip) :: i
 
         call prepare_M2M(eel)
-        
         eMM = 0.0
 
         if(eel%amoeba) then
@@ -766,7 +769,7 @@ module mod_electrostatics
         end if
     end subroutine quad_elec_prop
 
-    subroutine prepare_M2M(eel) 
+    subroutine prepare_M2M(eel, arg_dogg) 
         !! This function allocate and populate array of electrostatic 
         !! properties of static multipoles at static multipoles sites.
         !! It should be called blindly before any calculation that requires
@@ -777,11 +780,20 @@ module mod_electrostatics
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
+        logical, optional, intent(in) :: arg_dogg
+
         integer(ip) :: mm_atoms
+        logical :: do_gg
 
         mm_atoms = eel%top%mm_atoms
 
-        if(eel%M2M_done) return
+        do_gg = .false.
+        if(present(arg_dogg)) then
+            if(arg_dogg) do_gg = .true.
+        end if
+
+        if(.not. do_gg .and. eel%M2M_done) return
+        if(do_gg .and. eel%M2M_done .and. eel%M2Mgg_done) return
 
         if(eel%amoeba) then
             if(.not. allocated(eel%V_M2M)) then
@@ -796,20 +808,42 @@ module mod_electrostatics
                 call mallocate('prepare_m2m [Egrd_M2M]', 6, mm_atoms, eel%Egrd_M2M)
             end if
             
+            if(do_gg .and. .not. allocated(eel%EHes_M2M)) then
+                call mallocate('prepare_m2m [EHes_M2M]', 10, mm_atoms, eel%EHes_M2M)
+            end if
+            
             eel%V_M2M = 0.0_rp
             eel%E_M2M = 0.0_rp
             eel%Egrd_M2M = 0.0_rp
-            call potential_field_fieldgr_M2M(eel, eel%V_M2M, eel%E_M2M, &
-                                             eel%Egrd_M2M)
+            if(do_gg) eel%EHes_M2M = 0.0_rp
+            
+            if(do_gg) then
+                call elec_prop_M2M(eel, eel%V_M2M, eel%E_M2M, eel%Egrd_M2M, &
+                                   eel%EHes_M2M)
+            else
+                call elec_prop_M2M(eel, eel%V_M2M, eel%E_M2M, eel%Egrd_M2M)
+            end if
         else
             if(.not. allocated(eel%V_M2M)) then
                 call mallocate('prepare_m2m [V_M2M]', mm_atoms, eel%V_M2M)
             end if
+
+            if(do_gg .and. .not. allocated(eel%E_M2M)) then
+                call mallocate('prepare_m2m [E_M2M]', 3, mm_atoms, eel%E_M2M)
+            end if
+
             eel%V_M2M = 0.0_rp
-            call potential_M2M(eel, eel%V_M2M)
+            if(do_gg) eel%E_M2M = 0.0_rp
+
+            if(do_gg) then
+                call elec_prop_M2M(eel, eel%V_M2M, eel%E_M2M)
+            else
+                call elec_prop_M2M(eel, eel%V_M2M)
+            end if
         end if
         
         eel%M2M_done = .true.
+        if(do_gg) eel%M2Mgg_done = .true.
 
     end subroutine prepare_M2M
 
@@ -834,7 +868,7 @@ module mod_electrostatics
     end subroutine prepare_M2D
 
   
-    subroutine potential_field_fieldgr_M2M(eel, V, E, Egrd)
+    subroutine elec_prop_M2M(eel, V, E, Egrd, EHes)
         !! Computes the electric potential, field and field gradients of 
         !! static multipoles at all sites (polarizable sites are a 
         !! subset of static ones)
@@ -842,21 +876,40 @@ module mod_electrostatics
         
         type(ommp_electrostatics_type), intent(inout) :: eel
         !! Electrostatics data structure
-        real(rp), intent(inout) :: V(eel%top%mm_atoms)
+        real(rp), intent(inout), optional :: V(eel%top%mm_atoms)
         !! Potential on MM sites, results will be added
-        real(rp), intent(inout) :: E(3, eel%top%mm_atoms)
+        real(rp), intent(inout), optional :: E(3, eel%top%mm_atoms)
         !! Electric field on MM sites, order [x,y,z] results will be added
-        real(rp), intent(inout) :: Egrd(6, eel%top%mm_atoms)
+        real(rp), intent(inout), optional :: Egrd(6, eel%top%mm_atoms)
         !! Electric field gradients on MM sites, order [xx,xy,yy,xz,yz,zz]
         !! results will be added
+        real(rp), intent(inout), optional :: EHes(10, eel%top%mm_atoms)
+        !! Electric field Hessian on MM sites, order [xxx, xxy, xxz, xyy,
+        !! xyz, xzz, yyy, yyz, yzz, zzz] results will be added
 
 
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
-        integer(ip) :: i, j
-        logical :: to_do, to_scale
+        integer(ip) :: i, j, ikernel
+        logical :: to_do, to_scale, do_V, do_E, do_Egrd, do_EHes
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
+
+        do_V = present(V)
+        do_E = present(E)
+        do_Egrd = present(Egrd)
+        do_EHes = present(EHes)
+        
+        if(do_EHes) then
+            ikernel = 4 
+        elseif(do_Egrd) then
+            ikernel = 3
+        elseif(do_E) then
+            ikernel = 2
+        elseif(do_V) then
+            ikernel = 1
+        end if
+        if(eel%amoeba) ikernel = ikernel + 2 
 
         if(eel%amoeba) then
             !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, & 
@@ -871,46 +924,49 @@ module mod_electrostatics
                     
                     if(to_do) then
                         dr = top%cmm(:,j) - top%cmm(:, i)
-                        call coulomb_kernel(dr, 4, kernel)
+                        call coulomb_kernel(dr, ikernel, kernel)
                         
-                        tmpV = 0.0_rp
-                        tmpE = 0.0_rp
-                        tmpEgr = 0.0_rp
+                        if(do_V) tmpV = 0.0_rp
+                        if(do_E) tmpE = 0.0_rp
+                        if(do_Egrd) tmpEgr = 0.0_rp
+                        if(do_EHes) tmpHE = 0.0_rp
 
                         call q_elec_prop(eel%q(1,i), dr, kernel, &
-                                         .true., tmpV, & 
-                                         .true., tmpE, &
-                                         .true., tmpEgr, &
-                                         .false., tmpHE)
+                                         do_V, tmpV, & 
+                                         do_E, tmpE, &
+                                         do_Egrd, tmpEgr, &
+                                         do_EHes, tmpHE)
 
                         call mu_elec_prop(eel%q(2:4,i), dr, kernel, &
-                                          .true., tmpV, & 
-                                          .true., tmpE, &
-                                          .true., tmpEgr, &
-                                          .false., tmpHE)
+                                          do_V, tmpV, & 
+                                          do_E, tmpE, &
+                                          do_Egrd, tmpEgr, &
+                                          do_EHes, tmpHE)
 
                         call quad_elec_prop(eel%q(5:10,i), dr, kernel, &
-                                          .true., tmpV, & 
-                                          .true., tmpE, &
-                                          .true., tmpEgr, &
-                                          .false., tmpHE)
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
 
                         if(to_scale) then
-                            V(j) = V(j) + tmpV * scalf
-                            E(:,j) = E(:,j) + tmpE * scalf
-                            Egrd(:,j) = Egrd(:,j) + tmpEgr * scalf
+                            if(do_V) V(j) = V(j) + tmpV * scalf
+                            if(do_E) E(:,j) = E(:,j) + tmpE * scalf
+                            if(do_Egrd) Egrd(:,j) = Egrd(:,j) + tmpEgr * scalf
+                            if(do_EHes) EHes(:,j) = EHes(:,j) + tmpHE * scalf
                         else
-                            V(j) = V(j) + tmpV
-                            E(:,j) = E(:,j) + tmpE 
-                            Egrd(:,j) = Egrd(:,j) + tmpEgr
+                            if(do_V) V(j) = V(j) + tmpV
+                            if(do_E) E(:,j) = E(:,j) + tmpE 
+                            if(do_Egrd) Egrd(:,j) = Egrd(:,j) + tmpEgr
+                            if(do_EHes) EHes(:,j) = EHes(:,j) + tmpHE 
                         end if
                     end if
                 end do
             end do
             !$omp end parallel do
         else
-            !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, &  
-            !$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
+            !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, &  
+            !!$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
@@ -921,117 +977,37 @@ module mod_electrostatics
                     
                     if(to_do) then
                         dr = top%cmm(:,j) - top%cmm(:, i)
-                        call coulomb_kernel(dr, 3, kernel)
+                        call coulomb_kernel(dr, ikernel, kernel)
                         
-                        tmpV = 0.0_rp
-                        tmpE = 0.0_rp
-                        tmpEgr = 0.0_rp
+                        if(do_V) tmpV = 0.0_rp
+                        if(do_E) tmpE = 0.0_rp
+                        if(do_Egrd) tmpEgr = 0.0_rp
+                        if(do_EHes) tmpHE = 0.0_rp
 
                         call q_elec_prop(eel%q(1,i), dr, kernel, &
-                                         .true., tmpV, &
-                                         .true., tmpE, &
-                                         .true., tmpEgr, &
-                                         .false., tmpHE)
+                                         do_V, tmpV, & 
+                                         do_E, tmpE, &
+                                         do_Egrd, tmpEgr, &
+                                         do_EHes, tmpHE)
 
                         if(to_scale) then
-                            V(j) =V(j) + tmpV * scalf
-                            E(:,j) = E(:,j) + tmpE * scalf
-                            Egrd(:,j) = Egrd(:,j) + tmpEgr * scalf
+                            if(do_V) V(j) = V(j) + tmpV * scalf
+                            if(do_E) E(:,j) = E(:,j) + tmpE * scalf
+                            if(do_Egrd) Egrd(:,j) = Egrd(:,j) + tmpEgr * scalf
+                            if(do_EHes) EHes(:,j) = EHes(:,j) + tmpHE * scalf
                         else
-                            V(j) = V(j) + tmpV
-                            E(:,j) = E(:,j) + tmpE 
-                            Egrd(:,j) = Egrd(:,j) + tmpEgr
+                            if(do_V) V(j) = V(j) + tmpV
+                            if(do_E) E(:,j) = E(:,j) + tmpE 
+                            if(do_Egrd) Egrd(:,j) = Egrd(:,j) + tmpEgr
+                            if(do_EHes) EHes(:,j) = EHes(:,j) + tmpHE 
                         end if
                     end if
                 end do
             end do
-            !$omp end parallel do
+            !!$omp end parallel do
         end if
-    end subroutine potential_field_fieldgr_M2M
+    end subroutine elec_prop_M2M
     
-    subroutine potential_M2M(eel, V)
-        !! Computes the electric potential of static multipoles at all sites
-        !! (polarizable sites are a subset of static ones)
-        implicit none
-        
-        type(ommp_electrostatics_type), intent(inout) :: eel
-        !! Electrostatics data structure
-        real(rp), intent(inout) :: V(eel%top%mm_atoms)
-        !! Potential on MM sites, results will be added
-
-        real(rp) :: kernel(3), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
-        integer(ip) :: i, j
-        logical :: to_do, to_scale
-        type(ommp_topology_type), pointer :: top
-
-        top => eel%top
-        
-
-        if(eel%amoeba) then
-            !TODO OMP
-            do i=1, top%mm_atoms
-                ! loop on sources
-                do j=1, top%mm_atoms
-                    if(j == i) cycle
-                    !loop on target
-                    call screening_rules(eel, i, 'S', j, 'S', '-', &
-                                         to_do, to_scale, scalf)
-                    
-                    if(to_do) then
-                        dr = top%cmm(:,j) - top%cmm(:, i)
-                        call coulomb_kernel(dr, 2, kernel)
-                        
-                        tmpV = 0.0_rp
-                        call q_elec_prop(eel%q(1,i), dr, kernel, .true., tmpV, &
-                                         .false., tmpE, .false., tmpEgr, &
-                                         .false., tmpHE)
-                        
-                        call mu_elec_prop(eel%q(2:4,i), dr, kernel, .true., tmpV, &
-                                          .false., tmpE, .false., tmpEgr, &
-                                          .false., tmpHE)
-                        
-                        call quad_elec_prop(eel%q(5:10,i), dr, kernel, .true., tmpV, &
-                                          .false., tmpE, .false., tmpEgr, &
-                                          .false., tmpHE)
-
-                        if(to_scale) then
-                            V(j) = V(j) + tmpV * scalf
-                        else
-                            V(j) = V(j) + tmpV
-                        end if
-                    end if
-                end do
-            end do
-        else
-            do i=1, top%mm_atoms
-                ! loop on sources
-                do j=1, top%mm_atoms
-                    if(j == i) cycle
-                    !loop on target
-                    call screening_rules(eel, i, 'S', j, 'S', '-', &
-                                         to_do, to_scale, scalf)
-                    
-                    if(to_do) then
-                        dr = top%cmm(:,j) - top%cmm(:, i)
-                        call coulomb_kernel(dr, 0, kernel)
-                        
-                        tmpV = 0.0_rp
-                        call q_elec_prop(eel%q(1,i), dr, kernel, .true., tmpV, &
-                                         .false., tmpE, .false., tmpEgr, &
-                                         .false., tmpHE)
-
-                        if(to_scale) then
-                            V(j) = V(j) + tmpV * scalf
-                        else
-                            V(j) = V(j) + tmpV
-                        end if
-                    end if
-                end do
-            end do
-        end if
-        
-    end subroutine potential_M2M
-
     subroutine field_extD2D(eel, E, ext_ipd)
         !! Computes the electric field of a trial set of induced point dipoles
         !! at polarizable sites. This is intended to be used as matrix-vector

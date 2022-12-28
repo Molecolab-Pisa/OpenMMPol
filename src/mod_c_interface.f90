@@ -614,6 +614,25 @@ module mod_ommp_C_interface
             grd = 0.0
             call numerical_fixedelec_geomgrad(s, grd)
         end subroutine
+        
+        subroutine C_ommp_fixedelec_anageomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_fixedelec_anageomgrad')
+            use mod_geomgrad, only: analytical_fixedelec_geomgrad
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            
+            grd = 0.0
+            call analytical_fixedelec_geomgrad(s, grd)
+        end subroutine
 
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
             use mod_mmpol, only: mmpol_terminate

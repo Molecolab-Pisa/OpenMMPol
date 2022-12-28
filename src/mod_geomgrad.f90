@@ -16,9 +16,34 @@ module mod_geomgrad
     end function
     end interface
 
-    public :: numerical_fixedelec_geomgrad
+    public :: numerical_fixedelec_geomgrad, analytical_fixedelec_geomgrad
 
     contains
+
+        subroutine analytical_fixedelec_geomgrad(s, grad)
+            use mod_electrostatics, only: prepare_M2M, ommp_electrostatics_type
+
+            implicit none
+            
+            type(ommp_system), intent(inout), target :: s
+            !! System data structure
+            real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
+            !! Geometrical gradients in output, results will be added
+            
+            integer(ip) :: i
+            type(ommp_electrostatics_type), pointer :: eel 
+            eel => s%eel
+
+            call prepare_M2M(eel, .true.)
+
+            if(eel%amoeba) then
+                call fatal_error("Not Implemented")
+            else
+                do i=1, s%top%mm_atoms
+                    grad(:,i) = grad(:,i) + 0.5 * eel%q(1,i) * eel%E_M2M(:,i)
+                end do
+            end if
+        end subroutine
 
         subroutine numerical_fixedelec_geomgrad(s, grad)
             use ommp_interface, only: ommp_get_fixedelec_energy
@@ -71,7 +96,6 @@ module mod_geomgrad
 
                     new_c(j,i) = new_c(j,i) + dd
                     call update_coordinates(s, new_c)
-
                 end do
             end do
 

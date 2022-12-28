@@ -383,7 +383,7 @@ module mod_mmpol
         eel%ipd_done = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
-        call rotate_multipoles(sys_obj%eel, .false.,xx,xx)
+        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel, .false.,xx,xx)
     end subroutine
     
     subroutine mmpol_ommp_print_summary(sys_obj, of_name)
