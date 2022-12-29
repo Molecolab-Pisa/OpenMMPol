@@ -306,7 +306,7 @@ add_test(NAME 1ao6_ipd0_WANG_AL_CUT10
          COMMAND  bin/${TESTLANG}_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/1ao6/input_WANG_AL_CUT10.mmp 
          Testing/output cg)
-add_test(NAME 1a06_ipd0_WANG_AL_CUT10_comp
+add_test(NAME 1ao6_ipd0_WANG_AL_CUT10_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_0_WANG_AL_CUT10.ref
@@ -325,7 +325,7 @@ add_test(NAME 1ao6_ipd0_AMOEBA_CUT10
          COMMAND  bin/${TESTLANG}_test_ipd 
          ${CMAKE_SOURCE_DIR}/tests/1ao6/input_AMOEBA_CUT10.mmp 
          Testing/output cg)
-add_test(NAME 1a06_ipd0_AMOEBA_CUT10_comp
+add_test(NAME 1ao6_ipd0_AMOEBA_CUT10_comp
          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_numerical.py
          Testing/output 
          ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_0_AMOEBA_CUT10.ref
