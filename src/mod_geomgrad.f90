@@ -1,3 +1,5 @@
+#include "f_cart_components.h"
+
 module mod_geomgrad
     use mod_io, only: fatal_error, ommp_message
     use mod_memory, only: ip, rp
@@ -30,14 +32,36 @@ module mod_geomgrad
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
             
-            integer(ip) :: i
+            integer(ip) :: i, j
             type(ommp_electrostatics_type), pointer :: eel 
             eel => s%eel
 
             call prepare_M2M(eel, .true.)
 
             if(eel%amoeba) then
-                call fatal_error("Not Implemented")
+                do i=1, s%top%mm_atoms
+                    ! Charges -qE
+                    grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_M2M(:,i)
+                    
+                    ! Dipoles mu \nablaE
+                    grad(_x_,i) = grad(_x_,i) &
+                                  + eel%q(1+_x_,i) * eel%Egrd_M2M(_xx_,i) &
+                                  + eel%q(1+_y_,i) * eel%Egrd_M2M(_xy_,i) &
+                                  + eel%q(1+_z_,i) * eel%Egrd_M2M(_xz_,i)
+                    grad(_y_,i) = grad(_y_,i) &
+                                  + eel%q(1+_x_,i) * eel%Egrd_M2M(_yx_,i) &
+                                  + eel%q(1+_y_,i) * eel%Egrd_M2M(_yy_,i) &
+                                  + eel%q(1+_z_,i) * eel%Egrd_M2M(_yz_,i)
+                    grad(_z_,i) = grad(_z_,i) &
+                                  + eel%q(1+_x_,i) * eel%Egrd_M2M(_zx_,i) &
+                                  + eel%q(1+_y_,i) * eel%Egrd_M2M(_zy_,i) &
+                                  + eel%q(1+_z_,i) * eel%Egrd_M2M(_zz_,i)
+                    ! Quadrupoles Q \nabla^2E
+
+                    
+                end do
+                ! Torque forces from multipoles rotation
+                call multipoles_rotation_geomgrad(eel, grad)
             else
                 do i=1, s%top%mm_atoms
                     ! Here the minus sign is due to the definition of Electric

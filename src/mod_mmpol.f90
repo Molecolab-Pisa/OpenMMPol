@@ -136,7 +136,6 @@ module mod_mmpol
         !! The system object to bi initialized
 
         integer(ip) :: i
-        real(rp) :: xx(3) ! TODO remove this variable
         
         type(yale_sparse) :: adj, pg_adj
 
@@ -186,7 +185,7 @@ module mod_mmpol
             call build_conn_upto_n(pg_adj, 3, sys_obj%eel%pg_conn, .true.)
 
             ! performs multipoles rotation
-            call rotate_multipoles(sys_obj%eel, .false.,xx,xx)
+            call rotate_multipoles(sys_obj%eel)
         end if
 
     end subroutine mmpol_prepare
@@ -364,7 +363,6 @@ module mod_mmpol
         type(ommp_topology_type), pointer :: top
         type(ommp_electrostatics_type), pointer :: eel
         integer(ip) :: i
-        real(rp) :: xx(3) ! TODO remove this variable
 
         top => sys_obj%top
         eel => sys_obj%eel
@@ -383,7 +381,7 @@ module mod_mmpol
         eel%ipd_done = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
-        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel, .false.,xx,xx)
+        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
     end subroutine
     
     subroutine mmpol_ommp_print_summary(sys_obj, of_name)

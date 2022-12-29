@@ -12,6 +12,8 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     add_compile_options($<$<CONFIG:DEBUG>:-Og>)
 endif()
 
+include_directories(include) # Directory for .h files
+
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(LIBRARY_SRC
     src/mod_adjacency_mat.f90
@@ -76,8 +78,6 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
 endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
-
-include_directories(include) # Directory for .h files
 
 add_executable(C_test_init_xyz src/test_programs/C/test_init_xyz.c)
 target_link_libraries(C_test_init_xyz openmmpol)
