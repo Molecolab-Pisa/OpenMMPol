@@ -714,60 +714,62 @@ module mod_electrostatics
         end if
 
         if(do_HE) then
-            ! xxx
-            HE(1) = HE(1) + 945*kernel(6)*dr(1)*dr(1)*dr(1)*quadxr_dot_r &
-                          - 315*kernel(5)*dr(1)*(2*quadxr(1)*dr(1) + quadxr_dot_r) &
-                          + 90*kernel(4)*(quad(1)*dr(1) + quadxr(1))   
-            ! xxy
-            HE(2) = HE(2) + 945*kernel(6)*dr(1)*dr(1)*dr(2)*quadxr_dot_r &
-                          - 105*kernel(5)*(4*quadxr(1)*dr(1)*dr(2) + &
-                                           2*quadxr(2)*dr(1)*dr(1) + &
-                                           dr(2)*quadxr_dot_r) &
-                          + 30*kernel(4)*(quad(1)*dr(2) + 2*quad(2)*dr(1) + quadxr(2)) 
-            ! xxz
-            HE(3) = HE(3) + 945*kernel(6)*dr(1)*dr(1)*dr(3)*quadxr_dot_r &
-                          - 105*kernel(5)*(4*quadxr(1)*dr(1)*dr(3) + &
-                                           2*quadxr(3)*dr(1)*dr(1) + &
-                                           dr(3)*quadxr_dot_r) &
-                          + 30*kernel(4)*(quad(1)*dr(3) + 2*quad(3)*dr(1) + quadxr(3)) 
-            ! xyy
-            HE(4) = HE(4) + 945*kernel(6)*dr(2)*dr(2)*dr(1)*quadxr_dot_r &
-                          - 105*kernel(5)*(4*quadxr(2)*dr(2)*dr(1) + &
-                                           2*quadxr(1)*dr(2)*dr(2) + &
-                                           dr(1)*quadxr_dot_r) &
-                          + 30*kernel(4)*(quad(2)*dr(1) + 2*quad(1)*dr(2) + quadxr(1)) 
-            ! xyz
-            HE(5) = HE(5) + 945*kernel(6)*dr(1)*dr(2)*dr(3)*quadxr_dot_r &
-                          - 210*kernel(5)*(quadxr(1)*dr(2)*dr(3) + &
-                                           quadxr(2)*dr(1)*dr(3) + &
-                                           quadxr(3)*dr(1)*dr(2)) &
-                          + 30*kernel(4)*(quad(2)*dr(3) + quad(4)*dr(2) + quad(5)*dr(1))  
-            ! xzz
-            HE(6) = HE(6) + 945*kernel(6)*dr(3)*dr(3)*dr(1)*quadxr_dot_r &
-                          - 105*kernel(5)*(4*quadxr(3)*dr(3)*dr(1) + &
-                                           2*quadxr(1)*dr(3)*dr(3) + &
-                                           dr(1)*quadxr_dot_r) &
-                          + 30*kernel(4)*(quad(3)*dr(1) + 2*quad(1)*dr(3) + quadxr(1)) 
-            ! yyy
-            HE(7) = HE(7) + 945*kernel(6)*dr(2)*dr(2)*dr(2)*quadxr_dot_r &
-                          - 315*kernel(5)*dr(2)*(2*quadxr(2)*dr(2) + quadxr_dot_r) &
-                          + 90*kernel(4)*(quad(2)*dr(2) + quadxr(2))   
-            ! yyz
-            HE(8) = HE(8) + 945*kernel(6)*dr(2)*dr(2)*dr(3)*quadxr_dot_r &
-                          - 105*kernel(5)*(4*quadxr(2)*dr(2)*dr(3) + &
-                                           2*quadxr(3)*dr(2)*dr(2) + &
-                                           dr(3)*quadxr_dot_r) &
-                          + 30*kernel(4)*(quad(2)*dr(3) + 2*quad(3)*dr(2) + quadxr(3)) 
-            ! yzz
-            HE(9) = HE(9) + 945*kernel(6)*dr(3)*dr(3)*dr(2)*quadxr_dot_r &
-                          - 105*kernel(5)*(4*quadxr(3)*dr(3)*dr(2) + &
-                                           2*quadxr(2)*dr(3)*dr(3) + &
-                                           dr(2)*quadxr_dot_r) &
-                          + 30*kernel(4)*(quad(3)*dr(2) + 2*quad(2)*dr(3) + quadxr(2)) 
-            ! zzz
-            HE(10) = HE(10) + 945*kernel(6)*dr(3)*dr(3)*dr(3)*quadxr_dot_r &
-                            - 315*kernel(5)*dr(3)*(2*quadxr(3)*dr(3) + quadxr_dot_r) &
-                            + 90*kernel(4)*(quad(3)*dr(3) + quadxr(3))   
+            ! 3
+            HE(_xxx_) = HE(_xxx_) + 945*kernel(6)*dr(_x_)**3 * quadxr_dot_r &
+                          - 315*kernel(5)*dr(_x_)*(2*quadxr(_x_)*dr(_x_) + quadxr_dot_r) &
+                          + 90*kernel(4)*(quad(_xx_)*dr(_x_) + quadxr(_x_))   
+            
+            HE(_yyy_) = HE(_yyy_) + 945*kernel(6)*dr(_y_)**3 * quadxr_dot_r &
+                          - 315*kernel(5)*dr(_y_)*(2*quadxr(_y_)*dr(_y_) + quadxr_dot_r) &
+                          + 90*kernel(4)*(quad(_yy_)*dr(_y_) + quadxr(_y_))   
+            
+            HE(_zzz_) = HE(_zzz_) + 945*kernel(6)*dr(_z_)**3 * quadxr_dot_r &
+                          - 315*kernel(5)*dr(_z_)*(2*quadxr(_z_)*dr(_z_) + quadxr_dot_r) &
+                          + 90*kernel(4)*(quad(_zz_)*dr(_z_) + quadxr(_z_))   
+           
+            ! 2 + 1
+            HE(_xxy_) = HE(_xxy_) + 945*kernel(6)*dr(_x_)**2*dr(_y_)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(_x_)*dr(_x_)*dr(_y_) + &
+                                           2*quadxr(_y_)*dr(_x_)*dr(_x_) + &
+                                           dr(_y_)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(_xx_)*dr(_y_) + 2*quad(_xy_)*dr(_x_) + quadxr(_y_)) 
+            
+            HE(_xxz_) = HE(_xxz_) + 945*kernel(6)*dr(_x_)**2*dr(_z_)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(_x_)*dr(_x_)*dr(_z_) + &
+                                           2*quadxr(_z_)*dr(_x_)*dr(_x_) + &
+                                           dr(_z_)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(_xx_)*dr(_z_) + 2*quad(_xz_)*dr(_x_) + quadxr(_z_)) 
+
+            HE(_yyx_) = HE(_yyx_) + 945*kernel(6)*dr(_y_)**2*dr(_x_)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(_y_)*dr(_y_)*dr(_x_) + &
+                                           2*quadxr(_x_)*dr(_y_)*dr(_y_) + &
+                                           dr(_x_)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(_yy_)*dr(_x_) + 2*quad(_xy_)*dr(_y_) + quadxr(_x_)) 
+            
+            HE(_yyz_) = HE(_yyz_) + 945*kernel(6)*dr(_y_)**2*dr(_z_)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(_y_)*dr(_y_)*dr(_z_) + &
+                                           2*quadxr(_z_)*dr(_y_)*dr(_y_) + &
+                                           dr(_z_)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(_yy_)*dr(_z_) + 2*quad(_zy_)*dr(_y_) + quadxr(_z_)) 
+
+            HE(_zzx_) = HE(_zzx_) + 945*kernel(6)*dr(_z_)**2*dr(_x_)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(_z_)*dr(_z_)*dr(_x_) + &
+                                           2*quadxr(_x_)*dr(_z_)*dr(_z_) + &
+                                           dr(_x_)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(_zz_)*dr(_x_) + 2*quad(_zx_)*dr(_z_) + quadxr(_x_)) 
+            
+            HE(_zzy_) = HE(_zzy_) + 945*kernel(6)*dr(_z_)**2*dr(_y_)*quadxr_dot_r &
+                          - 105*kernel(5)*(4*quadxr(_z_)*dr(_z_)*dr(_y_) + &
+                                           2*quadxr(_y_)*dr(_z_)*dr(_z_) + &
+                                           dr(_y_)*quadxr_dot_r) &
+                          + 30*kernel(4)*(quad(_zz_)*dr(_y_) + 2*quad(_zy_)*dr(_z_) + quadxr(_y_)) 
+            
+            ! 1 + 1 + 1
+            HE(_xyz_) = HE(_xyz_) + 945*kernel(6)*dr(_x_)*dr(_y_)*dr(_z_)*quadxr_dot_r &
+                          - 210*kernel(5)*(quadxr(_x_)*dr(_y_)*dr(_z_) + &
+                                           quadxr(_y_)*dr(_x_)*dr(_z_) + &
+                                           quadxr(_z_)*dr(_x_)*dr(_y_)) &
+                          + 30*kernel(4)*(quad(_xy_)*dr(_z_) + quad(_xz_)*dr(_y_) + quad(_yz_)*dr(_x_))  
         end if
     end subroutine quad_elec_prop
 
