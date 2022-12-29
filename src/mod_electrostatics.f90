@@ -1,3 +1,4 @@
+#include "f_cart_components.h"
 module mod_electrostatics
     use mod_io, only: fatal_error, ommp_message
     use mod_memory, only: ip, rp
@@ -516,16 +517,17 @@ module mod_electrostatics
             HE(2) = HE(2) + (15.0_rp * kernel(4) * dr(1) * dr(1) * dr(2) - &
                              3.0_rp * kernel(3) * dr(2)) * q
             ! xxz
-            HE(3) = HE(3) + (15.0_rp * kernel(4) * dr(1) * dr(1) * dr(2) - &
-                             3.0_rp * kernel(3) * dr(2)) * q
+            HE(3) = HE(3) + (15.0_rp * kernel(4) * dr(1) * dr(1) * dr(3) - &
+                             3.0_rp * kernel(3) * dr(3)) * q
             ! xyy
             HE(4) = HE(4) + (15.0_rp * kernel(4) * dr(2) * dr(2) * dr(1) - & 
                              3.0_rp * kernel(3) * dr(1)) * q 
             ! xyz
             HE(5) = HE(5) + 15.0_rp * kernel(4) * dr(1) * dr(2) * dr(3) * q
+            
             ! xzz
             HE(6) = HE(6) + (15.0_rp * kernel(4) * dr(3) * dr(3) * dr(1) - &
-                             3.0_rp * kernel(3) * dr(3)) * q
+                             3.0_rp * kernel(3) * dr(1)) * q
             ! yyy
             HE(7) = HE(7) + (15.0_rp * kernel(4) * dr(2) * dr(2) * dr(2) - & 
                              9.0_rp * kernel(3) * dr(2)) * q 
