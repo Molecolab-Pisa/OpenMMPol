@@ -40,7 +40,16 @@ module mod_geomgrad
                 call fatal_error("Not Implemented")
             else
                 do i=1, s%top%mm_atoms
-                    grad(:,i) = grad(:,i) + 0.5 * eel%q(1,i) * eel%E_M2M(:,i)
+                    ! Here the minus sign is due to the definition of Electric
+                    ! field that is E = -\nabla V.
+                    ! The factor 1/2 that is present in the definition of the
+                    ! energy disappear because in the derivative there is a 
+                    ! factor 2 that takes in account that when an atom is 
+                    ! "displaced", this affect both the point at which the 
+                    ! potential of all the other charges is computed and
+                    ! the potential computed at the -fixed- position of all
+                    ! the other charges (due to the displaced source).
+                    grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_M2M(:,i)
                 end do
             end if
         end subroutine
@@ -87,7 +96,7 @@ module mod_geomgrad
                     new_c(j,i) = new_c(j,i) + dd
                     call update_coordinates(s, new_c)
                     tmp = ene_f(s)
-                    
+
                     new_c(j,i) = new_c(j,i) - 2*dd
                     call update_coordinates(s, new_c)
                     tmp = tmp - ene_f(s)
