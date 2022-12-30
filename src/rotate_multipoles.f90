@@ -97,9 +97,12 @@ subroutine multipoles_rotation_geomgrad(eel, grad)
                               - ddip(:,_y_)*eel%E_M2M(_y_,j) & 
                               - ddip(:,_z_)*eel%E_M2M(_z_,j)
         ! ... and for the quadrupoles:
-        !fx(:,j) = fx(:,j) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + &
-        !          dqua(:,3,3)*gzz + 2.0_rp*(dqua(:,1,2)*gxy + &
-        !          dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+        grad(:,j) = grad(:,j) + dqua(:,_x_,_x_)*eel%Egrd_M2M(_xx_,j) &
+                              + dqua(:,_y_,_y_)*eel%Egrd_M2M(_yy_,j) &
+                              + dqua(:,_z_,_z_)*eel%Egrd_M2M(_zz_,j) &
+                              + 2*(dqua(:,_x_,_y_)*eel%Egrd_M2M(_xy_,j) &
+                              +    dqua(:,_x_,_z_)*eel%Egrd_M2M(_xz_,j) &
+                              +    dqua(:,_y_,_z_)*eel%Egrd_M2M(_yz_,j))
      
         ! do jx
         ddip = 0.0_rp
@@ -128,9 +131,12 @@ subroutine multipoles_rotation_geomgrad(eel, grad)
                                 - ddip(:,_y_)*eel%E_M2M(_y_,j) & 
                                 - ddip(:,_z_)*eel%E_M2M(_z_,j)
         ! ... and for the quadrupoles:
-        !fx(:,jx) = fx(:,jx) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + &
-        !           dqua(:,3,3)*gzz + 2.0_rp*(dqua(:,1,2)*gxy + &
-        !           dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+        grad(:,jx) = grad(:,jx) + dqua(:,_x_,_x_)*eel%Egrd_M2M(_xx_,j) &
+                                + dqua(:,_y_,_y_)*eel%Egrd_M2M(_yy_,j) &
+                                + dqua(:,_z_,_z_)*eel%Egrd_M2M(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*eel%Egrd_M2M(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*eel%Egrd_M2M(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*eel%Egrd_M2M(_yz_,j))
                 
         ! do jy
         ddip = 0.0_rp
@@ -159,9 +165,12 @@ subroutine multipoles_rotation_geomgrad(eel, grad)
                                 - ddip(:,_y_)*eel%E_M2M(_y_,j) & 
                                 - ddip(:,_z_)*eel%E_M2M(_z_,j)
         ! ... and for the quadrupoles:
-        !fx(:,jy) = fx(:,jy) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + &
-        !           dqua(:,3,3)*gzz + 2.0_rp*(dqua(:,1,2)*gxy + &
-        !           dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)
+        grad(:,jy) = grad(:,jy) + dqua(:,_x_,_x_)*eel%Egrd_M2M(_xx_,j) &
+                                + dqua(:,_y_,_y_)*eel%Egrd_M2M(_yy_,j) &
+                                + dqua(:,_z_,_z_)*eel%Egrd_M2M(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*eel%Egrd_M2M(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*eel%Egrd_M2M(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*eel%Egrd_M2M(_yz_,j))
          
         ! Do jz
         ddip = 0.0_rp
@@ -190,9 +199,12 @@ subroutine multipoles_rotation_geomgrad(eel, grad)
                                 - ddip(:,_y_)*eel%E_M2M(_y_,j) & 
                                 - ddip(:,_z_)*eel%E_M2M(_z_,j)
         ! ... and for the quadrupoles:
-        !fx(:,jz) = fx(:,jz) + dqua(:,1,1)*gxx + dqua(:,2,2)*gyy + &
-        !           dqua(:,3,3)*gzz + 2.0_rp*(dqua(:,1,2)*gxy + &
-        !           dqua(:,1,3)*gxz + dqua(:,2,3)*gyz)       
+        grad(:,jz) = grad(:,jz) + dqua(:,_x_,_x_)*eel%Egrd_M2M(_xx_,j) &
+                                + dqua(:,_y_,_y_)*eel%Egrd_M2M(_yy_,j) &
+                                + dqua(:,_z_,_z_)*eel%Egrd_M2M(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*eel%Egrd_M2M(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*eel%Egrd_M2M(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*eel%Egrd_M2M(_yz_,j))
 
     end do 
 end subroutine multipoles_rotation_geomgrad
