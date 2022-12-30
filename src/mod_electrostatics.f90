@@ -314,7 +314,7 @@ module mod_electrostatics
             end do
 
             do i=1,6
-                if(i == 1 .or. i == 3 .or. i == 6) then
+                if(i == _xx_ .or. i == _yy_ .or. i == _zz_) then
                     ! diagonal elements
                     eMM = eMM + dot_product(eel%q(i+4,:), eel%Egrd_M2M(i,:))
                 else
