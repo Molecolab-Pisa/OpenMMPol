@@ -357,6 +357,8 @@ module mod_electrostatics
         integer(ip) :: i
 
         call prepare_M2D(eel)
+        if(.not. eel%ipd_done) call fatal_error("IPD should be computed before&
+                                                & computing MM-Pol energy.")
         eMM = 0.0
         
         if(eel%amoeba) then
@@ -884,15 +886,15 @@ module mod_electrostatics
         if(.not. allocated(eel%E_M2D)) then
             call mallocate('prepare_m2d [E_M2D]', 3, eel%pol_atoms, &
                             eel%n_ipd, eel%E_M2D)
-            eel%E_M2D = 0.0_rp
         end if
         
         if(.not. allocated(eel%Egrd_M2D) .and. do_gg) then
             call mallocate('prepare_m2d [Egrd_M2D]', 6, eel%pol_atoms, &
                             eel%n_ipd, eel%Egrd_M2D)
-            eel%Egrd_M2D = 0.0_rp
         end if
         
+        eel%E_M2D = 0.0_rp
+        if(do_gg) eel%Egrd_M2D = 0.0_rp
         if(.not. do_gg) then
             call elec_prop_M2D(eel, eel%E_M2D)
         else
