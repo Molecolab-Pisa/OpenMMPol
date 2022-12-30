@@ -214,6 +214,30 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
+        py_cdarray get_polelec_grad_n(void){
+            double *mem = new double[get_mm_atoms()*3];
+            ommp_polelec_numgeomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray get_polelec_grad_a(void){
+            double *mem = new double[get_mm_atoms()*3];
+            ommp_polelec_anageomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
         double get_bond_energy(void){
             return ommp_get_bond_energy(handler);
         }
@@ -310,6 +334,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::get_fixedelec_grad_a)
         .def("do_fixedelec_grad_n",
              &OMMPSystem::get_fixedelec_grad_n)
+        .def("do_polelec_grad_a",
+             &OMMPSystem::get_polelec_grad_a)
+        .def("do_polelec_grad_n",
+             &OMMPSystem::get_polelec_grad_n)
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")
         .def("get_torsion_energy", &OMMPSystem::get_torsion_energy, "Compute the energy of dihedral torsion")

@@ -377,7 +377,9 @@ module mod_mmpol
         end do
         ! 2.2 Flags and allocated quantities
         eel%M2M_done = .false.
+        eel%M2Mgg_done = .false.
         eel%M2D_done = .false.
+        eel%M2Dgg_done = .false.
         eel%ipd_done = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation

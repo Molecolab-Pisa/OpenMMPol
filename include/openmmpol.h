@@ -80,6 +80,8 @@ extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
 extern void ommp_fixedelec_numgeomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_fixedelec_anageomgrad(OMMP_SYSTEM_PRT, double *);
+extern void ommp_polelec_numgeomgrad(OMMP_SYSTEM_PRT, double *);
+extern void ommp_polelec_anageomgrad(OMMP_SYSTEM_PRT, double *);
 
 #ifdef __cplusplus
 }
