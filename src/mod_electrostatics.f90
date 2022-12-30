@@ -6,6 +6,11 @@ module mod_electrostatics
     use mod_topology, only: ommp_topology_type
 
     !! TODO Check the signs in electrostatic elemental functions
+    !! TODO Use Laplace equation to simplify the calculations:
+    !! TODO  1. Egrd(_zz_) = -(Egrd(_xx_) + Egrd(_yy_))
+    !! TODO  2. EHes(_zzz_) = -(EHes(_xxz_) + EHes(_yyz_))
+    !! TODO  3. EHes(_zzx_) = -(EHes(_xxx_) + EHes(_yyx_))
+    !! TODO  4. EHes(_zzy_) = -(EHes(_xxy_) + EHes(_yyy_))
     implicit none 
     private
 
