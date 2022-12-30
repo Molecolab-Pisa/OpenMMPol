@@ -56,8 +56,29 @@ module mod_geomgrad
                                   + eel%q(1+_x_,i) * eel%Egrd_M2M(_zx_,i) &
                                   + eel%q(1+_y_,i) * eel%Egrd_M2M(_zy_,i) &
                                   + eel%q(1+_z_,i) * eel%Egrd_M2M(_zz_,i)
+                    
                     ! Quadrupoles Q \nabla^2E
-
+                    grad(_x_,i) = grad(_x_,i) &
+                                  - eel%q(4+_xx_,i) * eel%EHes_M2M(_xxx_,i) &
+                                  - eel%q(4+_yy_,i) * eel%EHes_M2M(_yyx_,i) &
+                                  - eel%q(4+_zz_,i) * eel%EHes_M2M(_zzx_,i) &
+                                  - 2*(eel%q(4+_xy_,i) * eel%EHes_M2M(_xyx_,i) &
+                                  +    eel%q(4+_xz_,i) * eel%EHes_M2M(_xzx_,i) &
+                                  +    eel%q(4+_yz_,i) * eel%EHes_M2M(_yzx_,i))
+                    grad(_y_,i) = grad(_y_,i) &
+                                  - eel%q(4+_xx_,i) * eel%EHes_M2M(_xxy_,i) &
+                                  - eel%q(4+_yy_,i) * eel%EHes_M2M(_yyy_,i) &
+                                  - eel%q(4+_zz_,i) * eel%EHes_M2M(_zzy_,i) &
+                                  - 2*(eel%q(4+_xy_,i) * eel%EHes_M2M(_xyy_,i) &
+                                  +    eel%q(4+_xz_,i) * eel%EHes_M2M(_xzy_,i) &
+                                  +    eel%q(4+_yz_,i) * eel%EHes_M2M(_yzy_,i))
+                    grad(_z_,i) = grad(_z_,i) &
+                                  - eel%q(4+_xx_,i) * eel%EHes_M2M(_xxz_,i) &
+                                  - eel%q(4+_yy_,i) * eel%EHes_M2M(_yyz_,i) &
+                                  - eel%q(4+_zz_,i) * eel%EHes_M2M(_zzz_,i) &
+                                  - 2*(eel%q(4+_xy_,i) * eel%EHes_M2M(_xyz_,i) &
+                                  +    eel%q(4+_xz_,i) * eel%EHes_M2M(_xzz_,i) &
+                                  +    eel%q(4+_yz_,i) * eel%EHes_M2M(_yzz_,i))
                     
                 end do
                 ! Torque forces from multipoles rotation
@@ -92,7 +113,7 @@ module mod_geomgrad
 
             call numerical_geomgrad(s, ene_f, grad)
         end subroutine
-
+        
         subroutine numerical_geomgrad(s, ene_f, grad)
             use mod_mmpol, only: update_coordinates
             use mod_memory, only: mallocate, mfree
@@ -105,6 +126,7 @@ module mod_geomgrad
             !! numerical gradients are needed
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
+            logical :: dorot
 
             integer(ip) :: i, j
             real(rp), allocatable :: new_c(:,:)
@@ -126,12 +148,12 @@ module mod_geomgrad
                     tmp = tmp - ene_f(s)
                     
                     grad(j,i) = grad(j,i) + tmp / (2*dd)
-
+                    
                     new_c(j,i) = new_c(j,i) + dd
                     call update_coordinates(s, new_c)
                 end do
             end do
-
+            
             call mfree('numerical_geomgrad [new_c]', new_c)
         end subroutine
 end module
