@@ -134,7 +134,15 @@ module mod_electrostatics
         real(rp), allocatable :: E_M2D(:,:,:) ! TODO the third dimension is used?
         !! electric field of MM permanent multipoles at POL sites; 
         real(rp), allocatable :: Egrd_M2D(:,:,:)
-        !! electric field of MM permanent multipoles at POL sites; 
+        !! electric field of MM permanent multipoles at POL sites;
+
+        logical :: D2Mgg_done = .false.
+        real(rp), allocatable :: E_D2M(:,:)
+        real(rp), allocatable :: Egrd_D2M(:,:)
+        real(rp), allocatable :: EHes_D2M
+
+        logical :: D2Dgg_done = .false.
+        real(rp), allocatable :: Egrd_D2D(:,:)
         
         logical :: ipd_done = .false.
         !! Flag to set when IPD have been computed.
@@ -149,7 +157,7 @@ module mod_electrostatics
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
     public :: thole_init
-    public :: screening_rules, damped_coulomb_kernel, field_extD2D
+    public :: screening_rules, damped_coulomb_kernel, elec_prop_extD2D
     public :: energy_MM_MM, energy_MM_pol
     public :: prepare_M2M, prepare_M2D
     public :: potential_M2E, potential_D2E
@@ -1046,7 +1054,9 @@ module mod_electrostatics
         end if
     end subroutine elec_prop_M2M
     
-    subroutine field_extD2D(eel, E, ext_ipd)
+    subroutine elec_prop_extD2D(eel, ext_ipd, &
+                                do_V, do_E, do_Egrd, do_EHes, & 
+                                V, E, Egrd, EHes)
         !! Computes the electric field of a trial set of induced point dipoles
         !! at polarizable sites. This is intended to be used as matrix-vector
         !! routine in the solution of the linear system.
@@ -1057,14 +1067,36 @@ module mod_electrostatics
         !! Data structure for electrostatic part of the system
         real(rp), intent(in) :: ext_ipd(3, eel%pol_atoms)
         !! External induced point dipoles at polarizable sites
-        real(rp), intent(inout) :: E(3, eel%pol_atoms)
-        !! Electric field (results will be added)
+        logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
+        !! Flag to control which properties have to be computed.
+        real(rp), intent(inout), optional :: V(eel%pol_atoms)
+        !! Electric potential (results will be added)
+        real(rp), intent(inout), optional :: E(3, eel%pol_atoms)
+        real(rp), intent(inout), optional :: Egrd(6,eel%pol_atoms)
+        real(rp), intent(inout), optional :: EHes(10,eel%pol_atoms)
 
-        integer(ip) :: i, j
+        integer(ip) :: i, j, ikernel
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
-        !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpE) reduction(+: E)
+        if((do_V .and. .not. present(V)) .or. &
+           (do_E .and. .not. present(E)) .or. &
+           (do_Egrd .and. .not. present(Egrd)) .or. &
+           (do_EHes .and. .not. present(EHes))) then
+           call fatal_error("The requested call to elec_prop_extD2D is invalid")
+        end if
+
+        if(do_EHes) then
+            ikernel = 5 
+        elseif(do_Egrd) then
+            ikernel = 4
+        elseif(do_E) then
+            ikernel = 3
+        elseif(do_V) then
+            ikernel = 2
+        end if
+
+        !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpE) reduction(+: E)
         do i=1, eel%pol_atoms
             do j=1, eel%pol_atoms
                 if(j == i) cycle
@@ -1075,23 +1107,34 @@ module mod_electrostatics
                 if(to_do) then
                     call damped_coulomb_kernel(eel, eel%polar_mm(i), &
                                                eel%polar_mm(j),& 
-                                               2, kernel(1:3), dr)
+                                               ikernel, kernel, dr)
                     
-                    tmpE = 0.0_rp
+                    if(do_V) tmpV = 0.0_rp
+                    if(do_E) tmpE = 0.0_rp
+                    if(do_Egrd) tmpEgr = 0.0_rp
+                    if(do_EHes) tmpHE = 0.0_rp
 
-                    call mu_elec_prop(ext_ipd(:,i), dr, kernel, .false., tmpV, &
-                                      .true., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE)
+                    call mu_elec_prop(ext_ipd(:,i), dr, kernel, &
+                                      do_V, tmpV, &
+                                      do_E, tmpE, &
+                                      do_Egrd, tmpEgr, & 
+                                      do_EHes, tmpHE)
                     if(to_scale) then
-                        E(:, j) = E(:, j) + tmpE * scalf
+                        if(do_V) V(j) = V(j) + tmpV * scalf
+                        if(do_E) E(:, j) = E(:, j) + tmpE * scalf
+                        if(do_Egrd) Egrd(:, j) = Egrd(:, j) + tmpEgr * scalf
+                        if(do_EHes) EHes(:, j) = EHes(:, j) + tmpHE * scalf
                     else
-                        E(:, j) = E(:, j) + tmpE
+                        if(do_V) V(j) = V(j) + tmpV
+                        if(do_E) E(:, j) = E(:, j) + tmpE
+                        if(do_Egrd) Egrd(:, j) = Egrd(:, j) + tmpEgr
+                        if(do_EHes) EHes(:, j) = EHes(:, j) + tmpHE
                     end if
                 end if
             end do
         end do
-        !$omp end parallel do
-    end subroutine field_extD2D
+        !!$omp end parallel do
+    end subroutine elec_prop_extD2D
 
     subroutine field_D2D(eel, E)
         !! Computes the electric field of indued dipoles at induced dipoles
@@ -1105,14 +1148,19 @@ module mod_electrostatics
         !! Electrostatics data structure
         real(rp), intent(out) :: E(3, eel%pol_atoms, eel%n_ipd)
         !! Electric field (results will be added)
+        real(rp), allocatable :: tmpV(:)
 
         if(eel%amoeba) then
-            call field_extD2D(eel, E(:,:,OMMP_AMOEBA_P), &
-                              eel%ipd(:,:,OMMP_AMOEBA_P))
-            call field_extD2D(eel, E(:,:,OMMP_AMOEBA_D), &
-                              eel%ipd(:,:,OMMP_AMOEBA_D))
+            call elec_prop_extD2D(eel, eel%ipd(:,:,OMMP_AMOEBA_P), &
+                                  .false., .true., .false., .false., &
+                                  tmpV, E(:,:,OMMP_AMOEBA_P))
+            call elec_prop_extD2D(eel, eel%ipd(:,:,OMMP_AMOEBA_D), &
+                                  .false., .true., .false., .false., &
+                                  tmpV, E(:,:,OMMP_AMOEBA_D))
         else
-            call field_extD2D(eel, E(:,:,1), eel%ipd(:,:,1))
+            call elec_prop_extD2D(eel, eel%ipd(:,:,1), &
+                                  .false., .true., .false., .false., &
+                                  tmpV, E(:,:,1))
         end if
     end subroutine field_D2D
     
