@@ -315,7 +315,7 @@ module mod_ommp_C_interface
             !! themselves and fixed multipoles.
 
             use mod_polarization, only: polarization
-            use mod_electrostatics, only: prepare_M2D, energy_MM_pol, &
+            use mod_electrostatics, only: prepare_polelec, energy_MM_pol, &
                                           ommp_electrostatics_type
             use mod_constants, only: OMMP_SOLVER_DEFAULT
 
@@ -331,7 +331,7 @@ module mod_ommp_C_interface
             
             if(.not. eel%ipd_done) then
                 !! Solve the polarization system without external field
-                call prepare_M2D(eel)
+                call prepare_polelec(eel)
                 call polarization(s, eel%e_m2d, OMMP_SOLVER_DEFAULT)
             end if
             epol = 0.0

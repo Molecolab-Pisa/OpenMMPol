@@ -23,7 +23,7 @@ subroutine multipoles_rotation_geomgrad(eel, grad)
     real(rp), dimension(3,3) :: r, rt, qua, rqua, tmp, ddip
     real(rp), dimension(3,3,3) :: dri, driz, drix, driy, dqua, dtmp
 
-    ! TODO prepare_M2M ?
+    ! TODO prepare_fixedelec
 
     ! loop over the mm sites and build the derivatives of the rotation
     ! matrices with respect to the positions of all the relevant atoms.

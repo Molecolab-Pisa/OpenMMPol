@@ -432,11 +432,14 @@ module mod_polarization
         !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
         !! skipped)
         
-        real(rp), allocatable :: tmpV(:)
+        real(rp), allocatable :: tmpV(:), tmpEgr(:,:), tmpEHes(:,:)
         
         y = 0.0_rp
         call elec_prop_extD2D(eel, x, &
-                              .false., .true., .false., .false., tmpV, y)
+                              .false., tmpV, &
+                              .true., y, &
+                              .false., tmpEgr, &
+                              .false., tmpEHes)
         y = -1.0_rp * y ! Why? TODO
         if(dodiag) call TMatVec_diag(eel, x, y)
     

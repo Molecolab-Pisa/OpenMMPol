@@ -81,7 +81,7 @@ module ommp_interface
             !! This function get an external field and solve the polarization
             !! system in the presence of the provided external field.
             use mod_polarization, only: polarization
-            use mod_electrostatics, only: prepare_M2D
+            use mod_electrostatics, only: prepare_polelec
             use mod_memory, only: mallocate, mfree
 
             implicit none
@@ -109,7 +109,7 @@ module ommp_interface
             if(do_mm_f) then
                 call mallocate('ommp_get_polelec_energy [ef]', &
                                3, eel%pol_atoms, eel%n_ipd, ef)
-                call prepare_M2D(eel)
+                call prepare_polelec(eel)
                 do i=1, eel%n_ipd
                     ef(:,:,i) = eel%e_m2d(:,:,i) + ext_field
                 end do
@@ -129,7 +129,7 @@ module ommp_interface
 
         function ommp_get_polelec_energy(sys_obj) result(ene)
             
-            use mod_electrostatics, only: energy_MM_pol, prepare_M2D
+            use mod_electrostatics, only: energy_MM_pol, prepare_polelec
             use mod_polarization, only: polarization
             use mod_constants, only: OMMP_SOLVER_DEFAULT
 
@@ -140,7 +140,7 @@ module ommp_interface
 
             if(.not. sys_obj%eel%ipd_done) then
                 !! Solve the polarization system without external field
-                call prepare_M2D(sys_obj%eel)
+                call prepare_polelec(sys_obj%eel)
                 call polarization(sys_obj, sys_obj%eel%e_m2d, OMMP_SOLVER_DEFAULT)
             end if
 
