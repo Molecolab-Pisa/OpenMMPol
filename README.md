@@ -3,7 +3,7 @@
 
 ## Description
 
-Ope-MMPol is an open-source library to interface quantum chemical software with 
+Open-MMPol is an open-source library to interface quantum chemical software with 
 atomistic polarizable embedding. 
 It allows to compute all the electrostatic quantities needed for a polarizable embeddings with 
 AMOEBA (and other forcefield) of virtually any 
