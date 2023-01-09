@@ -419,7 +419,7 @@ module mod_polarization
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
         !! and x and y are column vectors
-        use mod_electrostatics, only: elec_prop_extD2D
+        use mod_electrostatics, only: field_extD2D
         implicit none
         
         type(ommp_electrostatics_type), intent(in) :: eel
@@ -432,14 +432,8 @@ module mod_polarization
         !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
         !! skipped)
         
-        real(rp), allocatable :: tmpV(:), tmpEgr(:,:), tmpEHes(:,:)
-        
         y = 0.0_rp
-        call elec_prop_extD2D(eel, x, &
-                              .false., tmpV, &
-                              .true., y, &
-                              .false., tmpEgr, &
-                              .false., tmpEHes)
+        call field_extD2D(eel, x, y)
         y = -1.0_rp * y ! Why? TODO
         if(dodiag) call TMatVec_diag(eel, x, y)
     
