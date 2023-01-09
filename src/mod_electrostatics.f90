@@ -147,10 +147,10 @@ module mod_electrostatics
         real(rp), allocatable :: EHes_D2M(:,:)
 
         logical :: D2Dgg_done = .false.
-        real(rp), allocatable :: V_D2D(:)
-        real(rp), allocatable :: E_D2D(:,:)
-        real(rp), allocatable :: Egrd_D2D(:,:)
-        real(rp), allocatable :: EHes_D2D(:,:)
+        real(rp), allocatable :: V_D2D(:,:)
+        real(rp), allocatable :: E_D2D(:,:,:)
+        real(rp), allocatable :: Egrd_D2D(:,:,:)
+        real(rp), allocatable :: EHes_D2D(:,:,:)
         
         logical :: ipd_done = .false.
         !! Flag to set when IPD have been computed.
@@ -908,6 +908,8 @@ module mod_electrostatics
         logical :: do_gg
         real(rp), allocatable :: tmpV(:), tmpE(:,:)
 
+        integer :: i !TODO
+
         do_gg = .false.
         if(present(arg_dogg)) then
             if(arg_dogg) do_gg = .true.
@@ -933,13 +935,22 @@ module mod_electrostatics
             
             if(.not. allocated(eel%Egrd_D2D)) then
                 call mallocate('prepare_polelec [Egrd_D2D]', 6, eel%pol_atoms, &
-                               eel%Egrd_D2D)
+                               eel%n_ipd, eel%Egrd_D2D)
             end if
             
             if(.not. allocated(eel%E_D2M)) then
                 call mallocate('prepare_polelec [E_D2M]', 3, eel%top%mm_atoms, &
                                eel%E_D2M)
             end if
+            if(.not. allocated(eel%Egrd_D2M) .and. eel%amoeba) then
+                call mallocate('prepare_polelec [Egrd_D2M]', 6, eel%top%mm_atoms, &
+                               eel%Egrd_D2M)
+            end if
+            if(.not. allocated(eel%EHes_D2M) .and. eel%amoeba) then
+                call mallocate('prepare_polelec [E_D2M]', 10, eel%top%mm_atoms, &
+                               eel%EHes_D2M)
+            end if
+
         end if
         
         if(.not. do_gg) then
@@ -957,16 +968,25 @@ module mod_electrostatics
                                     .false., eel%EHes_M2D)
 
             eel%E_D2M = 0.0_rp
-            call elec_prop_D2M(eel, .false., eel%V_D2M, &
-                                    .true., eel%E_D2M, &
-                                    .false., eel%Egrd_D2M, &
-                                    .false., eel%EHes_D2M)
+            eel%Egrd_D2M = 0.0_rp
+            eel%EHes_D2M = 0.0_rp
+            call elec_prop_D2M(eel, 'P', .false., eel%V_D2M, &
+                                         .true., eel%E_D2M, &
+                                         eel%amoeba, eel%Egrd_D2M, &
+                                         eel%amoeba, eel%EHes_D2M)
+            call elec_prop_D2M(eel, 'D', .false., eel%V_D2M, &
+                                         .true., eel%E_D2M, &
+                                         eel%amoeba, eel%Egrd_D2M, &
+                                         eel%amoeba, eel%EHes_D2M)
+            eel%E_D2M = eel%E_D2M * 0.5
+            if(eel%amoeba) eel%Egrd_D2M = eel%Egrd_D2M * 0.5
+            if(eel%amoeba) eel%EHes_D2M = eel%EHes_D2M * 0.5
 
             eel%Egrd_D2D = 0.0_rp
-            call elec_prop_D2D(eel, '-', .false., eel%V_D2D, &
-                                         .false., eel%E_D2D, &
-                                         .true., eel%Egrd_D2D, &
-                                         .false., eel%EHes_D2D)
+            call elec_prop_D2D(eel, .false., eel%V_D2D, &
+                                    .false., eel%E_D2D, &
+                                    .true., eel%Egrd_D2D, &
+                                    .false., eel%EHes_D2D)
 
         end if
         
@@ -1190,7 +1210,7 @@ module mod_electrostatics
         !!$omp end parallel do
     end subroutine elec_prop_extD2D
 
-    subroutine elec_prop_D2D(eel, in_kind, &
+    subroutine elec_prop_D2D(eel, &
                              do_V, V, do_E, E, do_Egrd, Egrd, do_EHes, EHes)
         !! Compddutes the electric field of indued dipoles at induced dipoles
         !! sites.
@@ -1203,29 +1223,23 @@ module mod_electrostatics
         !! Data structure for electrostatic part of the system
         logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
         !! Flag to control which properties have to be computed.
-        character, intent(in) :: in_kind
-        real(rp), intent(inout) :: V(eel%pol_atoms)
+        real(rp), intent(inout) :: V(eel%pol_atoms,eel%n_ipd)
         !! Electric potential (results will be added)
-        real(rp), intent(inout) :: E(3, eel%pol_atoms)
-        real(rp), intent(inout) :: Egrd(6,eel%pol_atoms)
-        real(rp), intent(inout) :: EHes(10,eel%pol_atoms)
-        integer(ip) :: knd
+        real(rp), intent(inout) :: E(3,eel%pol_atoms,eel%n_ipd)
+        real(rp), intent(inout) :: Egrd(6,eel%pol_atoms,eel%n_ipd)
+        real(rp), intent(inout) :: EHes(10,eel%pol_atoms,eel%n_ipd)
 
-        if(eel%amoeba .and. in_kind /= 'P' .and. in_kind /= 'D') then
-            call fatal_error("Unrecognized field '"//in_kind//"' for AMOEBA &
-                             &force-field.")
-        elseif(eel%amoeba .and. in_kind == 'P') then
-            knd = OMMP_AMOEBA_P
-        elseif(eel%amoeba .and. in_kind == 'D') then
-            knd = OMMP_AMOEBA_D
-        elseif(.not. eel%amoeba) then
-            knd = 1
-        else
-            call fatal_error("Unexpected error in elec_prop_D2D.")
-        end if
-
-        call elec_prop_extD2D(eel, eel%ipd(:,:,knd), &
-                              do_V, V, do_E, E, do_Egrd, Egrd, do_EHes, EHes)
+        call elec_prop_extD2D(eel, eel%ipd(:,:,OMMP_AMOEBA_P), &
+                              do_V, V(:,OMMP_AMOEBA_P), &
+                              do_E, E(:,:,OMMP_AMOEBA_P), &
+                              do_Egrd, Egrd(:,:,OMMP_AMOEBA_P), &
+                              do_EHes, EHes(:,:,OMMP_AMOEBA_P))
+                          
+        call elec_prop_extD2D(eel, eel%ipd(:,:,OMMP_AMOEBA_D), &
+                              do_V, V(:,OMMP_AMOEBA_D), &
+                              do_E, E(:,:,OMMP_AMOEBA_D), &
+                              do_Egrd, Egrd(:,:,OMMP_AMOEBA_D), &
+                              do_EHes, EHes(:,:,OMMP_AMOEBA_D))
     end subroutine elec_prop_D2D
     
     subroutine elec_prop_M2D(eel, do_V, V, &
@@ -1260,13 +1274,13 @@ module mod_electrostatics
         amoeba = eel%amoeba
 
         if(do_EHes) then
-            ikernel = 4 
+            ikernel = 3 
         elseif(do_Egrd) then
-            ikernel = 3
-        elseif(do_E) then
             ikernel = 2
-        elseif(do_V) then 
+        elseif(do_E) then
             ikernel = 1
+        elseif(do_V) then
+            ikernel = 0
         else
             return
         end if
@@ -1378,7 +1392,7 @@ module mod_electrostatics
 
     end subroutine
     
-    subroutine elec_prop_D2M(eel, do_V, V, &
+    subroutine elec_prop_D2M(eel, in_kind, do_V, V, &
                              do_E, E, do_Egrd, Egrd, do_EHes, EHes)
         use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
 
@@ -1386,6 +1400,8 @@ module mod_electrostatics
 
         type(ommp_electrostatics_type), intent(inout) :: eel
         !! Electrostatics data structure
+        character, intent(in) :: in_kind
+
         logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
         !! Flag to control which properties have to be computed.
         real(rp), intent(inout) :: V(eel%top%mm_atoms)
@@ -1393,94 +1409,81 @@ module mod_electrostatics
         real(rp), intent(inout) :: Egrd(6, eel%top%mm_atoms)
         real(rp), intent(inout) :: EHes(10, eel%top%mm_atoms)
 
-        integer(ip) :: i, j, ikernel
+        integer(ip) :: i, j, ikernel, knd
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale, &
                    amoeba
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
                     scalf_p, scalf_d, scalf
         type(ommp_topology_type), pointer :: top
+        character :: screening_type
         
         ! Shortcuts
         top => eel%top
         amoeba = eel%amoeba
+        
+        if(eel%amoeba .and. in_kind /= 'P' .and. in_kind /= 'D') then
+            call fatal_error("Unrecognized field '"//in_kind//"' for AMOEBA &
+                             &force-field.")
+        elseif(eel%amoeba .and. in_kind == 'P') then
+            knd = OMMP_AMOEBA_P
+            screening_type = 'D'
+        elseif(eel%amoeba .and. in_kind == 'D') then
+            knd = OMMP_AMOEBA_D
+            screening_type = 'P'
+        elseif(.not. eel%amoeba) then
+            knd = 1
+            screening_type = '-'
+        else
+            call fatal_error("Unexpected error in elec_prop_D2M.")
+        end if
 
         if(do_EHes) then
-            ikernel = 5 
+            ikernel = 4 
         elseif(do_Egrd) then
-            ikernel = 4
-        elseif(do_E) then
             ikernel = 3
-        elseif(do_V) then 
+        elseif(do_E) then
             ikernel = 2
+        elseif(do_V) then 
+            ikernel = 1
         else
             return
         end if
         
         if(amoeba) then
-            call fatal_error("D2M not implemented for AMOEBA")
             do i=1, eel%pol_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
-                    !TODO if(eel%polar_mm(i) == j) cycle
-                    !TODO !loop on target
-                    !TODO call screening_rules(eel, i, 'P', j, 'S', 'P', &
-                    !TODO                      to_do_p, to_scale_p, scalf_p)
-                    !TODO call screening_rules(eel, i, 'P', j, 'S', 'D', &
-                    !TODO                      to_do_d, to_scale_d, scalf_d)
-                    !TODO 
-                    !TODO if(to_do_p .or. to_do_d) then
-                    !TODO     call damped_coulomb_kernel(eel, i, eel%polar_mm(j), &
-                    !TODO                                ikernel, kernel, dr)
-                    !TODO     
-                    !TODO     if(do_V) tmpV = 0.0_rp
-                    !TODO     if(do_E) tmpE = 0.0_rp
-                    !TODO     if(do_Egrd) tmpEgr = 0.0_rp
-                    !TODO     if(do_EHes) tmpHE = 0.0_rp
-
-                    !TODO     call q_elec_prop(eel%q(1,i), dr, kernel, &
-                    !TODO                      do_V, tmpV, &
-                    !TODO                      do_E, tmpE, &
-                    !TODO                      do_Egrd, tmpEgr, & 
-                    !TODO                      do_EHes, tmpHE)
-                    !TODO     call mu_elec_prop(eel%q(2:4,i), dr, kernel, &
-                    !TODO                       do_V, tmpV, &
-                    !TODO                       do_E, tmpE, &
-                    !TODO                       do_Egrd, tmpEgr, & 
-                    !TODO                       do_EHes, tmpHE)
-                    !TODO     call quad_elec_prop(eel%q(5:10,i), dr, kernel, &
-                    !TODO                         do_V, tmpV, &
-                    !TODO                         do_E, tmpE, &
-                    !TODO                         do_Egrd, tmpEgr, & 
-                    !TODO                         do_EHes, tmpHE)
-
-                    !TODO     if(to_do_p) then
-                    !TODO         if(to_scale_p) then
-                    !TODO             if(do_V) V(j, OMMP_AMOEBA_P) = V(j, OMMP_AMOEBA_P) + tmpV * scalf_p
-                    !TODO             if(do_E) E(:, j, OMMP_AMOEBA_P) = E(:, j, OMMP_AMOEBA_P) + tmpE * scalf_p
-                    !TODO             if(do_Egrd) Egrd(:, j, OMMP_AMOEBA_P) = Egrd(:, j, OMMP_AMOEBA_P) + tmpEgr * scalf_p
-                    !TODO             if(do_EHes) EHes(:, j, OMMP_AMOEBA_P) = EHes(:, j, OMMP_AMOEBA_P) + tmpHE * scalf_p
-                    !TODO         else
-                    !TODO             if(do_V) V(j, OMMP_AMOEBA_P) = V(j, OMMP_AMOEBA_P) + tmpV 
-                    !TODO             if(do_E) E(:, j, OMMP_AMOEBA_P) = E(:, j, OMMP_AMOEBA_P) + tmpE
-                    !TODO             if(do_Egrd) Egrd(:, j, OMMP_AMOEBA_P) = Egrd(:, j, OMMP_AMOEBA_P) + tmpEgr
-                    !TODO             if(do_EHes) EHes(:, j, OMMP_AMOEBA_P) = EHes(:, j, OMMP_AMOEBA_P) + tmpHE
-                    !TODO         end if
-                    !TODO     end if
-
-                    !TODO     if(to_do_d) then
-                    !TODO         if(to_scale_d) then
-                    !TODO             if(do_V) V(j, OMMP_AMOEBA_D) = V(j, OMMP_AMOEBA_D) + tmpV * scalf_d
-                    !TODO             if(do_E) E(:, j, OMMP_AMOEBA_D) = E(:, j, OMMP_AMOEBA_D) + tmpE * scalf_d
-                    !TODO             if(do_Egrd) Egrd(:, j, OMMP_AMOEBA_D) = Egrd(:, j, OMMP_AMOEBA_D) + tmpEgr * scalf_d
-                    !TODO             if(do_EHes) EHes(:, j, OMMP_AMOEBA_D) = EHes(:, j, OMMP_AMOEBA_D) + tmpHE * scalf_d
-                    !TODO         else
-                    !TODO             if(do_V) V(j, OMMP_AMOEBA_D) = V(j, OMMP_AMOEBA_D) + tmpV 
-                    !TODO             if(do_E) E(:, j, OMMP_AMOEBA_D) = E(:, j, OMMP_AMOEBA_D) + tmpE
-                    !TODO             if(do_Egrd) Egrd(:, j, OMMP_AMOEBA_D) = Egrd(:, j, OMMP_AMOEBA_D) + tmpEgr
-                    !TODO             if(do_EHes) EHes(:, j, OMMP_AMOEBA_D) = EHes(:, j, OMMP_AMOEBA_D) + tmpHE
-                    !TODO         end if
-                    !TODO     end if
-                    !TODO end if
+                    if(eel%polar_mm(i) == j) cycle
+                    !loop on target
+                    call screening_rules(eel, i, 'P', j, 'S', screening_type, &
+                                         to_do, to_scale, scalf)
+                    
+                    if(to_do) then
+                        call damped_coulomb_kernel(eel, eel%polar_mm(i), j, & 
+                                                   ikernel, kernel, dr)
+                       
+                        if(do_V) tmpV = 0.0_rp
+                        if(do_E) tmpE = 0.0_rp
+                        if(do_Egrd) tmpEgr = 0.0_rp
+                        if(do_EHes) tmpHE = 0.0_rp
+                        
+                        call mu_elec_prop(eel%ipd(:,i, knd), dr, kernel, & 
+                                         do_V, tmpV, &
+                                         do_E, tmpE, &
+                                         do_Egrd, tmpEgr, &
+                                         do_EHes, tmpHE)
+                        if(to_scale) then
+                            if(do_V) V(j) = V(j) + tmpV * scalf
+                            if(do_E) E(:, j) = E(:, j) + tmpE * scalf
+                            if(do_Egrd) Egrd(:, j) = Egrd(:, j) + tmpEgr * scalf
+                            if(do_EHes) EHes(:, j) = EHes(:, j) + tmpHE * scalf
+                        else
+                            if(do_V) V(j) = V(j) + tmpV
+                            if(do_E) E(:, j) = E(:, j) + tmpE
+                            if(do_Egrd) Egrd(:, j) = Egrd(:, j) + tmpEgr
+                            if(do_EHes) EHes(:, j) = EHes(:, j) + tmpHE
+                        end if 
+                    end if
                 end do
             end do
         else
@@ -1500,7 +1503,7 @@ module mod_electrostatics
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
                         
-                        call mu_elec_prop(eel%ipd(:,i, 1), dr, kernel, & 
+                        call mu_elec_prop(eel%ipd(:,i, knd), dr, kernel, & 
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
