@@ -1,6 +1,207 @@
 #include "f_cart_components.h"
 
-subroutine multipoles_rotation_geomgrad(eel, grad)
+subroutine polelec_rotation_geomgrad(eel, grad)
+    
+    use mod_memory, only: ip, rp
+    use mod_electrostatics, only: ommp_electrostatics_type
+    
+    implicit none
+  
+    type(ommp_electrostatics_type), intent(inout) :: eel
+    real(rp), dimension(3, eel%top%mm_atoms), intent(inout) :: grad
+
+    integer(ip) :: j, jx, jy, jz, k, l, m, n
+    real(rp), dimension(3) :: dip
+    real(rp), dimension(3,3) :: r, rt, qua, rqua, tmp, ddip
+    real(rp), dimension(3,3,3) :: dri, driz, drix, driy, dqua, dtmp
+
+    ! TODO prepare_fixedelec
+
+    ! loop over the mm sites and build the derivatives of the rotation
+    ! matrices with respect to the positions of all the relevant atoms.
+    do j = 1, eel%top%mm_atoms
+        jz = eel%iz(j)
+        if(jz == 0) jz = j
+        jx = eel%ix(j)
+        if(jx == 0) jx = j
+        jy = eel%iy(j)
+        if(jy == 0) jy = j
+        
+        call rotation_matrix(.true., & 
+                             eel%top%cmm(:,j), eel%top%cmm(:,jx), &
+                             eel%top%cmm(:,jy), eel%top%cmm(:,jz), &
+                             eel%mol_frame(j), &
+                             r, dri, driz, drix, driy)
+        
+        rt = transpose(r)
+        
+        ! get the multipoles. we also need the rotated quadrupoles:
+        dip(_x_) = eel%q0(1+_x_,j)
+        dip(_y_) = eel%q0(1+_y_,j)
+        dip(_z_) = eel%q0(1+_z_,j)
+
+        qua(_x_,_x_)  = eel%q0(4+_xx_,j)
+        qua(_x_,_y_)  = eel%q0(4+_xy_,j)
+        qua(_x_,_z_)  = eel%q0(4+_xz_,j)
+        qua(_y_,_x_)  = eel%q0(4+_yx_,j)
+        qua(_y_,_y_)  = eel%q0(4+_yy_,j)
+        qua(_y_,_z_)  = eel%q0(4+_yz_,j)
+        qua(_z_,_x_)  = eel%q0(4+_zx_,j)
+        qua(_z_,_y_)  = eel%q0(4+_zy_,j)
+        qua(_z_,_z_)  = eel%q0(4+_zz_,j)
+        
+        rqua(_x_,_x_)  = eel%q(4+_xx_,j)
+        rqua(_x_,_y_)  = eel%q(4+_xy_,j)
+        rqua(_x_,_z_)  = eel%q(4+_xz_,j)
+        rqua(_y_,_x_)  = eel%q(4+_yx_,j)
+        rqua(_y_,_y_)  = eel%q(4+_yy_,j)
+        rqua(_y_,_z_)  = eel%q(4+_yz_,j)
+        rqua(_z_,_x_)  = eel%q(4+_zx_,j)
+        rqua(_z_,_y_)  = eel%q(4+_zy_,j)
+        rqua(_z_,_z_)  = eel%q(4+_zz_,j)
+        
+        ! contributions to the forces on the j-th atoms:
+
+        ddip = 0.0_rp
+        dqua = 0.0_rp
+        dtmp = 0.0_rp
+        ! compute the differentiated multipoles:
+        do k = 1, 3
+            do l = 1, 3
+                ddip(:,k) = ddip(:,k) + dri(:,k,l)*dip(l)
+            end do
+        end do
+        
+        do k = 1, 3
+            do l = 1, 3
+                do m = 1, 3
+                    do n = 1, 3
+                        !dtmp(:,l,m)*rt(m,k)
+                        dqua(:,k,l) = dqua(:,k,l) + (dri(:,k,m)*qua(m,n) - &
+                                      rqua(k,m)*dri(:,m,n))*rt(n,l)  
+                    end do
+                end do
+            end do
+        end do
+
+        ! increment the forces for the dipoles...
+        grad(:,j) = grad(:,j) - ddip(:,_x_)*eel%E_D2M(_x_,j) &
+                              - ddip(:,_y_)*eel%E_D2M(_y_,j) & 
+                              - ddip(:,_z_)*eel%E_D2M(_z_,j)
+        ! ... and for the quadrupoles:
+        grad(:,j) = grad(:,j) + dqua(:,_x_,_x_)*eel%Egrd_D2M(_xx_,j) &
+                              + dqua(:,_y_,_y_)*eel%Egrd_D2M(_yy_,j) &
+                              + dqua(:,_z_,_z_)*eel%Egrd_D2M(_zz_,j) &
+                              + 2*(dqua(:,_x_,_y_)*eel%Egrd_D2M(_xy_,j) &
+                              +    dqua(:,_x_,_z_)*eel%Egrd_D2M(_xz_,j) &
+                              +    dqua(:,_y_,_z_)*eel%Egrd_D2M(_yz_,j))
+     
+        ! do jx
+        ddip = 0.0_rp
+        dqua = 0.0_rp
+        dtmp = 0.0_rp
+        do k = 1, 3
+            do l = 1, 3
+                ddip(:,k) = ddip(:,k) + drix(:,k,l)*dip(l)
+            end do
+        end do
+        
+        do k = 1, 3
+            do l = 1, 3
+                do m = 1, 3
+                    do n = 1, 3
+                        !dtmp(:,l,m)*rt(m,k)
+                        dqua(:,k,l) = dqua(:,k,l) + (drix(:,k,m)*qua(m,n) -&
+                                      rqua(k,m)*drix(:,m,n))*rt(n,l)
+                    end do
+                end do
+            end do
+        end do
+
+        ! increment the forces for the dipoles...
+        grad(:,jx) = grad(:,jx) - ddip(:,_x_)*eel%E_D2M(_x_,j) &
+                                - ddip(:,_y_)*eel%E_D2M(_y_,j) & 
+                                - ddip(:,_z_)*eel%E_D2M(_z_,j)
+        ! ... and for the quadrupoles:
+        grad(:,jx) = grad(:,jx) + dqua(:,_x_,_x_)*eel%Egrd_D2M(_xx_,j) &
+                                + dqua(:,_y_,_y_)*eel%Egrd_D2M(_yy_,j) &
+                                + dqua(:,_z_,_z_)*eel%Egrd_D2M(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*eel%Egrd_D2M(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*eel%Egrd_D2M(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*eel%Egrd_D2M(_yz_,j))
+                
+        ! do jy
+        ddip = 0.0_rp
+        dqua = 0.0_rp
+        dtmp = 0.0_rp
+        do k = 1, 3
+            do l = 1, 3
+                ddip(:,k) = ddip(:,k) + driy(:,k,l)*dip(l)
+            end do
+        end do
+        
+        do k = 1, 3
+            do l = 1, 3
+                do m = 1, 3
+                    do n = 1, 3
+                        ! dtmp(:,l,m)*rt(m,k)
+                        dqua(:,k,l) = dqua(:,k,l) + (driy(:,k,m)*qua(m,n) -&
+                                      rqua(k,m)*driy(:,m,n))*rt(n,l)
+                    end do
+                end do
+            end do
+        end do
+        
+        ! increment the forces for the dipoles...
+        grad(:,jy) = grad(:,jy) - ddip(:,_x_)*eel%E_D2M(_x_,j) &
+                                - ddip(:,_y_)*eel%E_D2M(_y_,j) & 
+                                - ddip(:,_z_)*eel%E_D2M(_z_,j)
+        ! ... and for the quadrupoles:
+        grad(:,jy) = grad(:,jy) + dqua(:,_x_,_x_)*eel%Egrd_D2M(_xx_,j) &
+                                + dqua(:,_y_,_y_)*eel%Egrd_D2M(_yy_,j) &
+                                + dqua(:,_z_,_z_)*eel%Egrd_D2M(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*eel%Egrd_D2M(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*eel%Egrd_D2M(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*eel%Egrd_D2M(_yz_,j))
+         
+        ! Do jz
+        ddip = 0.0_rp
+        dqua = 0.0_rp
+        dtmp = 0.0_rp
+        do k = 1, 3
+            do l = 1, 3
+                ddip(:,k) = ddip(:,k) + driz(:,k,l)*dip(l)
+            end do
+        end do
+        
+        do k = 1, 3
+            do l = 1, 3
+                do m = 1, 3
+                    do n = 1, 3
+                        ! tmp(:,l,m)*rt(m,k)
+                        dqua(:,k,l) = dqua(:,k,l) + (driz(:,k,m)*qua(m,n) -&
+                                      rqua(k,m)*driz(:,m,n))*rt(n,l)
+                    end do
+                end do
+            end do
+        end do
+        
+        ! increment the forces for the dipoles...
+        grad(:,jz) = grad(:,jz) - ddip(:,_x_)*eel%E_D2M(_x_,j) &
+                                - ddip(:,_y_)*eel%E_D2M(_y_,j) & 
+                                - ddip(:,_z_)*eel%E_D2M(_z_,j)
+        ! ... and for the quadrupoles:
+        grad(:,jz) = grad(:,jz) + dqua(:,_x_,_x_)*eel%Egrd_D2M(_xx_,j) &
+                                + dqua(:,_y_,_y_)*eel%Egrd_D2M(_yy_,j) &
+                                + dqua(:,_z_,_z_)*eel%Egrd_D2M(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*eel%Egrd_D2M(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*eel%Egrd_D2M(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*eel%Egrd_D2M(_yz_,j))
+
+    end do 
+end subroutine polelec_rotation_geomgrad
+
+subroutine fixedelec_rotation_geomgrad(eel, grad)
     !! this routine rotates the atomic multipoles from the molecular frame
     !! where they are defined as force field parameters to the lab frame.
     !! if required, it also computes the contribution to the forces that
@@ -207,7 +408,7 @@ subroutine multipoles_rotation_geomgrad(eel, grad)
                                 +    dqua(:,_y_,_z_)*eel%Egrd_M2M(_yz_,j))
 
     end do 
-end subroutine multipoles_rotation_geomgrad
+end subroutine fixedelec_rotation_geomgrad
 
 subroutine rotate_multipoles(eel)
     !! this routine rotates the atomic multipoles from the molecular frame
