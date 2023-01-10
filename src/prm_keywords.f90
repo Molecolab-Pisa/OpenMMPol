@@ -317,7 +317,8 @@ function check_keyword(prm_file)
          file=prm_file(1:len(trim(prm_file))), &
          form='formatted', &
          access='sequential', &
-         iostat=ist)
+         iostat=ist, &
+         action='read')
     
     if(ist /= 0) then
        call fatal_error('Error while opening PRM input file')

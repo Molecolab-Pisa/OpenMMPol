@@ -68,16 +68,23 @@ module mod_inputloader
 
         integer(ip), allocatable :: i12(:,:)
         character(len=OMMP_STR_CHAR_MAX) :: msg
+        logical :: fex
        
         write(msg, "(A)") "Reading MMP file: "//input_file(1:len(trim(input_file)))
         call ommp_message(msg, OMMP_VERBOSE_DEBUG)
 
-        ! open the (formatted) input file
-        open (unit=iof_mmpinp, &
-              file=input_file(1:len(trim(input_file))), &
-              form='formatted', &
-              access='sequential', &
-              iostat=ist)
+        inquire(file=input_file(1:len(trim(input_file))), exist=fex)
+        if(.not. fex) then
+            call fatal_error("Input file '"//&
+                &input_file(1:len(trim(input_file)))//"' does not exist.")
+        end if
+
+        open(unit=iof_mmpinp, &
+             file=input_file(1:len(trim(input_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist, &
+             action='read')
 
         if(ist /= 0) then
             call fatal_error('Error while opening MMP input file')
@@ -320,20 +327,34 @@ module mod_inputloader
         integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke
         integer(ip), allocatable :: i12(:,:), attype(:)
         character(len=OMMP_STR_CHAR_MAX) :: line, msg
+        logical :: fex
         type(yale_sparse) :: adj
         type(ommp_topology_type), pointer :: top
         type(ommp_electrostatics_type), pointer :: eel
 
         
+        ! Check that files are present
+        inquire(file=prm_file(1:len(trim(prm_file))), exist=fex)
+        if(.not. fex) then
+            call fatal_error("Input file '"//&
+                &prm_file(1:len(trim(prm_file)))//"' does not exist.")
+        end if
+
+        inquire(file=xyz_file(1:len(trim(xyz_file))), exist=fex)
+        if(.not. fex) then
+            call fatal_error("Input file '"//&
+                &xyz_file(1:len(trim(xyz_file)))//"' does not exist.")
+        end if
+
         write(msg, "(A)") "Reading XYZ file: "//xyz_file(1:len(trim(xyz_file)))
         call ommp_message(msg, OMMP_VERBOSE_DEBUG)
-
         ! open tinker xyz file
         open(unit=iof_xyzinp, &
              file=xyz_file(1:len(trim(xyz_file))), &
              form='formatted', &
              access='sequential', &
-             iostat=ist)
+             iostat=ist, &
+             action='read')
 
         if(ist /= 0) then
             call fatal_error('Error while opening XYZ input file')
