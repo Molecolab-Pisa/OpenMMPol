@@ -400,7 +400,7 @@ module mod_electrostatics
 
         implicit none
 
-        real(rp) :: dr(3)
+        real(rp), intent(in) :: dr(3)
         !! Distance vector from atom i to atom j
         integer(ip), intent(in) :: maxder
         !! Maximum derivative to be computed
@@ -972,7 +972,7 @@ module mod_electrostatics
         !! Flags to enable/disable the calculation of different components
 
 
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
+        real(rp) :: kernel(6), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
         integer(ip) :: i, j, ikernel
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
@@ -980,21 +980,19 @@ module mod_electrostatics
         top => eel%top
 
         if(do_EHes) then
-            ikernel = 4 
+            ikernel = 3 
         elseif(do_Egrd) then
-            ikernel = 3
-        elseif(do_E) then
             ikernel = 2
-        elseif(do_V) then
+        elseif(do_E) then
             ikernel = 1
+        elseif(do_V) then
+            ikernel = 0
         else
             return
         end if
-        if(eel%amoeba) ikernel = ikernel + 2 
+        if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%amoeba) then
-            !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, & 
-            !!$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
@@ -1044,10 +1042,7 @@ module mod_electrostatics
                     end if
                 end do
             end do
-            !!$omp end parallel do
         else
-            !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpV, &  
-            !!$omp& tmpE, tmpEgr) reduction(+:V, E, Egrd)
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
@@ -1085,7 +1080,6 @@ module mod_electrostatics
                     end if
                 end do
             end do
-            !!$omp end parallel do
         end if
     end subroutine elec_prop_M2M
     
@@ -1107,7 +1101,6 @@ module mod_electrostatics
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
-        !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpE) reduction(+: E)
         do i=1, eel%pol_atoms
             do j=1, eel%pol_atoms
                 if(j == i) cycle
@@ -1133,7 +1126,6 @@ module mod_electrostatics
                 end if
             end do
         end do
-        !$omp end parallel do
     end subroutine field_extD2D
     
     subroutine elec_prop_D2D(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
@@ -1177,7 +1169,6 @@ module mod_electrostatics
             return
         end if
 
-        !!$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpE) reduction(+: E)
         do i=1, eel%pol_atoms
             do j=1, eel%pol_atoms
                 if(j == i) cycle
@@ -1214,7 +1205,6 @@ module mod_electrostatics
                 end if
             end do
         end do
-        !!$omp end parallel do
     end subroutine elec_prop_D2D
     
     subroutine elec_prop_M2D(eel, do_V, do_E, do_Egrd, do_EHes)
