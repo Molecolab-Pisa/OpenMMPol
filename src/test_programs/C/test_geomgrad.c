@@ -42,16 +42,15 @@ double **read_ef(char *fin){
 
 void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), double **g){
     double *_new_c, **new_c, *cmm, tmp, dd;
-    int pol_atoms, mm_atoms;
+    int mm_atoms;
 
     dd = 1e-5;
-    pol_atoms = ommp_get_pol_atoms(s);
     mm_atoms = ommp_get_mm_atoms(s);
     cmm = ommp_get_cmm(s);
 
-    _new_c = (double *) malloc(sizeof(double) * 3 * pol_atoms);
-    new_c = (double **) malloc(sizeof(double *) * pol_atoms);
-    for(int i=0; i < pol_atoms; i++){
+    _new_c = (double *) malloc(sizeof(double) * 3 * mm_atoms);
+    new_c = (double **) malloc(sizeof(double *) * mm_atoms);
+    for(int i=0; i < mm_atoms; i++){
         new_c[i] = &(_new_c[i*3]);
         for(int j=0; j < 3; j++) 
             new_c[i][j] = cmm[i*3+j];
