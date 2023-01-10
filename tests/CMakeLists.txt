@@ -1235,3 +1235,22 @@ add_test(NAME 1ao6_ene1_WANG_AL_CUT10_comp
               ETOT
               ${RTOL} ${ATOL})
 endif ()
+
+
+# Test on Gradients
+add_test(NAME NMA_geomgrad_WANG_AL
+         COMMAND  bin/${TESTLANG}_test_geomgrad
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 
+         Testing/output)
+add_test(NAME NMA_geomgrad_WANG_AL_CUT
+         COMMAND  bin/${TESTLANG}_test_geomgrad
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL_CUT.mmp 
+         Testing/output)
+add_test(NAME NMA_geomgrad_AMOEBA
+         COMMAND  bin/${TESTLANG}_test_geomgrad
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA.mmp 
+         Testing/output)
+add_test(NAME NMA_geomgrad_AMOEBA_CUT
+         COMMAND  bin/${TESTLANG}_test_geomgrad
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_AMOEBA_CUT.mmp 
+         Testing/output)
