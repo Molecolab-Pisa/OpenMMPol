@@ -890,9 +890,6 @@ module mod_electrostatics
         logical, optional, intent(in) :: arg_dogg
 
         logical :: do_gg
-        real(rp), allocatable :: tmpV(:), tmpE(:,:)
-
-        integer :: i !TODO
 
         do_gg = .false.
         if(present(arg_dogg)) then
@@ -1108,7 +1105,7 @@ module mod_electrostatics
 
         integer(ip) :: i, j
         logical :: to_scale, to_do
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(9), scalf
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
         !$omp parallel do private(to_do, to_scale, scalf, dr, kernel, tmpE) reduction(+: E)
         do i=1, eel%pol_atoms
@@ -1156,6 +1153,7 @@ module mod_electrostatics
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
+        knd = 1 ! Default
         if(in_kind == 'P') then
             knd = OMMP_AMOEBA_P
         elseif(in_kind == 'D') then 
@@ -1377,17 +1375,17 @@ module mod_electrostatics
         !! Flag to control which properties have to be computed.
 
         integer(ip) :: i, j, ikernel, knd
-        logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale, &
-                   amoeba
+        logical :: to_do, to_scale, amoeba
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
-                    scalf_p, scalf_d, scalf
+                    scalf
         type(ommp_topology_type), pointer :: top
         character :: screening_type
         
         ! Shortcuts
         top => eel%top
         amoeba = eel%amoeba
-        
+       
+        knd =  1 ! Default
         if(eel%amoeba .and. in_kind /= 'P' .and. in_kind /= 'D') then
             call fatal_error("Unrecognized field '"//in_kind//"' for AMOEBA &
                              &force-field.")
@@ -1398,7 +1396,6 @@ module mod_electrostatics
             knd = OMMP_AMOEBA_D
             screening_type = 'P'
         elseif(.not. eel%amoeba) then
-            knd = 1
             screening_type = '-'
         else
             call fatal_error("Unexpected error in elec_prop_D2M.")

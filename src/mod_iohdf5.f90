@@ -64,7 +64,6 @@ module mod_iohdf5
 
     subroutine r_hdf5_add_scalar(hid, label, scalar)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -87,7 +86,6 @@ module mod_iohdf5
     
     subroutine i_hdf5_add_scalar(hid, label, scalar)
         use hdf5
-        use mod_memory, only: ip
         
         implicit none
         
@@ -109,7 +107,6 @@ module mod_iohdf5
     
     subroutine l_hdf5_add_scalar(hid, label, scalar)
         use hdf5
-        use mod_memory, only: ip
         
         implicit none
         
@@ -136,7 +133,6 @@ module mod_iohdf5
     
     subroutine r1_hdf5_add_array(hid, label, v)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -159,7 +155,6 @@ module mod_iohdf5
     
     subroutine r2_hdf5_add_array(hid, label, v)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -182,7 +177,6 @@ module mod_iohdf5
     
     subroutine r3_hdf5_add_array(hid, label, v)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -205,7 +199,6 @@ module mod_iohdf5
     
     subroutine i1_hdf5_add_array(hid, label, v)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -228,7 +221,6 @@ module mod_iohdf5
     
     subroutine i2_hdf5_add_array(hid, label, v)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -251,7 +243,6 @@ module mod_iohdf5
     
     subroutine i3_hdf5_add_array(hid, label, v)
         use hdf5
-        use mod_memory, only: ip, rp
         
         implicit none
         
@@ -274,7 +265,6 @@ module mod_iohdf5
     
     function hdf5_array_len(hid, dataset_name)
         use hdf5
-        use mod_memory, only: ip
 
         implicit none
 
@@ -297,7 +287,7 @@ module mod_iohdf5
     subroutine r1_hdf5_read_array(hid, dataset_name, v)
         use hdf5
         use mod_mmpol, only: fatal_error
-        use mod_memory, only: ip, rp, mallocate
+        use mod_memory, only: mallocate
 
         implicit none
 
@@ -325,7 +315,7 @@ module mod_iohdf5
     subroutine r2_hdf5_read_array(hid, dataset_name, v)
         use hdf5
         use mod_mmpol, only: fatal_error
-        use mod_memory, only: ip, rp, mallocate
+        use mod_memory, only: mallocate
 
         implicit none
 
@@ -355,7 +345,7 @@ module mod_iohdf5
     subroutine r3_hdf5_read_array(hid, dataset_name, v)
         use hdf5
         use mod_mmpol, only: fatal_error
-        use mod_memory, only: ip, rp, mallocate
+        use mod_memory, only: mallocate
 
         implicit none
 
@@ -386,7 +376,7 @@ module mod_iohdf5
     subroutine i1_hdf5_read_array(hid, dataset_name, v)
         use hdf5
         use mod_mmpol, only: fatal_error
-        use mod_memory, only: ip, rp, mallocate
+        use mod_memory, only: mallocate
 
         implicit none
 
@@ -414,7 +404,7 @@ module mod_iohdf5
     subroutine i2_hdf5_read_array(hid, dataset_name, v)
         use hdf5
         use mod_mmpol, only: fatal_error
-        use mod_memory, only: ip, rp, mallocate
+        use mod_memory, only:  mallocate
 
         implicit none
 
@@ -444,7 +434,7 @@ module mod_iohdf5
     subroutine i3_hdf5_read_array(hid, dataset_name, v)
         use hdf5
         use mod_mmpol, only: fatal_error
-        use mod_memory, only: ip, rp, mallocate
+        use mod_memory, only: mallocate
 
         implicit none
 
@@ -474,7 +464,6 @@ module mod_iohdf5
 
     subroutine r_hdf5_read_scalar(hid, location, attname, s)
         use hdf5
-        use mod_memory, only: ip, rp
 
         implicit none
 
@@ -494,7 +483,6 @@ module mod_iohdf5
     
     subroutine i_hdf5_read_scalar(hid, location, attname, s)
         use hdf5
-        use mod_memory, only: ip, rp
 
         implicit none
 
@@ -514,7 +502,6 @@ module mod_iohdf5
     
     subroutine l_hdf5_read_scalar(hid, location, attname, s)
         use hdf5
-        use mod_memory, only: ip, rp
 
         implicit none
 
@@ -569,7 +556,6 @@ module mod_iohdf5
         logical, intent(in) :: mutable_only
         
         integer(hid_t) :: hg
-        integer(hsize_t), dimension(4) :: dims
         integer(kind=4) :: eflag
         integer(hid_t) :: iof_hdf5 = 301
         logical :: append
@@ -652,7 +638,6 @@ module mod_iohdf5
         logical, intent(in) :: mutable_only
         
         integer(hid_t) :: hg, hg_cur
-        integer(hsize_t), dimension(4) :: dims
         integer(kind=4) :: eflag
 
         call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
@@ -697,8 +682,7 @@ module mod_iohdf5
         integer(ip), intent(out) :: out_fail
         logical, intent(in) :: mutable_only
         
-        integer(hid_t) :: hg, hg_cur
-        integer(hsize_t), dimension(4) :: dims
+        integer(hid_t) :: hg
         integer(kind=4) :: eflag
         real(rp), allocatable :: tmp_q0(:, :)
 
@@ -785,8 +769,7 @@ module mod_iohdf5
         integer(ip), intent(out) :: out_fail
         logical, intent(in) :: mutable_only
         
-        integer(hid_t) :: hg, hg_cur
-        integer(hsize_t), dimension(4) :: dims
+        integer(hid_t) :: hg
         integer(kind=4) :: eflag
 
         call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
@@ -824,8 +807,7 @@ module mod_iohdf5
         integer(ip), intent(out) :: out_fail
         logical, intent(in) :: mutable_only
         
-        integer(hid_t) :: hg, hg_cur, hg_cur_bp
-        integer(hsize_t), dimension(4) :: dims
+        integer(hid_t) :: hg, hg_cur_bp
         integer(kind=4) :: eflag
 
         call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
@@ -966,10 +948,10 @@ module mod_iohdf5
         use hdf5
         use mod_adjacency_mat, only: build_conn_upto_n, yale_sparse
         use mod_io, only: ommp_message
-        use mod_memory, only: ip, rp, mfree
+        use mod_memory, only: mfree
         use mod_mmpol, only: mmpol_init, set_screening_parameters, &
                              mmpol_prepare, mmpol_init_nonbonded, mmpol_init_bonded
-        use mod_constants, only: OMMP_FF_AMOEBA, OMMP_VERBOSE_LOW
+        use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_bonded, only: bond_init, angle_init, urey_init, strbnd_init, &
                               opb_init, pitors_init, torsion_init, tortor_init, &
                               strtor_init, angtor_init, tortor_newmap
@@ -982,9 +964,6 @@ module mod_iohdf5
         character(len=*), intent(in) :: filename
         integer(ip), intent(out) :: out_fail
         
-        integer(hid_t) :: hg_sysmodel, hg_res, hg_cur, hg_amoeba, &
-                          hg_top, hg_cur_param, hg_cur_bp, cur_dst, cur_dsp
-        integer(hsize_t), dimension(4) :: dims
         integer(hid_t) :: iof_hdf5 = 301
         integer(kind=4) :: eflag
         real(rp), dimension(:), allocatable :: l_mscale, l_pscale, l_dscale, &

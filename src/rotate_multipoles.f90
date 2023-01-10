@@ -12,7 +12,7 @@ subroutine polelec_rotation_geomgrad(eel, grad)
 
     integer(ip) :: j, jx, jy, jz, k, l, m, n
     real(rp), dimension(3) :: dip
-    real(rp), dimension(3,3) :: r, rt, qua, rqua, tmp, ddip
+    real(rp), dimension(3,3) :: r, rt, qua, rqua, ddip
     real(rp), dimension(3,3,3) :: dri, driz, drix, driy, dqua, dtmp
 
     ! TODO prepare_fixedelec
@@ -221,7 +221,7 @@ subroutine fixedelec_rotation_geomgrad(eel, grad)
 
     integer(ip) :: j, jx, jy, jz, k, l, m, n
     real(rp), dimension(3) :: dip
-    real(rp), dimension(3,3) :: r, rt, qua, rqua, tmp, ddip
+    real(rp), dimension(3,3) :: r, rt, qua, rqua, ddip
     real(rp), dimension(3,3,3) :: dri, driz, drix, driy, dqua, dtmp
 
     ! TODO prepare_fixedelec
@@ -427,8 +427,7 @@ subroutine rotate_multipoles(eel)
   
     type(ommp_electrostatics_type), intent(inout) :: eel
 
-    integer(ip) :: j, jx, jy, jz, k, l, m, n
-    real(rp), dimension(3) :: dip
+    integer(ip) :: j, jx, jy, jz 
     real(rp), dimension(3,3) :: r, rt, qua, rqua, tmp
     real(rp), dimension(3,3,3) :: dri, driz, drix, driy
 

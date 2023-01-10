@@ -34,7 +34,7 @@ module mod_geomgrad
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
             
-            integer(ip) :: i, j
+            integer(ip) :: i
             type(ommp_electrostatics_type), pointer :: eel 
             eel => s%eel
 
@@ -129,11 +129,8 @@ module mod_geomgrad
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
             
-            integer(ip) :: i, j
+            integer(ip) :: i
             type(ommp_electrostatics_type), pointer :: eel 
-            real(rp) :: tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
-                        kernel(5), dr(3), scal, tmp_dip(3)
-            logical :: todo, tosc
             eel => s%eel
 
             if(.not. eel%ipd_done) then
@@ -290,9 +287,8 @@ module mod_geomgrad
             !! numerical gradients are needed
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
-            logical :: dorot
 
-            integer(ip) :: i, j, k
+            integer(ip) :: i, j
             real(rp), allocatable :: new_c(:,:)
             real(rp) :: tmp
             real(rp), parameter :: dd = 1e-5

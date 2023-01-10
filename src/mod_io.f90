@@ -52,8 +52,7 @@ module mod_io
         !! then pass the string to [[ommp_message]]
         use mod_constants, only: OMMP_VERBOSE_DEBUG, &
                                  OMMP_VERBOSE_HIGH, &
-                                 OMMP_VERBOSE_LOW, &
-                                 OMMP_VERBOSE_NONE
+                                 OMMP_VERBOSE_LOW
 
         implicit none
 

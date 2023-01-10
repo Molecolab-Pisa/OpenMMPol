@@ -1328,7 +1328,7 @@ module mod_prm
     subroutine assign_strtor(bds, prm_file)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: strtor_init
-        use mod_constants, only: kcalmol2au, deg2rad, eps_rp, angstrom2au
+        use mod_constants, only: kcalmol2au, angstrom2au
         
         implicit none
         
@@ -1339,12 +1339,11 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
-                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
-        real(rp) :: phase, torsion_unit
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
         type(ommp_topology_type), pointer :: top
 

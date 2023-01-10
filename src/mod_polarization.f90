@@ -69,7 +69,6 @@ module mod_polarization
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
                                  OMMP_SOLVER_INVERSION, &
-                                 OMMP_VERBOSE_DEBUG, &
                                  OMMP_AMOEBA_P, &
                                  OMMP_AMOEBA_D 
       
@@ -126,6 +125,10 @@ module mod_polarization
         ! Shortcuts
         eel => sys_obj%eel
         amoeba = sys_obj%amoeba
+
+        ! Defaults for safety
+        matvec => TMatVec_incore
+        precond => PolVec
 
         ! Handling of optional arguments
         if(present(arg_solver)) then
@@ -353,7 +356,7 @@ module mod_polarization
         !! the correct way.
 
         use mod_io, only: print_matrix
-        use mod_constants, only: OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH
+        use mod_constants, only: OMMP_VERBOSE_HIGH
 
         implicit none
         
