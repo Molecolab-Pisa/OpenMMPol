@@ -190,21 +190,37 @@ class OMMPSystem{
             return ;
         }
 
-        py_cdarray get_fixedelec_grad_n(void){
-            double *mem = new double[get_mm_atoms()*3];
-            ommp_fixedelec_numgeomgrad(handler, mem);
-            
-            py::buffer_info bufinfo(mem, sizeof(double),
-                                    py::format_descriptor<double>::format(),
-                                    2,
-                                    {get_mm_atoms(), 3},
-                                    {3*sizeof(double), sizeof(double)});
-            return py_cdarray(bufinfo);
+        void numerical_grad(double (OMMPSystem::*ene_f)(void), double *g, double dd=1e-5){
+            double *new_c = new double[get_mm_atoms()*3];
+            double *_cmm = ommp_get_cmm(handler);
+            double tmp;
+
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                new_c[i] = _cmm[i];
+
+            for(int i=0;  i < get_mm_atoms()*3; i++){
+                new_c[i] += dd;
+                ommp_update_coordinates(handler, new_c);
+                tmp = (this->*ene_f)();
+
+                new_c[i] -= 2*dd;
+                ommp_update_coordinates(handler, new_c);
+                g[i] += (tmp-(this->*ene_f)()) / (2*dd);
+
+                new_c[i] += dd;
+                ommp_update_coordinates(handler, new_c);
+            }
         }
-        
-        py_cdarray get_fixedelec_grad_a(void){
+
+        py_cdarray get_fixedelec_grad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
-            ommp_fixedelec_anageomgrad(handler, mem);
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_fixedelec_energy, mem);
+            else
+                ommp_fixedelec_geomgrad(handler, mem);
             
             py::buffer_info bufinfo(mem, sizeof(double),
                                     py::format_descriptor<double>::format(),
@@ -214,9 +230,15 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        py_cdarray get_polelec_grad_n(void){
+        py_cdarray get_polelec_grad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
-            ommp_polelec_numgeomgrad(handler, mem);
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_polelec_energy, mem);
+            else
+                ommp_polelec_geomgrad(handler, mem);
             
             py::buffer_info bufinfo(mem, sizeof(double),
                                     py::format_descriptor<double>::format(),
@@ -226,18 +248,6 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray get_polelec_grad_a(void){
-            double *mem = new double[get_mm_atoms()*3];
-            ommp_polelec_anageomgrad(handler, mem);
-            
-            py::buffer_info bufinfo(mem, sizeof(double),
-                                    py::format_descriptor<double>::format(),
-                                    2,
-                                    {get_mm_atoms(), 3},
-                                    {3*sizeof(double), sizeof(double)});
-            return py_cdarray(bufinfo);
-        }
-
         double get_bond_energy(void){
             return ommp_get_bond_energy(handler);
         }
@@ -330,14 +340,14 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::update_coordinates,
              "Update system's coordinates.",
              py::arg("coord"))
-        .def("do_fixedelec_grad_a",
-             &OMMPSystem::get_fixedelec_grad_a)
-        .def("do_fixedelec_grad_n",
-             &OMMPSystem::get_fixedelec_grad_n)
-        .def("do_polelec_grad_a",
-             &OMMPSystem::get_polelec_grad_a)
-        .def("do_polelec_grad_n",
-             &OMMPSystem::get_polelec_grad_n)
+        .def("do_fixedelec_grad",
+             &OMMPSystem::get_fixedelec_grad,
+             "Compute the geometrical gradients of fixed electrostatic energy.",
+             py::arg("numerical") = false)
+        .def("do_polelec_grad",
+             &OMMPSystem::get_polelec_grad,
+             "Compute the geometrical gradients of polarizable electrostatic energy.",
+             py::arg("numerical") = false)
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")
         .def("get_torsion_energy", &OMMPSystem::get_torsion_energy, "Compute the energy of dihedral torsion")
