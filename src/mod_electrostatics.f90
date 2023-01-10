@@ -943,17 +943,24 @@ module mod_electrostatics
             call elec_prop_M2D(eel, .false., .true., .true., .false.)
 
             eel%E_D2M = 0.0_rp
-            eel%Egrd_D2M = 0.0_rp
-            eel%EHes_D2M = 0.0_rp
-            call elec_prop_D2M(eel, 'P', .false., .true., eel%amoeba, eel%amoeba)
-            call elec_prop_D2M(eel, 'D', .false., .true., eel%amoeba, eel%amoeba)
-            eel%E_D2M = eel%E_D2M * 0.5
-            if(eel%amoeba) eel%Egrd_D2M = eel%Egrd_D2M * 0.5
-            if(eel%amoeba) eel%EHes_D2M = eel%EHes_D2M * 0.5
-
             eel%Egrd_D2D = 0.0_rp
-            call elec_prop_D2D(eel, 'P', .false., .false., .true., .false.)
-            call elec_prop_D2D(eel, 'D', .false., .false., .true., .false.)
+            
+            if(eel%amoeba) then
+                eel%Egrd_D2M = 0.0_rp
+                eel%EHes_D2M = 0.0_rp
+                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true.)
+                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true.)
+        
+                eel%E_D2M = eel%E_D2M * 0.5
+                eel%Egrd_D2M = eel%Egrd_D2M * 0.5
+                eel%EHes_D2M = eel%EHes_D2M * 0.5
+
+                call elec_prop_D2D(eel, 'P', .false., .false., .true., .false.)
+                call elec_prop_D2D(eel, 'D', .false., .false., .true., .false.)
+            else
+                call elec_prop_D2M(eel, '-', .false., .true., .false., .false.)
+                call elec_prop_D2D(eel, '-', .false., .false., .true., .false.)
+            end if
         end if
         
         if(do_gg) eel%M2Dgg_done = .true.

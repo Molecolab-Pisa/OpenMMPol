@@ -156,24 +156,24 @@ module mod_geomgrad
                                   +    eel%q(4+_xz_,i) * eel%EHes_D2M(_xzz_,i) &
                                   +    eel%q(4+_yz_,i) * eel%EHes_D2M(_yzz_,i))
                 end do
-               
+              
                 do i=1, eel%pol_atoms
                     ! \mu_D Egrd_P
-                    grad(_x_,i) = grad(_x_,i) &
+                    grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_xx_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_xx_,i,OMMP_AMOEBA_P)) &
                                   + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_xy_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_xy_,i,OMMP_AMOEBA_P)) &
                                   + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_xz_,i,OMMP_AMOEBA_P) & 
                                                   + eel%Egrd_D2D(_xz_,i,OMMP_AMOEBA_P)) 
-                    grad(_y_,i) = grad(_y_,i) &
+                    grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_yx_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_yx_,i,OMMP_AMOEBA_P)) &
                                   + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_yy_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_yy_,i,OMMP_AMOEBA_P)) &
                                   + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_yz_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_yz_,i,OMMP_AMOEBA_P)) 
-                    grad(_z_,i) = grad(_z_,i) &
+                    grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_zx_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_zx_,i,OMMP_AMOEBA_P)) &
                                   + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_zy_,i,OMMP_AMOEBA_P) &
@@ -181,21 +181,21 @@ module mod_geomgrad
                                   + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_zz_,i,OMMP_AMOEBA_P) &
                                                   + eel%Egrd_D2D(_zz_,i,OMMP_AMOEBA_P))
                     ! \mu_P Egrd_D
-                    grad(_x_,i) = grad(_x_,i) &
+                    grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_xx_,i,OMMP_AMOEBA_D) &
                                                   + eel%Egrd_D2D(_xx_,i,OMMP_AMOEBA_D)) &
                                   + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_xy_,i,OMMP_AMOEBA_D) &
                                                   + eel%Egrd_D2D(_xy_,i,OMMP_AMOEBA_D)) &
                                   + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_xz_,i,OMMP_AMOEBA_D) & 
                                                   + eel%Egrd_D2D(_xz_,i,OMMP_AMOEBA_D)) 
-                    grad(_y_,i) = grad(_y_,i) &
+                    grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_yx_,i,OMMP_AMOEBA_D) &
                                                   + eel%Egrd_D2D(_yx_,i,OMMP_AMOEBA_D)) &
                                   + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_yy_,i,OMMP_AMOEBA_D) &
                                                   + eel%Egrd_D2D(_yy_,i,OMMP_AMOEBA_D)) &
                                   + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_yz_,i,OMMP_AMOEBA_D) &
                                                   + eel%Egrd_D2D(_yz_,i,OMMP_AMOEBA_D)) 
-                    grad(_z_,i) = grad(_z_,i) &
+                    grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_zx_,i,OMMP_AMOEBA_D) &
                                                   + eel%Egrd_D2D(_zx_,i,OMMP_AMOEBA_D)) &
                                   + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_zy_,i,OMMP_AMOEBA_D) &
@@ -207,22 +207,23 @@ module mod_geomgrad
                 do i=1, eel%top%mm_atoms
                     grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_D2M(:,i)
                 end do
+                
                 do i=1, eel%pol_atoms
-                    grad(_x_,i) = grad(_x_,i) &
+                    grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
                                   + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_xx_,i,1) &
                                                       + eel%Egrd_D2D(_xx_,i,1)) &
                                   + eel%ipd(_y_,i,1) * (eel%Egrd_M2D(_xy_,i,1) &
                                                       + eel%Egrd_D2D(_xy_,i,1)) &
                                   + eel%ipd(_z_,i,1) * (eel%Egrd_M2D(_xz_,i,1) & 
                                                       + eel%Egrd_D2D(_xz_,i,1)) 
-                    grad(_y_,i) = grad(_y_,i) &
+                    grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
                                   + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_yx_,i,1) &
                                                       + eel%Egrd_D2D(_yx_,i,1)) &
                                   + eel%ipd(_y_,i,1) * (eel%Egrd_M2D(_yy_,i,1) &
                                                       + eel%Egrd_D2D(_yy_,i,1)) &
                                   + eel%ipd(_z_,i,1) * (eel%Egrd_M2D(_yz_,i,1) &
                                                       + eel%Egrd_D2D(_yz_,i,1)) 
-                    grad(_z_,i) = grad(_z_,i) &
+                    grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
                                   + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_zx_,i,1) &
                                                       + eel%Egrd_D2D(_zx_,i,1)) &
                                   + eel%ipd(_y_,i,1) * (eel%Egrd_M2D(_zy_,i,1) &
@@ -232,6 +233,6 @@ module mod_geomgrad
                 end do
             end if
 
-            call polelec_rotation_geomgrad(eel, grad)
+            if(eel%amoeba) call polelec_rotation_geomgrad(eel, grad)
         end subroutine
 end module
