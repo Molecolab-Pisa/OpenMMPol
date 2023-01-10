@@ -162,6 +162,12 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(F03_test_potential_xyz PRIVATE -Wall -Wextra -pedantic -std=f2003)
 endif ()
 
+add_executable(F03_test_geomgrad src/test_programs/F03/test_geomgrad.f90)
+target_link_libraries(F03_test_geomgrad openmmpol)
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(F03_test_geomgrad PRIVATE -Wall -Wextra -pedantic -std=f2003)
+endif ()
+
 if (HDF5_WORKS)
     add_executable(F03_test_init_hdf5 src/test_programs/F03/test_init_hdf5.f90)
     target_link_libraries(F03_test_init_hdf5 openmmpol)

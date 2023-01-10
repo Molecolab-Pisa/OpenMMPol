@@ -596,9 +596,9 @@ module mod_ommp_C_interface
             call update_coordinates(s, new_c)
         end subroutine
 
-        subroutine C_ommp_fixedelec_numgeomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_fixedelec_numgeomgrad')
-            use mod_geomgrad, only: numerical_fixedelec_geomgrad
+        subroutine C_ommp_fixedelec_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_fixedelec_geomgrad')
+            use mod_geomgrad, only: fixedelec_geomgrad
 
             implicit none
             
@@ -612,12 +612,12 @@ module mod_ommp_C_interface
             call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
             
             grd = 0.0
-            call numerical_fixedelec_geomgrad(s, grd)
+            call fixedelec_geomgrad(s, grd)
         end subroutine
         
-        subroutine C_ommp_fixedelec_anageomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_fixedelec_anageomgrad')
-            use mod_geomgrad, only: analytical_fixedelec_geomgrad
+        subroutine C_ommp_polelec_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_polelec_geomgrad')
+            use mod_geomgrad, only: polelec_geomgrad
 
             implicit none
             
@@ -631,45 +631,7 @@ module mod_ommp_C_interface
             call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
             
             grd = 0.0
-            call analytical_fixedelec_geomgrad(s, grd)
-        end subroutine
-        
-        subroutine C_ommp_polelec_numgeomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_polelec_numgeomgrad')
-            use mod_geomgrad, only: numerical_polelec_geomgrad
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            
-            grd = 0.0
-            call numerical_polelec_geomgrad(s, grd)
-        end subroutine
-        
-        subroutine C_ommp_polelec_anageomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_polelec_anageomgrad')
-            use mod_geomgrad, only: analytical_polelec_geomgrad
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            
-            grd = 0.0
-            call analytical_polelec_geomgrad(s, grd)
+            call polelec_geomgrad(s, grd)
         end subroutine
 
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')

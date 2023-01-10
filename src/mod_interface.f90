@@ -34,6 +34,9 @@ module ommp_interface
                          ommp_print_summary_to_file => mmpol_ommp_print_summary
 
     use mod_io, only: ommp_set_verbose => set_verbosity
+    
+    use mod_geomgrad, only: ommp_fixedelec_geomgrad => fixedelec_geomgrad, &
+                            ommp_polelec_geomgrad => polelec_geomgrad
 
     implicit none
     
