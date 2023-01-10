@@ -248,6 +248,24 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
+        py_cdarray get_vdw_grad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_vdw_energy, mem);
+            else
+                ommp_vdw_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
         double get_bond_energy(void){
             return ommp_get_bond_energy(handler);
         }
@@ -347,6 +365,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def("do_polelec_grad",
              &OMMPSystem::get_polelec_grad,
              "Compute the geometrical gradients of polarizable electrostatic energy.",
+             py::arg("numerical") = false)
+        .def("do_vdw_grad",
+             &OMMPSystem::get_vdw_grad,
+             "Compute the geometrical gradients of Van der Waal energy.",
              py::arg("numerical") = false)
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")

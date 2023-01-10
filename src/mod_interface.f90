@@ -319,6 +319,16 @@ module ommp_interface
             call update_coordinates(s, new_c)
         end subroutine
 
+        subroutine ommp_vdw_geomgrad(s, grd)
+            use mod_nonbonded, only: vdw_geomgrad
+
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
+        end subroutine
+
 #ifdef USE_HDF5
         subroutine ommp_init_hdf5(s, filename, namespace)
             !! This function is an interface for saving an HDF5 file 

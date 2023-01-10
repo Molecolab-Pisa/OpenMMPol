@@ -37,7 +37,7 @@ module mod_nonbonded
 
    
     public :: ommp_nonbonded_type
-    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential
+    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
 
     contains
 
@@ -252,6 +252,51 @@ module mod_nonbonded
         V = V + Eij*((1+delta)/(rho+delta))**(n-m) * ((1+gam)/(rho**m+gam)-2)
 
     end subroutine vdw_buffered_7_14
+    
+    subroutine vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijgrad)
+        !! Compute the gradient of vdw energy (using the buffered 7-14 
+        !! potential ref: 10.1021/jp027815) with respect to the distance 
+        !! between the two atoms (Rij).
+        
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rijgrad
+
+        real(rp) :: rho, rhom
+        real(rp), parameter :: delta = 0.07, gam = 0.12
+        integer(ip), parameter :: n = 14, m = 7
+
+        rho = Rij / Rij0
+        rhom = rho**m
+        Rijgrad = Eij * ((delta+1)/(delta+rho))**(n-m) * &
+                  (rho*(gam+rhom)*(m-n)*(1-2*rhom-gam) - &
+                  rhom*m*(delta+rho)*(gam+1)) / &
+                  (rho*(delta+rho)*(gam+rhom)**2)
+        Rijgrad = Rijgrad / Rij0
+
+    end subroutine vdw_buffered_7_14_Rijgrad
+
+    subroutine Rij_jacobian(ci, cj, Rij, J_i, J_j)
+        !! Compute the Jacobian matrix of distance 
+        !! Rij = sqrt((ci(_x_)-cj(_x_))**2 + (ci(_y_)-cj(_y_))**2 + (ci(_z_)-cj(_z_))**2)
+        !! Derivatives wrt ci(:) are saved in J_i and wrt cj(:) in J_j; the
+        !! distance between the two points is also provided in output in Rij.
+
+        implicit none
+
+        real(rp), intent(in) :: ci(3), cj(3)
+        real(rp), intent(out) :: Rij, J_i(3), J_j(3)
+        integer(ip) :: i
+
+        Rij = norm2(ci-cj)
+        do i=1, 3
+            J_i(i) = (ci(i) - cj(i))/Rij
+            J_j(i) = -J_i(i)
+        end do
+    end subroutine
 
     subroutine vdw_potential(vdw, V)
         !! Compute the dispersion repulsion energy for the whole system
@@ -337,7 +382,7 @@ module mod_nonbonded
                         cj = top%cmm(:,ineigh) + &
                              (top%cmm(:,j) - top%cmm(:,ineigh)) * vdw%vdw_f(j)
                     endif
-                    Rij = ((ci(1)-cj(1))**2 + (ci(2)-cj(2))**2 + (ci(3)-cj(3))**2)**0.5
+                    Rij = norm2(ci-cj)
                     
                     vtmp = 0.0
                     call vdw_buffered_7_14(Rij, Rij0, Eij, vtmp)
@@ -346,5 +391,122 @@ module mod_nonbonded
             end do
         end do
     end subroutine vdw_potential
+    
+    subroutine vdw_geomgrad(vdw, grad)
+        !! Compute the dispersion repulsion energy for the whole system
+        !! using a double loop algorithm
+
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw
+        !! Nonbonded data structure
+        real(rp), intent(inout) :: grad(3,vdw%top%mm_atoms)
+        !! Gradients, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), s, J_i(3), J_j(3), Rijg, &
+                    f_i, f_j
+        type(ommp_topology_type), pointer :: top
+
+        top => vdw%top
+
+        do i=1, top%mm_atoms
+            if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
+                ci = top%cmm(:,i)
+                ineigh_i = 0 ! This is needed later for force projection
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top%conn(1)%ri(i+1) - top%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh_i = top%conn(1)%ci(top%conn(1)%ri(i))
+                f_i = vdw%vdw_f(i)
+
+                ci = top%cmm(:,ineigh_i) + (top%cmm(:,i) - &
+                                            top%cmm(:,ineigh_i)) * f_i
+            endif
+                
+            do j=i+1, top%mm_atoms
+                ! Compute the screening factor for this pair
+                s = 1.0
+                do ineigh=1,4
+                    ! Look if j is at distance ineigh from i
+                    if(any(top%conn(ineigh)%ci(top%conn(ineigh)%ri(i): &
+                                               top%conn(ineigh)%ri(i+1)-1) == j)) then
+                       
+                        s = vdw%vdw_screening(ineigh)
+                        ! Exit the loop
+                        exit 
+                    end if
+                end do
+                
+                if(s > eps_rp) then
+                    ipair = -1
+                    do l=vdw%vdw_pair%ri(i), vdw%vdw_pair%ri(i+1)-1
+                        if(vdw%vdw_pair%ci(l) == j) then
+                            ipair = l
+                            exit
+                        end if
+                    end do
+
+                    if(ipair > 0) then
+                        Rij0 = vdw%vdw_pair_r(ipair)
+                        eij = vdw%vdw_pair_e(ipair)
+                    else 
+                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
+                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
+                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
+                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
+                    end if
+                
+                    if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
+                        cj = top%cmm(:,j)
+                        ineigh_j = 0 ! This is needed later for force projection
+                    else
+                        ! Scale factors are used only for monovalent atoms, in that
+                        ! case the vdw center is displaced along the axis connecting
+                        ! the atom to its neighbour
+                        if(top%conn(1)%ri(j+1) - top%conn(1)%ri(j) /= 1) then
+                            call fatal_error("Scale factors are only expected &
+                                             & for monovalent atoms")
+                        end if
+                        ineigh_j = top%conn(1)%ci(top%conn(1)%ri(j))
+                        f_j = vdw%vdw_f(j)
+
+                        cj = top%cmm(:,ineigh_j) + &
+                             (top%cmm(:,j) - top%cmm(:,ineigh_j)) * f_j
+                    endif
+
+                    call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+                    call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
+
+                    if(ineigh_i == 0) then
+                        grad(:,i) =  grad(:,i) + J_i * Rijg
+                    else
+                        ! If the center is displaced, the forces should be 
+                        ! projected onto the two atoms that determine the
+                        ! position of the center
+                        grad(:,i) = grad(:,i) + J_i * Rijg * f_i
+                        grad(:,ineigh_i) = grad(:,ineigh_i) + J_i * Rijg * (1-f_i)
+                    end if
+
+                    if(ineigh_j == 0) then
+                        grad(:,j) =  grad(:,j) + J_j * Rijg
+                    else
+                        ! If the center is displaced, the forces should be 
+                        ! projected onto the two atoms that determine the
+                        ! position of the center
+                        grad(:,j) = grad(:,j) + J_j * Rijg * f_j
+                        grad(:,ineigh_j) = grad(:,ineigh_j) + J_j * Rijg * (1-f_j)
+                    endif
+                end if
+            end do
+        end do
+    end subroutine
 
 end module mod_nonbonded
