@@ -1,24 +1,18 @@
+<div align="center">
+
 # Open-MMPol
+## an open-source implementation of induced point-dipole polarizable embedding 
 <img src="logo/logo.png" width="200">
+</div>
 
 ## Description
+OpenMMPol is an open-source library to interface quantum chemical software with atomistic polarizable embedding. With OpenMMPol any quantum mechanical method that is able to provide the electrostatic potential, field, and field gradient for a given electronic density could be coupled to polarizable embedding with [AMOEBA](https://pubs.acs.org/doi/10.1021/jp910674d) (and other forcefield). Through simple interface functions, it allows to compute the QM/AMOEBA contribution to the energy and to the selected Hamiltonian. 
 
-Open-MMPol is an open-source library to interface quantum chemical software with 
-atomistic polarizable embedding. 
-It allows to compute all the electrostatic quantities needed for a polarizable embeddings with 
-AMOEBA (and other forcefield) of virtually any 
-quantum mechanical method that is able to provide electrostatic potential, field and field gradients 
-for a given density. In particular through simple interface function it allows to compute 
-the contribution to the energy and to the Fock matrix. 
+OpenMMPol also implements all the non-electrostatic terms of the MM force field (Van der Waals and bonded interactions). This allows the host code to compute the full potential for the embedded system. 
 
-OpenMMPol also implemnts non-electrostatic parts of MM forcefield (Van der Waals terms, bonded 
-interactions etc.) in order to enable the host code to compute the full potential for the 
-embedded system.
+OpenMMPol is written in Fortran and is distributed with interfaces to C, Fortran and Python3. 
 
-OpenMMPol is distributed with interfaces to C, Fortran and Python3. 
-
-OpenMMPol is written and mantained by the MoLECoLab (Modeling Light & Environment in Complex Systems) 
-research group at the University of Pisa. 
+OpenMMPol is written and maintained by the MoLECoLab (Modeling Light & Environment in Complex Systems) research group at the University of Pisa (molecolab.dcci.unipi.it). 
 
 ## Documentation
 Documentation is generated with [FORD](https://github.com/Fortran-FOSS-Programmers/ford) and is 
@@ -26,6 +20,19 @@ available at [project documentation page](https://github.com/Molecolab-Pisa/...)
 
 ## License 
 OpenMMPol is free software, you can use it under the terms of the LGPL-3.0 License.
+
+## Citing OpenMMPol
+Please cite the following papers if you use the library:
+
+[Polarizable embedding QM/MM: the future gold standard for complex (bio)systems?](https://doi.org/10.1039/D0CP02119A)
+M. Bondanza, M. Nottoli, L. Cupellini, F. Lipparini and B. Mennucci
+Phys. Chem. Chem. Phys. 22, 14433-14448 (2020)
+doi:10.1039/D0CP02119A
+
+[A QM/MM Approach Using the AMOEBA Polarizable Embedding: From Ground State Energies to Electronic Excitations](https://doi.org/10.1021/acs.jctc.6b00385)
+J. Chem. Theory Comput. 12, 3654-3661 (2016)
+D. Loco, É. Polack, S. Caprasecca, L. Lagardère, F. Lipparini, J.-P. Piquemal and B. Mennucci
+doi:10.1021/acs.jctc.6b00385
 
 ## Dependencies and Quick Installation
 
