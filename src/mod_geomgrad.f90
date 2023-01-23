@@ -74,7 +74,7 @@ module mod_geomgrad
                     
                 end do
                 ! Torque forces from multipoles rotation
-                call fixedelec_rotation_geomgrad(eel, grad)
+                call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
             else
                 do i=1, s%top%mm_atoms
                     ! Here the minus sign is due to the definition of Electric
@@ -233,6 +233,6 @@ module mod_geomgrad
                 end do
             end if
 
-            if(eel%amoeba) call polelec_rotation_geomgrad(eel, grad)
+            if(eel%amoeba) call rotation_geomgrad(eel, eel%E_D2M, eel%Egrd_D2M, grad)
         end subroutine
 end module
