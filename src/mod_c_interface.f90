@@ -784,6 +784,28 @@ module mod_ommp_C_interface
             grd = 0.0
             call polelec_geomgrad(s, grd)
         end subroutine
+
+        subroutine C_ommp_rotation_geomgrad(s_prt, pE, pE_grd, grd_prt) &
+                bind(C, name="ommp_rotation_geomgrad")
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: pE
+            type(c_ptr), value :: pE_grd
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:), E(:,:), Egrd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(pE, E, [3, s%top%mm_atoms])
+            call c_f_pointer(pE_grd, Egrd, [6, s%top%mm_atoms])
+            
+            grd = 0.0
+            call rotation_geomgrad(s%eel, E, Egrd, grd)
+
+        end subroutine
         
         subroutine C_ommp_vdw_geomgrad(s_prt, grd_prt) &
                 bind(C, name='ommp_vdw_geomgrad')

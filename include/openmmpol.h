@@ -84,6 +84,7 @@ extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
 extern void ommp_fixedelec_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_polelec_geomgrad(OMMP_SYSTEM_PRT, double *);
+extern void ommp_rotation_geomgrad(OMMP_SYSTEM_PRT, const double *, const double *, double *);
 extern void ommp_vdw_geomgrad(OMMP_SYSTEM_PRT, double *);
 
 extern void ommputils_q_elec_prop(int32_t, int32_t, 

@@ -395,6 +395,21 @@ class OMMPSystem{
             }
         }
 
+        py_cdarray get_rotation_grad(py_cdarray E, py_cdarray Egrd){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            ommp_rotation_geomgrad(handler, E.data(), Egrd.data(), mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
         py_cdarray get_fixedelec_grad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
             for(int i=0; i < get_mm_atoms()*3; i++)
@@ -568,6 +583,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::get_polelec_grad,
              "Compute the geometrical gradients of polarizable electrostatic energy.",
              py::arg("numerical") = false)
+        .def("do_rotation_grad",
+             &OMMPSystem::get_rotation_grad,
+             "Compute the geometrical gradients on MM atoms due to the rotation of multipoles in an external electric field.",
+             py::arg("electric_field"), py::arg("electric_field_gradients"))
         .def("do_vdw_grad",
              &OMMPSystem::get_vdw_grad,
              "Compute the geometrical gradients of Van der Waal energy.",
