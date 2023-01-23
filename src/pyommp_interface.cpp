@@ -17,6 +17,107 @@ std::map<std::string, int32_t> solvers{
 typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_ciarray;
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 
+std::map<std::string, py_cdarray> charges_elec_prop(py_cdarray csource,
+                                                    py_cdarray qsource,
+                                                    py_cdarray ctarget,
+                                                    bool V, bool E, bool Egrd,
+                                                    bool HE){
+    // Interface to ommputils_q_elec_prop
+    if(ctarget.ndim() != 2 || 
+       ctarget.shape(1) != 3){
+        throw py::value_error("ctarget should be shaped [:, 3]");
+    }
+    int nt = ctarget.shape(0);
+
+    if(csource.ndim() != 2 || 
+       csource.shape(1) != 3){
+        throw py::value_error("csource should be shaped [:, 3]");
+    }
+    int ns = csource.shape(0);
+    
+    if(qsource.ndim() != 1 || 
+       qsource.shape(0) != ns){
+        throw py::value_error("qsource should be shaped [csource.shape[0]]");
+    }
+
+    double *Vmem, *Emem, *Egrdmem, *HEmem;
+    py_cdarray Varr, Earr, Egrdarr, HEarr;
+
+
+    if(V)
+        Vmem = new double[nt];
+    else
+        Vmem = NULL;
+    if(E)
+        Emem = new double[3*nt];
+    else
+        Emem = NULL;
+    if(Egrd)
+        Egrdmem = new double[6*nt];
+    else
+        Egrdmem = NULL;
+    if(HE)
+        HEmem = new double[10*nt];
+    else
+        HEmem = NULL;
+    
+    ommputils_q_elec_prop(ns, nt, csource.data(), qsource.data(), 
+                          ctarget.data(), Vmem, Emem, Egrdmem, HEmem);
+  
+    if(V){
+        py::buffer_info buf_V(Vmem, sizeof(double),
+                          py::format_descriptor<double>::format(),
+                          1,
+                          {nt},
+                          {sizeof(double)});
+        Varr = py_cdarray(buf_V);
+    }
+    else{
+        Varr = py::none();
+    }
+    if(E){
+        py::buffer_info buf_E(Emem, sizeof(double),
+                          py::format_descriptor<double>::format(),
+                          2,
+                          {nt,3},
+                          {3*sizeof(double), sizeof(double)});
+        Earr = py_cdarray(buf_E);
+    }
+    else{
+        Earr = py::none();
+    }
+    if(Egrd){
+        py::buffer_info buf_Egrd(Egrdmem, sizeof(double),
+                             py::format_descriptor<double>::format(),
+                             2,
+                             {nt, 6},
+                             {6*sizeof(double), sizeof(double)});
+        Egrdarr = py_cdarray(buf_Egrd);
+    }
+    else{
+        Egrdarr = py::none();
+    }
+    if(HE){
+        py::buffer_info buf_HE(HEmem, sizeof(double),
+                          py::format_descriptor<double>::format(),
+                          2,
+                          {nt, 10},
+                          {10*sizeof(double), sizeof(double)});
+        HEarr = py_cdarray(buf_HE);
+    }
+    else{
+        HEarr = py::none();
+    }
+
+    std::map<std::string, py_cdarray> res{
+        {"V", Varr},
+        {"E", Earr},
+        {"Egrad", Egrdarr},
+        {"EHess", HEarr},
+    };
+    return res;
+}
+
 class OMMPSystem{
     public:
         OMMPSystem(){
@@ -156,6 +257,88 @@ class OMMPSystem{
                                     1,
                                     {get_pol_atoms()},
                                     {sizeof(int)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray mm_potential_at_external(py_cdarray cext){
+            if(cext.ndim() != 2 || 
+               cext.shape(1) != 3){
+                throw py::value_error("cext should be shaped [:, 3]");
+            }
+            double *mem = new double[cext.shape(0)];
+            for(int i=0; i < cext.shape(0); i++)
+                mem[i] = 0.0;
+
+            ommp_potential_mm2ext(handler, cext.shape(0), cext.data(), mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {cext.shape(0)},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray mmpol_field_at_external(py_cdarray cext){
+            if(cext.ndim() != 2 || 
+               cext.shape(1) != 3){
+                throw py::value_error("cext should be shaped [:, 3]");
+            }
+            
+            int n = cext.shape(0);
+            double *mem = new double[n*3];
+            for(int i=0; i < n*3; i++)
+                mem[i] = 0.0;
+
+            ommp_field_mmpol2ext(handler, cext.shape(0), cext.data(), mem);
+
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {n, 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray mm_field_at_external(py_cdarray cext){
+            if(cext.ndim() != 2 || 
+               cext.shape(1) != 3){
+                throw py::value_error("cext should be shaped [:, 3]");
+            }
+            
+            int n = cext.shape(0);
+            double *mem = new double[n*3];
+            for(int i=0; i < n*3; i++)
+                mem[i] = 0.0;
+
+            ommp_field_mm2ext(handler, cext.shape(0), cext.data(), mem);
+
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {n, 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray pol_field_at_external(py_cdarray cext){
+            if(cext.ndim() != 2 || 
+               cext.shape(1) != 3){
+                throw py::value_error("cext should be shaped [:, 3]");
+            }
+            
+            int n = cext.shape(0);
+            double *mem = new double[n*3];
+            for(int i=0; i < n*3; i++)
+                mem[i] = 0.0;
+
+            ommp_field_pol2ext(handler, cext.shape(0), cext.data(), mem);
+
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {n, 3},
+                                    {3*sizeof(double), sizeof(double)});
             return py_cdarray(bufinfo);
         }
 
@@ -329,6 +512,8 @@ void set_verbose(int32_t v){
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
     m.attr("available_solvers") = solvers;
+    m.def("charges_elec_prop", &charges_elec_prop, 
+          "Compute electrostatic properties of a set of charges at arbitrary coordinates.");
 
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
@@ -347,6 +532,23 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "Save the data of OMMPSystem into a .mmp file (note that some informations are dropped in the process).", 
              py::arg("outfile"), 
              py::arg("version") = 3)
+        .def("mm_potential_at_external",
+             &OMMPSystem::mm_potential_at_external,
+             "Compute the electrostatic potential of the static part of the system to arbitrary coordinates.",
+             py::arg("coord"))
+        .def("pol_field_at_external",
+             &OMMPSystem::pol_field_at_external,
+             "Compute the electrostatic field of the polarizable part of the system to arbitrary coordinates.",
+             py::arg("cext"))
+        .def("mm_field_at_external",
+             &OMMPSystem::mm_field_at_external,
+             "Compute the electrostatic field of the static part of the system to arbitrary coordinates.",
+             py::arg("cext"))
+        .def("mmpol_field_at_external",
+             &OMMPSystem::mmpol_field_at_external,
+             "Compute the electrostatic field of the static and polarizable part of the system to arbitrary coordinates.",
+             py::arg("cext"))
+
         .def("set_external_field", 
              &OMMPSystem::set_external_field,
              "Set the external electric field and solves the linear system.",
