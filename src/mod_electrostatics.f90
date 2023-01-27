@@ -84,6 +84,9 @@ module mod_electrostatics
 
         integer(ip), allocatable :: polar_mm(:)
         !! positions of a polarizable atom in the mm atoms list
+
+        integer(ip), allocatable :: C_polar_mm(:)
+        !! [[polar_mm]] with 0-based C-indexing, only allocated at need.
         
         integer(ip), allocatable :: mmat_polgrp(:)
         !! Polarizability group index for each MM site

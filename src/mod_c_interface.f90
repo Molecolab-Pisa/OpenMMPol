@@ -158,12 +158,21 @@ module mod_ommp_C_interface
         function C_ommp_get_polar_mm(s_prt) bind(c, name='ommp_get_polar_mm')
             !! Return the c-pointer to the array containing the map from 
             !! polarizable to MM atoms.
+            use mod_memory, only: mallocate
+            implicit none
+
             type(c_ptr), value :: s_prt
             type(ommp_system), pointer :: s
             type(c_ptr) :: C_ommp_get_polar_mm
-
+            
             call c_f_pointer(s_prt, s)
-            C_ommp_get_polar_mm = c_loc(s%eel%polar_mm)
+            if(.not. allocated(s%eel%C_polar_mm)) then 
+                call mallocate('C_ommp_get_polar_mm [C_polar_mm]', &
+                               size(s%eel%polar_mm), s%eel%C_polar_mm)
+                s%eel%C_polar_mm = s%eel%polar_mm - 1
+            end if
+
+            C_ommp_get_polar_mm = c_loc(s%eel%C_polar_mm)
         end function C_ommp_get_polar_mm
 
         function C_ommp_get_mm_atoms(s_prt) bind(c, name='ommp_get_mm_atoms')
