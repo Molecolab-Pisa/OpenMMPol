@@ -17,107 +17,6 @@ std::map<std::string, int32_t> solvers{
 typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_ciarray;
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 
-std::map<std::string, py_cdarray> charges_elec_prop(py_cdarray csource,
-                                                    py_cdarray qsource,
-                                                    py_cdarray ctarget,
-                                                    bool V, bool E, bool Egrd,
-                                                    bool HE){
-    // Interface to ommputils_q_elec_prop
-    if(ctarget.ndim() != 2 || 
-       ctarget.shape(1) != 3){
-        throw py::value_error("ctarget should be shaped [:, 3]");
-    }
-    int nt = ctarget.shape(0);
-
-    if(csource.ndim() != 2 || 
-       csource.shape(1) != 3){
-        throw py::value_error("csource should be shaped [:, 3]");
-    }
-    int ns = csource.shape(0);
-    
-    if(qsource.ndim() != 1 || 
-       qsource.shape(0) != ns){
-        throw py::value_error("qsource should be shaped [csource.shape[0]]");
-    }
-
-    double *Vmem, *Emem, *Egrdmem, *HEmem;
-    py_cdarray Varr, Earr, Egrdarr, HEarr;
-
-
-    if(V)
-        Vmem = new double[nt];
-    else
-        Vmem = NULL;
-    if(E)
-        Emem = new double[3*nt];
-    else
-        Emem = NULL;
-    if(Egrd)
-        Egrdmem = new double[6*nt];
-    else
-        Egrdmem = NULL;
-    if(HE)
-        HEmem = new double[10*nt];
-    else
-        HEmem = NULL;
-    
-    ommputils_q_elec_prop(ns, nt, csource.data(), qsource.data(), 
-                          ctarget.data(), Vmem, Emem, Egrdmem, HEmem);
-  
-    if(V){
-        py::buffer_info buf_V(Vmem, sizeof(double),
-                          py::format_descriptor<double>::format(),
-                          1,
-                          {nt},
-                          {sizeof(double)});
-        Varr = py_cdarray(buf_V);
-    }
-    else{
-        Varr = py::none();
-    }
-    if(E){
-        py::buffer_info buf_E(Emem, sizeof(double),
-                          py::format_descriptor<double>::format(),
-                          2,
-                          {nt,3},
-                          {3*sizeof(double), sizeof(double)});
-        Earr = py_cdarray(buf_E);
-    }
-    else{
-        Earr = py::none();
-    }
-    if(Egrd){
-        py::buffer_info buf_Egrd(Egrdmem, sizeof(double),
-                             py::format_descriptor<double>::format(),
-                             2,
-                             {nt, 6},
-                             {6*sizeof(double), sizeof(double)});
-        Egrdarr = py_cdarray(buf_Egrd);
-    }
-    else{
-        Egrdarr = py::none();
-    }
-    if(HE){
-        py::buffer_info buf_HE(HEmem, sizeof(double),
-                          py::format_descriptor<double>::format(),
-                          2,
-                          {nt, 10},
-                          {10*sizeof(double), sizeof(double)});
-        HEarr = py_cdarray(buf_HE);
-    }
-    else{
-        HEarr = py::none();
-    }
-
-    std::map<std::string, py_cdarray> res{
-        {"V", Varr},
-        {"E", Earr},
-        {"Egrad", Egrdarr},
-        {"EHess", HEarr},
-    };
-    return res;
-}
-
 class OMMPSystem{
     public:
         OMMPSystem(){
@@ -516,8 +415,160 @@ class OMMPSystem{
             return ommp_get_vdw_energy(handler);
         }
 
+        OMMP_SYSTEM_PRT get_handler(void){
+            return handler;
+        }
+
     private: 
-        void *handler;
+        OMMP_SYSTEM_PRT handler;
+};
+
+class OMMPQmHelper{
+    public:
+        OMMPQmHelper(){
+            handler = nullptr;
+        }
+
+        OMMPQmHelper(py_cdarray coord_qm, py_cdarray charge_qm){
+            if(coord_qm.ndim() != 2 || 
+               coord_qm.shape(1) != 3){
+                throw py::value_error("coord_qm should be shaped [:, 3]");
+            }
+            if(charge_qm.ndim() != 1 || 
+               charge_qm.shape(0) != coord_qm.shape(0)){
+                throw py::value_error("charge_qm should be shaped [coord_qm.shape[0]]");
+            }
+
+            handler = ommp_init_qm_helper(coord_qm.shape(0), coord_qm.data(), charge_qm.data());
+        }
+
+        ~OMMPQmHelper(){
+            ommp_terminate_qm_helper(handler);
+            handler = nullptr;
+            return;
+        }
+
+        void prepare_energy(OMMPSystem& s){
+            OMMP_SYSTEM_PRT s_handler = s.get_handler();
+            ommp_prepare_qm_ele_ene(s_handler, handler);
+        }
+        
+        void prepare_geomgrad(OMMPSystem& s){
+            OMMP_SYSTEM_PRT s_handler = s.get_handler();
+            ommp_prepare_qm_ele_grd(s_handler, handler);
+        }
+
+        int32_t get_qm_atoms(void){
+            return ommp_qm_helper_get_qm_atoms(handler);
+        }
+
+        py_cdarray get_E_n2p(void){
+            double *memory = ommp_qm_helper_get_E_n2p(handler);
+            if(!memory){
+                throw py::attribute_error("E_n2p is not available. OMMPQmHelper.prepare_energy() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 3},
+                                        {3*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_G_n2p(void){
+            double *memory = ommp_qm_helper_get_G_n2p(handler);
+            if(!memory){
+                throw py::attribute_error("G_n2p is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 6},
+                                        {6*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_E_n2m(void){
+            double *memory = ommp_qm_helper_get_E_n2m(handler);
+            if(!memory){
+                throw py::attribute_error("E_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 3},
+                                        {3*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_G_n2m(void){
+            double *memory = ommp_qm_helper_get_G_n2m(handler);
+            if(!memory){
+                throw py::attribute_error("G_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 6},
+                                        {6*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_H_n2m(void){
+            double *memory = ommp_qm_helper_get_H_n2m(handler);
+            if(!memory){
+                throw py::attribute_error("H_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 10},
+                                        {10*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_V_m2n(void){
+            double *memory = ommp_qm_helper_get_V_m2n(handler);
+            if(!memory){
+                throw py::attribute_error("V_m2n is not available. OMMPQmHelper.prepare_energy() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        1,
+                                        {get_qm_atoms()},
+                                        {sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_E_m2n(void){
+            double *memory = ommp_qm_helper_get_E_m2n(handler);
+            if(!memory){
+                throw py::attribute_error("E_m2n is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 3},
+                                        {3*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+
+    private:
+        OMMP_QM_HELPER_PRT handler;
 };
 
 void set_verbose(int32_t v){
@@ -527,9 +578,6 @@ void set_verbose(int32_t v){
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
     m.attr("available_solvers") = solvers;
-    m.def("charges_elec_prop", &charges_elec_prop, 
-          "Compute electrostatic properties of a set of charges at arbitrary coordinates.");
-
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
              "pyOpenMMPol creator, takes the path to a .mmp file as input.", 
@@ -620,4 +668,24 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("static_quadrupoles", &OMMPSystem::get_static_quadrupoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 6], else None")
         .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]");
 
+    py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
+        .def(py::init<py_cdarray, py_cdarray>(), 
+             "OMMPQmHelper creator, takes the coordinates and nuclear charges of QM system as input.", 
+             py::arg("coord_qm"), py::arg("charge_qm"))
+        .def("prepare_energy",
+             &OMMPQmHelper::prepare_energy, 
+             "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",
+             py::arg("OMMP_system"))
+        .def("prepare_geomgrad",
+             &OMMPQmHelper::prepare_geomgrad, 
+             "Prepeare the quantities available in helper for a gradients SCF calculation (electric field gradients of nuclei at polarizable sites, electric field of MM system (polarizable and static) at nuclei, electric field, gradients and Hessian of nuclei at static sites) with the MM system passed as argument.",
+             py::arg("OMMP_system"))
+        .def_property_readonly("E_n2p", &OMMPQmHelper::get_E_n2p, "Electric field of nuclei at polarizable sites")
+        .def_property_readonly("G_n2p", &OMMPQmHelper::get_G_n2p, "Electric field gradients of nuclei at polarizable sites")
+        .def_property_readonly("V_m2n", &OMMPQmHelper::get_V_m2n, "Electrostatic potential of MM system at QM nuclei")
+        .def_property_readonly("E_m2n", &OMMPQmHelper::get_E_m2n, "Electric field of MM system at QM nuclei")
+        .def_property_readonly("E_n2m", &OMMPQmHelper::get_E_n2m, "Electric field of MM system at QM nuclei")
+        .def_property_readonly("G_n2m", &OMMPQmHelper::get_G_n2m, "Electric field gradients of MM system at QM nuclei")
+        .def_property_readonly("H_n2m", &OMMPQmHelper::get_H_n2m, "Electric field Hessian of MM system at QM nuclei")
+    ;
 }

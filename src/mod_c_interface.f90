@@ -20,97 +20,6 @@ module mod_ommp_C_interface
 
     contains
 
-        !!TODO function c_ommp_is_initialized() bind(c, name='ommp_is_initialized')
-        !!TODO     implicit none 
-        !!TODO     logical(c_bool) :: c_ommp_is_initialized
-
-        !!TODO     c_ommp_is_initialized = ommp_is_initialized
-        !!TODO     
-        !!TODO     return
-        !!TODO end function c_ommp_is_initialized
-        !!TODO 
-        
-        subroutine C_ommputils_q_elec_prop(ns, nt, pcoord, pcharges, pcoordt, &
-                                           pV, pE, pEgrd, pEHes) &
-                   bind(c, name="ommputils_q_elec_prop")
-            !! Compute electric properties of a set of charges, this subroutine
-            !! can be used to compute electric properties of nucleai at MM
-            !! sites in an efficient way.
-            use mod_electrostatics, only: coulomb_kernel, q_elec_prop
-
-            implicit none
-
-            integer(ommp_integer), value :: ns
-            !! Number of source charges
-            integer(ommp_integer), value :: nt
-            !! Number of target coordinates
-            type(c_ptr), value :: pcoord, pcharges, pcoordt
-            type(c_ptr), value :: pV, pE, pEgrd, pEHes
-
-            logical :: do_V, do_E, do_Egrd, do_EHes
-            real(ommp_real), pointer :: coord(:,:), charges(:), V(:), E(:,:), &
-                                        Egrd(:,:), EHes(:,:), coordt(:,:)
-            real(ommp_real) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), &
-                               tmpHE(10)
-            integer(ommp_integer) :: i, j, ikernel
-
-            do_V = c_associated(pV)
-            do_E = c_associated(pE)
-            do_Egrd = c_associated(pEgrd)
-            do_EHes = c_associated(pEHes)
-            
-            call c_f_pointer(pcoord, coord, [3,ns])
-            call c_f_pointer(pcharges, charges, [ns])
-            call c_f_pointer(pcoordt, coordt, [3,nt])
-            if(do_V) then
-                call c_f_pointer(pV, V, [nt])
-                V = 0.0
-            end if
-            if(do_E) then
-                call c_f_pointer(pE, E, [3,nt])
-                E = 0.0
-            end if
-            if(do_Egrd) then
-                call c_f_pointer(pEgrd, Egrd, [6,nt])
-                Egrd = 0.0
-            end if
-            if(do_EHes) then 
-                call c_f_pointer(pEHes, EHes, [10,nt])
-                EHes = 0.0
-            end if
-
-            if(do_EHes) then
-                ikernel = 3 
-            elseif(do_Egrd) then
-                ikernel = 2
-            elseif(do_E) then
-                ikernel = 1
-            elseif(do_V) then
-                ikernel = 0
-            else
-                return
-            end if
-
-            do i=1, ns
-                do j=1, nt
-                    dr = coordt(:,j) - coord(:,i)
-                    call coulomb_kernel(dr, ikernel, kernel)
-
-                    tmpV = 0.0
-                    tmpE = 0.0
-                    tmpEgr = 0.0
-                    tmpHE = 0.0
-                    call q_elec_prop(charges(i), dr, kernel, do_V, tmpV, &
-                                     do_E, tmpE, do_Egrd, tmpEgr, & 
-                                     do_EHes, tmpHE)
-                    if(do_V) V(j) = V(j) + tmpV
-                    if(do_E) E(:,j) = E(:,j) + tmpE
-                    if(do_Egrd) Egrd(:,j) = Egrd(:,j) + tmpEgr
-                    if(do_EHes) EHes(:,j) = EHes(:,j) + tmpHE
-                end do
-            end do
-        end subroutine
-
         function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')
             !! Return the c-pointer to the array containing the coordinates of
             !! MM atoms.
@@ -845,6 +754,232 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call mmpol_terminate(s)
             
+            deallocate(s)
+
+        end subroutine
+        
+        function C_ommp_init_qm_helper(n, cqm, qqm) &
+                result(c_prt) bind(c, name='ommp_init_qm_helper')
+            
+            use mod_qm_helper, only: qm_helper_init, ommp_qm_helper
+            
+            implicit none
+
+            type(ommp_qm_helper), pointer :: s
+            integer(ommp_integer), value, intent(in) :: n
+            type(c_ptr), value, intent(in) :: cqm, qqm
+            
+            real(ommp_real), pointer :: fcqm(:,:), fqqm(:)
+            type(c_ptr) :: c_prt
+
+            allocate(s)
+            
+            call c_f_pointer(cqm, fcqm, [3,n])
+            call c_f_pointer(qqm, fqqm, [n])
+            call qm_helper_init(s, n, fcqm, fqqm)
+            c_prt = c_loc(s)
+        end function
+
+        subroutine C_ommp_prepare_qm_ele_ene(s_ptr, qm_ptr) &
+                bind(c, name='ommp_prepare_qm_ele_ene')
+            use mod_qm_helper, only: ommp_qm_helper, electrostatic_for_ene
+
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            !! C pointer to system object
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(qm_ptr, qm_help)
+            call c_f_pointer(s_ptr, s)
+
+            call electrostatic_for_ene(s, qm_help)
+        end subroutine 
+        
+        subroutine C_ommp_prepare_qm_ele_grd(s_ptr, qm_ptr) &
+                bind(c, name='ommp_prepare_qm_ele_grd')
+            use mod_qm_helper, only: ommp_qm_helper, electrostatic_for_grad
+
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            !! C pointer to system object
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(qm_ptr, qm_help)
+            call c_f_pointer(s_ptr, s)
+
+            call electrostatic_for_grad(s, qm_help)
+        end subroutine 
+
+        function C_ommp_qm_helper_get_E_n2p(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_E_n2p')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_n2p_done) then
+                ptr = c_loc(qm_help%E_n2p)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+        
+        function C_ommp_qm_helper_get_G_n2p(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_G_n2p')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%G_n2p_done) then
+                ptr = c_loc(qm_help%G_n2p)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+
+        function C_ommp_qm_helper_get_E_n2m(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_E_n2m')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_n2m_done) then
+                ptr = c_loc(qm_help%E_n2m)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+        
+        function C_ommp_qm_helper_get_G_n2m(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_G_n2m')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%G_n2m_done) then
+                ptr = c_loc(qm_help%G_n2m)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+
+        function C_ommp_qm_helper_get_H_n2m(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_H_n2m')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%H_n2m_done) then
+                ptr = c_loc(qm_help%H_n2m)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+        
+        function C_ommp_qm_helper_get_E_m2n(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_E_m2n')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_m2n_done) then
+                ptr = c_loc(qm_help%E_m2n)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+        
+        function C_ommp_qm_helper_get_V_m2n(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_V_m2n')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%V_m2n_done) then
+                ptr = c_loc(qm_help%V_m2n)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+       
+        function C_ommp_qm_helper_get_qm_atoms(qm_ptr) &
+                result(n) bind(C, name='ommp_qm_helper_get_qm_atoms')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            integer(ommp_integer) :: n
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            n = qm_help%qm_atoms
+        end function
+
+        subroutine C_ommp_terminate_qm_helper(s_ptr) &
+                bind(c, name='ommp_terminate_qm_helper')
+            
+            use mod_qm_helper, only: qm_helper_terminate, ommp_qm_helper
+            
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            type(ommp_qm_helper), pointer :: s
+            
+            call c_f_pointer(s_ptr, s)
+            call qm_helper_terminate(s)
             deallocate(s)
 
         end subroutine

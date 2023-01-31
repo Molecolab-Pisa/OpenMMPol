@@ -31,6 +31,7 @@ set(LIBRARY_SRC
     src/mod_nonbonded.f90
     src/mod_polarization.f90
     src/mod_prm.f90
+    src/mod_qm_helper.f90
     src/mod_solvers.f90
     src/mod_topology.f90
     src/mod_utils.f90

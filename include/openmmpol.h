@@ -25,6 +25,7 @@
 #define AU2KCALMOL 627.5096080306
 
 typedef void* OMMP_SYSTEM_PRT;
+typedef void* OMMP_QM_HELPER_PRT;
 
 #ifdef __cplusplus
 extern "C" {
@@ -87,10 +88,19 @@ extern void ommp_polelec_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_rotation_geomgrad(OMMP_SYSTEM_PRT, const double *, const double *, double *);
 extern void ommp_vdw_geomgrad(OMMP_SYSTEM_PRT, double *);
 
-extern void ommputils_q_elec_prop(int32_t, int32_t, 
-                                  const double *, const double *, 
-                                  const double *, double *, 
-                                  double *, double *, double *);
+extern OMMP_QM_HELPER_PRT ommp_init_qm_helper(int32_t, const double *, const double *);
+extern void ommp_terminate_qm_helper(OMMP_QM_HELPER_PRT);
+
+extern void ommp_prepare_qm_ele_ene(OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);
+extern void ommp_prepare_qm_ele_grd(OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_V_m2n(OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_E_m2n(OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_E_n2p(OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_G_n2p(OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_E_n2m(OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_G_n2m(OMMP_QM_HELPER_PRT);
+extern double *ommp_qm_helper_get_H_n2m(OMMP_QM_HELPER_PRT);
+extern int32_t ommp_qm_helper_get_qm_atoms(OMMP_QM_HELPER_PRT);
 #ifdef __cplusplus
 }
 #endif
