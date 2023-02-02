@@ -37,7 +37,7 @@ module mod_topology
     end type ommp_topology_type
 
     public :: ommp_topology_type
-    public :: topology_init, topology_terminate
+    public :: topology_init, topology_terminate, guess_connectivity
 
     contains
 
@@ -69,6 +69,98 @@ module mod_topology
                            top_obj%attype)
             top_obj%attype = 0
             top_obj%attype_initialized = .false.
+        end subroutine
+
+        subroutine guess_connectivity(top)
+            !! This subroutine guess the connectivity of the system from the 
+            !! coordinates and the atomic number of its atoms. It is based
+            !! on distances and atomic radii, so it can easily fail on 
+            !! distorted geometries. It should be used only when the 
+            !!  the bonds of the molecule are not availble in any 
+            !! other way; it is often used to assign connectivity to a QM part
+            !! that does not have any.
+            use mod_constants, only: angstrom2au
+            use mod_io, only: fatal_error
+            
+            implicit none
+
+            type(ommp_topology_type), intent(inout) :: top
+
+            real(rp) :: atomic_radii(118) = 0.0
+            !! Covalent atomic radii; 0.0 is used for every unknown element
+            !! (that is every element different from H, B, C, N, O, F, Si, P, 
+            !! S, Cl, As, Se, Br, Te, I) and means that this is an unexpected 
+            !! element and will likely left alone.
+            !! The other values are taken from table I of  
+            !! J. Chem. Inf. Comput. Sci. 1992, 32, 401-406
+            !! "Automatic Assignment of Chemical Connectivity to Organic 
+            !!  Molecules in the Cambridge Structural Database"
+            !! Values are converted to A.U.
+            real(rp), parameter :: tolerance = 0.45 * angstrom2au
+            !! Tolerance value for connected atoms, 0.45 Angstrom is used in
+            !! agreement with J. Chem. Inf. Comput. Sci. 1992, 32, 401-406
+            integer(ip), parameter :: maxbond = 10
+            !! Maximum number of atomic of bond for each atom
+            integer(ip), allocatable :: i12(:,:)
+            !! Temporary bond list that is passed to 
+            !! [[mod_adjacency_mat::adj_mat_from_conn]]
+            integer(ip), allocatable :: n12(:)
+            !! Number of connected atoms already assigned to the i-th atom. 
+            integer(ip) :: i, j
+            real(rp) :: l, l0
+            !! Actual and expected bond length
+            
+            atomic_radii(1)  = 0.23 * angstrom2au !! H
+            atomic_radii(5)  = 0.83 * angstrom2au !! B
+            atomic_radii(6)  = 0.68 * angstrom2au !! C
+            atomic_radii(7)  = 0.68 * angstrom2au !! N
+            atomic_radii(8)  = 0.68 * angstrom2au !! O
+            atomic_radii(9)  = 0.64 * angstrom2au !! F
+            atomic_radii(14) = 1.20 * angstrom2au !! Si
+            atomic_radii(15) = 1.05 * angstrom2au !! P
+            atomic_radii(16) = 1.02 * angstrom2au !! S
+            atomic_radii(17) = 0.99 * angstrom2au !! Cl
+            atomic_radii(33) = 1.21 * angstrom2au !! As
+            atomic_radii(34) = 1.22 * angstrom2au !! Se
+            atomic_radii(35) = 1.21 * angstrom2au !! Br
+            atomic_radii(52) = 1.47 * angstrom2au !! Te
+            atomic_radii(53) = 1.40 * angstrom2au !! I
+            
+            if(.not. top%atz_initialized) then
+                call fatal_error('Connectivity cannot be guessed without atomic&
+                                 & nubers.')
+            end if
+
+            if(allocated(top%conn(1)%ri) .or. allocated(top%conn(1)%ci)) then
+                call fatal_error("Connectivity is already present in this &
+                                 &topology.")
+            end if
+
+            call mallocate('guess_connectivity [i12]', &
+                           maxbond, top%mm_atoms, i12)
+            call mallocate('guess_connectivity [n12]', &
+                           top%mm_atoms, n12)
+            i12 = 0
+            n12 = 1
+            
+            do i=1, top%mm_atoms
+                do j=i+1, top%mm_atoms
+                    l = norm2(top%cmm(:,i) - top%cmm(:,j))
+                    l0 = atomic_radii(top%atz(i)) + atomic_radii(top%atz(j))
+                    if(l < l0 + tolerance) then
+                        ! There is a bond between i and j
+                        i12(n12(i),i) = j
+                        i12(n12(j),j) = i
+                        n12(i) = n12(i) + 1
+                        n12(j) = n12(j) + 1
+                    end if
+                end do
+            end do
+
+            call adj_mat_from_conn(i12, top%conn(1))
+
+            call mfree('guess_connectivity [i12]', i12)
+            call mfree('guess_connectivity [n12]', n12)
         end subroutine
         
         subroutine topology_terminate(top_obj)
