@@ -782,6 +782,27 @@ module mod_ommp_C_interface
             c_prt = c_loc(s)
         end function
         
+        subroutine C_ommp_qm_helper_init_vdw_prm(pqm, pattype, cprmfile) &
+                 bind(c, name='ommp_qm_helper_init_vdw_prm')
+            
+            use mod_qm_helper, only: qm_helper_init_vdw_prm, ommp_qm_helper
+            
+            implicit none
+
+            type(c_ptr), value, intent(in) :: pqm, pattype
+            character(kind=c_char), intent(in) :: cprmfile(OMMP_STR_CHAR_MAX)
+            
+            type(ommp_qm_helper), pointer :: qm
+            character(len=OMMP_STR_CHAR_MAX) :: prmfile
+            integer(ommp_integer), pointer :: attype(:)
+
+            call c_f_pointer(pqm, qm)
+            call c_f_pointer(pattype, attype, [qm%qm_top%mm_atoms])
+            call c2f_string(cprmfile, prmfile)
+
+            call qm_helper_init_vdw_prm(qm, attype, prmfile)
+        end subroutine
+        
         subroutine C_ommp_qm_helper_init_vdw(pqm, peps, prad, pfac, &
                                              cvdw_type, cradius_rule, &
                                              cradius_size, cradius_type, &

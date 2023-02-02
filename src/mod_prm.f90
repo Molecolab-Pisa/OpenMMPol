@@ -73,7 +73,7 @@ module mod_prm
             line = str_to_lower(line)
             if(line(:5) == 'atom ') natype = natype + 1
         end do
-        
+       
         call mallocate('read_prm [typeclass]', natype, typeclass)
         call mallocate('read_prm [atz]', natype, typez)
         typeclass = 0
@@ -122,8 +122,13 @@ module mod_prm
         close(iof_prminp)
 
         do i = 1, top%mm_atoms
-            top%atclass(i) = typeclass(top%attype(i)) 
-            top%atz(i) = typez(top%attype(i)) 
+            if(.not. top%atclass_initialized) then
+                top%atclass(i) = typeclass(top%attype(i)) 
+            end if
+
+            if(.not. top%atz_initialized) then
+                top%atz(i) = typez(top%attype(i)) 
+            end if
         end do
         
         top%atclass_initialized = .true.

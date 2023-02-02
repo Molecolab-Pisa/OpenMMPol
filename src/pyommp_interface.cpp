@@ -453,6 +453,16 @@ class OMMPQmHelper{
             return;
         }
 
+        void set_vdw_parameters_from_prm(py_ciarray qm_attype, std::string prmfile){
+
+            if(qm_attype.ndim() != 1 || 
+               qm_attype.shape(0) != get_qm_atoms()){
+                throw py::value_error("eps should be shaped [n_qm_atoms]");
+            }
+
+            ommp_qm_helper_init_vdw_prm(handler, qm_attype.data(), prmfile.c_str());
+        }
+        
         void set_vdw_parameters(py_cdarray eps, py_cdarray rad, py_cdarray fac,
                                 std::string vdw_type, std::string radius_rule,
                                 std::string radius_size, std::string radius_type,
@@ -705,6 +715,11 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
              "OMMPQmHelper creator, takes the coordinates and nuclear charges of QM system as input.", 
              py::arg("coord_qm"), py::arg("charge_qm"), py::arg("z_qm"))
+        .def("set_vdw_parameters_from_prm",
+             &OMMPQmHelper::set_vdw_parameters_from_prm,
+             "Set the VdW parameters for the QM atoms using a prm forcefield and atomtypes for QM atoms.",
+             py::arg("qm_attype"), 
+             py::arg("prmfile")) 
         .def("set_vdw_parameters",
              &OMMPQmHelper::set_vdw_parameters,
              "Set the VdW parameters for the QM atoms, this is needed in geometry optimization and MD to avoid clashes between QM and MM atoms",

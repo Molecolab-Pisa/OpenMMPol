@@ -51,7 +51,7 @@ module mod_qm_helper
 
     public :: ommp_qm_helper
     public :: qm_helper_init, qm_helper_terminate
-    public :: qm_helper_init_vdw, qm_helper_vdw_energy
+    public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, qm_helper_vdw_energy
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -89,6 +89,7 @@ module mod_qm_helper
                                       radius_type, epsrule)
             use mod_memory, only: mallocate
             use mod_nonbonded, only: vdw_init
+            use mod_io, only: fatal_error
 
             implicit none
 
@@ -99,6 +100,10 @@ module mod_qm_helper
             character(len=*) :: vdw_type, radius_rule, radius_size, &
                                 radius_type, epsrule
     
+            if(qm%use_nonbonded) then
+                call fatal_error("VdW is already initialized!")
+            end if
+            
             allocate(qm%qm_vdw)
 
             call vdw_init(qm%qm_vdw, qm%qm_top, vdw_type, radius_rule, &
@@ -109,6 +114,28 @@ module mod_qm_helper
             qm%qm_vdw%vdw_f = fac
             qm%use_nonbonded = .true.
 
+        end subroutine
+        
+        subroutine qm_helper_init_vdw_prm(qm, attype, prmfile)
+            !! Assign vdw parameters of the QM part from attype and prm file
+            use mod_prm, only: assign_vdw
+            use mod_io, only: fatal_error
+
+            implicit none
+
+            type(ommp_qm_helper), intent(inout) :: qm
+            integer(ip), intent(in) :: attype(qm%qm_top%mm_atoms)
+            character(len=*) :: prmfile
+            
+            if(qm%use_nonbonded) then
+                call fatal_error("VdW is already initialized!")
+            end if
+            
+            allocate(qm%qm_vdw)
+            qm%qm_top%attype = attype
+            qm%qm_top%attype_initialized = .true.
+            call assign_vdw(qm%qm_vdw, qm%qm_top, prmfile)
+            qm%use_nonbonded = .true.
         end subroutine
 
         subroutine qm_helper_vdw_energy(qm, mm, V)
@@ -121,7 +148,6 @@ module mod_qm_helper
             type(ommp_qm_helper), intent(in) :: qm
             real(rp), intent(inout) :: V
         
-            write(*,*) mm%use_nonbonded, qm%use_nonbonded
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
                 call vdw_potential_inter(mm%vdw, qm%qm_vdw, V)
             end if
