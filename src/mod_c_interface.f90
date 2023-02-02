@@ -758,7 +758,7 @@ module mod_ommp_C_interface
 
         end subroutine
         
-        function C_ommp_init_qm_helper(n, cqm, qqm) &
+        function C_ommp_init_qm_helper(n, cqm, qqm, zqm) &
                 result(c_prt) bind(c, name='ommp_init_qm_helper')
             
             use mod_qm_helper, only: qm_helper_init, ommp_qm_helper
@@ -767,16 +767,18 @@ module mod_ommp_C_interface
 
             type(ommp_qm_helper), pointer :: s
             integer(ommp_integer), value, intent(in) :: n
-            type(c_ptr), value, intent(in) :: cqm, qqm
+            type(c_ptr), value, intent(in) :: cqm, qqm, zqm
             
             real(ommp_real), pointer :: fcqm(:,:), fqqm(:)
+            integer(ommp_integer), pointer :: fzqm(:)
             type(c_ptr) :: c_prt
 
             allocate(s)
             
             call c_f_pointer(cqm, fcqm, [3,n])
             call c_f_pointer(qqm, fqqm, [n])
-            call qm_helper_init(s, n, fcqm, fqqm)
+            call c_f_pointer(zqm, fzqm, [n])
+            call qm_helper_init(s, n, fcqm, fqqm, fzqm)
             c_prt = c_loc(s)
         end function
 
@@ -965,7 +967,7 @@ module mod_ommp_C_interface
             integer(ommp_integer) :: n
             
             call c_f_pointer(qm_ptr, qm_help)
-            n = qm_help%qm_atoms
+            n = qm_help%qm_top%mm_atoms
         end function
 
         subroutine C_ommp_terminate_qm_helper(s_ptr) &

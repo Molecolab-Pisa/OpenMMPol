@@ -12,15 +12,10 @@ module mod_qm_helper
     private
 
     type ommp_qm_helper
-        integer(ip) :: qm_atoms
-        !! Number of QM atoms
         type(ommp_topology_type), allocatable :: qm_top
-        !! Topology of the QM system (not always needed, it could be 
-        !! uninitialized.
-        real(rp), allocatable :: cqm(:,:)
-        !! Coordinates of QM atoms, shape (3,qm_atoms)
+        !! Topology of the QM system
         real(rp), allocatable :: qqm(:)
-        !! Charges of QM nuclei, shape(qm_atoms)
+        !! Charges of QM nuclei
         logical :: E_n2p_done = .false.
         !! Flag for [[E_n2p]]
         real(rp), allocatable :: E_n2p(:,:)
@@ -58,19 +53,29 @@ module mod_qm_helper
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
-        subroutine qm_helper_init(qm, qmat, cqm, qqm)
+        subroutine qm_helper_init(qm, qmat, cqm, qqm, zqm)
             use mod_memory, only: mallocate
+            use mod_topology, only: topology_init, guess_connectivity
 
             implicit none
             type(ommp_qm_helper), intent(inout) :: qm
-            real(rp), intent(in) :: cqm(:,:), qqm(:)
+            !! [[ommp_qm_helper]] object to be initialized
+            real(rp), intent(in) :: cqm(:,:)
+            !! Coordinates of QM atoms
+            real(rp), intent(in) :: qqm(:)
+            !! Nuclear charges of QM atoms
+            integer(ip), intent(in) :: zqm(:)
+            !! Atomic number of QM atoms
             integer(ip), intent(in) :: qmat
+            !! Number of QM atoms
 
-            call mallocate('qm_helper_init [cqm]', 3, qmat, qm%cqm)
+            allocate(qm%qm_top)
             call mallocate('qm_helper_init [qqm]', qmat, qm%qqm)
             
-            qm%qm_atoms = qmat
-            qm%cqm = cqm
+            call topology_init(qm%qm_top, qmat)
+            qm%qm_top%cmm = cqm
+            qm%qm_top%atz = zqm
+            qm%qm_top%atz_initialized = .true.
             qm%qqm = qqm
 
         end subroutine
@@ -83,7 +88,6 @@ module mod_qm_helper
             implicit none
             type(ommp_qm_helper), intent(inout) :: qm
 
-            call mfree('qm_helper_terminate [cqm]', qm%cqm)
             call mfree('qm_helper_terminate [qqm]', qm%qqm)
             if(allocated(qm%qm_vdw)) then
                 call vdw_terminate(qm%qm_vdw)
@@ -120,9 +124,9 @@ module mod_qm_helper
             end if
 
             qm%E_n2p = 0.0
-            do i=1, qm%qm_atoms
+            do i=1, qm%qm_top%mm_atoms
                 do j=1, system%eel%pol_atoms
-                    dr = system%eel%cpol(:,j) - qm%cqm(:,i)
+                    dr = system%eel%cpol(:,j) - qm%qm_top%cmm(:,i)
                     call coulomb_kernel(dr, 1, kernel)
 
                     tmpE = 0.0
@@ -139,15 +143,14 @@ module mod_qm_helper
             
             if(.not. allocated(qm%V_m2n)) then
                 call mallocate('electrostatic_for_ene [V_m2n]', &
-                               qm%qm_atoms, qm%V_m2n)
+                               qm%qm_top%mm_atoms, qm%V_m2n)
             end if
             qm%V_m2n = 0.0
-            call potential_M2E(system%eel, qm%cqm, qm%V_m2n)
-            call potential_D2E(system%eel, qm%cqm, qm%V_m2n)
+            call potential_M2E(system%eel, qm%qm_top%cmm, qm%V_m2n)
+            call potential_D2E(system%eel, qm%qm_top%cmm, qm%V_m2n)
             qm%V_m2n_done = .true.
 
         end subroutine
-
 
         subroutine electrostatic_for_grad(system, qm)
             !! Computes the electrostatic quantities (that means nuclear-MM    
@@ -190,9 +193,9 @@ module mod_qm_helper
             qm%G_n2m = 0.0
             qm%H_n2m = 0.0
             
-            do i=1, qm%qm_atoms
+            do i=1, qm%qm_top%mm_atoms
                 do j=1, system%top%mm_atoms
-                    dr = system%top%cmm(:,j) - qm%cqm(:,i)
+                    dr = system%top%cmm(:,j) - qm%qm_top%cmm(:,i)
                     call coulomb_kernel(dr, 3, kernel)
 
                     tmpE = 0.0
@@ -221,11 +224,11 @@ module mod_qm_helper
             
             if(.not. allocated(qm%E_m2n)) then
                 call mallocate('electrostatic_for_ene [E_m2n]', &
-                               3, qm%qm_atoms, qm%E_m2n)
+                               3, qm%qm_top%mm_atoms, qm%E_m2n)
             end if
             qm%E_m2n = 0.0
-            call field_M2E(system%eel, qm%cqm, qm%E_m2n)
-            call field_D2E(system%eel, qm%cqm, qm%E_m2n)
+            call field_M2E(system%eel, qm%qm_top%cmm, qm%E_m2n)
+            call field_D2E(system%eel, qm%qm_top%cmm, qm%E_m2n)
             qm%E_m2n_done = .true.
         end subroutine
 end module

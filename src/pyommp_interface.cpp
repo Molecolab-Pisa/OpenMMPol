@@ -429,7 +429,7 @@ class OMMPQmHelper{
             handler = nullptr;
         }
 
-        OMMPQmHelper(py_cdarray coord_qm, py_cdarray charge_qm){
+        OMMPQmHelper(py_cdarray coord_qm, py_cdarray charge_qm, py_ciarray z_qm){
             if(coord_qm.ndim() != 2 || 
                coord_qm.shape(1) != 3){
                 throw py::value_error("coord_qm should be shaped [:, 3]");
@@ -438,8 +438,13 @@ class OMMPQmHelper{
                charge_qm.shape(0) != coord_qm.shape(0)){
                 throw py::value_error("charge_qm should be shaped [coord_qm.shape[0]]");
             }
+            
+            if(z_qm.ndim() != 1 || 
+               z_qm.shape(0) != z_qm.shape(0)){
+                throw py::value_error("z_qm should be shaped [coord_qm.shape[0]]");
+            }
 
-            handler = ommp_init_qm_helper(coord_qm.shape(0), coord_qm.data(), charge_qm.data());
+            handler = ommp_init_qm_helper(coord_qm.shape(0), coord_qm.data(), charge_qm.data(), z_qm.data());
         }
 
         ~OMMPQmHelper(){
@@ -669,9 +674,9 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]");
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
-        .def(py::init<py_cdarray, py_cdarray>(), 
+        .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
              "OMMPQmHelper creator, takes the coordinates and nuclear charges of QM system as input.", 
-             py::arg("coord_qm"), py::arg("charge_qm"))
+             py::arg("coord_qm"), py::arg("charge_qm"), py::arg("z_qm"))
         .def("prepare_energy",
              &OMMPQmHelper::prepare_energy, 
              "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",
