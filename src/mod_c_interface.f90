@@ -840,6 +840,28 @@ module mod_ommp_C_interface
                                     radius_size, radius_type, eps_rule)
         end subroutine
         
+        subroutine C_ommp_qm_helper_vdw_geomgrad(qm_prt, s_prt, qmg_prt, mmg_prt) &
+                bind(c, name='ommp_qm_helper_vdw_geomgrad')
+            
+            use mod_qm_helper, only: qm_helper_vdw_geomgrad, ommp_qm_helper
+
+            implicit none
+
+            type(c_ptr), value :: qm_prt, s_prt, qmg_prt, mmg_prt
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+            real(ommp_real), pointer :: qmg(:,:), mmg(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+            call c_f_pointer(qmg_prt, qmg, [3,qm%qm_top%mm_atoms])
+            call c_f_pointer(mmg_prt, mmg, [3,s%top%mm_atoms])
+
+            mmg = 0.0
+            qmg = 0.0
+            call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+        end subroutine
+        
         function C_ommp_qm_helper_vdw_energy(qm_prt, s_prt) &
                 result(evdw) bind(c, name='ommp_qm_helper_vdw_energy')
             

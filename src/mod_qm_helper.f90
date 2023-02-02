@@ -51,7 +51,8 @@ module mod_qm_helper
 
     public :: ommp_qm_helper
     public :: qm_helper_init, qm_helper_terminate
-    public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, qm_helper_vdw_energy
+    public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, &
+              qm_helper_vdw_energy, qm_helper_vdw_geomgrad
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -152,6 +153,23 @@ module mod_qm_helper
                 call vdw_potential_inter(mm%vdw, qm%qm_vdw, V)
             end if
 
+        end subroutine
+        
+        subroutine qm_helper_vdw_geomgrad(qm, mm, qmg, mmg)
+            use mod_nonbonded, only: vdw_geomgrad_inter
+
+            use mod_mmpol, only: ommp_system
+
+            implicit none
+
+            type(ommp_system), intent(in) :: mm
+            type(ommp_qm_helper), intent(in) :: qm
+            real(rp), intent(inout) :: qmg(3,qm%qm_top%mm_atoms), &
+                                       mmg(3,mm%top%mm_atoms)
+        
+            if(mm%use_nonbonded .and. qm%use_nonbonded) then
+                call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, qmg, mmg)
+            end if
         end subroutine
 
         subroutine qm_helper_terminate(qm)

@@ -490,6 +490,30 @@ class OMMPQmHelper{
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             return ommp_qm_helper_vdw_energy(handler, s_handler);
         }
+        
+        std::map<std::string, py_cdarray> get_qmmm_vdw_geomgrad(OMMPSystem& s){
+            OMMP_SYSTEM_PRT s_handler = s.get_handler();
+            double *mmg = new double[s.get_mm_atoms()*3];
+            double *qmg = new double[get_qm_atoms()*3];
+            ommp_qm_helper_vdw_geomgrad(handler, s_handler, mmg, qmg);
+            
+            py::buffer_info bufinfo_mm(mmg, sizeof(double),
+                                       py::format_descriptor<double>::format(),
+                                       2,
+                                       {s.get_mm_atoms(), 3},
+                                       {3*sizeof(double), sizeof(double)});
+            py::buffer_info bufinfo_qm(qmg, sizeof(double),
+                                       py::format_descriptor<double>::format(),
+                                       2,
+                                       {get_qm_atoms(), 3},
+                                       {3*sizeof(double), sizeof(double)});
+            std::map<std::string, py_cdarray> res{
+                {"MM", py_cdarray(bufinfo_mm)},
+                {"QM", py_cdarray(bufinfo_qm)}
+            };
+
+            return res;
+        }
 
         void prepare_energy(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
@@ -731,6 +755,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              py::arg("radius_size")="diameter", 
              py::arg("radius_type")="r-min", 
              py::arg("eps_rule")="hhg")
+        .def("get_qmmm_vdw_geomgrad",
+             &OMMPQmHelper::get_qmmm_vdw_geomgrad,
+             "Compute the geometrical gradients of VdW interaction between QM and MM parts of the system",
+             py::arg("OMMP_system"))
         .def("get_qmmm_vdw_energy",
              &OMMPQmHelper::get_qmmm_vdw_energy,
              "Compute the VdW interaction energy between QM and MM parts of the system",

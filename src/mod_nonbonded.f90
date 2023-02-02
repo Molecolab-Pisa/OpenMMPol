@@ -38,7 +38,7 @@ module mod_nonbonded
    
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
-    public :: vdw_potential_inter!, vdw_geomgrad_inter
+    public :: vdw_potential_inter, vdw_geomgrad_inter
 
     contains
 
@@ -576,5 +576,95 @@ module mod_nonbonded
             end do
         end do
     end subroutine vdw_potential_inter
+    
+    subroutine vdw_geomgrad_inter(vdw1, vdw2, grad1, grad2)
+        !! Compute the dispersion repulsion energy for the whole system
+        !! using a double loop algorithm
+
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
+        !! Nonbonded data structure
+        real(rp), intent(inout) :: grad1(3,vdw1%top%mm_atoms), &
+                                   grad2(3,vdw1%top%mm_atoms)
+        !! Potential, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp, Rijg, f_i, f_j, &
+                    J_i(3), J_j(3)
+        type(ommp_topology_type), pointer :: top1, top2
+
+        top1 => vdw1%top
+        top2 => vdw2%top
+        
+        do i=1, top1%mm_atoms
+            if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
+                ci = top1%cmm(:,i)
+                ineigh_i = 0
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh_i = top1%conn(1)%ci(top1%conn(1)%ri(i))
+                f_i = vdw1%vdw_f(i)
+                ci = top1%cmm(:,ineigh_i) + (top1%cmm(:,i) - top1%cmm(:,ineigh_i)) &
+                     * f_i
+            endif
+                
+            do j=1, top2%mm_atoms
+                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
+                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
+                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
+                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
+            
+                if(abs(vdw2%vdw_f(j) - 1.0) < eps_rp) then
+                    cj = top2%cmm(:,j)
+                    ineigh_j = 0
+                else
+                    ! Scale factors are used only for monovalent atoms, in that
+                    ! case the vdw center is displaced along the axis connecting
+                    ! the atom to its neighbour
+                    if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
+                        call fatal_error("Scale factors are only expected &
+                                         & for monovalent atoms")
+                    end if
+                    ineigh_j = top2%conn(1)%ci(top2%conn(1)%ri(j))
+                    f_j = vdw2%vdw_f(j)
+
+                    cj = top2%cmm(:,ineigh_j) + &
+                         (top2%cmm(:,j) - top2%cmm(:,ineigh_j)) * f_j
+                endif
+                
+                call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+                call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
+
+                if(ineigh_i == 0) then
+                    grad1(:,i) =  grad1(:,i) + J_i * Rijg
+                else
+                    ! If the center is displaced, the forces should be 
+                    ! projected onto the two atoms that determine the
+                    ! position of the center
+                    grad1(:,i) = grad1(:,i) + J_i * Rijg * f_i
+                    grad1(:,ineigh_i) = grad1(:,ineigh_i) + J_i * Rijg * (1-f_i)
+                end if
+
+                if(ineigh_j == 0) then
+                    grad2(:,j) =  grad2(:,j) + J_j * Rijg
+                else
+                    ! If the center is displaced, the forces should be 
+                    ! projected onto the two atoms that determine the
+                    ! position of the center
+                    grad2(:,j) = grad2(:,j) + J_j * Rijg * f_j
+                    grad2(:,ineigh_j) = grad2(:,ineigh_j) + J_j * Rijg * (1-f_j)
+                endif
+            end do
+        end do
+    end subroutine
 
 end module mod_nonbonded
