@@ -453,6 +453,29 @@ class OMMPQmHelper{
             return;
         }
 
+        void set_vdw_parameters(py_cdarray eps, py_cdarray rad, py_cdarray fac,
+                                std::string vdw_type, std::string radius_rule,
+                                std::string radius_size, std::string radius_type,
+                                std::string eps_rule){
+
+            if(eps.ndim() != 1 || 
+               eps.shape(0) != get_qm_atoms()){
+                throw py::value_error("eps should be shaped [n_qm_atoms]");
+            }
+            if(rad.ndim() != 1 || 
+               eps.shape(0) != get_qm_atoms()){
+                throw py::value_error("eps should be shaped [n_qm_atoms]");
+            }
+            if(fac.ndim() != 1 || 
+               eps.shape(0) != get_qm_atoms()){
+                throw py::value_error("eps should be shaped [n_qm_atoms]");
+            }
+
+            ommp_qm_helper_init_vdw(handler, eps.data(), rad.data(), fac.data(),
+                                    vdw_type.c_str(), radius_rule.c_str(), radius_size.c_str(),
+                                    radius_type.c_str(), eps_rule.c_str());
+        }
+
         void prepare_energy(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             ommp_prepare_qm_ele_ene(s_handler, handler);
@@ -677,6 +700,17 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
              "OMMPQmHelper creator, takes the coordinates and nuclear charges of QM system as input.", 
              py::arg("coord_qm"), py::arg("charge_qm"), py::arg("z_qm"))
+        .def("set_vdw_parameters",
+             &OMMPQmHelper::set_vdw_parameters,
+             "Set the VdW parameters for the QM atoms, this is needed in geometry optimization and MD to avoid clashes between QM and MM atoms",
+             py::arg("eps"), 
+             py::arg("rad"), 
+             py::arg("fac"), 
+             py::arg("vdw_type")="buffered-14-7", 
+             py::arg("radius_rule")="cubic-mean", 
+             py::arg("radius_size")="diameter", 
+             py::arg("radius_type")="r-min", 
+             py::arg("eps_rule")="hhg")
         .def("prepare_energy",
              &OMMPQmHelper::prepare_energy, 
              "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",

@@ -49,7 +49,7 @@ module mod_qm_helper
     end type ommp_qm_helper
 
     public :: ommp_qm_helper
-    public :: qm_helper_init, qm_helper_terminate
+    public :: qm_helper_init, qm_helper_terminate, qm_helper_init_vdw
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -77,6 +77,34 @@ module mod_qm_helper
             qm%qm_top%atz = zqm
             qm%qm_top%atz_initialized = .true.
             qm%qqm = qqm
+
+            call guess_connectivity(qm%qm_top)
+
+        end subroutine
+
+        subroutine qm_helper_init_vdw(qm, eps, rad, fac, &
+                                      vdw_type, radius_rule, radius_size, &
+                                      radius_type, epsrule)
+            use mod_memory, only: mallocate
+            use mod_nonbonded, only: vdw_init
+
+            implicit none
+
+            type(ommp_qm_helper), intent(inout) :: qm
+            real(rp), intent(in) :: eps(qm%qm_top%mm_atoms)
+            real(rp), intent(in) :: rad(qm%qm_top%mm_atoms)
+            real(rp), intent(in) :: fac(qm%qm_top%mm_atoms)
+            character(len=*) :: vdw_type, radius_rule, radius_size, &
+                                radius_type, epsrule
+    
+            allocate(qm%qm_vdw)
+
+            call vdw_init(qm%qm_vdw, qm%qm_top, vdw_type, radius_rule, &
+                          radius_size, radius_type, epsrule)
+
+            qm%qm_vdw%vdw_e = eps
+            qm%qm_vdw%vdw_r = rad
+            qm%qm_vdw%vdw_f = fac
 
         end subroutine
 

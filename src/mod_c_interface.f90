@@ -781,6 +781,43 @@ module mod_ommp_C_interface
             call qm_helper_init(s, n, fcqm, fqqm, fzqm)
             c_prt = c_loc(s)
         end function
+        
+        subroutine C_ommp_qm_helper_init_vdw(pqm, peps, prad, pfac, &
+                                             cvdw_type, cradius_rule, &
+                                             cradius_size, cradius_type, &
+                                             ceps_rule) &
+                 bind(c, name='ommp_qm_helper_init_vdw')
+            
+            use mod_qm_helper, only: qm_helper_init_vdw, ommp_qm_helper
+            
+            implicit none
+
+            type(c_ptr), value, intent(in) :: pqm, peps, prad, pfac
+            character(kind=c_char), intent(in) :: cvdw_type(OMMP_STR_CHAR_MAX), &
+                                                  cradius_rule(OMMP_STR_CHAR_MAX), &
+                                                  cradius_size(OMMP_STR_CHAR_MAX), &
+                                                  cradius_type(OMMP_STR_CHAR_MAX), &
+                                                  ceps_rule(OMMP_STR_CHAR_MAX)
+            
+            type(ommp_qm_helper), pointer :: qm
+            character(len=OMMP_STR_CHAR_MAX) :: vdw_type, radius_rule, &
+                                                radius_size, radius_type, &
+                                                eps_rule
+            real(ommp_real), pointer :: eps(:), rad(:), fac(:)
+
+            call c_f_pointer(pqm, qm)
+            call c_f_pointer(peps, eps, [qm%qm_top%mm_atoms])
+            call c_f_pointer(prad, rad, [qm%qm_top%mm_atoms])
+            call c_f_pointer(pfac, fac, [qm%qm_top%mm_atoms])
+            call c2f_string(cvdw_type, vdw_type)
+            call c2f_string(cradius_rule, radius_rule)
+            call c2f_string(cradius_size, radius_size)
+            call c2f_string(cradius_type, radius_type)
+            call c2f_string(ceps_rule, eps_rule)
+
+            call qm_helper_init_vdw(qm, eps, rad, fac, vdw_type, radius_rule, &
+                                    radius_size, radius_type, eps_rule)
+        end subroutine
 
         subroutine C_ommp_prepare_qm_ele_ene(s_ptr, qm_ptr) &
                 bind(c, name='ommp_prepare_qm_ele_ene')
