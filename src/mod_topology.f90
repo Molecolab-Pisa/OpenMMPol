@@ -81,6 +81,8 @@ module mod_topology
             !! that does not have any.
             use mod_constants, only: angstrom2au
             use mod_io, only: fatal_error
+            use mod_memory, only: mallocate, mfree
+            use mod_adjacency_mat, only: adj_mat_from_conn
             
             implicit none
 
