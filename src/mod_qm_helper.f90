@@ -44,12 +44,14 @@ module mod_qm_helper
         !! Flag for [[E_m2n]]
         real(rp), allocatable :: E_m2n(:,:)
         !! Electrostatic potential of MMPol atoms at QM nuclei
+        logical :: use_nonbonded = .false.
         type(ommp_nonbonded_type), allocatable :: qm_vdw
         !! Structure to store VdW parameter for QM atoms
     end type ommp_qm_helper
 
     public :: ommp_qm_helper
-    public :: qm_helper_init, qm_helper_terminate, qm_helper_init_vdw
+    public :: qm_helper_init, qm_helper_terminate
+    public :: qm_helper_init_vdw, qm_helper_vdw_energy
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -105,6 +107,24 @@ module mod_qm_helper
             qm%qm_vdw%vdw_e = eps
             qm%qm_vdw%vdw_r = rad
             qm%qm_vdw%vdw_f = fac
+            qm%use_nonbonded = .true.
+
+        end subroutine
+
+        subroutine qm_helper_vdw_energy(qm, mm, V)
+            use mod_nonbonded, only: vdw_potential_inter
+            use mod_mmpol, only: ommp_system
+
+            implicit none
+
+            type(ommp_system), intent(in) :: mm
+            type(ommp_qm_helper), intent(in) :: qm
+            real(rp), intent(inout) :: V
+        
+            write(*,*) mm%use_nonbonded, qm%use_nonbonded
+            if(mm%use_nonbonded .and. qm%use_nonbonded) then
+                call vdw_potential_inter(mm%vdw, qm%qm_vdw, V)
+            end if
 
         end subroutine
 
@@ -120,6 +140,7 @@ module mod_qm_helper
             if(allocated(qm%qm_vdw)) then
                 call vdw_terminate(qm%qm_vdw)
                 deallocate(qm%qm_vdw)
+                qm%use_nonbonded = .false.
             end if
             if(allocated(qm%qm_top)) then
                 call topology_terminate(qm%qm_top)

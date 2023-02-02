@@ -476,6 +476,11 @@ class OMMPQmHelper{
                                     radius_type.c_str(), eps_rule.c_str());
         }
 
+        double get_qmmm_vdw_energy(OMMPSystem& s){
+            OMMP_SYSTEM_PRT s_handler = s.get_handler();
+            return ommp_qm_helper_vdw_energy(handler, s_handler);
+        }
+
         void prepare_energy(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             ommp_prepare_qm_ele_ene(s_handler, handler);
@@ -711,6 +716,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              py::arg("radius_size")="diameter", 
              py::arg("radius_type")="r-min", 
              py::arg("eps_rule")="hhg")
+        .def("get_qmmm_vdw_energy",
+             &OMMPQmHelper::get_qmmm_vdw_energy,
+             "Compute the VdW interaction energy between QM and MM parts of the system",
+             py::arg("OMMP_system"))
         .def("prepare_energy",
              &OMMPQmHelper::prepare_energy, 
              "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",

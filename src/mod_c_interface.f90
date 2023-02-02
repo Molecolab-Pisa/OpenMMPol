@@ -818,6 +818,25 @@ module mod_ommp_C_interface
             call qm_helper_init_vdw(qm, eps, rad, fac, vdw_type, radius_rule, &
                                     radius_size, radius_type, eps_rule)
         end subroutine
+        
+        function C_ommp_qm_helper_vdw_energy(qm_prt, s_prt) &
+                result(evdw) bind(c, name='ommp_qm_helper_vdw_energy')
+            
+            use mod_qm_helper, only: qm_helper_vdw_energy, ommp_qm_helper
+
+            implicit none
+
+            type(c_ptr), value :: qm_prt, s_prt
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+            real(ommp_real) :: evdw
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+
+            evdw = 0.0
+            call qm_helper_vdw_energy(qm, s, evdw)
+        end function
 
         subroutine C_ommp_prepare_qm_ele_ene(s_ptr, qm_ptr) &
                 bind(c, name='ommp_prepare_qm_ele_ene')

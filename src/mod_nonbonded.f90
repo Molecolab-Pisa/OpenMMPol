@@ -38,6 +38,7 @@ module mod_nonbonded
    
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
+    public :: vdw_potential_inter!, vdw_geomgrad_inter
 
     contains
 
@@ -508,5 +509,72 @@ module mod_nonbonded
             end do
         end do
     end subroutine
+    
+    subroutine vdw_potential_inter(vdw1, vdw2, V)
+        !! Compute the dispersion repulsion energy for the whole system
+        !! using a double loop algorithm
+
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
+        !! Nonbonded data structure
+        real(rp), intent(inout) :: V
+        !! Potential, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
+        type(ommp_topology_type), pointer :: top1, top2
+
+        top1 => vdw1%top
+        top2 => vdw2%top
+        
+        do i=1, top1%mm_atoms
+            if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
+                ci = top1%cmm(:,i)
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh = top1%conn(1)%ci(top1%conn(1)%ri(i))
+
+                ci = top1%cmm(:,ineigh) + (top1%cmm(:,i) - top1%cmm(:,ineigh)) &
+                     * vdw1%vdw_f(i)
+            endif
+                
+            do j=1, top2%mm_atoms
+                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
+                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
+                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
+                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
+            
+                if(abs(vdw2%vdw_f(j) - 1.0) < eps_rp) then
+                    cj = top2%cmm(:,j)
+                else
+                    ! Scale factors are used only for monovalent atoms, in that
+                    ! case the vdw center is displaced along the axis connecting
+                    ! the atom to its neighbour
+                    if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
+                        call fatal_error("Scale factors are only expected &
+                                         & for monovalent atoms")
+                    end if
+                    ineigh = top2%conn(1)%ci(top2%conn(1)%ri(j))
+
+                    cj = top2%cmm(:,ineigh) + &
+                         (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
+                endif
+                Rij = norm2(ci-cj)
+                
+                vtmp = 0.0
+                call vdw_buffered_7_14(Rij, Rij0, Eij, vtmp)
+                v = v + vtmp
+            end do
+        end do
+    end subroutine vdw_potential_inter
 
 end module mod_nonbonded
