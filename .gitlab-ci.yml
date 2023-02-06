@@ -41,7 +41,7 @@ cmake-config-intel:
         - CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
           CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
           FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort 
-          cmake -DCMAKE_BUILD_TYPE=RELEASE ..
+          cmake -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/intel/hdf5-1.12.2 ..
     artifacts:
         paths:
             - build_intel
@@ -59,7 +59,7 @@ cmake-config-nvidia:
         - CC=`which nvc` 
           CXX=`which nvcc`
           FC=`which nvfortran`
-          cmake -DCMAKE_BUILD_TYPE=RELEASE ..
+          cmake -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/nvidia/hdf5-1.12.2 ..
     artifacts:
         paths:
             - build_nvidia

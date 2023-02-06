@@ -129,6 +129,53 @@ module ommp_interface
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             end if
         end subroutine ommp_set_external_field
+        
+        subroutine ommp_potential_mmpol2ext(s, n, cext, v)
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_D2E, &
+                                          potential_M2E
+
+            implicit none
+            
+            type(ommp_system), intent(inout), target :: s
+            integer(ommp_integer), intent(in) :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            call potential_M2E(s%eel, cext, v)
+            call potential_D2E(s%eel, cext, v)
+        end subroutine
+        
+        subroutine ommp_potential_pol2ext(s, n, cext, v) 
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_D2E
+
+            implicit none
+            
+            type(ommp_system), intent(inout), target :: s
+            integer(ommp_integer), intent(in) :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            call potential_D2E(s%eel, cext, v)
+        end subroutine
+        
+        subroutine ommp_potential_mm2ext(s, n, cext, v)
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: potential_M2E
+
+            implicit none
+            
+            type(ommp_system), intent(inout), target :: s
+            integer(ommp_integer), intent(in) :: n
+            real(ommp_real), intent(in) :: cext(3,n)
+            real(ommp_real), intent(inout) :: v(n)
+            
+            call potential_M2E(s%eel, cext, v)
+        end subroutine
 
         function ommp_get_polelec_energy(sys_obj) result(ene)
             

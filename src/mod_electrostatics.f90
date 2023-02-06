@@ -1789,13 +1789,16 @@ module mod_electrostatics
             interaction = 'S' !Static-static interaction is named S
         else
             ! Use static multipoles-IPD screening rules
-            if(in_field == 'P') then
+            if(in_field == 'P' .and. amoeba) then
                 myscale = eel%pscale
-                if(amoeba) myscale_intra = eel%pscale_intra
+                myscale_intra = eel%pscale_intra
                 field = 'P'
             else if(in_field == 'D' .and. amoeba) then
                 myscale = eel%dscale
                 field = 'D'
+            else if(.not. amoeba) then
+                myscale = eel%pscale
+                field = 'P'
             else
                 call fatal_error('Unexpected value of field in screening rules')
             end if
