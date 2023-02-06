@@ -94,7 +94,6 @@ module mod_geomgrad
         subroutine polelec_geomgrad(s, grad)
             !use mod_electrostatics, only: prepare_M2D, ommp_electrostatics_type
             use mod_polarization, only: polarization
-            use mod_constants, only: OMMP_AMOEBA_D, OMMP_AMOEBA_P
             use mod_electrostatics
 
             implicit none
@@ -160,48 +159,48 @@ module mod_geomgrad
                 do i=1, eel%pol_atoms
                     ! \mu_D Egrd_P
                     grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
-                                  + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_xx_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_xx_,i,OMMP_AMOEBA_P)) &
-                                  + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_xy_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_xy_,i,OMMP_AMOEBA_P)) &
-                                  + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_xz_,i,OMMP_AMOEBA_P) & 
-                                                  + eel%Egrd_D2D(_xz_,i,OMMP_AMOEBA_P)) 
+                                  + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_xx_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_xx_,i,_amoeba_P_)) &
+                                  + 0.5*eel%ipd(_y_,i,_amoeba_D_) * (eel%Egrd_M2D(_xy_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_xy_,i,_amoeba_P_)) &
+                                  + 0.5*eel%ipd(_z_,i,_amoeba_D_) * (eel%Egrd_M2D(_xz_,i,_amoeba_P_) & 
+                                                  + eel%Egrd_D2D(_xz_,i,_amoeba_P_)) 
                     grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
-                                  + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_yx_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_yx_,i,OMMP_AMOEBA_P)) &
-                                  + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_yy_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_yy_,i,OMMP_AMOEBA_P)) &
-                                  + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_yz_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_yz_,i,OMMP_AMOEBA_P)) 
+                                  + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_yx_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_yx_,i,_amoeba_P_)) &
+                                  + 0.5*eel%ipd(_y_,i,_amoeba_D_) * (eel%Egrd_M2D(_yy_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_yy_,i,_amoeba_P_)) &
+                                  + 0.5*eel%ipd(_z_,i,_amoeba_D_) * (eel%Egrd_M2D(_yz_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_yz_,i,_amoeba_P_)) 
                     grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
-                                  + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_zx_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_zx_,i,OMMP_AMOEBA_P)) &
-                                  + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_zy_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_zy_,i,OMMP_AMOEBA_P)) &
-                                  + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_D) * (eel%Egrd_M2D(_zz_,i,OMMP_AMOEBA_P) &
-                                                  + eel%Egrd_D2D(_zz_,i,OMMP_AMOEBA_P))
+                                  + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_zx_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_zx_,i,_amoeba_P_)) &
+                                  + 0.5*eel%ipd(_y_,i,_amoeba_D_) * (eel%Egrd_M2D(_zy_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_zy_,i,_amoeba_P_)) &
+                                  + 0.5*eel%ipd(_z_,i,_amoeba_D_) * (eel%Egrd_M2D(_zz_,i,_amoeba_P_) &
+                                                  + eel%Egrd_D2D(_zz_,i,_amoeba_P_))
                     ! \mu_P Egrd_D
                     grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
-                                  + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_xx_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_xx_,i,OMMP_AMOEBA_D)) &
-                                  + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_xy_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_xy_,i,OMMP_AMOEBA_D)) &
-                                  + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_xz_,i,OMMP_AMOEBA_D) & 
-                                                  + eel%Egrd_D2D(_xz_,i,OMMP_AMOEBA_D)) 
+                                  + 0.5*eel%ipd(_x_,i,_amoeba_P_) * (eel%Egrd_M2D(_xx_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_xx_,i,_amoeba_D_)) &
+                                  + 0.5*eel%ipd(_y_,i,_amoeba_P_) * (eel%Egrd_M2D(_xy_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_xy_,i,_amoeba_D_)) &
+                                  + 0.5*eel%ipd(_z_,i,_amoeba_P_) * (eel%Egrd_M2D(_xz_,i,_amoeba_D_) & 
+                                                  + eel%Egrd_D2D(_xz_,i,_amoeba_D_)) 
                     grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
-                                  + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_yx_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_yx_,i,OMMP_AMOEBA_D)) &
-                                  + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_yy_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_yy_,i,OMMP_AMOEBA_D)) &
-                                  + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_yz_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_yz_,i,OMMP_AMOEBA_D)) 
+                                  + 0.5*eel%ipd(_x_,i,_amoeba_P_) * (eel%Egrd_M2D(_yx_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_yx_,i,_amoeba_D_)) &
+                                  + 0.5*eel%ipd(_y_,i,_amoeba_P_) * (eel%Egrd_M2D(_yy_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_yy_,i,_amoeba_D_)) &
+                                  + 0.5*eel%ipd(_z_,i,_amoeba_P_) * (eel%Egrd_M2D(_yz_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_yz_,i,_amoeba_D_)) 
                     grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
-                                  + 0.5*eel%ipd(_x_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_zx_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_zx_,i,OMMP_AMOEBA_D)) &
-                                  + 0.5*eel%ipd(_y_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_zy_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_zy_,i,OMMP_AMOEBA_D)) &
-                                  + 0.5*eel%ipd(_z_,i,OMMP_AMOEBA_P) * (eel%Egrd_M2D(_zz_,i,OMMP_AMOEBA_D) &
-                                                  + eel%Egrd_D2D(_zz_,i,OMMP_AMOEBA_D))
+                                  + 0.5*eel%ipd(_x_,i,_amoeba_P_) * (eel%Egrd_M2D(_zx_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_zx_,i,_amoeba_D_)) &
+                                  + 0.5*eel%ipd(_y_,i,_amoeba_P_) * (eel%Egrd_M2D(_zy_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_zy_,i,_amoeba_D_)) &
+                                  + 0.5*eel%ipd(_z_,i,_amoeba_P_) * (eel%Egrd_M2D(_zz_,i,_amoeba_D_) &
+                                                  + eel%Egrd_D2D(_zz_,i,_amoeba_D_))
                 end do
             else
                 do i=1, eel%top%mm_atoms

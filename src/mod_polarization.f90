@@ -1,3 +1,4 @@
+#include "f_cart_components.h"
 module mod_polarization
     !! Module to handle the calculation of the induced dipoles; this means find
     !! the solution of the polarization problem. The polarization problem is 
@@ -68,9 +69,7 @@ module mod_polarization
                                  OMMP_SOLVER_DEFAULT, &
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
-                                 OMMP_SOLVER_INVERSION, &
-                                 OMMP_AMOEBA_P, &
-                                 OMMP_AMOEBA_D 
+                                 OMMP_SOLVER_INVERSION
       
         implicit none
 
@@ -168,10 +167,10 @@ module mod_polarization
         ! direct field for Wang and Amoeba
         ! polarization field just for Amoeba
         if(amoeba) then
-            if(ipd_mask(OMMP_AMOEBA_D)) &
-                e_vec(:, OMMP_AMOEBA_D) = reshape(e(:,:,OMMP_AMOEBA_D), (/ n /))
-            if(ipd_mask(OMMP_AMOEBA_P)) &
-                e_vec(:, OMMP_AMOEBA_P) = reshape(e(:,:,OMMP_AMOEBA_P), (/ n /))
+            if(ipd_mask(_amoeba_D_)) &
+                e_vec(:, _amoeba_D_) = reshape(e(:,:,_amoeba_D_), (/ n /))
+            if(ipd_mask(_amoeba_P_)) &
+                e_vec(:, _amoeba_P_) = reshape(e(:,:,_amoeba_P_), (/ n /))
         else
             e_vec(:, 1) = reshape(e(:,:, 1), (/ n /))
         end if
@@ -182,12 +181,12 @@ module mod_polarization
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
             if(amoeba) then
-                if(ipd_mask(OMMP_AMOEBA_D)) &
-                    call PolVec(eel, e_vec(:, OMMP_AMOEBA_D), &
-                                ipd0(:, OMMP_AMOEBA_D))
-                if(ipd_mask(OMMP_AMOEBA_P)) &
-                    call PolVec(eel, e_vec(:, OMMP_AMOEBA_P), &
-                                ipd0(:, OMMP_AMOEBA_P))
+                if(ipd_mask(_amoeba_D_)) &
+                    call PolVec(eel, e_vec(:, _amoeba_D_), &
+                                ipd0(:, _amoeba_D_))
+                if(ipd_mask(_amoeba_P_)) &
+                    call PolVec(eel, e_vec(:, _amoeba_P_), &
+                                ipd0(:, _amoeba_P_))
             else
                 call PolVec(eel, e_vec(:,1), ipd0(:,1))
             end if
@@ -211,15 +210,15 @@ module mod_polarization
                 precond => PolVec
 
                 if(amoeba) then
-                    if(ipd_mask(OMMP_AMOEBA_D)) &
+                    if(ipd_mask(_amoeba_D_)) &
                         call conjugate_gradient_solver(n, &
-                                                       e_vec(:,OMMP_AMOEBA_D), &
-                                                       ipd0(:,OMMP_AMOEBA_D), &
+                                                       e_vec(:,_amoeba_D_), &
+                                                       ipd0(:,_amoeba_D_), &
                                                        eel, matvec, precond)
-                    if(ipd_mask(OMMP_AMOEBA_P)) &
+                    if(ipd_mask(_amoeba_P_)) &
                         call conjugate_gradient_solver(n, &
-                                                       e_vec(:,OMMP_AMOEBA_P), &
-                                                       ipd0(:,OMMP_AMOEBA_P), &
+                                                       e_vec(:,_amoeba_P_), &
+                                                       ipd0(:,_amoeba_P_), &
                                                        eel, matvec, precond)
                 else
                     call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), &
@@ -234,15 +233,15 @@ module mod_polarization
                 end do
 
                 if(amoeba) then
-                    if(ipd_mask(OMMP_AMOEBA_D)) &
+                    if(ipd_mask(_amoeba_D_)) &
                         call jacobi_diis_solver(n, &
-                                                e_vec(:,OMMP_AMOEBA_D), &
-                                                ipd0(:,OMMP_AMOEBA_D), &
+                                                e_vec(:,_amoeba_D_), &
+                                                ipd0(:,_amoeba_D_), &
                                                 eel, matvec, inv_diag)
-                    if(ipd_mask(OMMP_AMOEBA_P)) &
+                    if(ipd_mask(_amoeba_P_)) &
                         call jacobi_diis_solver(n, &
-                                                e_vec(:,OMMP_AMOEBA_P), &
-                                                ipd0(:,OMMP_AMOEBA_P), &
+                                                e_vec(:,_amoeba_P_), &
+                                                ipd0(:,_amoeba_P_), &
                                                 eel, matvec, inv_diag)
                 else
                     call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), &
@@ -252,14 +251,14 @@ module mod_polarization
 
             case(OMMP_SOLVER_INVERSION)
                 if(amoeba) then
-                    if(ipd_mask(OMMP_AMOEBA_D)) &
+                    if(ipd_mask(_amoeba_D_)) &
                         call inversion_solver(n, &
-                                              e_vec(:,OMMP_AMOEBA_D), &
-                                              ipd0(:,OMMP_AMOEBA_D), eel%TMat)
-                    if(ipd_mask(OMMP_AMOEBA_P)) &
+                                              e_vec(:,_amoeba_D_), &
+                                              ipd0(:,_amoeba_D_), eel%TMat)
+                    if(ipd_mask(_amoeba_P_)) &
                         call inversion_solver(n, &
-                                              e_vec(:,OMMP_AMOEBA_P), &
-                                              ipd0(:,OMMP_AMOEBA_P), eel%TMat)
+                                              e_vec(:,_amoeba_P_), &
+                                              ipd0(:,_amoeba_P_), eel%TMat)
                 else
                     call inversion_solver(n, e_vec(:,1), ipd0(:,1), eel%TMat)
                 end if

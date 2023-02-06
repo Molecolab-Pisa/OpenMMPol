@@ -1,3 +1,4 @@
+#include "f_cart_components.h"
 ! Wrapper function for open-mmpol library
 module ommp_interface
     !! The interface of the library, basically all the operation performed
@@ -20,7 +21,6 @@ module ommp_interface
                              OMMP_SOLVER_INVERSION, OMMP_SOLVER_DEFAULT, &
                              OMMP_MATV_INCORE, OMMP_MATV_DIRECT, &
                              OMMP_MATV_DEFAULT, &
-                             OMMP_AMOEBA_D, OMMP_AMOEBA_P, &
                              OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
                              OMMP_AU2KCALMOL => au2kcalmol

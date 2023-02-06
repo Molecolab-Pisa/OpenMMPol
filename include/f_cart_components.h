@@ -1,6 +1,11 @@
 #ifndef __F_CART_COMPONENTS__
 #define __F_CART_COMPONENTS__
 
+#define _amoeba_D_ 1
+!! Index of direct (D) field and dipoles in AMOEBA FF (true dipoles)
+#define _amoeba_P_ 2
+!! Index of polarization (P) field and dipoles in AMOEBA FF (Lagrange multiplier)
+
 #define _x_ 1
 #define _y_ 2
 #define _z_ 3

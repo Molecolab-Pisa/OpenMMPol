@@ -365,7 +365,6 @@ module mod_electrostatics
         !! This function computes the interaction energy of 
         !! static electric multipoles
         use mod_memory, only: mallocate, mfree
-        use mod_constants, only: OMMP_AMOEBA_D, OMMP_AMOEBA_P
 
         implicit none
 
@@ -384,8 +383,8 @@ module mod_electrostatics
         
         if(eel%amoeba) then
             do i=1, 3
-                eMM = eMM - dot_product(eel%ipd(i,:,OMMP_AMOEBA_D), &
-                                        eel%E_M2D(i,:,OMMP_AMOEBA_P))
+                eMM = eMM - dot_product(eel%ipd(i,:,_amoeba_D_), &
+                                        eel%E_M2D(i,:,_amoeba_P_))
             end do
         else
             do i=1, 3
@@ -1143,7 +1142,6 @@ module mod_electrostatics
         !! Computes the electric field of a trial set of induced point dipoles
         !! at polarizable sites. This is intended to be used as matrix-vector
         !! routine in the solution of the linear system.
-        use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
@@ -1158,9 +1156,9 @@ module mod_electrostatics
 
         knd = 1 ! Default
         if(in_kind == 'P') then
-            knd = OMMP_AMOEBA_P
+            knd = _amoeba_P_
         elseif(in_kind == 'D') then 
-            knd = OMMP_AMOEBA_D
+            knd = _amoeba_D_
         elseif(eel%amoeba) then
             call fatal_error("Unrecognized interaction '"//in_kind//"' in elec&
                              &_prop_D2D.")
@@ -1223,8 +1221,6 @@ module mod_electrostatics
         !! sites. This is only intended to be used to build the RHS of the 
         !! linear system. This field is modified by the indroduction of the 
         !! damped kernels and by the connectivity-based screening rules.
-
-        use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
 
         implicit none
 
@@ -1295,29 +1291,29 @@ module mod_electrostatics
 
                         if(to_do_p) then
                             if(to_scale_p) then
-                                if(do_V) eel%V_M2D(j, OMMP_AMOEBA_P) = eel%V_M2D(j, OMMP_AMOEBA_P) + tmpV * scalf_p
-                                if(do_E) eel%E_M2D(:, j, OMMP_AMOEBA_P) = eel%E_M2D(:, j, OMMP_AMOEBA_P) + tmpE * scalf_p
-                                if(do_Egrd) eel%Egrd_M2D(:, j, OMMP_AMOEBA_P) = eel%Egrd_M2D(:, j, OMMP_AMOEBA_P) + tmpEgr * scalf_p
-                                if(do_EHes) eel%EHes_M2D(:, j, OMMP_AMOEBA_P) = eel%EHes_M2D(:, j, OMMP_AMOEBA_P) + tmpHE * scalf_p
+                                if(do_V) eel%V_M2D(j, _amoeba_P_) = eel%V_M2D(j, _amoeba_P_) + tmpV * scalf_p
+                                if(do_E) eel%E_M2D(:, j, _amoeba_P_) = eel%E_M2D(:, j, _amoeba_P_) + tmpE * scalf_p
+                                if(do_Egrd) eel%Egrd_M2D(:, j, _amoeba_P_) = eel%Egrd_M2D(:, j, _amoeba_P_) + tmpEgr * scalf_p
+                                if(do_EHes) eel%EHes_M2D(:, j, _amoeba_P_) = eel%EHes_M2D(:, j, _amoeba_P_) + tmpHE * scalf_p
                             else
-                                if(do_V) eel%V_M2D(j, OMMP_AMOEBA_P) = eel%V_M2D(j, OMMP_AMOEBA_P) + tmpV 
-                                if(do_E) eel%E_M2D(:, j, OMMP_AMOEBA_P) = eel%E_M2D(:, j, OMMP_AMOEBA_P) + tmpE
-                                if(do_Egrd) eel%Egrd_M2D(:, j, OMMP_AMOEBA_P) = eel%Egrd_M2D(:, j, OMMP_AMOEBA_P) + tmpEgr
-                                if(do_EHes) eel%EHes_M2D(:, j, OMMP_AMOEBA_P) = eel%EHes_M2D(:, j, OMMP_AMOEBA_P) + tmpHE
+                                if(do_V) eel%V_M2D(j, _amoeba_P_) = eel%V_M2D(j, _amoeba_P_) + tmpV 
+                                if(do_E) eel%E_M2D(:, j, _amoeba_P_) = eel%E_M2D(:, j, _amoeba_P_) + tmpE
+                                if(do_Egrd) eel%Egrd_M2D(:, j, _amoeba_P_) = eel%Egrd_M2D(:, j, _amoeba_P_) + tmpEgr
+                                if(do_EHes) eel%EHes_M2D(:, j, _amoeba_P_) = eel%EHes_M2D(:, j, _amoeba_P_) + tmpHE
                             end if
                         end if
 
                         if(to_do_d) then
                             if(to_scale_d) then
-                                if(do_V) eel%V_M2D(j, OMMP_AMOEBA_D) = eel%V_M2D(j, OMMP_AMOEBA_D) + tmpV * scalf_d
-                                if(do_E) eel%E_M2D(:, j, OMMP_AMOEBA_D) = eel%E_M2D(:, j, OMMP_AMOEBA_D) + tmpE * scalf_d
-                                if(do_Egrd) eel%Egrd_M2D(:, j, OMMP_AMOEBA_D) = eel%Egrd_M2D(:, j, OMMP_AMOEBA_D) + tmpEgr * scalf_d
-                                if(do_EHes) eel%EHes_M2D(:, j, OMMP_AMOEBA_D) = eel%EHes_M2D(:, j, OMMP_AMOEBA_D) + tmpHE * scalf_d
+                                if(do_V) eel%V_M2D(j, _amoeba_D_) = eel%V_M2D(j, _amoeba_D_) + tmpV * scalf_d
+                                if(do_E) eel%E_M2D(:, j, _amoeba_D_) = eel%E_M2D(:, j, _amoeba_D_) + tmpE * scalf_d
+                                if(do_Egrd) eel%Egrd_M2D(:, j, _amoeba_D_) = eel%Egrd_M2D(:, j, _amoeba_D_) + tmpEgr * scalf_d
+                                if(do_EHes) eel%EHes_M2D(:, j, _amoeba_D_) = eel%EHes_M2D(:, j, _amoeba_D_) + tmpHE * scalf_d
                             else
-                                if(do_V) eel%V_M2D(j, OMMP_AMOEBA_D) = eel%V_M2D(j, OMMP_AMOEBA_D) + tmpV 
-                                if(do_E) eel%E_M2D(:, j, OMMP_AMOEBA_D) = eel%E_M2D(:, j, OMMP_AMOEBA_D) + tmpE
-                                if(do_Egrd) eel%Egrd_M2D(:, j, OMMP_AMOEBA_D) = eel%Egrd_M2D(:, j, OMMP_AMOEBA_D) + tmpEgr
-                                if(do_EHes) eel%EHes_M2D(:, j, OMMP_AMOEBA_D) = eel%EHes_M2D(:, j, OMMP_AMOEBA_D) + tmpHE
+                                if(do_V) eel%V_M2D(j, _amoeba_D_) = eel%V_M2D(j, _amoeba_D_) + tmpV 
+                                if(do_E) eel%E_M2D(:, j, _amoeba_D_) = eel%E_M2D(:, j, _amoeba_D_) + tmpE
+                                if(do_Egrd) eel%Egrd_M2D(:, j, _amoeba_D_) = eel%Egrd_M2D(:, j, _amoeba_D_) + tmpEgr
+                                if(do_EHes) eel%EHes_M2D(:, j, _amoeba_D_) = eel%EHes_M2D(:, j, _amoeba_D_) + tmpHE
                             end if
                         end if
                     end if
@@ -1364,7 +1360,6 @@ module mod_electrostatics
     end subroutine
     
     subroutine elec_prop_D2M(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
-        use mod_constants, only : OMMP_AMOEBA_P, OMMP_AMOEBA_D
 
         implicit none
 
@@ -1391,10 +1386,10 @@ module mod_electrostatics
             call fatal_error("Unrecognized field '"//in_kind//"' for AMOEBA &
                              &force-field.")
         elseif(eel%amoeba .and. in_kind == 'P') then
-            knd = OMMP_AMOEBA_P
+            knd = _amoeba_P_
             screening_type = 'D'
         elseif(eel%amoeba .and. in_kind == 'D') then
-            knd = OMMP_AMOEBA_D
+            knd = _amoeba_D_
             screening_type = 'P'
         elseif(.not. eel%amoeba) then
             screening_type = '-'
@@ -1496,8 +1491,6 @@ module mod_electrostatics
         !! point dipoles to a set of arbitrary coordinates, without applying
         !! any screening rules. Note: for AMOEBA D dipoles should be used. 
         
-        use mod_constants, only: OMMP_AMOEBA_D
-
         implicit none
 
         type(ommp_electrostatics_type), intent(in) :: eel
@@ -1519,7 +1512,7 @@ module mod_electrostatics
                     call coulomb_kernel(dr, 2, kernel(1:2))
                     tmpV = 0.0_rp
                     
-                    call mu_elec_prop(eel%ipd(:,i,OMMP_AMOEBA_D), &
+                    call mu_elec_prop(eel%ipd(:,i,_amoeba_D_), &
                                       dr, kernel, .true., tmpV, &
                                       .false., tmpE, .false., tmpEgr, & 
                                       .false., tmpHE)
@@ -1607,7 +1600,6 @@ module mod_electrostatics
         !! This subroutine computes the potential generated by the static
         !! multipoles to a set of arbitrary coordinates, without applying
         !! any screening rules.
-        use mod_constants, only: OMMP_AMOEBA_P, OMMP_AMOEBA_D 
         
         implicit none
 
@@ -1630,7 +1622,7 @@ module mod_electrostatics
                     call coulomb_kernel(dr, 3, kernel)
                     tmpE = 0.0_rp
                     !TODO
-                    call mu_elec_prop(0.5*(eel%ipd(:,i, OMMP_AMOEBA_P) + eel%ipd(:,i, OMMP_AMOEBA_D)), dr, kernel, .false., tmpV, &
+                    call mu_elec_prop(0.5*(eel%ipd(:,i, _amoeba_P_) + eel%ipd(:,i, _amoeba_D_)), dr, kernel, .false., tmpV, &
                                       .true., tmpE, .false., tmpEgr, & 
                                       .false., tmpHE)
 
