@@ -380,6 +380,25 @@ module ommp_interface
             grd = 0.0
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
         end subroutine
+        
+        subroutine ommp_get_full_geomgrad(s, grd)
+            use mod_memory, only: mallocate
+
+            implicit none
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            real(ommp_real), allocatable :: tmpg(:,:)
+
+            call mallocate('ommp_get_full_geomgrad [tmpg]', 3, s%top%mm_atoms, &
+                           tmpg)
+
+            grd = 0.0
+            call ommp_fixedelec_geomgrad(s, grd)
+            call ommp_polelec_geomgrad(s, grd)
+            call ommp_vdw_geomgrad(s, tmpg)
+            grd = grd + tmpg
+
+        end subroutine
 
 #ifdef USE_HDF5
         subroutine ommp_init_hdf5(s, filename, namespace)

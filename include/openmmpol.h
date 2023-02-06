@@ -86,6 +86,8 @@ extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 
 extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
+extern void ommp_full_geomgrad(OMMP_SYSTEM_PRT, double *);
+
 extern void ommp_fixedelec_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_polelec_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_rotation_geomgrad(OMMP_SYSTEM_PRT, const double *, const double *, double *);
