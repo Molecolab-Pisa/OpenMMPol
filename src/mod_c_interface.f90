@@ -630,6 +630,45 @@ module mod_ommp_C_interface
             if(s%use_bonded) call tortor_potential(s%bds, ett)
         end function
         
+        function C_ommp_get_full_ele_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_ele_energy')
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_ele_energy(sys_obj) 
+        end function
+        
+        function C_ommp_get_full_bnd_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_bnd_energy')
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_bnd_energy(sys_obj) 
+        end function
+        
+        function C_ommp_get_full_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_energy')
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_energy(sys_obj)
+        end function
+        
         function C_ommp_get_vdw_energy(s_prt) &
                 result(evdw) bind(c, name='ommp_get_vdw_energy')
             

@@ -165,6 +165,18 @@ module ommp_interface
 
         end function
         
+        function ommp_get_full_ele_energy(sys_obj) result(ene)
+
+            implicit none
+            
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ene
+
+            ene = ommp_get_fixedelec_energy(sys_obj)
+            ene = ene + ommp_get_polelec_energy(sys_obj)
+
+        end function
+        
         function ommp_get_vdw_energy(sys_obj) result(evdw)
             
             use mod_nonbonded, only: vdw_potential
@@ -294,20 +306,60 @@ module ommp_interface
             if(sys_obj%use_bonded) call strtor_potential(sys_obj%bds, est)
         
         end function
-        
+
         function ommp_get_angtor_energy(sys_obj) result(eat)
-            
+         
             use mod_bonded, only: angtor_potential
-            
+             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eat
 
             eat = 0.0
             if(sys_obj%use_bonded) call angtor_potential(sys_obj%bds, eat)
+
+        end function
+        
+        function ommp_get_full_bnd_energy(sys_obj) result(ene)
+            
+            use mod_bonded, only: bond_potential, angtor_potential, &
+                                  strbnd_potential, urey_potential, &
+                                  opb_potential, pitors_potential, &
+                                  torsion_potential, tortor_potential, &
+                                  strtor_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ene
+
+            ene = 0.0
+            
+            if(sys_obj%use_bonded) then
+                call bond_potential(sys_obj%bds, ene)
+                call angtor_potential(sys_obj%bds, ene)
+                call strbnd_potential(sys_obj%bds, ene)
+                call urey_potential(sys_obj%bds, ene)
+                call opb_potential(sys_obj%bds, ene)
+                call pitors_potential(sys_obj%bds, ene)
+                call torsion_potential(sys_obj%bds, ene)
+                call tortor_potential(sys_obj%bds, ene)
+                call strtor_potential(sys_obj%bds, ene)
+            end if
         
         end function
         
+        function ommp_get_full_energy(sys_obj) result(ene)
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ene
+
+            ene =  ommp_get_vdw_energy(sys_obj)
+            ene = ene + ommp_get_full_ele_energy(sys_obj)
+            ene = ene + ommp_get_full_bnd_energy(sys_obj)
+        
+        end function
+
         subroutine ommp_update_coordinates(s, new_c)
             use mod_mmpol, only: update_coordinates
             

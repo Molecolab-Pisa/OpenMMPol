@@ -415,6 +415,17 @@ class OMMPSystem{
             return ommp_get_vdw_energy(handler);
         }
 
+        double get_full_electrostatic_energy(void){
+            return ommp_get_full_ele_energy(handler);
+        }
+        
+        double get_full_bonded_energy(void){
+            return ommp_get_full_bnd_energy(handler);
+        }
+        
+        double get_full_energy(void){
+            return ommp_get_full_energy(handler);
+        }
         OMMP_SYSTEM_PRT get_handler(void){
             return handler;
         }
@@ -716,6 +727,9 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def("get_strtor_energy", &OMMPSystem::get_strtor_energy, "Compute the energy of stretching torsion couplings")
         .def("get_angtor_energy", &OMMPSystem::get_angtor_energy, "Compute the energy of bending torsion couplings")
         .def("get_tortor_energy", &OMMPSystem::get_tortor_energy, "Compute the energy of torsion-torsion cmap")
+        .def("get_full_bonded_energy", &OMMPSystem::get_full_bonded_energy, "Compute the sum of all bonded components")
+        .def("get_full_electrostatic_energy", &OMMPSystem::get_full_electrostatic_energy, "Compute the sum of all electrostatic components")
+        .def("get_full_energy", &OMMPSystem::get_full_energy, "Compute the sum of all energy components")
         
         .def("get_vdw_energy", &OMMPSystem::get_vdw_energy, "Compute the energy of Van der Waals terms")
         .def("get_fixedelec_energy", &OMMPSystem::get_fixedelec_energy, "Compute the energy of fixed electrostatics")

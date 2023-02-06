@@ -67,6 +67,9 @@ extern double ommp_get_pitors_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_torsion_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_tortor_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_urey_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_full_bnd_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_full_ele_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_full_energy(OMMP_SYSTEM_PRT);
 
 extern bool ommp_ff_is_amoeba(OMMP_SYSTEM_PRT);
 
