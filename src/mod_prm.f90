@@ -24,11 +24,75 @@ module mod_prm
     public :: assign_bond, assign_angle, assign_urey, assign_strbnd, assign_opb
     public :: assign_pitors, assign_torsion, assign_tortors, assign_angtor
     public :: assign_strtor
-    public :: check_keyword
+    public :: check_keyword, get_prm_ff_type
 
     contains 
     
 #include "prm_keywords.f90"
+
+    function get_prm_ff_type(prm_file) result(ff_type)
+        !! This function is intended to check if the ff described by prm_type
+        !! is AMOEBA (or amoeba-like) or AMBER or FF of another kind.
+        !! A FF is considered to be AMOEBA if: it contains multipole keywords 
+        !! (and no charge keywords) and polarization MUTUAL.
+        !! A FF is considered do be AMBER if contains charge keyword and no
+        !! multipole keyword.
+        use mod_constants, only: OMMP_FF_AMBER, &
+                                 OMMP_FF_AMOEBA, &
+                                 OMMP_FF_UNKNOWN
+        use mod_io, only: fatal_error
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: i, ist, nmultipole, ncharge, tokb, toke, ff_type
+        character(len=OMMP_STR_CHAR_MAX) :: line, polarization
+        
+        ! open tinker prm file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist, &
+             action='read')
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated 
+        ist = 0
+        nmultipole = 0
+        ncharge = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:7) == 'charge ') ncharge = ncharge + 1
+            if(line(:10) == 'multipole ') nmultipole = nmultipole + 1
+            if(line(:13) == 'polarization ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), '(A)') polarization
+            end if
+        end do
+
+        close(iof_prminp)
+
+        if(nmultipole > 0 .and. &
+           ncharge == 0 .and. &
+           polarization(:6) == 'mutual') then
+           ff_type = OMMP_FF_AMOEBA
+        else if(nmultipole == 0 .and. &
+                ncharge > 0) then
+            ff_type = OMMP_FF_AMBER
+        else
+            ff_type = OMMP_FF_UNKNOWN
+        end if
+    end function
 
     subroutine read_atom_cards(top, prm_file)
         use mod_memory, only: mallocate, mfree

@@ -57,6 +57,10 @@ module mod_constants
     !! Wang AL force field id
     integer(ip), parameter :: OMMP_FF_WANG_DL = 0_ip
     !! Wang DL force field id
+    integer(ip), parameter :: OMMP_FF_AMBER = 0_ip
+    !! Amber-like force field
+    integer(ip), parameter :: OMMP_FF_UNKNOWN = -1_ip
+    !! Unknown force field
 
     integer(ip), parameter :: OMMP_SOLVER_CG = 1_ip 
     !! Conjugate gradients solver id
