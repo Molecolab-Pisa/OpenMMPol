@@ -45,8 +45,9 @@ module mod_mmpol
         !! Performs all the memory allocation and vector initialization
         !! needed to run the openMMPol library
         
+        use mod_constants, only: OMMP_FF_AMBER, OMMP_FF_AMOEBA, OMMP_FF_UNKNOWN
         use mod_electrostatics, only: electrostatics_init
-        use mod_io, only: print_matrix
+        use mod_io, only: print_matrix, fatal_error
 
         implicit none
 
@@ -65,11 +66,14 @@ module mod_mmpol
         allocate(sys_obj%eel)
         
         ! FF related settings
+        if(l_ff_type == OMMP_FF_UNKNOWN) then
+            call fatal_error("Cannot initialize an UNKNOWN forcefield!")
+        end if
         sys_obj%ff_type = l_ff_type
         
-        if(sys_obj%ff_type == 1) then
+        if(sys_obj%ff_type == OMMP_FF_AMOEBA) then
             sys_obj%amoeba = .true.
-        else if(sys_obj%ff_type == 0) then
+        else if(sys_obj%ff_type == OMMP_FF_AMBER) then
             sys_obj%amoeba = .false.
         end if
         
