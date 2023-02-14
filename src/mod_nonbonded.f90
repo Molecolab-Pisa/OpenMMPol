@@ -257,6 +257,21 @@ module mod_nonbonded
 
     end subroutine vdw_set_pair
 
+    subroutine vdw_lennard_jones(Rij, Rij0, Eij, V)
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(inout) :: V
+
+        real(rp) :: sigma_ov_r
+
+        sigma_ov_r = Rij0 / Rij
+        V = V + Eij*(sigma_ov_r**12 - sigma_ov_r**6)
+
+    end subroutine vdw_lennard_joned
+    
     subroutine vdw_buffered_7_14(Rij, Rij0, Eij, V)
         !! Compute the dispersion-repulsion energy using the buffered 7-14 
         !! potential. Details can be found in ref: 10.1021/jp027815
