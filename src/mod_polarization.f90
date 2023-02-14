@@ -127,6 +127,10 @@ module mod_polarization
         eel => sys_obj%eel
         amoeba = sys_obj%amoeba
 
+        if(eel%pol_atoms == 0) then
+            ! If the system is not polarizable, there is nothing to do.
+            return
+        end if
         ! Handling of optional arguments
         if(present(arg_solver)) then
             solver = arg_solver

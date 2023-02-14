@@ -100,5 +100,13 @@ module mod_constants
     integer(ip), parameter :: AMOEBA_ROT_Z_ONLY = 3_ip
     integer(ip), parameter :: AMOEBA_ROT_Z_BISECT = 4_ip
     integer(ip), parameter :: AMOEBA_ROT_3_FOLD = 5_ip 
+    
+    integer(ip), parameter :: OMMP_VDWTYPE_LJ = 0 
+    integer(ip), parameter :: OMMP_VDWTYPE_BUF714 = 2
+    integer(ip), parameter :: OMMP_RADRULE_ARITHMETIC = 1
+    integer(ip), parameter :: OMMP_RADRULE_CUBIC = 2
+    integer(ip), parameter :: OMMP_RADTYPE_RMIN = 1 
+    integer(ip), parameter :: OMMP_EPSRULE_GEOMETRIC = 0 
+    integer(ip), parameter :: OMMP_EPSRULE_HHG = 1
 
 end module mod_constants

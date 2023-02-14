@@ -3,11 +3,11 @@ module mod_prm
     !! the asignament of parameters based on atom type and connectivity.
 
     use mod_memory, only: ip, rp
-    use mod_io, only: fatal_error
+    use mod_io, only: fatal_error, ommp_message
     use mod_topology, only: ommp_topology_type
     use mod_bonded, only: ommp_bonded_type
     use mod_electrostatics, only: ommp_electrostatics_type
-    use mod_constants, only: OMMP_STR_CHAR_MAX
+    use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower
 
@@ -136,7 +136,16 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
-            if(line(:5) == 'atom ') natype = natype + 1
+            if(line(:5) == 'atom ') then
+                tokb = 6
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ATOM card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) iat
+                natype = max(natype, iat)
+            end if
         end do
         
         call mallocate('read_prm [typeclass]', natype, typeclass)
@@ -357,6 +366,7 @@ module mod_prm
                 end if
             end do
             if(.not. done) then
+                write(*, *) cla, clb, bds%bondat(1,i), bds%bondat(2,i)
                 call fatal_error("Bond parameter not found!")
             end if
         end do
@@ -830,6 +840,11 @@ module mod_prm
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
+
+        if(nopb == 0) then
+           ! If there are no OPB terms, just stop here.
+           return     
+        end if
         maxopb = top%mm_atoms*3
         call mallocate('assign_opb [classa]', nopb, classa)
         call mallocate('assign_opb [classb]', nopb, classb)
@@ -2732,11 +2747,16 @@ module mod_prm
             i = i+1
         end do
         close(iof_prminp)
-        
-        call set_screening_parameters(eel, eel%mscale, psc, dsc, usc, pisc)
+       
+        if(eel%amoeba) then
+            call set_screening_parameters(eel, eel%mscale, psc, dsc, usc, pisc)
+            eel%mmat_polgrp = 0
+        else
+            call set_screening_parameters(eel, eel%mscale, psc, dsc, usc)
+        end if
+
 
         ! Now assign the parameters to the atoms
-        eel%mmat_polgrp = 0
         do i=1, size(top%attype)
             ! Polarization
             do j=1, npolarize
@@ -2791,7 +2811,8 @@ module mod_prm
                                  AMOEBA_ROT_BISECTOR, &
                                  AMOEBA_ROT_Z_ONLY, &
                                  AMOEBA_ROT_Z_BISECT, &
-                                 AMOEBA_ROT_3_FOLD
+                                 AMOEBA_ROT_3_FOLD, &
+                                 eps_rp
         
         implicit none
         
@@ -2805,8 +2826,12 @@ module mod_prm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: multat(:), multax(:,:), multframe(:)
         real(rp), allocatable :: cmult(:,:)
-        real(rp) :: msc(4)
-        integer(ip) :: nmult, imult, iax(3)
+        real(rp) :: msc(4), csc(4) 
+        real(rp) :: eel_au2kcalmol, eel_scale
+        real(rp) :: default_eel_au2kcalmol = 332.063713
+        ! Default conversion from A.U. to kcal/mol used in electrostatics of
+        ! Tinker, only used to handle electric keyword
+        integer(ip) :: nmult, nchg, imult, iax(3)
         logical :: ax_found(3), found13, only12
         type(ommp_topology_type), pointer :: top
 
@@ -2833,19 +2858,26 @@ module mod_prm
         ! allocated 
         ist = 0
         nmult = 0
+        nchg = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
             if(line(:11) == 'multipole ') nmult = nmult + 1
+            if(line(:7) == 'charge ') nchg = nchg + 1
         end do
         
         ! MULTIPOLE
-        call mallocate('read_prm [multat]', nmult, multat)
-        call mallocate('read_prm [multframe]', nmult, multframe)
-        call mallocate('read_prm [multax]', 3, nmult, multax)
-        call mallocate('read_prm [cmult]', 10, nmult, cmult)
-        multax = 0
+        call mallocate('read_prm [multat]', nmult+nchg, multat)
+        call mallocate('read_prm [multframe]', nmult+nchg, multframe)
+        call mallocate('read_prm [multax]', 3, nmult+nchg, multax)
+        call mallocate('read_prm [cmult]', 10, nmult+nchg, cmult)
+        multax = AMOEBA_ROT_NONE
         imult = 1
+        
+        ! Default values from Tinker manual
+        msc = [0.0, 0.0, 1.0, 1.0]
+        csc = [0.0, 0.0, 1.0, 1.0] 
+        eel_scale = 1.0
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -2854,7 +2886,47 @@ module mod_prm
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
             
-            if(line(:15) == 'mpole-12-scale ') then
+            if(line(:13) == 'chg-12-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(1)
+                if(csc(1) > 1.0) csc(1) = 1/csc(1)
+            
+            else if(line(:13) == 'chg-13-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-13-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(2)
+                if(csc(2) > 1.0) csc(2) = 1/csc(2)
+            
+            else if(line(:13) == 'chg-14-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-14-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(3)
+                if(csc(3) > 1.0) csc(3) = 1/csc(3)
+            
+            else if(line(:13) == 'chg-15-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-15-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(4)
+                if(csc(4) > 1.0) csc(4) = 1/csc(4)
+            
+            else if(line(:15) == 'mpole-12-scale ') then
                 tokb = 16
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
@@ -2862,6 +2934,7 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(1)
+                if(msc(1) > 1.0) msc(1) = 1/msc(1)
             
             else if(line(:15) == 'mpole-13-scale ') then
                 tokb = 16
@@ -2871,6 +2944,7 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(2)
+                if(msc(2) > 1.0) msc(2) = 1/msc(2)
             
             else if(line(:15) == 'mpole-14-scale ') then
                 tokb = 16
@@ -2880,6 +2954,7 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(3)
+                if(msc(3) > 1.0) msc(3) = 1/msc(3)
             
             else if(line(:15) == 'mpole-15-scale ') then
                 tokb = 16
@@ -2889,6 +2964,49 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(4)
+                if(msc(4) > 1.0) msc(4) = 1/msc(4)
+            
+            else if(line(:9) == 'electric ') then
+                tokb = 10
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ELECTRIC card"
+                    call fatal_error(errstring)
+                end if
+                ! This keyword is used to change the conversion from A.U. to
+                ! kcal/mol for the electrostatic interaction.
+                ! It is a bit creepy and unclear what it's correct to do here,
+                ! I think that best thing is to scale the electrostatic itself
+                ! by a factor (electric/default_electric) ** 0.5
+                read(line(tokb:toke), *) eel_au2kcalmol
+                eel_scale = (eel_au2kcalmol/default_eel_au2kcalmol) ** 0.5
+
+            else if(line(:7) == 'charge ') then
+                tokb = 8 ! len of keyword + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHARGE card"
+                    call fatal_error(errstring)
+                endif
+                read(line(tokb:toke), *) multat(imult)
+                if(multat(imult) < 0) then
+                    write(errstring, *) "Wrong CHARGE card (specific atom not supported)"
+                    call fatal_error(errstring)
+                end if
+                ! Rotation axis information, charge does not contain any
+                multax(:,imult) = 0
+                multframe(imult) = AMOEBA_ROT_NONE
+
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHARGE card"
+                    call fatal_error(errstring)
+                end if
+
+                read(line(tokb:toke), *) cmult(1, imult)
+                cmult(2:10, imult) = 0.0 ! Fixed dipole and quadrupole are not present
+                imult = imult + 1
 
             else if(line(:11) == 'multipole ') then
                 tokb = 12 ! len of keyword + 1
@@ -2965,19 +3083,28 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call set_screening_parameters(eel, msc, eel%pscale, eel%dscale, &
-                                      eel%uscale, eel%pscale_intra)
-
-        eel%mol_frame = 0
-        eel%ix = 0
-        eel%iy = 0
-        eel%iz = 0
+        if(nmult > 0 .and. nchg == 0) then
+            call set_screening_parameters(eel, msc, eel%pscale, eel%dscale, &
+                                          eel%uscale, eel%pscale_intra)
+        else if(nmult == 0 .and. nchg > 0) then
+            call set_screening_parameters(eel, csc, eel%pscale, eel%dscale, &
+                                          eel%uscale)
+        else if(nmult > 0 .and. nchg > 0) then
+            write(errstring, *) "Unexpected FF with both multipoles and charges"
+            call fatal_error(errstring)
+        end if
+        
+        if(eel%amoeba) then
+            eel%mol_frame = 0
+            eel%ix = 0
+            eel%iy = 0
+            eel%iz = 0
+        end if
 
         do i=1, size(top%attype)
             ! Multipoles
             only12 = .false. ! Only search for params based on 12 connectivity
-
-            do j=1, nmult
+            do j=1, max(nmult, nchg)
                 found13 = .false. ! Parameter found is based on 13 connectivity
                 if(multat(j) == top%attype(i)) then
                     ! For each center different multipoles are defined for 
@@ -3048,11 +3175,17 @@ module mod_prm
 
                     ! Everything is done, no further improvement is possible
                     if(all(ax_found) .and. .not. (only12 .and. found13)) then
-                        eel%ix(i) = iax(2)
-                        eel%iy(i) = iax(3)
-                        eel%iz(i) = iax(1)
-                        eel%mol_frame(i) = multframe(j)
-                        eel%q(:,i) = cmult(:,j) 
+                        if(eel%amoeba) then
+                            eel%ix(i) = iax(2)
+                            eel%iy(i) = iax(3)
+                            eel%iz(i) = iax(1)
+                            eel%mol_frame(i) = multframe(j)
+                            eel%q(:,i) = cmult(:,j) 
+                        else
+                            eel%q(1,i) = cmult(1,j) 
+                        end if
+
+                        
                         if(.not. found13) then
                             exit ! No further improvement is possible
                         else
@@ -3062,6 +3195,12 @@ module mod_prm
                 end if
             end do
         end do
+
+        if(abs(eel_scale - 1.0) > eps_rp) then
+            write(errstring, '(A, F10.6)') "Scaling charges by", eel_scale
+            call ommp_message(errstring, OMMP_VERBOSE_LOW)
+            eel%q = eel%q * eel_scale
+        end if
         
         call mfree('read_prm [multat]', multat)
         call mfree('read_prm [multframe]', multframe)

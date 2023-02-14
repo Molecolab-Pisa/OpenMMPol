@@ -33,6 +33,14 @@ module mod_nonbonded
     
         real(rp), dimension(4) :: vdw_screening
         !! Screening factors for 1,2 1,3 and 1,4 neighbours.
+        integer(ip) :: radrule
+        !! Flag for the radius rule to be used
+        integer(ip) :: radtype
+        !! Flag for the radius type
+        integer(ip) :: vdwtype
+        !! Flag for the vdW type
+        integer(ip) :: epsrule
+        !! Flag for eps rule !!TODO
     end type ommp_nonbonded_type
 
    
@@ -47,6 +55,13 @@ module mod_nonbonded
         
         use mod_memory, only: mallocate
         use mod_io, only: fatal_error
+        use mod_constants, only: OMMP_VDWTYPE_LJ, & 
+                                 OMMP_VDWTYPE_BUF714, &
+                                 OMMP_RADRULE_ARITHMETIC, &
+                                 OMMP_RADRULE_CUBIC, &
+                                 OMMP_RADTYPE_RMIN, & 
+                                 OMMP_EPSRULE_GEOMETRIC, &
+                                 OMMP_EPSRULE_HHG
 
         implicit none
 
@@ -57,10 +72,12 @@ module mod_nonbonded
 
         select case(trim(vdw_type))
             case("lennard-jones")
-                call fatal_error("VdW type lennard-jones is not implemented")
+                vdw%vdwtype = OMMP_VDWTYPE_LJ
+                continue
             case("buckingham")
                 call fatal_error("VdW type buckingham is not implemented")
             case("buffered-14-7")
+                vdw%vdwtype = OMMP_VDWTYPE_BUF714
                 continue
             case("mm3-hbond")
                 call fatal_error("VdW type mm3-hbond is not implemented")
@@ -72,10 +89,12 @@ module mod_nonbonded
         
         select case(trim(radius_rule))
             case("arithmetic")
-                call fatal_error("radiusrule arithmetic is not implemented")
+                vdw%radrule = OMMP_RADRULE_ARITHMETIC
+                continue
             case("geometric")
                 call fatal_error("radiusrule geometric is not implemented")
             case("cubic-mean")
+                vdw%radrule = OMMP_RADRULE_CUBIC
                 continue
             case default
                 call fatal_error("radiusrule specified is not understood")
@@ -83,7 +102,8 @@ module mod_nonbonded
         
         select case(trim(radius_size))
             case("radius")
-                call fatal_error("radiussize radius is not implemented")
+                !call fatal_error("radiussize radius is not implemented")
+                continue
             case("diameter")
                 continue
             case default
@@ -94,6 +114,7 @@ module mod_nonbonded
             case("sigma")
                 call fatal_error("radiustype sigma is not implemented")
             case("r-min")
+                vdw%radtype = OMMP_RADTYPE_RMIN
                 continue
             case default
                 call fatal_error("radiustype specified is not understood")
@@ -101,7 +122,8 @@ module mod_nonbonded
         
         select case(trim(epsrule))
             case("geometric")
-                call fatal_error("epsilonrule geometric is not implemented")
+                vdw%epsrule = OMMP_EPSRULE_GEOMETRIC
+                continue
             case("arithmetic")
                 call fatal_error("epsilonrule arithmetic is not implemented")
             case("harmonic")
@@ -109,6 +131,7 @@ module mod_nonbonded
             case("w-h")
                 call fatal_error("epsilonrule w-h is not implemented")
             case("hhg")
+                vdw%epsrule = OMMP_EPSRULE_HHG
                 continue
             case default
                 call fatal_error("epsilonrule specified is not understood")
