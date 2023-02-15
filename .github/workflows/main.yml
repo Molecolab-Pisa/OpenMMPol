@@ -15,8 +15,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: ${{ github.workspace }}/doc
-          name: FORDdoc_${{ github.run_number }}
-
+          name: github-pages
   deploy:
     needs: build-doc
     permissions:
@@ -30,6 +29,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
-        with:
-          artifact_name: FORDdoc_${{ github.run_number }}
           
