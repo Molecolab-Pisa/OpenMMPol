@@ -8,7 +8,7 @@ email: benedetta.mennucci@unipi.it
 fpp_extensions: f90
 preprocess: true
 predocmark: >
-media_dir: ./media
+media_dir: ./doc/media
 docmark_alt: #
 predocmark_alt: <
 display: public
@@ -17,7 +17,6 @@ display: public
 source: true
 graph: true
 search: true
-license: mit
 max_frontpage_items: 4
 exclude:
 exclude_dir:
