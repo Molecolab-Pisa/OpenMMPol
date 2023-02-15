@@ -1,4 +1,12 @@
-- name: FordDoc
-  uses: ResearchSoftwareActions/ford-build@v1.0
-  with:
-    project_file: DOC.md
+name: FORDdoc
+on: push
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ford Documentation for OMMP
+        uses: ResearchSoftwareActions/ford-build@v1.0
+        with: 
+          project_file: DOC.md
+        
