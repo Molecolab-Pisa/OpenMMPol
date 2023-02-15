@@ -11,11 +11,8 @@ jobs:
         uses: ResearchSoftwareActions/ford-build@v1.0
         with: 
           project_file: DOC.md
-      - name: Deploy
-        if: success()
-        uses: crazy-max/ghaction-github-pages@v1
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v2
         with:
-          target_branch: gh-pages
-          build_dir: ${{ steps.build.outputs.output_dir }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ github.workspace }}/doc
+          name: ${{ github.run_number }}
