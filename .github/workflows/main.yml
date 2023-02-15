@@ -1,0 +1,4 @@
+- name: FordDoc
+  uses: ResearchSoftwareActions/ford-build@v1.0
+  with:
+    project_file: DOC.md
