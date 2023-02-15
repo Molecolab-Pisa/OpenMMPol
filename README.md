@@ -1,3 +1,4 @@
+![GitHub](https://img.shields.io/github/license/Molecolab-Pisa/OpenMMPol?style=plastic)
 <div align="center">
 
 # Open-MMPol
