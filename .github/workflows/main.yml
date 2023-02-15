@@ -11,4 +11,11 @@ jobs:
         uses: ResearchSoftwareActions/ford-build@v1.0
         with: 
           project_file: DOC.md
-        
+      - name: Deploy
+        if: success()
+        uses: crazy-max/ghaction-github-pages@v1
+        with:
+          target_branch: gh-pages
+          build_dir: ${{ steps.build.outputs.output_dir }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
