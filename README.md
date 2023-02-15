@@ -16,7 +16,7 @@ OpenMMPol is written and maintained by the MoLECoLab (Modeling Light & Environme
 
 ## Documentation
 Documentation is generated with [FORD](https://github.com/Fortran-FOSS-Programmers/ford) and is 
-available at [project documentation page](https://github.com/Molecolab-Pisa/...)
+available at [project documentation page]([https://molecolab-pisa.github.io/OpenMMPol/])
 
 ## License 
 OpenMMPol is free software, you can use it under the terms of the LGPL-3.0 License.
