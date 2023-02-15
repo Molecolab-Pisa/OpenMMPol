@@ -2,11 +2,19 @@ name: FORDdoc
 on: push
 
 jobs:
-  build-doc:
+  deploy-doc:
     runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
       - name: Ford Documentation for OMMP
         uses: ResearchSoftwareActions/ford-build@v1.0
         with: 
@@ -16,16 +24,6 @@ jobs:
         with:
           path: ${{ github.workspace }}/doc
           name: github-pages
-  deploy:
-    needs: build-doc
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v3
