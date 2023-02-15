@@ -5,6 +5,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v1
       - name: Ford Documentation for OMMP
         uses: ResearchSoftwareActions/ford-build@v1.0
         with: 
