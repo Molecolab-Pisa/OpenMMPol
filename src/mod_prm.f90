@@ -2284,33 +2284,41 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(1)
+                if(vdw%vdw_screening(1) > 1.0) &
+                    vdw%vdw_screening(1) = 1/vdw%vdw_screening(1)
             
             else if(line(:13) == 'vdw-13-scale ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    write(errstring, *) "Wrong VDW-13-SCALE card"
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(2)
+                if(vdw%vdw_screening(2) > 1.0) &
+                    vdw%vdw_screening(2) = 1/vdw%vdw_screening(2)
             
             else if(line(:13) == 'vdw-14-scale ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    write(errstring, *) "Wrong VDW-14-SCALE card"
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(3)
+                if(vdw%vdw_screening(3) > 1.0) &
+                    vdw%vdw_screening(3) = 1/vdw%vdw_screening(3)
             
             else if(line(:13) == 'vdw-15-scale ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    write(errstring, *) "Wrong VDW-15-SCALE card"
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(4)
+                if(vdw%vdw_screening(4) > 1.0) &
+                    vdw%vdw_screening(4) = 1/vdw%vdw_screening(4)
 
             else if(line(:12) == 'epsilonrule ') then
                 tokb = 12
