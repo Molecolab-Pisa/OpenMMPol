@@ -78,13 +78,13 @@ int main(int argc, char **argv){
     ett = ommp_get_tortor_energy(my_system);
     eat = ommp_get_angtor_energy(my_system);
     ebt = ommp_get_strtor_energy(my_system);
+    eit = ommp_get_imptorsion_energy(my_system);
 
     FILE *fp = fopen(argv[3], "w+");
 
     eaa = 0.0;
     eopd = 0.0;
     eid = 0.0;  
-    eit = 0.0;
     er = 0.0;
     edsp = 0.0;
     ec = 0.0;
@@ -110,6 +110,7 @@ int main(int argc, char **argv){
     ett *= AU2KCALMOL;
     eat *= AU2KCALMOL;
     ebt *= AU2KCALMOL;
+    eit *= AU2KCALMOL;
 
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);

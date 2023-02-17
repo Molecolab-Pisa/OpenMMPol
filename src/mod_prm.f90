@@ -23,7 +23,7 @@ module mod_prm
     public :: assign_vdw
     public :: assign_bond, assign_angle, assign_urey, assign_strbnd, assign_opb
     public :: assign_pitors, assign_torsion, assign_tortors, assign_angtor
-    public :: assign_strtor
+    public :: assign_strtor, assign_imptorsion
     public :: check_keyword, get_prm_ff_type
 
     contains 
@@ -1411,6 +1411,277 @@ module mod_prm
         call mfree('assign_torsion [tmpprm]', tmpprm)
        
     end subroutine assign_torsion
+
+    subroutine assign_imptorsion(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: imptorsion_init
+        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    t_n(:,:), tmpat(:,:), tmpprm(:), tmpf(:)
+        real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
+        real(rp) :: amp, phase, imptorsion_unit = 1.0
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist, &
+             action='read')
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'imptors ') nt = nt + 1
+        end do
+
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        call mallocate('assign_imptorsion [classa]', nt, classa)
+        call mallocate('assign_imptorsion [classb]', nt, classb)
+        call mallocate('assign_imptorsion [classc]', nt, classc)
+        call mallocate('assign_imptorsion [classd]', nt, classd)
+        call mallocate('assign_imptorsion [t_amp]', 3, nt, t_amp)
+        call mallocate('assign_imptorsion [t_pha]', 3, nt, t_pha)
+        call mallocate('assign_imptorsion [t_n]', 3, nt, t_n)
+        call mallocate('assign_imptorsion [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_imptorsion [tmpprm]', maxt, tmpprm)
+        t_amp = 0.0
+        t_pha = 0.0
+        t_n = 1
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+                              
+            if(line(:12) == 'imptorsunit ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORSUNIT card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) imptorsion_unit
+
+            else if(line(:8) == 'imptors ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTROS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                ji = 1
+                t_n(:,it) = -1
+                do j=1, 3
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(toke < 0) exit
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong IMPTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) amp
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong IMPTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) phase
+                
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isint(line(tokb:toke))) then
+                        write(errstring, *) "Wrong IMPTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) period
+
+                    if(abs(amp) > eps_rp) then
+                        t_amp(ji, it) = amp 
+                        t_pha(ji, it) = phase
+                        t_n(ji, it) = period
+                        ji = ji + 1
+                    end if
+                end do
+
+                if(j == 1) then
+                    ! No parameter found
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        tmpat = 0
+        
+        do a=1, top%mm_atoms
+            ! Check if the center is trigonal
+            if(top%conn(1)%ri(a+1) - top%conn(1)%ri(a) /= 3) cycle
+            cla = top%atclass(a)
+            
+            jb=top%conn(1)%ri(a)
+            b = top%conn(1)%ci(jb)
+            clb = top%atclass(b)
+            
+            jc=top%conn(1)%ri(a)+1
+            c = top%conn(1)%ci(jc)
+            clc = top%atclass(c)
+            
+            jd=top%conn(1)%ri(a)+2
+            d = top%conn(1)%ci(jd)
+            cld = top%atclass(d)
+              
+            do iprm=1, nt
+                if((classc(iprm) == cla)) then
+                    if(clb == classa(iprm) .and. &
+                       clc == classb(iprm) .and. &
+                       cld == classd(iprm)) then
+                        tmpat(1,it) = b
+                        tmpat(2,it) = c
+                        tmpat(3,it) = a
+                        tmpat(4,it) = d
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(clb == classa(iprm) .and. &
+                            cld == classb(iprm) .and. &
+                            clc == classd(iprm)) then
+                        tmpat(1,it) = b
+                        tmpat(2,it) = d
+                        tmpat(3,it) = a
+                        tmpat(4,it) = c
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(clc == classa(iprm) .and. &
+                            clb == classb(iprm) .and. &
+                            cld == classd(iprm)) then
+                        tmpat(1,it) = c
+                        tmpat(2,it) = b
+                        tmpat(3,it) = a
+                        tmpat(4,it) = d
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(clc == classa(iprm) .and. &
+                            cld == classb(iprm) .and. &
+                            clb == classd(iprm)) then
+                        tmpat(1,it) = c
+                        tmpat(2,it) = d
+                        tmpat(3,it) = a
+                        tmpat(4,it) = b
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(cld == classa(iprm) .and. &
+                            clb == classb(iprm) .and. &
+                            clc == classd(iprm)) then
+                        tmpat(1,it) = d
+                        tmpat(2,it) = b
+                        tmpat(3,it) = a
+                        tmpat(4,it) = c
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(cld == classa(iprm) .and. &
+                            clc == classb(iprm) .and. &
+                            clb == classd(iprm)) then
+                        tmpat(1,it) = d
+                        tmpat(2,it) = c
+                        tmpat(3,it) = a
+                        tmpat(4,it) = b
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                endif
+            end do
+        end do
+
+        call imptorsion_init(bds, it-1)
+        do i=1, it-1
+           bds%imptorsionat(:,i) = tmpat(:,i) 
+           bds%imptorsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * imptorsion_unit
+           ! If more than one parameter is used for the same trigonal center,
+           ! then do an average
+           bds%imptorsamp(:,i) = bds%imptorsamp(:,i) / count(tmpat(3,1:it-1) == tmpat(3,i))
+           bds%imptorsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
+           bds%imptorsn(:,i) = t_n(:,tmpprm(i))
+        end do
+        
+        call mfree('assign_imptorsion [classa]', classa)
+        call mfree('assign_imptorsion [classb]', classb)
+        call mfree('assign_imptorsion [classc]', classc)
+        call mfree('assign_imptorsion [classd]', classd)
+        call mfree('assign_imptorsion [t_amp]', t_amp)
+        call mfree('assign_imptorsion [t_pha]', t_pha)
+        call mfree('assign_imptorsion [t_n]', t_n)
+        call mfree('assign_imptorsion [tmpat]', tmpat)
+        call mfree('assign_imptorsion [tmpprm]', tmpprm)
+       
+    end subroutine assign_imptorsion
     
     subroutine assign_strtor(bds, prm_file)
         use mod_memory, only: mallocate, mfree

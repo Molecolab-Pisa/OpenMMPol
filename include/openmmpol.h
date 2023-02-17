@@ -60,6 +60,7 @@ extern double ommp_get_strbnd_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_opb_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_pitors_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_torsion_energy(OMMP_SYSTEM_PRT);
+extern double ommp_get_imptorsion_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_tortor_energy(OMMP_SYSTEM_PRT);
 extern double ommp_get_urey_energy(OMMP_SYSTEM_PRT);
 
