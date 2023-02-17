@@ -310,7 +310,7 @@ module mod_inputloader
                            assign_vdw, assign_bond, assign_angle, assign_urey, &
                            assign_strbnd, assign_opb, assign_pitors, &
                            assign_torsion, assign_tortors, assign_angtor, &
-                           assign_strtor, get_prm_ff_type
+                           assign_strtor, assign_imptorsion, get_prm_ff_type
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -461,6 +461,7 @@ module mod_inputloader
         call assign_opb(sys_obj%bds, prm_file)
         call assign_pitors(sys_obj%bds, prm_file)
         call assign_torsion(sys_obj%bds, prm_file)
+        call assign_imptorsion(sys_obj%bds, prm_file)
         call assign_tortors(sys_obj%bds, prm_file)
         call assign_angtor(sys_obj%bds, prm_file)
         call assign_strtor(sys_obj%bds, prm_file)

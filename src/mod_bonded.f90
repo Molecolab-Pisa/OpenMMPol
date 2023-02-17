@@ -43,8 +43,10 @@ module mod_bonded
         real(rp) :: bond_cubic, bond_quartic
         !! 3rd and 4th order terms coefficients, corresponding to 
         !! \(k^{(2)}\) and \(k^{(3)}\) 
-        real(rp), allocatable :: kbond(:)    !! Force constants for bond terms
-        real(rp), allocatable :: l0bond(:)   !! Equilibrium lengths for bonds
+        real(rp), allocatable :: kbond(:)    
+        !! Force constants for bond terms
+        real(rp), allocatable :: l0bond(:)   
+        !! Equilibrium lengths for bonds
         logical :: use_bond = .false.
         !! Flag to enable the calculation of bond terms in potential 
         !! energy function
@@ -135,6 +137,12 @@ module mod_bonded
         integer(ip), allocatable :: torsionat(:,:), torsn(:,:)
         real(rp), allocatable :: torsamp(:,:), torsphase(:,:)
         logical :: use_torsion = .false.
+        
+        ! Imporoper Torsion
+        integer(ip) :: nimptorsion
+        integer(ip), allocatable :: imptorsionat(:,:), imptorsn(:,:)
+        real(rp), allocatable :: imptorsamp(:,:), imptorsphase(:,:)
+        logical :: use_imptorsion = .false.
 
         ! Torsion-torsion coupling (cmap)
         integer(ip) :: ntortor
@@ -152,6 +160,7 @@ module mod_bonded
     public :: opb_init, opb_potential, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
     public :: torsion_init, torsion_potential, torsion_terminate
+    public :: imptorsion_init, imptorsion_potential, imptorsion_terminate
     public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
     public :: strtor_init, strtor_potential, strtor_terminate
     public :: angtor_init, angtor_potential, angtor_terminate
@@ -758,6 +767,65 @@ module mod_bonded
 
     end subroutine torsion_potential
     
+    subroutine imptorsion_potential(bds, V)
+        !! Compute torsion potential
+        use mod_constants, only: pi, eps_rp
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: V
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, costhet
+        integer(ip) :: i, j
+        
+        if(.not. bds%use_imptorsion) return
+        
+        do i=1, bds%nimptorsion
+            ! Atoms that defines the dihedral angle
+            costhet = cos_torsion(bds%top, bds%imptorsionat(:,i))
+            
+            if(costhet + 1.0 <= eps_rp) then
+                thet = pi
+            else
+                thet = acos(costhet)
+            end if
+            
+            do j=1, 3
+                if(bds%imptorsn(j,i) < 1) exit
+                V = V + bds%imptorsamp(j,i) * (1+cos(real(bds%imptorsn(j,i))*thet &
+                                            - bds%imptorsphase(j,i)))
+            end do
+        end do
+
+    end subroutine imptorsion_potential
+    
+    subroutine imptorsion_init(bds, n)
+        !! Initialize improper torsion potential arrays
+
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        integer(ip) :: n
+        !! Number of improper torsion functions in the potential
+        !! energy of the system
+        
+        if( n < 1 ) return
+        bds%use_imptorsion = .true.
+
+        call mallocate('imptorsion_init [imptorsionat]', 4, n, bds%imptorsionat)
+        call mallocate('imptorsion_init [imptorsamp]', 3, n, bds%imptorsamp)
+        call mallocate('imptorsion_init [imptorsphase]', 3, n, bds%imptorsphase)
+        call mallocate('imptorsion_init [imptorsn]', 3, n, bds%imptorsn)
+
+        bds%nimptorsion = n
+
+    end subroutine imptorsion_init
+    
     subroutine angtor_init(bds, n)
         !! Initialize angle-torsion coupling potential arrays
 
@@ -1224,6 +1292,7 @@ module mod_bonded
         call opb_terminate(bds)
         call pitors_terminate(bds)
         call torsion_terminate(bds)
+        call imptorsion_terminate(bds)
         call tortor_terminate(bds)
         call angtor_terminate(bds)
         call strtor_terminate(bds)
@@ -1346,6 +1415,23 @@ module mod_bonded
 
     end subroutine torsion_terminate
     
+    subroutine imptorsion_terminate(bds)
+        use mod_memory, only: mfree
+
+        implicit none
+
+        type(ommp_bonded_type), intent(inout) :: bds
+        ! Bonded potential data structure
+        if( .not. bds%use_imptorsion ) return
+        
+        bds%use_imptorsion = .false.
+        call mfree('imptorsion_terminate [imptorsionat]', bds%imptorsionat)
+        call mfree('imptorsion_terminate [imptorsamp]', bds%imptorsamp)
+        call mfree('imptorsion_terminate [imptorsphase]', bds%imptorsphase)
+        call mfree('imptorsion_terminate [imptorsn]', bds%imptorsn)
+
+    end subroutine imptorsion_terminate
+    
     subroutine tortor_terminate(bds)
         use mod_memory, only: mfree
 
@@ -1356,15 +1442,15 @@ module mod_bonded
         if( .not. bds%use_tortor ) return
         
         bds%use_tortor = .false.
-        call mfree('torsion_terminate [tortorprm]', bds%tortorprm )
-        call mfree('torsion_terminate [tortorat]', bds%tortorat)
-        call mfree('torsion_terminate [ttmap_shape]', bds%ttmap_shape)
-        call mfree('torsion_terminate [ttmap_ang1]', bds%ttmap_ang1)
-        call mfree('torsion_terminate [ttmap_ang2]', bds%ttmap_ang2)
-        call mfree('torsion_terminate [ttmap_v]', bds%ttmap_v)
-        call mfree('torsion_terminate [ttmap_vx]', bds%ttmap_vx)
-        call mfree('torsion_terminate [ttmap_vy]', bds%ttmap_vy)
-        call mfree('torsion_terminate [ttmap_vxy]', bds%ttmap_vxy)
+        call mfree('tortor_terminate [tortorprm]', bds%tortorprm )
+        call mfree('tortor_terminate [tortorat]', bds%tortorat)
+        call mfree('tortor_terminate [ttmap_shape]', bds%ttmap_shape)
+        call mfree('tortor_terminate [ttmap_ang1]', bds%ttmap_ang1)
+        call mfree('tortor_terminate [ttmap_ang2]', bds%ttmap_ang2)
+        call mfree('tortor_terminate [ttmap_v]', bds%ttmap_v)
+        call mfree('tortor_terminate [ttmap_vx]', bds%ttmap_vx)
+        call mfree('tortor_terminate [ttmap_vy]', bds%ttmap_vy)
+        call mfree('tortor_terminate [ttmap_vxy]', bds%ttmap_vxy)
 
     end subroutine tortor_terminate
     
