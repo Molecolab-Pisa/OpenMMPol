@@ -132,7 +132,7 @@ module mod_mmpol
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_DEBUG
-        use mod_electrostatics, only: thole_init
+        use mod_electrostatics, only: thole_init, remove_null_pol
 
         implicit none
         
@@ -151,26 +151,30 @@ module mod_mmpol
             deallocate(sys_obj%top%conn)
             call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if
-        
-        call ommp_message("Creating MM->polar and polar->MM lists", &
-                          OMMP_VERBOSE_DEBUG)
-        ! invert mm_polar list creating mm_polar
-        sys_obj%eel%mm_polar(:) = 0
-        do i = 1, sys_obj%eel%pol_atoms
-            sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
-        end do
 
-        call ommp_message("Populating coordinates of polarizable atoms", &
-                          OMMP_VERBOSE_DEBUG)
-        ! populate cpol list of coordinates
-        do i = 1, sys_obj%eel%pol_atoms
-            sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
-        end do
+        call remove_null_pol(sys_obj%eel)
+       
+        if(sys_obj%eel%pol_atoms > 0) then
+            call ommp_message("Creating MM->polar and polar->MM lists", &
+                              OMMP_VERBOSE_DEBUG)
+            ! invert mm_polar list creating mm_polar
+            sys_obj%eel%mm_polar(:) = 0
+            do i = 1, sys_obj%eel%pol_atoms
+                sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
+            end do
 
-        call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
-        
-        ! compute factors for thole damping
-        call thole_init(sys_obj%eel)
+            call ommp_message("Populating coordinates of polarizable atoms", &
+                              OMMP_VERBOSE_DEBUG)
+            ! populate cpol list of coordinates
+            do i = 1, sys_obj%eel%pol_atoms
+                sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
+            end do
+
+            call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
+            write(*, *) sys_obj%eel%pol_atoms 
+            ! compute factors for thole damping
+            call thole_init(sys_obj%eel)
+        end if
 
         if(sys_obj%amoeba) then
             ! Copy multipoles from q to q0

@@ -5,6 +5,9 @@ file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/param
 file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoeba09.prm
      amoeba09.prm
      EXPECTED_HASH MD5=91eaeec4edd2c581863c6cd4e0b2d975) 
+file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amber99sb.prm
+     amber98sb.prm
+     EXPECTED_HASH MD5=e9330e340a3f4045cc8025dc9ce42e33) 
 
 #==== MEMORY TEST ====#
 set(VALGRINDOPT --track-origins=yes --leak-check=full --show-leak-kinds=all) 
