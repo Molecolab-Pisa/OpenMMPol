@@ -44,7 +44,7 @@ program test_potential_xyz
         eaa  = 0.0
         eopd = 0.0
         eid  = 0.0  
-        eit  = 0.0
+        eit  = ommp_get_imptorsion_energy(my_system) 
         er   = 0.0
         edsp = 0.0
         ec   = 0.0
