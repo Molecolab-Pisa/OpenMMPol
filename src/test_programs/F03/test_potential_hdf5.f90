@@ -40,10 +40,10 @@ program test_potential_hdf5
         ett  = ommp_get_tortor_energy(my_system)
         eat  = ommp_get_angtor_energy(my_system)
         ebt  = ommp_get_strtor_energy(my_system)
+        eit  = ommp_get_imptorsion_energy(my_system)
         eaa  = 0.0
         eopd = 0.0
         eid  = 0.0  
-        eit  = 0.0
         er   = 0.0
         edsp = 0.0
         ec   = 0.0

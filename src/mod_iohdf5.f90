@@ -856,6 +856,17 @@ module mod_iohdf5
             end if
             call h5gclose_f(hg_cur_bp, eflag)
             
+            ! Improper Dihedral torsion
+            call h5gcreate_f(hg, "improper_torsion", hg_cur_bp, eflag)
+            call hdf5_add_scalar(hg_cur_bp, "enabled", bds%use_imptorsion)
+            if(bds%use_imptorsion) then
+                call hdf5_add_array(hg_cur_bp, "amplitudes", bds%imptorsamp)
+                call hdf5_add_array(hg_cur_bp, "phase", bds%imptorsphase)
+                call hdf5_add_array(hg_cur_bp, "atoms", bds%imptorsionat)
+                call hdf5_add_array(hg_cur_bp, "period", bds%imptorsn)
+            end if
+            call h5gclose_f(hg_cur_bp, eflag)
+            
             ! Stretching-bending coupling
             call h5gcreate_f(hg, "stretching-bending", hg_cur_bp, eflag)
             call hdf5_add_scalar(hg_cur_bp, "enabled", bds%use_strbnd)
@@ -954,7 +965,7 @@ module mod_iohdf5
         use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_bonded, only: bond_init, angle_init, urey_init, strbnd_init, &
                               opb_init, pitors_init, torsion_init, tortor_init, &
-                              strtor_init, angtor_init, tortor_newmap
+                              strtor_init, angtor_init, tortor_newmap, imptorsion_init
         use mod_nonbonded, only: vdw_set_pair
 
         implicit none
@@ -1125,6 +1136,28 @@ module mod_iohdf5
                 call hdf5_read_array(iof_hdf5, &
                                      namespace//"/bonded/torsion/period", &
                                      s%bds%torsn)
+            end if
+            
+            ! Improper Dihedral torsion
+            call hdf5_read_scalar(iof_hdf5, &
+                                  namespace//'/bonded/improper_torsion', &
+                                  'enabled', &
+                                  s%bds%use_imptorsion)
+            if(s%bds%use_imptorsion) then
+                call imptorsion_init(s%bds, hdf5_array_len(iof_hdf5, &
+                                              namespace//'/bonded/improper_torsion/atoms'))
+                call hdf5_read_array(iof_hdf5, &
+                                     namespace//"/bonded/improper_torsion/amplitudes", &
+                                     s%bds%imptorsamp)
+                call hdf5_read_array(iof_hdf5, &
+                                     namespace//"/bonded/improper_torsion/phase", &
+                                     s%bds%imptorsphase)
+                call hdf5_read_array(iof_hdf5, &
+                                     namespace//"/bonded/improper_torsion/atoms", &
+                                     s%bds%imptorsionat)
+                call hdf5_read_array(iof_hdf5, &
+                                     namespace//"/bonded/improper_torsion/period", &
+                                     s%bds%imptorsn)
             end if
             
             ! Stretching-bending coupling

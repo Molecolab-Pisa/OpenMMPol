@@ -328,6 +328,19 @@ module ommp_interface
         
         end function
         
+        function ommp_get_imptorsion_energy(sys_obj) result(et)
+            
+            use mod_bonded, only: imptorsion_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: et
+
+            et = 0.0
+            if(sys_obj%use_bonded) call imptorsion_potential(sys_obj%bds, et)
+        
+        end function
+        
         function ommp_get_tortor_energy(sys_obj) result(ett)
             
             use mod_bonded, only: tortor_potential
