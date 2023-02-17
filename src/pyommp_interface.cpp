@@ -261,6 +261,10 @@ class OMMPSystem{
             return ommp_get_pitors_energy(handler);
         }
 
+        double get_imptorsion_energy(void){
+            return ommp_get_imptorsion_energy(handler);
+        }
+        
         double get_torsion_energy(void){
             return ommp_get_torsion_energy(handler);
         }
@@ -337,6 +341,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")
         .def("get_torsion_energy", &OMMPSystem::get_torsion_energy, "Compute the energy of dihedral torsion")
+        .def("get_imptorsion_energy", &OMMPSystem::get_imptorsion_energy, "Compute the energy of improper torsion")
         .def("get_opb_energy", &OMMPSystem::get_opb_energy, "Compute the energy of out-of-plane bending")
         .def("get_urey_energy", &OMMPSystem::get_urey_energy, "Compute the energy of Urey-Bradley terms")
         .def("get_pitors_energy", &OMMPSystem::get_pitors_energy, "Compute the energy of Pi-system torsion terms")

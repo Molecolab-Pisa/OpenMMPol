@@ -129,7 +129,7 @@ module mod_electrostatics
 
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
-    public :: thole_init
+    public :: thole_init, remove_null_pol
     public :: screening_rules, damped_coulomb_kernel, field_extD2D
     public :: energy_MM_MM, energy_MM_pol
     public :: prepare_M2M, prepare_M2D
@@ -242,6 +242,81 @@ module mod_electrostatics
         call mfree('electrostatics_terminate [Egrd_M2M]', eel_obj%Egrd_M2M)
 
     end subroutine electrostatics_terminate
+
+    subroutine remove_null_pol(eel)
+        !! Check which polarizabilities are close enough to 0 to be 
+        !! just excluded from the calculation, and remove them.
+
+        use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, eps_rp
+        use mod_memory, only: mallocate, mfree
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        integer(ip), allocatable :: idx(:), polar_mm(:)
+        integer(ip) :: i, nidx
+        real(rp), allocatable :: tmp(:)
+        character(len=OMMP_STR_CHAR_MAX) :: msg
+
+        if(eel%pol_atoms > 0 .and. allocated(eel%pol)) then
+            call mallocate('remove_null_pol [idx]', eel%pol_atoms, idx)
+            nidx = 0
+            do i=1, eel%pol_atoms
+                if(abs(eel%pol(i)) > eps_rp) then
+                    nidx = nidx + 1
+                    idx(nidx) = i
+                end if
+            end do
+
+            if(nidx < eel%pol_atoms) then
+                write(msg, '(A,I0,A,I0)') "Removing ", eel%pol_atoms - nidx, &
+                                          " polarizabilities out of ", eel%pol_atoms
+                call ommp_message(msg, OMMP_VERBOSE_LOW)
+                call mallocate('remove_null_pol [tmp]', eel%pol_atoms, tmp)
+                ! Thole factors
+                tmp = eel%thole
+                call mfree('remove_null_pol [eel%thole]', eel%thole)
+                call mallocate('remove_null_pol [eel%thole]', nidx, eel%thole)
+                do i=1, nidx
+                    eel%thole(i) = tmp(idx(i))
+                end do
+                ! Polarizabilities
+                tmp = eel%pol
+                call mfree('remove_null_pol [eel%pol]', eel%pol)
+                call mallocate('remove_null_pol [eel%pol]', nidx, eel%pol)
+                do i=1, nidx
+                    eel%pol(i) = tmp(idx(i))
+                end do
+                call mfree('remove_null_pol [tmp]', tmp)
+                    
+                call mallocate('remove_null_pol [polar_mm]', eel%pol_atoms, polar_mm)
+                polar_mm = eel%polar_mm
+                call mfree('remove_null_pol [eel%polar_mm]', eel%polar_mm)
+                call mallocate('remove_null_pol [eel%polar_mm]', nidx, eel%polar_mm)
+                call mfree('remove_null_pol [eel%cpol]', eel%cpol)
+                call mallocate('remove_null_pol [eel%cpol]', 3, nidx, eel%cpol)
+                eel%mm_polar = 0
+                do i=1, nidx
+                    eel%polar_mm(i) = polar_mm(idx(i))
+                    eel%mm_polar(eel%polar_mm(i)) = i
+                    eel%cpol(:,i) = eel%top%cmm(:,eel%polar_mm(i))
+                end do
+
+                call mfree('remove_null_pol [polar_mm]', polar_mm)
+                
+                eel%pol_atoms = nidx
+                call mfree('remove_null_pol [eel%ipd]', eel%ipd)
+                call mallocate('electrostatics_init [idp]', 3_ip, eel%pol_atoms, &
+                               eel%n_ipd, eel%ipd) 
+                eel%ipd_done = .false.
+                eel%ipd = 0.0_rp
+                
+                call ommp_message("Removing null polarizable sites done", OMMP_VERBOSE_LOW)
+            end if
+            
+            call mfree('remove_null_pol [idx]', idx)
+        end if
+
+    end subroutine
 
     subroutine thole_init(eel)
         ! This routine compute the thole factors and stores

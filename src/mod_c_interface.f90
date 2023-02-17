@@ -557,6 +557,22 @@ module mod_ommp_C_interface
             if(s%use_bonded) call torsion_potential(s%bds, et)
         end function
         
+        function C_ommp_get_imptorsion_energy(s_prt) &
+                result(et) bind(c, name='ommp_get_imptorsion_energy')
+            
+            use mod_bonded, only: imptorsion_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: et
+
+            call c_f_pointer(s_prt, s)
+
+            et = 0.0
+            if(s%use_bonded) call imptorsion_potential(s%bds, et)
+        end function
+        
         function C_ommp_get_tortor_energy(s_prt) &
                 result(ett) bind(c, name='ommp_get_tortor_energy')
             

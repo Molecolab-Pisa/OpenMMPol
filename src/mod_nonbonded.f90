@@ -4,6 +4,13 @@ module mod_nonbonded
     use mod_constants, only: OMMP_STR_CHAR_MAX
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type
+    use mod_constants, only: OMMP_VDWTYPE_LJ, & 
+                             OMMP_VDWTYPE_BUF714, &
+                             OMMP_RADRULE_ARITHMETIC, &
+                             OMMP_RADRULE_CUBIC, &
+                             OMMP_RADTYPE_RMIN, & 
+                             OMMP_EPSRULE_GEOMETRIC, &
+                             OMMP_EPSRULE_HHG
 
     implicit none
     private
@@ -31,10 +38,31 @@ module mod_nonbonded
         real(rp), allocatable :: vdw_pair_e(:)
         !! VdW energies for atom pairs
     
-        real(rp), dimension(4) :: vdw_screening
+        real(rp), dimension(4) :: vdw_screening = [0.0, 0.0, 1.0, 1.0]
         !! Screening factors for 1,2 1,3 and 1,4 neighbours.
+        !! Default vaules from tinker manual.
+        real(rp) :: radf = 1.0
+        !! Scal factor for atomic radii/diameters (1.0 is used for diameters,
+        !! 2.0 for radii)
+        integer(ip) :: radrule
+        !! Flag for the radius rule to be used
+        integer(ip) :: radtype
+        !! Flag for the radius type
+        integer(ip) :: vdwtype
+        !! Flag for the vdW type
+        integer(ip) :: epsrule
+        !! Flag for eps rule !!TODO
     end type ommp_nonbonded_type
-
+    
+    abstract interface
+    subroutine vdw_term(Rij, Rij0, Eij, V)
+        use mod_memory, only: rp
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(inout) :: V
+    end subroutine
+    end interface
    
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential
@@ -57,10 +85,12 @@ module mod_nonbonded
 
         select case(trim(vdw_type))
             case("lennard-jones")
-                call fatal_error("VdW type lennard-jones is not implemented")
+                vdw%vdwtype = OMMP_VDWTYPE_LJ
+                continue
             case("buckingham")
                 call fatal_error("VdW type buckingham is not implemented")
             case("buffered-14-7")
+                vdw%vdwtype = OMMP_VDWTYPE_BUF714
                 continue
             case("mm3-hbond")
                 call fatal_error("VdW type mm3-hbond is not implemented")
@@ -72,10 +102,12 @@ module mod_nonbonded
         
         select case(trim(radius_rule))
             case("arithmetic")
-                call fatal_error("radiusrule arithmetic is not implemented")
+                vdw%radrule = OMMP_RADRULE_ARITHMETIC
+                continue
             case("geometric")
                 call fatal_error("radiusrule geometric is not implemented")
             case("cubic-mean")
+                vdw%radrule = OMMP_RADRULE_CUBIC
                 continue
             case default
                 call fatal_error("radiusrule specified is not understood")
@@ -83,8 +115,10 @@ module mod_nonbonded
         
         select case(trim(radius_size))
             case("radius")
-                call fatal_error("radiussize radius is not implemented")
+                vdw%radf = 2.0
+                continue
             case("diameter")
+                vdw%radf = 1.0
                 continue
             case default
                 call fatal_error("radiussize specified is not understood")
@@ -94,6 +128,7 @@ module mod_nonbonded
             case("sigma")
                 call fatal_error("radiustype sigma is not implemented")
             case("r-min")
+                vdw%radtype = OMMP_RADTYPE_RMIN
                 continue
             case default
                 call fatal_error("radiustype specified is not understood")
@@ -101,7 +136,8 @@ module mod_nonbonded
         
         select case(trim(epsrule))
             case("geometric")
-                call fatal_error("epsilonrule geometric is not implemented")
+                vdw%epsrule = OMMP_EPSRULE_GEOMETRIC
+                continue
             case("arithmetic")
                 call fatal_error("epsilonrule arithmetic is not implemented")
             case("harmonic")
@@ -109,6 +145,7 @@ module mod_nonbonded
             case("w-h")
                 call fatal_error("epsilonrule w-h is not implemented")
             case("hhg")
+                vdw%epsrule = OMMP_EPSRULE_HHG
                 continue
             case default
                 call fatal_error("epsilonrule specified is not understood")
@@ -233,6 +270,21 @@ module mod_nonbonded
 
     end subroutine vdw_set_pair
 
+    subroutine vdw_lennard_jones(Rij, Rij0, Eij, V)
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(inout) :: V
+
+        real(rp) :: sigma_ov_r
+
+        sigma_ov_r = Rij0 / Rij
+        V = V + Eij*(sigma_ov_r**12 - 2*sigma_ov_r**6)
+
+    end subroutine vdw_lennard_jones
+    
     subroutine vdw_buffered_7_14(Rij, Rij0, Eij, V)
         !! Compute the dispersion-repulsion energy using the buffered 7-14 
         !! potential. Details can be found in ref: 10.1021/jp027815
@@ -253,6 +305,54 @@ module mod_nonbonded
 
     end subroutine vdw_buffered_7_14
 
+    pure function get_Rij0(vdw, i, j) result(Rij0)
+        use mod_io, only : fatal_error
+        
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: i, j
+        !! Indices of interacting atoms
+        real(rp) :: Rij0
+
+        select case(vdw%radrule) 
+            case(OMMP_RADRULE_ARITHMETIC)
+                Rij0 = vdw%radf*(vdw%vdw_r(i) + vdw%vdw_r(j))/2
+            case(OMMP_RADRULE_CUBIC)
+                Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
+                       (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
+            case default
+                Rij0 = 0.0
+                continue
+                !call fatal_error("Unexpected error in get_Rij0")
+        end select
+    end function
+    
+    pure function get_eij(vdw, i, j) result(eij)
+        use mod_io, only : fatal_error
+        
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in) :: vdw
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: i, j
+        !! Indices of interacting atoms
+        real(rp) :: eij
+
+        select case(vdw%epsrule) 
+            case(OMMP_EPSRULE_GEOMETRIC)
+                eij = sqrt(vdw%vdw_e(i)*vdw%vdw_e(j))
+            case(OMMP_EPSRULE_HHG)
+                eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
+                      (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
+            case default
+                eij = 0.0
+                continue
+                !call fatal_error("Unexpected error in get_eij")
+        end select
+    end function
+
     subroutine vdw_potential(vdw, V)
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm
@@ -269,8 +369,17 @@ module mod_nonbonded
         integer(ip) :: i, j, l, ipair, ineigh
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
         type(ommp_topology_type), pointer :: top
+        procedure(vdw_term), pointer :: vdw_func
 
         top => vdw%top
+        select case(vdw%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_func => vdw_lennard_jones
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_func => vdw_buffered_7_14
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
 
         do i=1, top%mm_atoms
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
@@ -315,11 +424,9 @@ module mod_nonbonded
                     if(ipair > 0) then
                         Rij0 = vdw%vdw_pair_r(ipair)
                         eij = vdw%vdw_pair_e(ipair)
-                    else 
-                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
-                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
-                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
-                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
+                    else
+                        Rij0 = get_Rij0(vdw, i, j)
+                        eij = get_eij(vdw, i, j)
                     end if
                 
                     if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
@@ -340,7 +447,7 @@ module mod_nonbonded
                     Rij = ((ci(1)-cj(1))**2 + (ci(2)-cj(2))**2 + (ci(3)-cj(3))**2)**0.5
                     
                     vtmp = 0.0
-                    call vdw_buffered_7_14(Rij, Rij0, Eij, vtmp)
+                    call vdw_func(Rij, Rij0, Eij, vtmp)
                     v = v + vtmp*s
                 end if
             end do

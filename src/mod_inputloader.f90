@@ -294,7 +294,7 @@ module mod_inputloader
     end subroutine polgroup11_to_mm2pg
 
     subroutine mmpol_init_from_xyz(sys_obj, xyz_file, prm_file)
-        !! This function read a .mmp file (revision 2 and 3) are supported
+        !! This function read a Tinker xyz and prm files
         !! and initialize all the quantities need to describe the environment
         !! within this library.
         use mod_mmpol, only: mmpol_prepare, mmpol_init, mmpol_init_nonbonded, &
@@ -310,7 +310,7 @@ module mod_inputloader
                            assign_vdw, assign_bond, assign_angle, assign_urey, &
                            assign_strbnd, assign_opb, assign_pitors, &
                            assign_torsion, assign_tortors, assign_angtor, &
-                           assign_strtor
+                           assign_strtor, assign_imptorsion, get_prm_ff_type
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
 
         implicit none
@@ -366,7 +366,9 @@ module mod_inputloader
         
         ! Initialize the mmpol module
         ! TODO I'm assuming that it is AMOEBA and fully polarizable
-        call mmpol_init(sys_obj, OMMP_FF_AMOEBA, my_mm_atoms, my_mm_atoms)
+        
+        call mmpol_init(sys_obj, get_prm_ff_type(prm_file), &
+                        my_mm_atoms, my_mm_atoms)
         ! Those are just shortcut
         top => sys_obj%top
         eel => sys_obj%eel
@@ -459,6 +461,7 @@ module mod_inputloader
         call assign_opb(sys_obj%bds, prm_file)
         call assign_pitors(sys_obj%bds, prm_file)
         call assign_torsion(sys_obj%bds, prm_file)
+        call assign_imptorsion(sys_obj%bds, prm_file)
         call assign_tortors(sys_obj%bds, prm_file)
         call assign_angtor(sys_obj%bds, prm_file)
         call assign_strtor(sys_obj%bds, prm_file)

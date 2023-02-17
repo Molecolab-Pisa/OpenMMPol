@@ -102,7 +102,7 @@ module mod_io
         use mod_constants, only: OMMP_VERBOSE_LOW
         implicit none
       
-        character (len=*) message
+        character (len=*), intent(in) :: message
         !! Message to print before the program termination
 
         !write(6, '(t3,a)') message

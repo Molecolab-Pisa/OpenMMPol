@@ -1,7 +1,7 @@
 function keyword_is_implemented(kw)
     implicit none 
 
-    character(len=*), parameter :: imp_kwd(65) = ["angle               ", &
+    character(len=*), parameter :: imp_kwd(72) = ["angle               ", &
                                                  "angle-cubic         ", &
                                                  "anglep              ", &
                                                  "angle-pentic        ", &
@@ -12,11 +12,18 @@ function keyword_is_implemented(kw)
                                                  "bond                ", &
                                                  "bond-cubic          ", &
                                                  "bond-quartic        ", &
+                                                 "charge              ", &
+                                                 "chg-12-scale        ", &
+                                                 "chg-13-scale        ", &
+                                                 "chg-14-scale        ", &
+                                                 "chg-15-scale        ", &
                                                  "direct-11-scale     ", &
                                                  "direct-12-scale     ", &
                                                  "direct-13-scale     ", &
                                                  "direct-14-scale     ", &
+                                                 "electric            ", &
                                                  "epsilonrule         ", &
+                                                 "imptors             ", &
                                                  "induce-12-scale     ", &
                                                  "induce-13-scale     ", &
                                                  "induce-14-scale     ", &

@@ -57,6 +57,10 @@ module mod_constants
     !! Wang AL force field id
     integer(ip), parameter :: OMMP_FF_WANG_DL = 0_ip
     !! Wang DL force field id
+    integer(ip), parameter :: OMMP_FF_AMBER = 0_ip
+    !! Amber-like force field
+    integer(ip), parameter :: OMMP_FF_UNKNOWN = -1_ip
+    !! Unknown force field
 
     integer(ip), parameter :: OMMP_SOLVER_CG = 1_ip 
     !! Conjugate gradients solver id
@@ -96,5 +100,13 @@ module mod_constants
     integer(ip), parameter :: AMOEBA_ROT_Z_ONLY = 3_ip
     integer(ip), parameter :: AMOEBA_ROT_Z_BISECT = 4_ip
     integer(ip), parameter :: AMOEBA_ROT_3_FOLD = 5_ip 
+    
+    integer(ip), parameter :: OMMP_VDWTYPE_LJ = 0 
+    integer(ip), parameter :: OMMP_VDWTYPE_BUF714 = 2
+    integer(ip), parameter :: OMMP_RADRULE_ARITHMETIC = 1
+    integer(ip), parameter :: OMMP_RADRULE_CUBIC = 2
+    integer(ip), parameter :: OMMP_RADTYPE_RMIN = 1 
+    integer(ip), parameter :: OMMP_EPSRULE_GEOMETRIC = 0 
+    integer(ip), parameter :: OMMP_EPSRULE_HHG = 1
 
 end module mod_constants

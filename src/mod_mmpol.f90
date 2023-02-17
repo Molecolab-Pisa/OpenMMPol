@@ -45,8 +45,9 @@ module mod_mmpol
         !! Performs all the memory allocation and vector initialization
         !! needed to run the openMMPol library
         
+        use mod_constants, only: OMMP_FF_AMBER, OMMP_FF_AMOEBA, OMMP_FF_UNKNOWN
         use mod_electrostatics, only: electrostatics_init
-        use mod_io, only: print_matrix
+        use mod_io, only: print_matrix, fatal_error
 
         implicit none
 
@@ -65,11 +66,14 @@ module mod_mmpol
         allocate(sys_obj%eel)
         
         ! FF related settings
+        if(l_ff_type == OMMP_FF_UNKNOWN) then
+            call fatal_error("Cannot initialize an UNKNOWN forcefield!")
+        end if
         sys_obj%ff_type = l_ff_type
         
-        if(sys_obj%ff_type == 1) then
+        if(sys_obj%ff_type == OMMP_FF_AMOEBA) then
             sys_obj%amoeba = .true.
-        else if(sys_obj%ff_type == 0) then
+        else if(sys_obj%ff_type == OMMP_FF_AMBER) then
             sys_obj%amoeba = .false.
         end if
         
@@ -128,7 +132,7 @@ module mod_mmpol
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_DEBUG
-        use mod_electrostatics, only: thole_init
+        use mod_electrostatics, only: thole_init, remove_null_pol
 
         implicit none
         
@@ -148,26 +152,30 @@ module mod_mmpol
             deallocate(sys_obj%top%conn)
             call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if
-        
-        call ommp_message("Creating MM->polar and polar->MM lists", &
-                          OMMP_VERBOSE_DEBUG)
-        ! invert mm_polar list creating mm_polar
-        sys_obj%eel%mm_polar(:) = 0
-        do i = 1, sys_obj%eel%pol_atoms
-            sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
-        end do
 
-        call ommp_message("Populating coordinates of polarizable atoms", &
-                          OMMP_VERBOSE_DEBUG)
-        ! populate cpol list of coordinates
-        do i = 1, sys_obj%eel%pol_atoms
-            sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
-        end do
+        call remove_null_pol(sys_obj%eel)
+       
+        if(sys_obj%eel%pol_atoms > 0) then
+            call ommp_message("Creating MM->polar and polar->MM lists", &
+                              OMMP_VERBOSE_DEBUG)
+            ! invert mm_polar list creating mm_polar
+            sys_obj%eel%mm_polar(:) = 0
+            do i = 1, sys_obj%eel%pol_atoms
+                sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
+            end do
 
-        call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
-        
-        ! compute factors for thole damping
-        call thole_init(sys_obj%eel)
+            call ommp_message("Populating coordinates of polarizable atoms", &
+                              OMMP_VERBOSE_DEBUG)
+            ! populate cpol list of coordinates
+            do i = 1, sys_obj%eel%pol_atoms
+                sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
+            end do
+
+            call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
+            write(*, *) sys_obj%eel%pol_atoms 
+            ! compute factors for thole damping
+            call thole_init(sys_obj%eel)
+        end if
 
         if(sys_obj%amoeba) then
             ! Copy multipoles from q to q0

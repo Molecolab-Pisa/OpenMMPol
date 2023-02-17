@@ -3,11 +3,11 @@ module mod_prm
     !! the asignament of parameters based on atom type and connectivity.
 
     use mod_memory, only: ip, rp
-    use mod_io, only: fatal_error
+    use mod_io, only: fatal_error, ommp_message
     use mod_topology, only: ommp_topology_type
     use mod_bonded, only: ommp_bonded_type
     use mod_electrostatics, only: ommp_electrostatics_type
-    use mod_constants, only: OMMP_STR_CHAR_MAX
+    use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower
 
@@ -23,12 +23,76 @@ module mod_prm
     public :: assign_vdw
     public :: assign_bond, assign_angle, assign_urey, assign_strbnd, assign_opb
     public :: assign_pitors, assign_torsion, assign_tortors, assign_angtor
-    public :: assign_strtor
-    public :: check_keyword
+    public :: assign_strtor, assign_imptorsion
+    public :: check_keyword, get_prm_ff_type
 
     contains 
     
 #include "prm_keywords.f90"
+
+    function get_prm_ff_type(prm_file) result(ff_type)
+        !! This function is intended to check if the ff described by prm_type
+        !! is AMOEBA (or amoeba-like) or AMBER or FF of another kind.
+        !! A FF is considered to be AMOEBA if: it contains multipole keywords 
+        !! (and no charge keywords) and polarization MUTUAL.
+        !! A FF is considered do be AMBER if contains charge keyword and no
+        !! multipole keyword.
+        use mod_constants, only: OMMP_FF_AMBER, &
+                                 OMMP_FF_AMOEBA, &
+                                 OMMP_FF_UNKNOWN
+        use mod_io, only: fatal_error
+        
+        implicit none
+        
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: i, ist, nmultipole, ncharge, tokb, toke, ff_type
+        character(len=OMMP_STR_CHAR_MAX) :: line, polarization
+        
+        ! open tinker prm file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist, &
+             action='read')
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated 
+        ist = 0
+        nmultipole = 0
+        ncharge = 0
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:7) == 'charge ') ncharge = ncharge + 1
+            if(line(:10) == 'multipole ') nmultipole = nmultipole + 1
+            if(line(:13) == 'polarization ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), '(A)') polarization
+            end if
+        end do
+
+        close(iof_prminp)
+
+        if(nmultipole > 0 .and. &
+           ncharge == 0 .and. &
+           polarization(:6) == 'mutual') then
+           ff_type = OMMP_FF_AMOEBA
+        else if(nmultipole == 0 .and. &
+                ncharge > 0) then
+            ff_type = OMMP_FF_AMBER
+        else
+            ff_type = OMMP_FF_UNKNOWN
+        end if
+    end function
 
     subroutine read_atom_cards(top, prm_file)
         use mod_memory, only: mallocate, mfree
@@ -72,7 +136,16 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
-            if(line(:5) == 'atom ') natype = natype + 1
+            if(line(:5) == 'atom ') then
+                tokb = 6
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ATOM card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) iat
+                natype = max(natype, iat)
+            end if
         end do
         
         call mallocate('read_prm [typeclass]', natype, typeclass)
@@ -293,6 +366,7 @@ module mod_prm
                 end if
             end do
             if(.not. done) then
+                write(*, *) cla, clb, bds%bondat(1,i), bds%bondat(2,i)
                 call fatal_error("Bond parameter not found!")
             end if
         end do
@@ -766,6 +840,11 @@ module mod_prm
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
+
+        if(nopb == 0) then
+           ! If there are no OPB terms, just stop here.
+           return     
+        end if
         maxopb = top%mm_atoms*3
         call mallocate('assign_opb [classa]', nopb, classa)
         call mallocate('assign_opb [classb]', nopb, classb)
@@ -1133,7 +1212,7 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     t_n(:,:), tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
-        real(rp) :: amp, phase, torsion_unit
+        real(rp) :: amp, phase, torsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
 
         top => bds%top
@@ -1174,7 +1253,9 @@ module mod_prm
         call mallocate('assign_torsion [t_n]', 6, nt, t_n)
         call mallocate('assign_torsion [tmpat]', 4, maxt, tmpat)
         call mallocate('assign_torsion [tmpprm]', maxt, tmpprm)
-
+        t_amp = 0.0
+        t_pha = 0.0
+        t_n = 1
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
         ist = 0
@@ -1238,7 +1319,6 @@ module mod_prm
                         call fatal_error(errstring)
                     end if
                     read(line(tokb:toke), *) amp
-                    
                     tokb = toke + 1
                     toke = tokenize(line, tokb)
                     if(.not. isreal(line(tokb:toke))) then
@@ -1331,6 +1411,277 @@ module mod_prm
         call mfree('assign_torsion [tmpprm]', tmpprm)
        
     end subroutine assign_torsion
+
+    subroutine assign_imptorsion(bds, prm_file)
+        use mod_memory, only: mallocate, mfree
+        use mod_bonded, only: imptorsion_init
+        use mod_constants, only: kcalmol2au, deg2rad, eps_rp
+        
+        implicit none
+        
+        type(ommp_bonded_type), intent(inout) :: bds
+        !! Bonded potential data structure
+        character(len=*), intent(in) :: prm_file
+        !! name of the input PRM file
+
+        integer(ip), parameter :: iof_prminp = 201
+        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+        character(len=OMMP_STR_CHAR_MAX) :: line, errstring
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
+                                    t_n(:,:), tmpat(:,:), tmpprm(:), tmpf(:)
+        real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
+        real(rp) :: amp, phase, imptorsion_unit = 1.0
+        type(ommp_topology_type), pointer :: top
+
+        top => bds%top
+
+        if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
+            call read_atom_cards(top, prm_file)
+        end if
+        
+        ! open tinker xyz file
+        open(unit=iof_prminp, &
+             file=prm_file(1:len(trim(prm_file))), &
+             form='formatted', &
+             access='sequential', &
+             iostat=ist, &
+             action='read')
+        
+        if(ist /= 0) then
+           call fatal_error('Error while opening PRM input file')
+        end if
+
+        ! Read all the lines of file just to count how large vector should be 
+        ! allocated
+        ist = 0
+        nt = 1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+            if(line(:8) == 'imptors ') nt = nt + 1
+        end do
+
+        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        call mallocate('assign_imptorsion [classa]', nt, classa)
+        call mallocate('assign_imptorsion [classb]', nt, classb)
+        call mallocate('assign_imptorsion [classc]', nt, classc)
+        call mallocate('assign_imptorsion [classd]', nt, classd)
+        call mallocate('assign_imptorsion [t_amp]', 3, nt, t_amp)
+        call mallocate('assign_imptorsion [t_pha]', 3, nt, t_pha)
+        call mallocate('assign_imptorsion [t_n]', 3, nt, t_n)
+        call mallocate('assign_imptorsion [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_imptorsion [tmpprm]', maxt, tmpprm)
+        t_amp = 0.0
+        t_pha = 0.0
+        t_n = 1
+        ! Restart the reading from the beginning to actually save the parameters
+        rewind(iof_prminp)
+        ist = 0
+        it = 1
+        i=1
+        do while(ist == 0) 
+            read(iof_prminp, '(A)', iostat=ist) line
+            line = str_to_lower(line)
+                              
+            if(line(:12) == 'imptorsunit ') then
+                tokb = 13
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORSUNIT card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) imptorsion_unit
+
+            else if(line(:8) == 'imptors ') then
+                tokb = 9
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classa(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTROS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classb(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classc(it)
+
+                tokb = toke + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) classd(it)
+                
+                ji = 1
+                t_n(:,it) = -1
+                do j=1, 3
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(toke < 0) exit
+
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong IMPTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) amp
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isreal(line(tokb:toke))) then
+                        write(errstring, *) "Wrong IMPTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) phase
+                
+                    tokb = toke + 1
+                    toke = tokenize(line, tokb)
+                    if(.not. isint(line(tokb:toke))) then
+                        write(errstring, *) "Wrong IMPTORS card"
+                        call fatal_error(errstring)
+                    end if
+                    read(line(tokb:toke), *) period
+
+                    if(abs(amp) > eps_rp) then
+                        t_amp(ji, it) = amp 
+                        t_pha(ji, it) = phase
+                        t_n(ji, it) = period
+                        ji = ji + 1
+                    end if
+                end do
+
+                if(j == 1) then
+                    ! No parameter found
+                    write(errstring, *) "Wrong IMPTORS card"
+                    call fatal_error(errstring)
+                end if
+                
+                it = it + 1
+            end if
+            i = i+1
+        end do
+        close(iof_prminp)
+
+        it = 1
+        tmpat = 0
+        
+        do a=1, top%mm_atoms
+            ! Check if the center is trigonal
+            if(top%conn(1)%ri(a+1) - top%conn(1)%ri(a) /= 3) cycle
+            cla = top%atclass(a)
+            
+            jb=top%conn(1)%ri(a)
+            b = top%conn(1)%ci(jb)
+            clb = top%atclass(b)
+            
+            jc=top%conn(1)%ri(a)+1
+            c = top%conn(1)%ci(jc)
+            clc = top%atclass(c)
+            
+            jd=top%conn(1)%ri(a)+2
+            d = top%conn(1)%ci(jd)
+            cld = top%atclass(d)
+              
+            do iprm=1, nt
+                if((classc(iprm) == cla)) then
+                    if(clb == classa(iprm) .and. &
+                       clc == classb(iprm) .and. &
+                       cld == classd(iprm)) then
+                        tmpat(1,it) = b
+                        tmpat(2,it) = c
+                        tmpat(3,it) = a
+                        tmpat(4,it) = d
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(clb == classa(iprm) .and. &
+                            cld == classb(iprm) .and. &
+                            clc == classd(iprm)) then
+                        tmpat(1,it) = b
+                        tmpat(2,it) = d
+                        tmpat(3,it) = a
+                        tmpat(4,it) = c
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(clc == classa(iprm) .and. &
+                            clb == classb(iprm) .and. &
+                            cld == classd(iprm)) then
+                        tmpat(1,it) = c
+                        tmpat(2,it) = b
+                        tmpat(3,it) = a
+                        tmpat(4,it) = d
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(clc == classa(iprm) .and. &
+                            cld == classb(iprm) .and. &
+                            clb == classd(iprm)) then
+                        tmpat(1,it) = c
+                        tmpat(2,it) = d
+                        tmpat(3,it) = a
+                        tmpat(4,it) = b
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(cld == classa(iprm) .and. &
+                            clb == classb(iprm) .and. &
+                            clc == classd(iprm)) then
+                        tmpat(1,it) = d
+                        tmpat(2,it) = b
+                        tmpat(3,it) = a
+                        tmpat(4,it) = c
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                    if(cld == classa(iprm) .and. &
+                            clc == classb(iprm) .and. &
+                            clb == classd(iprm)) then
+                        tmpat(1,it) = d
+                        tmpat(2,it) = c
+                        tmpat(3,it) = a
+                        tmpat(4,it) = b
+                        tmpprm(it) = iprm
+                        it = it + 1
+                    end if
+                endif
+            end do
+        end do
+
+        call imptorsion_init(bds, it-1)
+        do i=1, it-1
+           bds%imptorsionat(:,i) = tmpat(:,i) 
+           bds%imptorsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * imptorsion_unit
+           ! If more than one parameter is used for the same trigonal center,
+           ! then do an average
+           bds%imptorsamp(:,i) = bds%imptorsamp(:,i) / count(tmpat(3,1:it-1) == tmpat(3,i))
+           bds%imptorsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
+           bds%imptorsn(:,i) = t_n(:,tmpprm(i))
+        end do
+        
+        call mfree('assign_imptorsion [classa]', classa)
+        call mfree('assign_imptorsion [classb]', classb)
+        call mfree('assign_imptorsion [classc]', classc)
+        call mfree('assign_imptorsion [classd]', classd)
+        call mfree('assign_imptorsion [t_amp]', t_amp)
+        call mfree('assign_imptorsion [t_pha]', t_pha)
+        call mfree('assign_imptorsion [t_n]', t_n)
+        call mfree('assign_imptorsion [tmpat]', tmpat)
+        call mfree('assign_imptorsion [tmpprm]', tmpprm)
+       
+    end subroutine assign_imptorsion
     
     subroutine assign_strtor(bds, prm_file)
         use mod_memory, only: mallocate, mfree
@@ -1351,7 +1702,7 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
-        real(rp) :: phase, torsion_unit
+        real(rp) :: phase, torsion_unit = 1.0
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
         type(ommp_topology_type), pointer :: top
 
@@ -2199,33 +2550,41 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(1)
+                if(vdw%vdw_screening(1) > 1.0) &
+                    vdw%vdw_screening(1) = 1/vdw%vdw_screening(1)
             
             else if(line(:13) == 'vdw-13-scale ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    write(errstring, *) "Wrong VDW-13-SCALE card"
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(2)
+                if(vdw%vdw_screening(2) > 1.0) &
+                    vdw%vdw_screening(2) = 1/vdw%vdw_screening(2)
             
             else if(line(:13) == 'vdw-14-scale ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    write(errstring, *) "Wrong VDW-14-SCALE card"
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(3)
+                if(vdw%vdw_screening(3) > 1.0) &
+                    vdw%vdw_screening(3) = 1/vdw%vdw_screening(3)
             
             else if(line(:13) == 'vdw-15-scale ') then
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong VDW-12-SCALE card"
+                    write(errstring, *) "Wrong VDW-15-SCALE card"
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) vdw%vdw_screening(4)
+                if(vdw%vdw_screening(4) > 1.0) &
+                    vdw%vdw_screening(4) = 1/vdw%vdw_screening(4)
 
             else if(line(:12) == 'epsilonrule ') then
                 tokb = 12
@@ -2668,11 +3027,16 @@ module mod_prm
             i = i+1
         end do
         close(iof_prminp)
-        
-        call set_screening_parameters(eel, eel%mscale, psc, dsc, usc, pisc)
+       
+        if(eel%amoeba) then
+            call set_screening_parameters(eel, eel%mscale, psc, dsc, usc, pisc)
+            eel%mmat_polgrp = 0
+        else
+            call set_screening_parameters(eel, eel%mscale, psc, dsc, usc)
+        end if
+
 
         ! Now assign the parameters to the atoms
-        eel%mmat_polgrp = 0
         do i=1, size(top%attype)
             ! Polarization
             do j=1, npolarize
@@ -2727,7 +3091,8 @@ module mod_prm
                                  AMOEBA_ROT_BISECTOR, &
                                  AMOEBA_ROT_Z_ONLY, &
                                  AMOEBA_ROT_Z_BISECT, &
-                                 AMOEBA_ROT_3_FOLD
+                                 AMOEBA_ROT_3_FOLD, &
+                                 eps_rp
         
         implicit none
         
@@ -2741,8 +3106,12 @@ module mod_prm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: multat(:), multax(:,:), multframe(:)
         real(rp), allocatable :: cmult(:,:)
-        real(rp) :: msc(4)
-        integer(ip) :: nmult, imult, iax(3)
+        real(rp) :: msc(4), csc(4) 
+        real(rp) :: eel_au2kcalmol, eel_scale
+        real(rp) :: default_eel_au2kcalmol = 332.063713
+        ! Default conversion from A.U. to kcal/mol used in electrostatics of
+        ! Tinker, only used to handle electric keyword
+        integer(ip) :: nmult, nchg, imult, iax(3)
         logical :: ax_found(3), found13, only12
         type(ommp_topology_type), pointer :: top
 
@@ -2769,19 +3138,26 @@ module mod_prm
         ! allocated 
         ist = 0
         nmult = 0
+        nchg = 0
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
             if(line(:11) == 'multipole ') nmult = nmult + 1
+            if(line(:7) == 'charge ') nchg = nchg + 1
         end do
         
         ! MULTIPOLE
-        call mallocate('read_prm [multat]', nmult, multat)
-        call mallocate('read_prm [multframe]', nmult, multframe)
-        call mallocate('read_prm [multax]', 3, nmult, multax)
-        call mallocate('read_prm [cmult]', 10, nmult, cmult)
-        multax = 0
+        call mallocate('read_prm [multat]', nmult+nchg, multat)
+        call mallocate('read_prm [multframe]', nmult+nchg, multframe)
+        call mallocate('read_prm [multax]', 3, nmult+nchg, multax)
+        call mallocate('read_prm [cmult]', 10, nmult+nchg, cmult)
+        multax = AMOEBA_ROT_NONE
         imult = 1
+        
+        ! Default values from Tinker manual
+        msc = [0.0, 0.0, 1.0, 1.0]
+        csc = [0.0, 0.0, 1.0, 1.0] 
+        eel_scale = 1.0
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -2790,7 +3166,47 @@ module mod_prm
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
             
-            if(line(:15) == 'mpole-12-scale ') then
+            if(line(:13) == 'chg-12-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-12-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(1)
+                if(csc(1) > 1.0) csc(1) = 1/csc(1)
+            
+            else if(line(:13) == 'chg-13-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-13-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(2)
+                if(csc(2) > 1.0) csc(2) = 1/csc(2)
+            
+            else if(line(:13) == 'chg-14-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-14-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(3)
+                if(csc(3) > 1.0) csc(3) = 1/csc(3)
+            
+            else if(line(:13) == 'chg-15-scale ') then
+                tokb = 14
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHG-15-SCALE card"
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) csc(4)
+                if(csc(4) > 1.0) csc(4) = 1/csc(4)
+            
+            else if(line(:15) == 'mpole-12-scale ') then
                 tokb = 16
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
@@ -2798,6 +3214,7 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(1)
+                if(msc(1) > 1.0) msc(1) = 1/msc(1)
             
             else if(line(:15) == 'mpole-13-scale ') then
                 tokb = 16
@@ -2807,6 +3224,7 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(2)
+                if(msc(2) > 1.0) msc(2) = 1/msc(2)
             
             else if(line(:15) == 'mpole-14-scale ') then
                 tokb = 16
@@ -2816,6 +3234,7 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(3)
+                if(msc(3) > 1.0) msc(3) = 1/msc(3)
             
             else if(line(:15) == 'mpole-15-scale ') then
                 tokb = 16
@@ -2825,6 +3244,49 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) msc(4)
+                if(msc(4) > 1.0) msc(4) = 1/msc(4)
+            
+            else if(line(:9) == 'electric ') then
+                tokb = 10
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong ELECTRIC card"
+                    call fatal_error(errstring)
+                end if
+                ! This keyword is used to change the conversion from A.U. to
+                ! kcal/mol for the electrostatic interaction.
+                ! It is a bit creepy and unclear what it's correct to do here,
+                ! I think that best thing is to scale the electrostatic itself
+                ! by a factor (electric/default_electric) ** 0.5
+                read(line(tokb:toke), *) eel_au2kcalmol
+                eel_scale = (eel_au2kcalmol/default_eel_au2kcalmol) ** 0.5
+
+            else if(line(:7) == 'charge ') then
+                tokb = 8 ! len of keyword + 1
+                toke = tokenize(line, tokb)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHARGE card"
+                    call fatal_error(errstring)
+                endif
+                read(line(tokb:toke), *) multat(imult)
+                if(multat(imult) < 0) then
+                    write(errstring, *) "Wrong CHARGE card (specific atom not supported)"
+                    call fatal_error(errstring)
+                end if
+                ! Rotation axis information, charge does not contain any
+                multax(:,imult) = 0
+                multframe(imult) = AMOEBA_ROT_NONE
+
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                if(.not. isreal(line(tokb:toke))) then
+                    write(errstring, *) "Wrong CHARGE card"
+                    call fatal_error(errstring)
+                end if
+
+                read(line(tokb:toke), *) cmult(1, imult)
+                cmult(2:10, imult) = 0.0 ! Fixed dipole and quadrupole are not present
+                imult = imult + 1
 
             else if(line(:11) == 'multipole ') then
                 tokb = 12 ! len of keyword + 1
@@ -2901,19 +3363,28 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call set_screening_parameters(eel, msc, eel%pscale, eel%dscale, &
-                                      eel%uscale, eel%pscale_intra)
-
-        eel%mol_frame = 0
-        eel%ix = 0
-        eel%iy = 0
-        eel%iz = 0
+        if(nmult > 0 .and. nchg == 0) then
+            call set_screening_parameters(eel, msc, eel%pscale, eel%dscale, &
+                                          eel%uscale, eel%pscale_intra)
+        else if(nmult == 0 .and. nchg > 0) then
+            call set_screening_parameters(eel, csc, eel%pscale, eel%dscale, &
+                                          eel%uscale)
+        else if(nmult > 0 .and. nchg > 0) then
+            write(errstring, *) "Unexpected FF with both multipoles and charges"
+            call fatal_error(errstring)
+        end if
+        
+        if(eel%amoeba) then
+            eel%mol_frame = 0
+            eel%ix = 0
+            eel%iy = 0
+            eel%iz = 0
+        end if
 
         do i=1, size(top%attype)
             ! Multipoles
             only12 = .false. ! Only search for params based on 12 connectivity
-
-            do j=1, nmult
+            do j=1, max(nmult, nchg)
                 found13 = .false. ! Parameter found is based on 13 connectivity
                 if(multat(j) == top%attype(i)) then
                     ! For each center different multipoles are defined for 
@@ -2984,11 +3455,17 @@ module mod_prm
 
                     ! Everything is done, no further improvement is possible
                     if(all(ax_found) .and. .not. (only12 .and. found13)) then
-                        eel%ix(i) = iax(2)
-                        eel%iy(i) = iax(3)
-                        eel%iz(i) = iax(1)
-                        eel%mol_frame(i) = multframe(j)
-                        eel%q(:,i) = cmult(:,j) 
+                        if(eel%amoeba) then
+                            eel%ix(i) = iax(2)
+                            eel%iy(i) = iax(3)
+                            eel%iz(i) = iax(1)
+                            eel%mol_frame(i) = multframe(j)
+                            eel%q(:,i) = cmult(:,j) 
+                        else
+                            eel%q(1,i) = cmult(1,j) 
+                        end if
+
+                        
                         if(.not. found13) then
                             exit ! No further improvement is possible
                         else
@@ -2998,6 +3475,12 @@ module mod_prm
                 end if
             end do
         end do
+
+        if(abs(eel_scale - 1.0) > eps_rp) then
+            write(errstring, '(A, F10.6)') "Scaling charges by", eel_scale
+            call ommp_message(errstring, OMMP_VERBOSE_LOW)
+            eel%q = eel%q * eel_scale
+        end if
         
         call mfree('read_prm [multat]', multat)
         call mfree('read_prm [multframe]', multframe)
