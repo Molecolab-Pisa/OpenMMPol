@@ -1217,7 +1217,7 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     t_n(:,:), tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
-        real(rp) :: amp, phase, torsion_unit
+        real(rp) :: amp, phase, torsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
 
         top => bds%top
@@ -1258,7 +1258,9 @@ module mod_prm
         call mallocate('assign_torsion [t_n]', 6, nt, t_n)
         call mallocate('assign_torsion [tmpat]', 4, maxt, tmpat)
         call mallocate('assign_torsion [tmpprm]', maxt, tmpprm)
-
+        t_amp = 0.0
+        t_pha = 0.0
+        t_n = 1
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
         ist = 0
@@ -1322,7 +1324,6 @@ module mod_prm
                         call fatal_error(errstring)
                     end if
                     read(line(tokb:toke), *) amp
-                    
                     tokb = toke + 1
                     toke = tokenize(line, tokb)
                     if(.not. isreal(line(tokb:toke))) then
@@ -1435,6 +1436,7 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
+        real(rp) :: phase, torsion_unit = 1.0
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
         type(ommp_topology_type), pointer :: top
 
