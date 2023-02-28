@@ -101,6 +101,24 @@ module mod_ommp_C_interface
             call ommp_save_mmp(s, output_file, version)
         end subroutine 
         
+        subroutine C_ommp_update_coordinates(s_prt, new_c_p) &
+                bind(C, name='ommp_update_coordinates')
+            use mod_mmpol, only: update_coordinates
+            
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: new_c_p
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: new_c(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(new_c_p, new_c, [3, s%top%mm_atoms])
+            
+            call update_coordinates(s, new_c)
+        end subroutine
+        
         ! Functions mapped on actual Fortran interface functions
         ! OMMP System Object housekeeping
         function C_ommp_init_mmp(filename) &
@@ -148,7 +166,8 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call ommp_terminate(s)
         end subroutine
-        
+       
+        ! Interface for normal operation of OMMP System Object
         subroutine C_ommp_set_external_field(s_prt, ext_field_prt, solver) &
                 bind(c, name='ommp_set_external_field')
             implicit none
@@ -236,6 +255,532 @@ module mod_ommp_C_interface
             call ommp_potential_mm2ext(s, n, fcext, fv)
         end subroutine
         
+        function C_ommp_get_polelec_energy(s_prt) &
+                result(epol) bind(c, name='ommp_get_polelec_energy')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: epol
+
+            call c_f_pointer(s_prt, s)
+            epol = ommp_get_polelec_energy(s)
+        end function
+
+        function C_ommp_get_fixedelec_energy(s_prt) &
+                result(emm) bind(c, name='ommp_get_fixedelec_energy')
+            ! Get the interaction energy of fixed multipoles
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: emm
+
+            call c_f_pointer(s_prt, s)
+
+            emm = ommp_get_fixedelec_energy(s)
+        end function
+        
+        function C_ommp_get_full_ele_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_ele_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_ele_energy(sys_obj) 
+        end function
+        
+        function C_ommp_get_vdw_energy(s_prt) &
+                result(evdw) bind(c, name='ommp_get_vdw_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: evdw
+
+            call c_f_pointer(s_prt, s)
+
+            evdw = ommp_get_vdw_energy(s)
+        
+        end function
+        
+        function C_ommp_get_bond_energy(s_prt) &
+                result(ebnd) bind(c, name='ommp_get_bond_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ebnd
+
+            call c_f_pointer(s_prt, s)
+
+            ebnd = ommp_get_bond_energy(s)
+        end function
+        
+        function C_ommp_get_angle_energy(s_prt) &
+                result(eang) bind(c, name='ommp_get_angle_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eang
+
+            call c_f_pointer(s_prt, s)
+
+            eang = ommp_get_angle_energy(s)
+        end function
+        
+        function C_ommp_get_strbnd_energy(s_prt) &
+                result(eba) bind(c, name='ommp_get_strbnd_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eba
+
+            call c_f_pointer(s_prt, s)
+
+            eba = ommp_get_strbnd_energy(s)
+        end function
+        
+        function C_ommp_get_urey_energy(s_prt) &
+                result(eub) bind(c, name='ommp_get_urey_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eub
+
+            call c_f_pointer(s_prt, s)
+
+            eub = ommp_get_urey_energy(s)
+        end function
+        
+        function C_ommp_get_opb_energy(s_prt) &
+            result(eopb) bind(c, name='ommp_get_opb_energy')
+            
+            use mod_bonded, only: opb_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eopb
+
+            call c_f_pointer(s_prt, s)
+
+            eopb = ommp_get_opb_energy(s)
+        end function
+        
+        function C_ommp_get_imptorsion_energy(s_prt) &
+                result(et) bind(c, name='ommp_get_imptorsion_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: et
+
+            call c_f_pointer(s_prt, s)
+
+            et = ommp_get_imptorsion_energy(s)
+        end function
+        
+        function C_ommp_get_torsion_energy(s_prt) &
+                result(et) bind(c, name='ommp_get_torsion_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: et
+
+            call c_f_pointer(s_prt, s)
+
+            et = ommp_get_torsion_energy(s)
+        end function
+        
+        function C_ommp_get_pitors_energy(s_prt) &
+                result(epitors) bind(c, name='ommp_get_pitors_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: epitors
+
+            call c_f_pointer(s_prt, s)
+
+            epitors = ommp_get_pitors_energy(s)
+        end function
+        
+        function C_ommp_get_strtor_energy(s_prt) &
+                result(ebt) bind(c, name='ommp_get_strtor_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ebt
+
+            call c_f_pointer(s_prt, s)
+
+            ebt = ommp_get_strtor_energy(s)
+        end function
+        
+        function C_ommp_get_angtor_energy(s_prt) &
+                result(eat) bind(c, name='ommp_get_angtor_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eat
+
+            call c_f_pointer(s_prt, s)
+
+            eat = ommp_get_angtor_energy(s)
+        end function
+        
+        function C_ommp_get_tortor_energy(s_prt) &
+                result(ett) bind(c, name='ommp_get_tortor_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ett
+
+            call c_f_pointer(s_prt, s)
+
+            ett = ommp_get_tortor_energy(s)
+        end function
+        
+        function C_ommp_get_full_bnd_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_bnd_energy')
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_bnd_energy(sys_obj) 
+        end function
+        
+        function C_ommp_get_full_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_energy')
+            
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_energy(sys_obj)
+        end function
+
+        ! Functions for advanced operation and gradients
+        subroutine C_ommp_vdw_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_vdw_geomgrad')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            
+            call ommp_vdw_geomgrad(s, grd)    
+        end subroutine
+        
+        subroutine C_ommp_rotation_geomgrad(s_prt, pE, pE_grd, grd_prt) &
+                bind(C, name="ommp_rotation_geomgrad")
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: pE
+            type(c_ptr), value :: pE_grd
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:), E(:,:), Egrd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(pE, E, [3, s%top%mm_atoms])
+            call c_f_pointer(pE_grd, Egrd, [6, s%top%mm_atoms])
+            
+            call ommp_rotation_geomgrad(s, E, Egrd, grd)
+        end subroutine
+        
+        subroutine C_ommp_bond_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_bond_geomgrad')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            
+            call ommp_bond_geomgrad(s, grd)    
+        end subroutine
+        
+        subroutine C_ommp_full_bnd_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_full_bnd_geomgrad')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            
+            call ommp_full_bnd_geomgrad(s, grd)    
+        end subroutine
+
+        subroutine C_ommp_fixedelec_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_fixedelec_geomgrad')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call ommp_fixedelec_geomgrad(s, grd)
+        end subroutine
+        
+        subroutine C_ommp_polelec_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_polelec_geomgrad')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call ommp_polelec_geomgrad(s, grd)
+        end subroutine
+        
+        subroutine C_ommp_full_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_full_geomgrad')
+            use ommp_interface, only: ommp_full_geomgrad
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            
+            call ommp_full_geomgrad(s, grd)
+        end subroutine
+
+#ifdef USE_HDF5
+        function C_ommp_init_hdf5(filename, namespace) &
+                result(c_prt) bind(c, name='ommp_init_hdf5')
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
+            use mod_iohdf5, only: mmpol_init_from_hdf5
+            
+            implicit none
+            
+            type(ommp_system), pointer :: s
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
+                                                  namespace(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5in, nms
+            integer(ommp_integer) :: ok
+            type(c_ptr) :: c_prt
+
+            allocate(s)
+
+            call c2f_string(filename, hdf5in)
+            call c2f_string(namespace, nms)
+            call mmpol_init_from_hdf5(hdf5in, trim(nms), s, ok)
+            
+            c_prt = c_loc(s)
+            
+        end function C_ommp_init_hdf5
+        
+        subroutine C_ommp_save_as_hdf5(s_prt, filename, namespace) &
+                bind(c, name='ommp_save_as_hdf5')
+            
+            use mod_iohdf5, only: save_system_as_hdf5 
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
+                                                  namespace(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5out, nms
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(kind=4) :: err
+
+            call c_f_pointer(s_prt, s)
+
+            call c2f_string(filename, hdf5out)
+            call c2f_string(namespace, nms)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .false.)
+            
+        end subroutine C_ommp_save_as_hdf5
+        
+        subroutine C_ommp_checkpoint(s_prt, filename, namespace) &
+                bind(c, name='ommp_checkpoint')
+            
+            use mod_iohdf5, only: save_system_as_hdf5 
+
+            implicit none
+            
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
+                                                  namespace(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: hdf5out, nms
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(kind=4) :: err
+
+            call c_f_pointer(s_prt, s)
+
+            call c2f_string(filename, hdf5out)
+            call c2f_string(namespace, nms)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .true.)
+            
+        end subroutine C_ommp_checkpoint
+#endif
+        ! Functions to provide direct access to Fortran objects/memory from
+        ! C and derived codes.
+        function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_cmm
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_cmm = c_loc(s%top%cmm)
+        end function C_ommp_get_cmm
+
+        function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! polarizable atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_cpol
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_cpol = c_loc(s%eel%cpol)
+        end function C_ommp_get_cpol
+
+        function C_ommp_get_q(s_prt) bind(c, name='ommp_get_q')
+            !! Return the c-pointer to the array containing the static source of 
+            !! the electrostatic field.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_q
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_q = c_loc(s%eel%q)
+        end function C_ommp_get_q
+
+        function C_ommp_get_ipd(s_prt) bind(c, name='ommp_get_ipd')
+            !! Return the c-pointer to the array containing the induced dipoles 
+            !! on polarizable sites.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_ipd
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_ipd = c_loc(s%eel%ipd)
+        end function C_ommp_get_ipd
+        
+        function C_ommp_get_polar_mm(s_prt) bind(c, name='ommp_get_polar_mm')
+            !! Return the c-pointer to the array containing the map from 
+            !! polarizable to MM atoms.
+            use mod_memory, only: mallocate
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_polar_mm
+            
+            call c_f_pointer(s_prt, s)
+            if(.not. allocated(s%eel%C_polar_mm)) then 
+                call mallocate('C_ommp_get_polar_mm [C_polar_mm]', &
+                               size(s%eel%polar_mm), s%eel%C_polar_mm)
+                s%eel%C_polar_mm = s%eel%polar_mm - 1
+            end if
+
+            C_ommp_get_polar_mm = c_loc(s%eel%C_polar_mm)
+        end function C_ommp_get_polar_mm
+
+        function C_ommp_get_mm_atoms(s_prt) bind(c, name='ommp_get_mm_atoms')
+            !! Return the number of MM atoms in the system.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_mm_atoms
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_mm_atoms = s%top%mm_atoms
+        end function C_ommp_get_mm_atoms
+        
+        function C_ommp_get_pol_atoms(s_prt) bind(c, name='ommp_get_pol_atoms')
+            !! Return the number of polarizable atoms in the system.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_pol_atoms
+            
+            call c_f_pointer(s_prt, s)
+
+            C_ommp_get_pol_atoms = s%eel%pol_atoms
+        end function C_ommp_get_pol_atoms
+
+        function C_ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
+            !! Return the number of dipole's set for the current Force-Field.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_n_ipd
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_n_ipd = s%eel%n_ipd
+        end function C_ommp_get_n_ipd
+
+        function C_ommp_get_ld_cart(s_prt) bind(c, name='ommp_get_ld_cart')
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_ld_cart
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_ld_cart = s%eel%ld_cart
+        end function C_ommp_get_ld_cart
+
+        function C_ommp_ff_is_amoeba(s_prt) bind(c, name='ommp_ff_is_amoeba')
+            !! Return true if the current forcefield is AMOEBA, and false in
+            !! all other cases.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_ff_is_amoeba
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_ff_is_amoeba = s%amoeba
+        end function C_ommp_ff_is_amoeba
+        
         !??
         subroutine C_ommp_field_mmpol2ext(s_prt, n, cext, E) &
                 bind(c, name='ommp_field_mmpol2ext')
@@ -295,390 +840,7 @@ module mod_ommp_C_interface
             call field_D2E(s%eel, fcext, fE)
         end subroutine
 
-        function C_ommp_get_polelec_energy(s_prt) &
-                result(epol) bind(c, name='ommp_get_polelec_energy')
-            !! Solve the polarization equation for a certain external field
-            !! and compute the interaction energy of the induced dipoles with
-            !! themselves and fixed multipoles.
-
-            use mod_polarization, only: polarization
-            use mod_electrostatics, only: prepare_polelec, energy_MM_pol, &
-                                          ommp_electrostatics_type
-            use mod_constants, only: OMMP_SOLVER_DEFAULT
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(ommp_electrostatics_type), pointer :: eel
-            real(ommp_real) :: epol
-
-            call c_f_pointer(s_prt, s)
-            eel => s%eel
-            
-            if(.not. eel%ipd_done) then
-                !! Solve the polarization system without external field
-                call prepare_polelec(eel)
-                call polarization(s, eel%e_m2d, OMMP_SOLVER_DEFAULT)
-            end if
-            epol = 0.0
-            call energy_MM_pol(eel, epol) 
-        end function
-
-        function C_ommp_get_fixedelec_energy(s_prt) &
-                result(emm) bind(c, name='ommp_get_fixedelec_energy')
-            ! Get the interaction energy of fixed multipoles
-            use mod_electrostatics, only: energy_MM_MM
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: emm
-
-            call c_f_pointer(s_prt, s)
-
-            emm = 0.0
-            call energy_MM_MM(s%eel, emm)
-        end function
-        
-        function C_ommp_get_full_ele_energy(s_prt) &
-                result(ene) bind(c, name='ommp_get_full_ele_energy')
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: sys_obj
-            real(ommp_real) :: ene
-
-            call c_f_pointer(s_prt, sys_obj)
-
-            ene = ommp_get_full_ele_energy(sys_obj) 
-        end function
-        
-        function C_ommp_get_vdw_energy(s_prt) &
-                result(evdw) bind(c, name='ommp_get_vdw_energy')
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: evdw
-
-            call c_f_pointer(s_prt, s)
-
-            evdw = ommp_get_vdw_energy(s)
-        
-        end function
-        
-        function C_ommp_get_bond_energy(s_prt) &
-                result(ebnd) bind(c, name='ommp_get_bond_energy')
-            
-            use mod_bonded, only: bond_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: ebnd
-
-            call c_f_pointer(s_prt, s)
-
-            ebnd = ommp_get_bond_energy(s)
-        end function
-        
-        function C_ommp_get_angle_energy(s_prt) &
-                result(eang) bind(c, name='ommp_get_angle_energy')
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: eang
-
-            call c_f_pointer(s_prt, s)
-
-            eang = ommp_get_angle_energy(s)
-        end function
-        
-
-        function C_ommp_get_urey_energy(s_prt) &
-                result(eub) bind(c, name='ommp_get_urey_energy')
-            
-            use mod_bonded, only: urey_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: eub
-
-            call c_f_pointer(s_prt, s)
-
-            eub = 0.0
-            if(s%use_bonded) call urey_potential(s%bds, eub)
-        end function
-        
-        function C_ommp_get_strbnd_energy(s_prt) &
-                result(eba) bind(c, name='ommp_get_strbnd_energy')
-            
-            use mod_bonded, only: strbnd_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: eba
-
-            call c_f_pointer(s_prt, s)
-
-            eba = 0.0
-            if(s%use_bonded) call strbnd_potential(s%bds, eba)
-        end function
-        
-        function C_ommp_get_angtor_energy(s_prt) &
-                result(eat) bind(c, name='ommp_get_angtor_energy')
-            
-            use mod_bonded, only: angtor_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: eat
-
-            call c_f_pointer(s_prt, s)
-
-            eat = 0.0
-            if(s%use_bonded) call angtor_potential(s%bds, eat)
-        end function
-        
-        function C_ommp_get_strtor_energy(s_prt) &
-                result(ebt) bind(c, name='ommp_get_strtor_energy')
-            
-            use mod_bonded, only: strtor_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: ebt
-
-            call c_f_pointer(s_prt, s)
-
-            ebt = 0.0
-            if(s%use_bonded) call strtor_potential(s%bds, ebt)
-        end function
-        
-        function C_ommp_get_opb_energy(s_prt) &
-            result(eopb) bind(c, name='ommp_get_opb_energy')
-            
-            use mod_bonded, only: opb_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: eopb
-
-            call c_f_pointer(s_prt, s)
-
-            eopb = 0.0
-            if(s%use_bonded) call opb_potential(s%bds, eopb)
-        end function
-        
-        function C_ommp_get_pitors_energy(s_prt) &
-                result(epitors) bind(c, name='ommp_get_pitors_energy')
-            
-            use mod_bonded, only: pitors_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: epitors
-
-            call c_f_pointer(s_prt, s)
-
-            epitors = 0.0
-            if(s%use_bonded) call pitors_potential(s%bds, epitors)
-        end function
-        
-        function C_ommp_get_torsion_energy(s_prt) &
-                result(et) bind(c, name='ommp_get_torsion_energy')
-            
-            use mod_bonded, only: torsion_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: et
-
-            call c_f_pointer(s_prt, s)
-
-            et = 0.0
-            if(s%use_bonded) call torsion_potential(s%bds, et)
-        end function
-        
-        function C_ommp_get_imptorsion_energy(s_prt) &
-                result(et) bind(c, name='ommp_get_imptorsion_energy')
-            
-            use mod_bonded, only: imptorsion_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: et
-
-            call c_f_pointer(s_prt, s)
-
-            et = 0.0
-            if(s%use_bonded) call imptorsion_potential(s%bds, et)
-        end function
-        
-        function C_ommp_get_tortor_energy(s_prt) &
-                result(ett) bind(c, name='ommp_get_tortor_energy')
-            
-            use mod_bonded, only: tortor_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: ett
-
-            call c_f_pointer(s_prt, s)
-
-            ett = 0.0
-            if(s%use_bonded) call tortor_potential(s%bds, ett)
-        end function
-        
-        function C_ommp_get_full_bnd_energy(s_prt) &
-                result(ene) bind(c, name='ommp_get_full_bnd_energy')
-            
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: sys_obj
-            real(ommp_real) :: ene
-
-            call c_f_pointer(s_prt, sys_obj)
-
-            ene = ommp_get_full_bnd_energy(sys_obj) 
-        end function
-        
-        function C_ommp_get_full_energy(s_prt) &
-                result(ene) bind(c, name='ommp_get_full_energy')
-            
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: sys_obj
-            real(ommp_real) :: ene
-
-            call c_f_pointer(s_prt, sys_obj)
-
-            ene = ommp_get_full_energy(sys_obj)
-        end function
-
-        subroutine C_ommp_update_coordinates(s_prt, new_c_p) &
-                bind(C, name='ommp_update_coordinates')
-            use mod_mmpol, only: update_coordinates
-            
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: new_c_p
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: new_c(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(new_c_p, new_c, [3, s%top%mm_atoms])
-            
-            call update_coordinates(s, new_c)
-        end subroutine
-
-        subroutine C_ommp_fixedelec_geomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_fixedelec_geomgrad')
-            use mod_geomgrad, only: fixedelec_geomgrad
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            
-            grd = 0.0
-            call fixedelec_geomgrad(s, grd)
-        end subroutine
-        
-        subroutine C_ommp_polelec_geomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_polelec_geomgrad')
-            use mod_geomgrad, only: polelec_geomgrad
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            
-            grd = 0.0
-            call polelec_geomgrad(s, grd)
-        end subroutine
-
-        subroutine C_ommp_rotation_geomgrad(s_prt, pE, pE_grd, grd_prt) &
-                bind(C, name="ommp_rotation_geomgrad")
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: pE
-            type(c_ptr), value :: pE_grd
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:), E(:,:), Egrd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            call c_f_pointer(pE, E, [3, s%top%mm_atoms])
-            call c_f_pointer(pE_grd, Egrd, [6, s%top%mm_atoms])
-            
-            grd = 0.0
-            call rotation_geomgrad(s%eel, E, Egrd, grd)
-
-        end subroutine
-        
-        subroutine C_ommp_vdw_geomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_vdw_geomgrad')
-            use mod_nonbonded, only: vdw_geomgrad
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            
-            grd = 0.0
-            if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
-        end subroutine
-        
-        subroutine C_ommp_full_geomgrad(s_prt, grd_prt) &
-                bind(C, name='ommp_full_geomgrad')
-            use ommp_interface, only: ommp_get_full_geomgrad
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(c_ptr), value :: grd_prt
-            
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: grd(:,:)
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            
-            call ommp_get_full_geomgrad(s, grd)
-        end subroutine
-
+        ! Interface for QM Helper module
         function C_ommp_init_qm_helper(n, cqm, qqm, zqm) &
                 result(c_prt) bind(c, name='ommp_init_qm_helper')
             
@@ -1005,205 +1167,6 @@ module mod_ommp_C_interface
             deallocate(s)
 
         end subroutine
-
-#ifdef USE_HDF5
-        function C_ommp_init_hdf5(filename, namespace) &
-                result(c_prt) bind(c, name='ommp_init_hdf5')
-            !! This function is an interface for saving an HDF5 file 
-            !! with all the data contained in mmpol module using
-            !! [[mod_io:mmpol_save_as_hdf5]]
-            use mod_iohdf5, only: mmpol_init_from_hdf5
-            
-            implicit none
-            
-            type(ommp_system), pointer :: s
-            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
-                                                  namespace(OMMP_STR_CHAR_MAX)
-            character(len=OMMP_STR_CHAR_MAX) :: hdf5in, nms
-            integer(ommp_integer) :: ok
-            type(c_ptr) :: c_prt
-
-            allocate(s)
-
-            call c2f_string(filename, hdf5in)
-            call c2f_string(namespace, nms)
-            call mmpol_init_from_hdf5(hdf5in, trim(nms), s, ok)
-            
-            c_prt = c_loc(s)
-            
-        end function C_ommp_init_hdf5
-        
-        subroutine C_ommp_save_as_hdf5(s_prt, filename, namespace) &
-                bind(c, name='ommp_save_as_hdf5')
-            
-            use mod_iohdf5, only: save_system_as_hdf5 
-
-            implicit none
-            
-            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
-                                                  namespace(OMMP_STR_CHAR_MAX)
-            character(len=OMMP_STR_CHAR_MAX) :: hdf5out, nms
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(kind=4) :: err
-
-            call c_f_pointer(s_prt, s)
-
-            call c2f_string(filename, hdf5out)
-            call c2f_string(namespace, nms)
-            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .false.)
-            
-        end subroutine C_ommp_save_as_hdf5
-        
-        subroutine C_ommp_checkpoint(s_prt, filename, namespace) &
-                bind(c, name='ommp_checkpoint')
-            
-            use mod_iohdf5, only: save_system_as_hdf5 
-
-            implicit none
-            
-            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX), &
-                                                  namespace(OMMP_STR_CHAR_MAX)
-            character(len=OMMP_STR_CHAR_MAX) :: hdf5out, nms
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(kind=4) :: err
-
-            call c_f_pointer(s_prt, s)
-
-            call c2f_string(filename, hdf5out)
-            call c2f_string(namespace, nms)
-            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .true.)
-            
-        end subroutine C_ommp_checkpoint
-#endif
-        ! Functions to provide direct access to Fortran objects/memory from
-        ! C and derived codes.
-
-        function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')
-            !! Return the c-pointer to the array containing the coordinates of
-            !! MM atoms.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_cmm
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_cmm = c_loc(s%top%cmm)
-        end function C_ommp_get_cmm
-
-        function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
-            !! Return the c-pointer to the array containing the coordinates of
-            !! polarizable atoms.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_cpol
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_cpol = c_loc(s%eel%cpol)
-        end function C_ommp_get_cpol
-
-        function C_ommp_get_q(s_prt) bind(c, name='ommp_get_q')
-            !! Return the c-pointer to the array containing the static source of 
-            !! the electrostatic field.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_q
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_q = c_loc(s%eel%q)
-        end function C_ommp_get_q
-
-        function C_ommp_get_ipd(s_prt) bind(c, name='ommp_get_ipd')
-            !! Return the c-pointer to the array containing the induced dipoles 
-            !! on polarizable sites.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_ipd
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_ipd = c_loc(s%eel%ipd)
-        end function C_ommp_get_ipd
-        
-        function C_ommp_get_polar_mm(s_prt) bind(c, name='ommp_get_polar_mm')
-            !! Return the c-pointer to the array containing the map from 
-            !! polarizable to MM atoms.
-            use mod_memory, only: mallocate
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_polar_mm
-            
-            call c_f_pointer(s_prt, s)
-            if(.not. allocated(s%eel%C_polar_mm)) then 
-                call mallocate('C_ommp_get_polar_mm [C_polar_mm]', &
-                               size(s%eel%polar_mm), s%eel%C_polar_mm)
-                s%eel%C_polar_mm = s%eel%polar_mm - 1
-            end if
-
-            C_ommp_get_polar_mm = c_loc(s%eel%C_polar_mm)
-        end function C_ommp_get_polar_mm
-
-        function C_ommp_get_mm_atoms(s_prt) bind(c, name='ommp_get_mm_atoms')
-            !! Return the number of MM atoms in the system.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_mm_atoms
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_mm_atoms = s%top%mm_atoms
-        end function C_ommp_get_mm_atoms
-        
-        function C_ommp_get_pol_atoms(s_prt) bind(c, name='ommp_get_pol_atoms')
-            !! Return the number of polarizable atoms in the system.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_pol_atoms
-            
-            call c_f_pointer(s_prt, s)
-
-            C_ommp_get_pol_atoms = s%eel%pol_atoms
-        end function C_ommp_get_pol_atoms
-
-        function C_ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
-            !! Return the number of dipole's set for the current Force-Field.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_n_ipd
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_n_ipd = s%eel%n_ipd
-        end function C_ommp_get_n_ipd
-
-        function C_ommp_get_ld_cart(s_prt) bind(c, name='ommp_get_ld_cart')
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_ld_cart
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_ld_cart = s%eel%ld_cart
-        end function C_ommp_get_ld_cart
-
-        function C_ommp_ff_is_amoeba(s_prt) bind(c, name='ommp_ff_is_amoeba')
-            !! Return true if the current forcefield is AMOEBA, and false in
-            !! all other cases.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            logical(c_bool) :: C_ommp_ff_is_amoeba
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_ff_is_amoeba = s%amoeba
-        end function C_ommp_ff_is_amoeba
 
 end module mod_ommp_C_interface
 
