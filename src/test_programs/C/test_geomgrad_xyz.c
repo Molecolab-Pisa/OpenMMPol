@@ -170,6 +170,8 @@ int main(int argc, char **argv){
         retcode = retcode + 3;
     }
 
+    ommp_angle_geomgrad(my_system, _grad_ana);
+
     fclose(fp);
     ommp_terminate(my_system);
     

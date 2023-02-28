@@ -154,7 +154,7 @@ module mod_bonded
 
     public :: ommp_bonded_type
     public :: bond_init, bond_potential, bond_geomgrad, bond_terminate
-    public :: angle_init, angle_potential, angle_terminate
+    public :: angle_init, angle_potential, angle_geomgrad, angle_terminate
     public :: urey_init, urey_potential, urey_terminate
     public :: strbnd_init, strbnd_potential, strbnd_terminate
     public :: opb_init, opb_potential, opb_terminate
@@ -441,6 +441,35 @@ module mod_bonded
             end if
         end do
     end subroutine angle_potential
+    
+    subroutine angle_geomgrad(bds, grad)
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: simple_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+        
+        integer(ip) :: i, j
+        real(rp) :: a(3), b(3), c(3), Ja(3), Jb(3), Jc(4)
+
+        if(.not. bds%use_angle) return
+        
+        do i=1, bds%nangle
+            if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
+               bds%anglety(i) == OMMP_ANG_H0 .or. &
+               bds%anglety(i) == OMMP_ANG_H1 .or. &
+               bds%anglety(i) == OMMP_ANG_H2) then
+                a = bds%top%cmm(:, bds%angleat(1,i)) 
+                b = bds%top%cmm(:, bds%angleat(2,i))
+                c = bds%top%cmm(:, bds%angleat(3,i))
+                call simple_angle_jacobian(a,b,c, Ja, Jb, Jc)
+            end if
+        end do
+    end subroutine angle_geomgrad
    
     subroutine strbnd_init(bds, n)
         !! Initialize arrays for calculation of stretch-bend cross term 
