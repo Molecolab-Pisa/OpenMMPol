@@ -245,6 +245,61 @@ module mod_bonded
         end if
         
     end subroutine bond_potential
+    
+    subroutine bond_geomgrad(bds, grad)
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: Rij_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+        integer :: i, ia, ib
+        logical :: use_cubic, use_quartic
+        real(rp) :: ca(3), cb(3), J_a(3), J_b(3), l, dl, g
+
+        use_cubic = (abs(bds%bond_cubic) > eps_rp)
+        use_quartic = (abs(bds%bond_quartic) > eps_rp)
+        
+        if(.not. bds%use_bond) return
+
+        if(.not. use_cubic .and. .not. use_quartic) then
+            ! This is just a regular harmonic potential
+            do i=1, bds%nbond
+                ia = bds%bondat(1,i)
+                ib = bds%bondat(2,i)
+                ca = bds%top%cmm(:,ia)
+                cb = bds%top%cmm(:,ib)
+                
+                call Rij_jacobian(ca, cb, l, J_a, J_b)
+                dl = l - bds%l0bond(i)
+                
+                g = 2 * bds%kbond(i) * dl
+                grad(:,ia) = J_a * g
+                grad(:,ib) = J_b * g
+            end do
+        else
+            do i=1, bds%nbond
+                ia = bds%bondat(1,i)
+                ib = bds%bondat(2,i)
+                ca = bds%top%cmm(:,ia)
+                cb = bds%top%cmm(:,ib)
+                
+                call Rij_jacobian(ca, cb, l, J_a, J_b)
+                dl = l - bds%l0bond(i)
+                
+                g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl&
+                                             + 2.0*bds%bond_quartic*dl**2)
+
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        end if
+        
+    end subroutine bond_geomgrad
 
     subroutine angle_init(bds, n)
         !! Initialize arrays used in calculation of angle bending functions

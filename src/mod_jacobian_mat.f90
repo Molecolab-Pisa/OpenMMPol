@@ -7,7 +7,7 @@ module mod_jacobian_mat
 
     contains
         
-    subroutine Rij_jacobian(ci, cj, Rij, J_i, J_j)
+    pure subroutine Rij_jacobian(ci, cj, Rij, J_i, J_j)
         !! Compute the Jacobian matrix of distance 
         !! Rij = sqrt((ci(_x_)-cj(_x_))**2 + (ci(_y_)-cj(_y_))**2 + (ci(_z_)-cj(_z_))**2)
         !! Derivatives wrt ci(:) are saved in J_i and wrt cj(:) in J_j; the
