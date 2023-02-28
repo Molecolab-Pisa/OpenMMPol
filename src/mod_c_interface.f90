@@ -843,9 +843,6 @@ module mod_ommp_C_interface
         ! Interface for QM Helper module
         function C_ommp_init_qm_helper(n, cqm, qqm, zqm) &
                 result(c_prt) bind(c, name='ommp_init_qm_helper')
-            
-            use mod_qm_helper, only: qm_helper_init, ommp_qm_helper
-            
             implicit none
 
             type(ommp_qm_helper), pointer :: s
@@ -855,21 +852,31 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcqm(:,:), fqqm(:)
             integer(ommp_integer), pointer :: fzqm(:)
             type(c_ptr) :: c_prt
-
-            allocate(s)
             
             call c_f_pointer(cqm, fcqm, [3,n])
             call c_f_pointer(qqm, fqqm, [n])
             call c_f_pointer(zqm, fzqm, [n])
-            call qm_helper_init(s, n, fcqm, fqqm, fzqm)
+            call ommp_init_qm_helper(s, n, fcqm, fqqm, fzqm)
             c_prt = c_loc(s)
         end function
+
+        subroutine C_ommp_terminate_qm_helper(s_ptr) &
+                bind(c, name='ommp_terminate_qm_helper')
+            
+            use mod_qm_helper, only: qm_helper_terminate, ommp_qm_helper
+            
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            type(ommp_qm_helper), pointer :: s
+            
+            call c_f_pointer(s_ptr, s)
+            call qm_helper_terminate(s)
+            deallocate(s)
+        end subroutine
         
         subroutine C_ommp_qm_helper_init_vdw_prm(pqm, pattype, cprmfile) &
                  bind(c, name='ommp_qm_helper_init_vdw_prm')
-            
-            use mod_qm_helper, only: qm_helper_init_vdw_prm, ommp_qm_helper
-            
             implicit none
 
             type(c_ptr), value, intent(in) :: pqm, pattype
@@ -883,7 +890,7 @@ module mod_ommp_C_interface
             call c_f_pointer(pattype, attype, [qm%qm_top%mm_atoms])
             call c2f_string(cprmfile, prmfile)
 
-            call qm_helper_init_vdw_prm(qm, attype, prmfile)
+            call ommp_qm_helper_init_vdw_prm(qm, attype, prmfile)
         end subroutine
         
         subroutine C_ommp_qm_helper_init_vdw(pqm, peps, prad, pfac, &
@@ -891,9 +898,6 @@ module mod_ommp_C_interface
                                              cradius_size, cradius_type, &
                                              ceps_rule) &
                  bind(c, name='ommp_qm_helper_init_vdw')
-            
-            use mod_qm_helper, only: qm_helper_init_vdw, ommp_qm_helper
-            
             implicit none
 
             type(c_ptr), value, intent(in) :: pqm, peps, prad, pfac
@@ -919,15 +923,27 @@ module mod_ommp_C_interface
             call c2f_string(cradius_type, radius_type)
             call c2f_string(ceps_rule, eps_rule)
 
-            call qm_helper_init_vdw(qm, eps, rad, fac, vdw_type, radius_rule, &
-                                    radius_size, radius_type, eps_rule)
+            call ommp_qm_helper_init_vdw(qm, eps, rad, fac, vdw_type, radius_rule, &
+                                         radius_size, radius_type, eps_rule)
         end subroutine
+        
+        function C_ommp_qm_helper_vdw_energy(qm_prt, s_prt) &
+                result(evdw) bind(c, name='ommp_qm_helper_vdw_energy')
+            implicit none
+
+            type(c_ptr), value :: qm_prt, s_prt
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+            real(ommp_real) :: evdw
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+
+            evdw = ommp_qm_helper_vdw_energy(qm, s)
+        end function
         
         subroutine C_ommp_qm_helper_vdw_geomgrad(qm_prt, s_prt, qmg_prt, mmg_prt) &
                 bind(c, name='ommp_qm_helper_vdw_geomgrad')
-            
-            use mod_qm_helper, only: qm_helper_vdw_geomgrad, ommp_qm_helper
-
             implicit none
 
             type(c_ptr), value :: qm_prt, s_prt, qmg_prt, mmg_prt
@@ -940,34 +956,11 @@ module mod_ommp_C_interface
             call c_f_pointer(qmg_prt, qmg, [3,qm%qm_top%mm_atoms])
             call c_f_pointer(mmg_prt, mmg, [3,s%top%mm_atoms])
 
-            mmg = 0.0
-            qmg = 0.0
-            call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+            call ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
         end subroutine
-        
-        function C_ommp_qm_helper_vdw_energy(qm_prt, s_prt) &
-                result(evdw) bind(c, name='ommp_qm_helper_vdw_energy')
-            
-            use mod_qm_helper, only: qm_helper_vdw_energy, ommp_qm_helper
-
-            implicit none
-
-            type(c_ptr), value :: qm_prt, s_prt
-            type(ommp_system), pointer :: s
-            type(ommp_qm_helper), pointer :: qm
-            real(ommp_real) :: evdw
-
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(qm_prt, qm)
-
-            evdw = 0.0
-            call qm_helper_vdw_energy(qm, s, evdw)
-        end function
 
         subroutine C_ommp_prepare_qm_ele_ene(s_ptr, qm_ptr) &
                 bind(c, name='ommp_prepare_qm_ele_ene')
-            use mod_qm_helper, only: ommp_qm_helper, electrostatic_for_ene
-
             implicit none
 
             type(c_ptr), value :: s_ptr
@@ -981,13 +974,11 @@ module mod_ommp_C_interface
             call c_f_pointer(qm_ptr, qm_help)
             call c_f_pointer(s_ptr, s)
 
-            call electrostatic_for_ene(s, qm_help)
+            call ommp_prepare_qm_ele_ene(s, qm_help)
         end subroutine 
         
         subroutine C_ommp_prepare_qm_ele_grd(s_ptr, qm_ptr) &
                 bind(c, name='ommp_prepare_qm_ele_grd')
-            use mod_qm_helper, only: ommp_qm_helper, electrostatic_for_grad
-
             implicit none
 
             type(c_ptr), value :: s_ptr
@@ -1001,7 +992,7 @@ module mod_ommp_C_interface
             call c_f_pointer(qm_ptr, qm_help)
             call c_f_pointer(s_ptr, s)
 
-            call electrostatic_for_grad(s, qm_help)
+            call ommp_prepare_qm_ele_grd(s, qm_help)
         end subroutine 
 
         function C_ommp_qm_helper_get_E_n2p(qm_ptr) &
@@ -1151,22 +1142,6 @@ module mod_ommp_C_interface
             call c_f_pointer(qm_ptr, qm_help)
             n = qm_help%qm_top%mm_atoms
         end function
-
-        subroutine C_ommp_terminate_qm_helper(s_ptr) &
-                bind(c, name='ommp_terminate_qm_helper')
-            
-            use mod_qm_helper, only: qm_helper_terminate, ommp_qm_helper
-            
-            implicit none
-
-            type(c_ptr), value :: s_ptr
-            type(ommp_qm_helper), pointer :: s
-            
-            call c_f_pointer(s_ptr, s)
-            call qm_helper_terminate(s)
-            deallocate(s)
-
-        end subroutine
 
 end module mod_ommp_C_interface
 

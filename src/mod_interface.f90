@@ -11,11 +11,8 @@ module ommp_interface
     !! In a C code, routines are provided to get the pointer or the values of 
     !! vector and scalar quantites respectively.
 
-    ! Renamed import of several global variable that should be available
+    ! Renamed import of several global variables that should be available
     ! in the interface
-    use mod_memory, only: ommp_integer => ip, &
-                          ommp_real => rp
-
     use mod_constants, only: OMMP_FF_AMOEBA, OMMP_FF_WANG_AL, OMMP_FF_WANG_DL, &
                              OMMP_SOLVER_CG, OMMP_SOLVER_DIIS, &
                              OMMP_SOLVER_INVERSION, OMMP_SOLVER_DEFAULT, &
@@ -25,9 +22,13 @@ module ommp_interface
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
                              OMMP_AU2KCALMOL => au2kcalmol
     
+    ! Internal types
+    use mod_memory, only: ommp_integer => ip, &
+                          ommp_real => rp
     use mod_mmpol, only: ommp_system
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_topology, only: ommp_topology_type
+    use mod_qm_helper, only: ommp_qm_helper
 
     use mod_mmpol, only: ommp_save_mmp => mmpol_save_as_mmp, &
                          ommp_print_summary => mmpol_ommp_print_summary, &
@@ -38,6 +39,11 @@ module ommp_interface
     
     use mod_geomgrad, only: ommp_fixedelec_geomgrad => fixedelec_geomgrad, &
                             ommp_polelec_geomgrad => polelec_geomgrad
+    
+    use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
+                             ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
+                             ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
+                             ommp_prepare_qm_ele_grd => electrostatic_for_grad
 
     implicit none
     
@@ -561,5 +567,62 @@ module ommp_interface
             
         end subroutine ommp_checkpoint
 #endif
+
+    ! QM Helper Object housekeeping
+    subroutine ommp_init_qm_helper(s, n, cqm, qqm, zqm)
+        
+        use mod_qm_helper, only: qm_helper_init
+        
+        implicit none
+
+        type(ommp_qm_helper), pointer, intent(inout) :: s
+        integer(ommp_integer) :: n
+        real(ommp_real), intent(in) :: cqm(:,:), qqm(:)
+        integer(ommp_integer), intent(in) :: zqm(:)
+
+        allocate(s)
+        call qm_helper_init(s, n, cqm, qqm, zqm)
+    end subroutine
+    
+    subroutine ommp_terminate_qm_helper(s) 
+        
+        use mod_qm_helper, only: qm_helper_terminate
+        
+        implicit none
+
+        type(ommp_qm_helper), pointer, intent(inout) :: s
+        
+        call qm_helper_terminate(s)
+        deallocate(s)
+    end subroutine
+    
+    function ommp_qm_helper_vdw_energy(qm, s) result(evdw)
+        use mod_qm_helper, only: qm_helper_vdw_energy
+
+        implicit none
+
+        type(ommp_system), intent(in) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real) :: evdw
+
+        evdw = 0.0
+        call qm_helper_vdw_energy(qm, s, evdw)
+    end function
+    
+    subroutine ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+        
+        use mod_qm_helper, only: qm_helper_vdw_geomgrad
+
+        implicit none
+
+        type(ommp_system), intent(in) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real), intent(out) :: qmg(:,:), mmg(:,:)
+
+        mmg = 0.0
+        qmg = 0.0
+        call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+    end subroutine
+
 end module ommp_interface
 
