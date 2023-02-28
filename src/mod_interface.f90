@@ -11,11 +11,8 @@ module ommp_interface
     !! In a C code, routines are provided to get the pointer or the values of 
     !! vector and scalar quantites respectively.
 
-    ! Renamed import of several global variable that should be available
+    ! Renamed import of several global variables that should be available
     ! in the interface
-    use mod_memory, only: ommp_integer => ip, &
-                          ommp_real => rp
-
     use mod_constants, only: OMMP_FF_AMOEBA, OMMP_FF_WANG_AL, OMMP_FF_WANG_DL, &
                              OMMP_SOLVER_CG, OMMP_SOLVER_DIIS, &
                              OMMP_SOLVER_INVERSION, OMMP_SOLVER_DEFAULT, &
@@ -25,18 +22,28 @@ module ommp_interface
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
                              OMMP_AU2KCALMOL => au2kcalmol
     
+    ! Internal types
+    use mod_memory, only: ommp_integer => ip, &
+                          ommp_real => rp
     use mod_mmpol, only: ommp_system
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_topology, only: ommp_topology_type
+    use mod_qm_helper, only: ommp_qm_helper
 
     use mod_mmpol, only: ommp_save_mmp => mmpol_save_as_mmp, &
                          ommp_print_summary => mmpol_ommp_print_summary, &
+                         ommp_update_coordinates => update_coordinates, &
                          ommp_print_summary_to_file => mmpol_ommp_print_summary
 
     use mod_io, only: ommp_set_verbose => set_verbosity
     
     use mod_geomgrad, only: ommp_fixedelec_geomgrad => fixedelec_geomgrad, &
                             ommp_polelec_geomgrad => polelec_geomgrad
+    
+    use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
+                             ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
+                             ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
+                             ommp_prepare_qm_ele_grd => electrostatic_for_grad
 
     implicit none
     
@@ -129,6 +136,20 @@ module ommp_interface
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             end if
         end subroutine ommp_set_external_field
+
+        subroutine ommp_set_external_field_nomm(sys_obj, ext_field, solver)
+            !! This is just the same as [[ommp_set_external_field]] but 
+            !! implicitly assuming [[ommp_set_external_field:add_mm_field]] as 
+            !! false, mainly here for interface consistency with C
+
+            implicit none
+            
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real), intent(in) :: ext_field(3,sys_obj%eel%pol_atoms)
+            integer(ommp_integer), intent(in), value :: solver
+
+            call ommp_set_external_field(sys_obj, ext_field, solver, .false.)
+        end subroutine
         
         subroutine ommp_potential_mmpol2ext(s, n, cext, v)
             ! Compute the electric potential of static sites at
@@ -178,7 +199,10 @@ module ommp_interface
         end subroutine
 
         function ommp_get_polelec_energy(sys_obj) result(ene)
-            
+            !! Solve the polarization equation for a certain external field
+            !! and compute the interaction energy of the induced dipoles with
+            !! themselves and fixed multipoles.
+
             use mod_electrostatics, only: energy_MM_pol, prepare_polelec
             use mod_polarization, only: polarization
             use mod_constants, only: OMMP_SOLVER_DEFAULT
@@ -302,16 +326,16 @@ module ommp_interface
         
         end function
         
-        function ommp_get_pitors_energy(sys_obj) result(ept)
+        function ommp_get_imptorsion_energy(sys_obj) result(et)
             
-            use mod_bonded, only: pitors_potential
+            use mod_bonded, only: imptorsion_potential
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
-            real(ommp_real) :: ept
+            real(ommp_real) :: et
 
-            ept = 0.0
-            if(sys_obj%use_bonded) call pitors_potential(sys_obj%bds, ept)
+            et = 0.0
+            if(sys_obj%use_bonded) call imptorsion_potential(sys_obj%bds, et)
         
         end function
         
@@ -328,29 +352,16 @@ module ommp_interface
         
         end function
         
-        function ommp_get_imptorsion_energy(sys_obj) result(et)
+        function ommp_get_pitors_energy(sys_obj) result(ept)
             
-            use mod_bonded, only: imptorsion_potential
-            
-            implicit none
-            type(ommp_system), intent(inout), target :: sys_obj
-            real(ommp_real) :: et
-
-            et = 0.0
-            if(sys_obj%use_bonded) call imptorsion_potential(sys_obj%bds, et)
-        
-        end function
-        
-        function ommp_get_tortor_energy(sys_obj) result(ett)
-            
-            use mod_bonded, only: tortor_potential
+            use mod_bonded, only: pitors_potential
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
-            real(ommp_real) :: ett
+            real(ommp_real) :: ept
 
-            ett = 0.0
-            if(sys_obj%use_bonded) call tortor_potential(sys_obj%bds, ett)
+            ept = 0.0
+            if(sys_obj%use_bonded) call pitors_potential(sys_obj%bds, ept)
         
         end function
         
@@ -380,13 +391,27 @@ module ommp_interface
 
         end function
         
+        function ommp_get_tortor_energy(sys_obj) result(ett)
+            
+            use mod_bonded, only: tortor_potential
+            
+            implicit none
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real) :: ett
+
+            ett = 0.0
+            if(sys_obj%use_bonded) call tortor_potential(sys_obj%bds, ett)
+        
+        end function
+        
         function ommp_get_full_bnd_energy(sys_obj) result(ene)
             
             use mod_bonded, only: bond_potential, angtor_potential, &
                                   strbnd_potential, urey_potential, &
                                   opb_potential, pitors_potential, &
                                   torsion_potential, tortor_potential, &
-                                  strtor_potential
+                                  strtor_potential, angle_potential, &
+                                  imptorsion_potential
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -396,16 +421,17 @@ module ommp_interface
             
             if(sys_obj%use_bonded) then
                 call bond_potential(sys_obj%bds, ene)
-                call angtor_potential(sys_obj%bds, ene)
+                call angle_potential(sys_obj%bds, ene)
                 call strbnd_potential(sys_obj%bds, ene)
                 call urey_potential(sys_obj%bds, ene)
                 call opb_potential(sys_obj%bds, ene)
-                call pitors_potential(sys_obj%bds, ene)
+                call imptorsion_potential(sys_obj%bds, ene) 
                 call torsion_potential(sys_obj%bds, ene)
-                call tortor_potential(sys_obj%bds, ene)
+                call pitors_potential(sys_obj%bds, ene)
                 call strtor_potential(sys_obj%bds, ene)
+                call angtor_potential(sys_obj%bds, ene)
+                call tortor_potential(sys_obj%bds, ene)
             end if
-        
         end function
         
         function ommp_get_full_energy(sys_obj) result(ene)
@@ -417,23 +443,14 @@ module ommp_interface
             ene =  ommp_get_vdw_energy(sys_obj)
             ene = ene + ommp_get_full_ele_energy(sys_obj)
             ene = ene + ommp_get_full_bnd_energy(sys_obj)
-        
         end function
 
-        subroutine ommp_update_coordinates(s, new_c)
-            use mod_mmpol, only: update_coordinates
-            
-            implicit none
-            
-            type(ommp_system), intent(inout) :: s
-            real(ommp_real), intent(in) :: new_c(3,s%top%mm_atoms)
-
-            call update_coordinates(s, new_c)
-        end subroutine
-
+        ! Functions for advanced operation and gradients
         subroutine ommp_vdw_geomgrad(s, grd)
             use mod_nonbonded, only: vdw_geomgrad
-
+            
+            implicit none 
+            
             type(ommp_system), intent(inout) :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
@@ -441,22 +458,66 @@ module ommp_interface
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
         end subroutine
         
-        subroutine ommp_get_full_geomgrad(s, grd)
+        subroutine ommp_rotation_geomgrad(s, E, Egrd, grd )
+            implicit none
+
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(in) :: E(:,:), Egrd(:,:)
+            real(ommp_real), intent(out) :: grd(:,:)
+            
+            grd = 0.0
+            call rotation_geomgrad(s%eel, E, Egrd, grd)
+        end subroutine
+
+        subroutine ommp_bond_geomgrad(s, grd)
+            use mod_bonded, only: fake_geomgrad 
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            if(s%use_bonded) call fake_geomgrad(s%bds, grd) !call bond_geomgrad(s%bds, grd)
+        end subroutine
+        
+        subroutine ommp_full_bnd_geomgrad(s, grd)
+            use mod_bonded, only: fake_geomgrad 
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            if(s%use_bonded) then
+                call fake_geomgrad(s%bds, grd) !call bond_geomgrad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call angle_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call strbnd_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call urey_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call opb_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call imptorsion_geomgad(s%bds, grd) 
+                call fake_geomgrad(s%bds, grd) !call torsion_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call pitors_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call strtor_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call angtor_geomgad(s%bds, grd)
+                call fake_geomgrad(s%bds, grd) !call tortor_geomgad(s%bds, grd)
+            end if
+        end subroutine
+        
+        subroutine ommp_full_geomgrad(s, grd)
             use mod_memory, only: mallocate
+            use mod_nonbonded, only: vdw_geomgrad
 
             implicit none
             type(ommp_system), intent(inout) :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
-            real(ommp_real), allocatable :: tmpg(:,:)
-
-            call mallocate('ommp_get_full_geomgrad [tmpg]', 3, s%top%mm_atoms, &
-                           tmpg)
 
             grd = 0.0
+            call ommp_full_bnd_geomgrad(s, grd)
             call ommp_fixedelec_geomgrad(s, grd)
             call ommp_polelec_geomgrad(s, grd)
-            call ommp_vdw_geomgrad(s, tmpg)
-            grd = grd + tmpg
+            if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
 
         end subroutine
 
@@ -506,5 +567,62 @@ module ommp_interface
             
         end subroutine ommp_checkpoint
 #endif
+
+    ! QM Helper Object housekeeping
+    subroutine ommp_init_qm_helper(s, n, cqm, qqm, zqm)
+        
+        use mod_qm_helper, only: qm_helper_init
+        
+        implicit none
+
+        type(ommp_qm_helper), pointer, intent(inout) :: s
+        integer(ommp_integer) :: n
+        real(ommp_real), intent(in) :: cqm(:,:), qqm(:)
+        integer(ommp_integer), intent(in) :: zqm(:)
+
+        allocate(s)
+        call qm_helper_init(s, n, cqm, qqm, zqm)
+    end subroutine
+    
+    subroutine ommp_terminate_qm_helper(s) 
+        
+        use mod_qm_helper, only: qm_helper_terminate
+        
+        implicit none
+
+        type(ommp_qm_helper), pointer, intent(inout) :: s
+        
+        call qm_helper_terminate(s)
+        deallocate(s)
+    end subroutine
+    
+    function ommp_qm_helper_vdw_energy(qm, s) result(evdw)
+        use mod_qm_helper, only: qm_helper_vdw_energy
+
+        implicit none
+
+        type(ommp_system), intent(in) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real) :: evdw
+
+        evdw = 0.0
+        call qm_helper_vdw_energy(qm, s, evdw)
+    end function
+    
+    subroutine ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+        
+        use mod_qm_helper, only: qm_helper_vdw_geomgrad
+
+        implicit none
+
+        type(ommp_system), intent(in) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real), intent(out) :: qmg(:,:), mmg(:,:)
+
+        mmg = 0.0
+        qmg = 0.0
+        call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+    end subroutine
+
 end module ommp_interface
 

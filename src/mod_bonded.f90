@@ -165,8 +165,19 @@ module mod_bonded
     public :: strtor_init, strtor_potential, strtor_terminate
     public :: angtor_init, angtor_potential, angtor_terminate
     public :: bonded_terminate
+    public :: fake_geomgrad ! TODO
     
     contains
+
+    subroutine fake_geomgrad(bds, grd) 
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grd(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+    end subroutine 
 
     subroutine bond_init(bds, n) 
         !! Initialize array used in calculation of bond stratching terms of
