@@ -19,177 +19,8 @@ module mod_ommp_C_interface
     private :: c2f_string, OMMP_STR_CHAR_MAX
 
     contains
-
-        function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')
-            !! Return the c-pointer to the array containing the coordinates of
-            !! MM atoms.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_cmm
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_cmm = c_loc(s%top%cmm)
-        end function C_ommp_get_cmm
-
-        function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
-            !! Return the c-pointer to the array containing the coordinates of
-            !! polarizable atoms.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_cpol
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_cpol = c_loc(s%eel%cpol)
-        end function C_ommp_get_cpol
-
-        function C_ommp_get_q(s_prt) bind(c, name='ommp_get_q')
-            !! Return the c-pointer to the array containing the static source of 
-            !! the electrostatic field.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_q
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_q = c_loc(s%eel%q)
-        end function C_ommp_get_q
-
-        function C_ommp_get_ipd(s_prt) bind(c, name='ommp_get_ipd')
-            !! Return the c-pointer to the array containing the induced dipoles 
-            !! on polarizable sites.
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_ipd
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_ipd = c_loc(s%eel%ipd)
-        end function C_ommp_get_ipd
-        
-        function C_ommp_get_polar_mm(s_prt) bind(c, name='ommp_get_polar_mm')
-            !! Return the c-pointer to the array containing the map from 
-            !! polarizable to MM atoms.
-            use mod_memory, only: mallocate
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(c_ptr) :: C_ommp_get_polar_mm
-            
-            call c_f_pointer(s_prt, s)
-            if(.not. allocated(s%eel%C_polar_mm)) then 
-                call mallocate('C_ommp_get_polar_mm [C_polar_mm]', &
-                               size(s%eel%polar_mm), s%eel%C_polar_mm)
-                s%eel%C_polar_mm = s%eel%polar_mm - 1
-            end if
-
-            C_ommp_get_polar_mm = c_loc(s%eel%C_polar_mm)
-        end function C_ommp_get_polar_mm
-
-        function C_ommp_get_mm_atoms(s_prt) bind(c, name='ommp_get_mm_atoms')
-            !! Return the number of MM atoms in the system.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_mm_atoms
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_mm_atoms = s%top%mm_atoms
-        end function C_ommp_get_mm_atoms
-        
-        function C_ommp_get_pol_atoms(s_prt) bind(c, name='ommp_get_pol_atoms')
-            !! Return the number of polarizable atoms in the system.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_pol_atoms
-            
-            call c_f_pointer(s_prt, s)
-
-            C_ommp_get_pol_atoms = s%eel%pol_atoms
-        end function C_ommp_get_pol_atoms
-
-        function C_ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
-            !! Return the number of dipole's set for the current Force-Field.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_n_ipd
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_n_ipd = s%eel%n_ipd
-        end function C_ommp_get_n_ipd
-
-        function C_ommp_get_ld_cart(s_prt) bind(c, name='ommp_get_ld_cart')
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            integer(ommp_integer) :: C_ommp_get_ld_cart
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_get_ld_cart = s%eel%ld_cart
-        end function C_ommp_get_ld_cart
-
-        function C_ommp_ff_is_amoeba(s_prt) bind(c, name='ommp_ff_is_amoeba')
-            !! Return true if the current forcefield is AMOEBA, and false in
-            !! all other cases.
-            implicit none
-
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            logical(c_bool) :: C_ommp_ff_is_amoeba
-
-            call c_f_pointer(s_prt, s)
-            C_ommp_ff_is_amoeba = s%amoeba
-        end function C_ommp_ff_is_amoeba
-        
-        subroutine C_ommp_set_verbose(verb) bind(c, name='ommp_set_verbose')
-            !! Set the verbosity level of the library to verb
-            use mod_io, only: set_verbosity
-            implicit none 
-
-            integer(ommp_integer), intent(in), value :: verb
-            
-            !! Requested verbosityi of library
-            call set_verbosity(verb)
-        end subroutine C_ommp_set_verbose
-
-        subroutine C_ommp_print_summary(s_prt) bind(c, name='ommp_print_summary')
-            !! Print a summary of the system input on standard output.
-            use mod_mmpol, only: mmpol_ommp_print_summary
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-           
-            call c_f_pointer(s_prt, s)
-            call mmpol_ommp_print_summary(s)
-
-        end subroutine C_ommp_print_summary
-        
-        subroutine C_ommp_print_summary_to_file(s_prt, filename) &
-                bind(c, name='ommp_print_summary_to_file')
-            !! Print a summary of the system input on file.
-            use mod_mmpol, only: mmpol_ommp_print_summary
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
-            !! File where the summary will be printed
-            character(len=OMMP_STR_CHAR_MAX) :: output_file
-            
-            call c_f_pointer(s_prt, s)
-            call c2f_string(filename, output_file)
-            call mmpol_ommp_print_summary(s, output_file)
-
-        end subroutine C_ommp_print_summary_to_file
-
-        subroutine c2f_string(c_str, f_str)
+        !! Internal utilities for Fortran -> C interface
+        pure subroutine c2f_string(c_str, f_str)
             !! Convert a string coming from C into a Fortran string
             implicit none
             
@@ -211,12 +42,87 @@ module mod_ommp_C_interface
 
             f_str = trim(f_str)
         end subroutine c2f_string
+
+        ! Functions directly mapped on OMMP internal functions (which are 
+        ! exposed on fortran side by 
+        !     use mod_xxx, only a => b
+        subroutine C_ommp_set_verbose(verb) bind(c, name='ommp_set_verbose')
+            !! Set the verbosity level of the library to verb
+            implicit none 
+
+            integer(ommp_integer), intent(in), value :: verb
+            
+            !! Requested verbosityi of library
+            call ommp_set_verbose(verb)
+        end subroutine C_ommp_set_verbose
+
+        subroutine C_ommp_print_summary(s_prt) bind(c, name='ommp_print_summary')
+            !! Print a summary of the system input on standard output.
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+           
+            call c_f_pointer(s_prt, s)
+            call ommp_print_summary(s)
+
+        end subroutine C_ommp_print_summary
+        
+        subroutine C_ommp_print_summary_to_file(s_prt, filename) &
+                bind(c, name='ommp_print_summary_to_file')
+            !! Print a summary of the system input on file.
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            !! File where the summary will be printed
+            character(len=OMMP_STR_CHAR_MAX) :: output_file
+            
+            call c_f_pointer(s_prt, s)
+            call c2f_string(filename, output_file)
+            call ommp_print_summary_to_file(s, output_file)
+
+        end subroutine C_ommp_print_summary_to_file
+        
+        subroutine C_ommp_save_mmp(s_prt, filename, version) &
+                   bind(c, name='ommp_save_mmp')
+            implicit none
+            type(c_ptr), value :: s_prt
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            integer(ommp_integer), value :: version
+
+            character(len=OMMP_STR_CHAR_MAX) :: output_file
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            call c2f_string(filename, output_file)
+            call ommp_save_mmp(s, output_file, version)
+        end subroutine 
+        
+        ! Functions mapped on actual Fortran interface functions
+        ! OMMP System Object housekeeping
+        function C_ommp_init_mmp(filename) &
+                result(c_prt) bind(c, name='ommp_init_mmp')
+           !! Initalize OMMP System Object from .mmp file  
+            implicit none
+
+            type(ommp_system), pointer :: s
+            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: input_file
+            type(c_ptr) :: c_prt
+            
+            allocate(s)
+            
+            call c2f_string(filename, input_file)
+            call ommp_init_mmp(s, input_file)
+            c_prt = c_loc(s)
+        end function
         
         function C_ommp_init_xyz(xyzfile, prmfile) &
                 result(c_prt) bind(c, name='ommp_init_xyz')
             !! Initialize the library using a Tinker xyz and a Tinker prm
-            use mod_inputloader, only : mmpol_init_from_xyz
-            
             implicit none
             
             type(ommp_system), pointer :: s
@@ -229,51 +135,22 @@ module mod_ommp_C_interface
             
             call c2f_string(prmfile, prm_file)
             call c2f_string(xyzfile, xyz_file)
-            call mmpol_init_from_xyz(s, xyz_file, prm_file)
+            call ommp_init_xyz(s, xyz_file, prm_file)
             c_prt = c_loc(s)
         end function
         
-        function C_ommp_init_mmp(filename) &
-                result(c_prt) bind(c, name='ommp_init_mmp')
-            
-            use mod_inputloader, only : mmpol_init_from_mmp
-            
-            implicit none
-
-            type(ommp_system), pointer :: s
-            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
-            character(len=OMMP_STR_CHAR_MAX) :: input_file
-            type(c_ptr) :: c_prt
-            
-            allocate(s)
-            
-            call c2f_string(filename, input_file)
-            call mmpol_init_from_mmp(input_file, s)
-            c_prt = c_loc(s)
-        end function
-        
-        subroutine C_ommp_save_mmp(s_prt, filename, version) &
-                   bind(c, name='ommp_save_mmp')
-            use mod_mmpol, only : mmpol_save_as_mmp
-            
+        subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
+            !! Terminate a OMMP System Object
             implicit none
             type(c_ptr), value :: s_prt
-            character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
-            integer(ommp_integer), value :: version
-
-            character(len=OMMP_STR_CHAR_MAX) :: output_file
             type(ommp_system), pointer :: s
 
             call c_f_pointer(s_prt, s)
-
-            call c2f_string(filename, output_file)
-            call mmpol_save_as_mmp(s, output_file, version)
-        end subroutine 
+            call ommp_terminate(s)
+        end subroutine
         
         subroutine C_ommp_set_external_field(s_prt, ext_field_prt, solver) &
                 bind(c, name='ommp_set_external_field')
-            !!use mod_mmpol, only: pol_atoms
-            
             implicit none
             
             type(c_ptr), value :: s_prt
@@ -308,58 +185,10 @@ module mod_ommp_C_interface
             call ommp_set_external_field(s, ext_field, solver, .false.)
         end subroutine C_ommp_set_external_field_nomm
 
-        function C_ommp_get_polelec_energy(s_prt) &
-                result(epol) bind(c, name='ommp_get_polelec_energy')
-            !! Solve the polarization equation for a certain external field
-            !! and compute the interaction energy of the induced dipoles with
-            !! themselves and fixed multipoles.
-
-            use mod_polarization, only: polarization
-            use mod_electrostatics, only: prepare_polelec, energy_MM_pol, &
-                                          ommp_electrostatics_type
-            use mod_constants, only: OMMP_SOLVER_DEFAULT
-
-            implicit none
-            
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            type(ommp_electrostatics_type), pointer :: eel
-            real(ommp_real) :: epol
-
-            call c_f_pointer(s_prt, s)
-            eel => s%eel
-            
-            if(.not. eel%ipd_done) then
-                !! Solve the polarization system without external field
-                call prepare_polelec(eel)
-                call polarization(s, eel%e_m2d, OMMP_SOLVER_DEFAULT)
-            end if
-            epol = 0.0
-            call energy_MM_pol(eel, epol) 
-        end function
-
-        function C_ommp_get_fixedelec_energy(s_prt) &
-                result(emm) bind(c, name='ommp_get_fixedelec_energy')
-            ! Get the interaction energy of fixed multipoles
-            use mod_electrostatics, only: energy_MM_MM
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: emm
-
-            call c_f_pointer(s_prt, s)
-
-            emm = 0.0
-            call energy_MM_MM(s%eel, emm)
-        end function
-
         subroutine C_ommp_potential_mmpol2ext(s_prt, n, cext, v) &
                 bind(c, name='ommp_potential_mmpol2ext')
             ! Compute the electric potential of static sites at
             ! arbitrary coordinates
-            use mod_electrostatics, only: potential_D2E, potential_M2E
-
             implicit none
             
             integer(ommp_integer), intent(in), value :: n
@@ -370,16 +199,30 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call c_f_pointer(cext, fcext, [3,n])
             call c_f_pointer(v, fv, [n])
-            call potential_M2E(s%eel, fcext, fv)
-            call potential_D2E(s%eel, fcext, fv)
+            call ommp_potential_mmpol2ext(s, n, fcext, fv)
+        end subroutine
+
+        subroutine C_ommp_potential_pol2ext(s_prt, n, cext, v) &
+                bind(c, name='ommp_potential_pol2ext')
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            implicit none
+            
+            integer(ommp_integer), intent(in), value :: n
+            type(c_ptr), value :: s_prt, cext, v
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: fcext(:,:), fv(:)
+           
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(cext, fcext, [3,n])
+            call c_f_pointer(v, fv, [n])
+            call ommp_potential_pol2ext(s, n, fcext, fv)
         end subroutine
         
         subroutine C_ommp_potential_mm2ext(s_prt, n, cext, v) &
                 bind(c, name='ommp_potential_mm2ext')
             ! Compute the electric potential of static sites at
             ! arbitrary coordinates
-            use mod_electrostatics, only: potential_M2E
-
             implicit none
             
             integer(ommp_integer), intent(in), value :: n
@@ -390,28 +233,10 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call c_f_pointer(cext, fcext, [3,n])
             call c_f_pointer(v, fv, [n])
-            call potential_M2E(s%eel, fcext, fv)
+            call ommp_potential_mm2ext(s, n, fcext, fv)
         end subroutine
         
-        subroutine C_ommp_potential_pol2ext(s_prt, n, cext, v) &
-                bind(c, name='ommp_potential_pol2ext')
-            ! Compute the electric potential of static sites at
-            ! arbitrary coordinates
-            use mod_electrostatics, only: potential_D2E
-
-            implicit none
-            
-            integer(ommp_integer), intent(in), value :: n
-            type(c_ptr), value :: s_prt, cext, v
-            type(ommp_system), pointer :: s
-            real(ommp_real), pointer :: fcext(:,:), fv(:)
-           
-            call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
-            call c_f_pointer(v, fv, [n])
-            call potential_D2E(s%eel, fcext, fv)
-        end subroutine
-
+        !??
         subroutine C_ommp_field_mmpol2ext(s_prt, n, cext, E) &
                 bind(c, name='ommp_field_mmpol2ext')
             ! Compute the electric potential of static sites at
@@ -469,7 +294,106 @@ module mod_ommp_C_interface
             call c_f_pointer(E, fE, [3,n])
             call field_D2E(s%eel, fcext, fE)
         end subroutine
+
+        function C_ommp_get_polelec_energy(s_prt) &
+                result(epol) bind(c, name='ommp_get_polelec_energy')
+            !! Solve the polarization equation for a certain external field
+            !! and compute the interaction energy of the induced dipoles with
+            !! themselves and fixed multipoles.
+
+            use mod_polarization, only: polarization
+            use mod_electrostatics, only: prepare_polelec, energy_MM_pol, &
+                                          ommp_electrostatics_type
+            use mod_constants, only: OMMP_SOLVER_DEFAULT
+
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(ommp_electrostatics_type), pointer :: eel
+            real(ommp_real) :: epol
+
+            call c_f_pointer(s_prt, s)
+            eel => s%eel
+            
+            if(.not. eel%ipd_done) then
+                !! Solve the polarization system without external field
+                call prepare_polelec(eel)
+                call polarization(s, eel%e_m2d, OMMP_SOLVER_DEFAULT)
+            end if
+            epol = 0.0
+            call energy_MM_pol(eel, epol) 
+        end function
+
+        function C_ommp_get_fixedelec_energy(s_prt) &
+                result(emm) bind(c, name='ommp_get_fixedelec_energy')
+            ! Get the interaction energy of fixed multipoles
+            use mod_electrostatics, only: energy_MM_MM
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: emm
+
+            call c_f_pointer(s_prt, s)
+
+            emm = 0.0
+            call energy_MM_MM(s%eel, emm)
+        end function
         
+        function C_ommp_get_full_ele_energy(s_prt) &
+                result(ene) bind(c, name='ommp_get_full_ele_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: sys_obj
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, sys_obj)
+
+            ene = ommp_get_full_ele_energy(sys_obj) 
+        end function
+        
+        function C_ommp_get_vdw_energy(s_prt) &
+                result(evdw) bind(c, name='ommp_get_vdw_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: evdw
+
+            call c_f_pointer(s_prt, s)
+
+            evdw = ommp_get_vdw_energy(s)
+        
+        end function
+        
+        function C_ommp_get_bond_energy(s_prt) &
+                result(ebnd) bind(c, name='ommp_get_bond_energy')
+            
+            use mod_bonded, only: bond_potential
+
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ebnd
+
+            call c_f_pointer(s_prt, s)
+
+            ebnd = ommp_get_bond_energy(s)
+        end function
+        
+        function C_ommp_get_angle_energy(s_prt) &
+                result(eang) bind(c, name='ommp_get_angle_energy')
+            implicit none
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: eang
+
+            call c_f_pointer(s_prt, s)
+
+            eang = ommp_get_angle_energy(s)
+        end function
+        
+
         function C_ommp_get_urey_energy(s_prt) &
                 result(eub) bind(c, name='ommp_get_urey_energy')
             
@@ -502,22 +426,6 @@ module mod_ommp_C_interface
             if(s%use_bonded) call strbnd_potential(s%bds, eba)
         end function
         
-        function C_ommp_get_angle_energy(s_prt) &
-                result(eang) bind(c, name='ommp_get_angle_energy')
-            
-            use mod_bonded, only: angle_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: eang
-
-            call c_f_pointer(s_prt, s)
-
-            eang = 0.0
-            if(s%use_bonded) call angle_potential(s%bds, eang)
-        end function
-        
         function C_ommp_get_angtor_energy(s_prt) &
                 result(eat) bind(c, name='ommp_get_angtor_energy')
             
@@ -548,22 +456,6 @@ module mod_ommp_C_interface
 
             ebt = 0.0
             if(s%use_bonded) call strtor_potential(s%bds, ebt)
-        end function
-        
-        function C_ommp_get_bond_energy(s_prt) &
-                result(ebnd) bind(c, name='ommp_get_bond_energy')
-            
-            use mod_bonded, only: bond_potential
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: ebnd
-
-            call c_f_pointer(s_prt, s)
-
-            ebnd = 0.0
-            if(s%use_bonded) call bond_potential(s%bds, ebnd)
         end function
         
         function C_ommp_get_opb_energy(s_prt) &
@@ -646,19 +538,6 @@ module mod_ommp_C_interface
             if(s%use_bonded) call tortor_potential(s%bds, ett)
         end function
         
-        function C_ommp_get_full_ele_energy(s_prt) &
-                result(ene) bind(c, name='ommp_get_full_ele_energy')
-            
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: sys_obj
-            real(ommp_real) :: ene
-
-            call c_f_pointer(s_prt, sys_obj)
-
-            ene = ommp_get_full_ele_energy(sys_obj) 
-        end function
-        
         function C_ommp_get_full_bnd_energy(s_prt) &
                 result(ene) bind(c, name='ommp_get_full_bnd_energy')
             
@@ -683,23 +562,6 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, sys_obj)
 
             ene = ommp_get_full_energy(sys_obj)
-        end function
-        
-        function C_ommp_get_vdw_energy(s_prt) &
-                result(evdw) bind(c, name='ommp_get_vdw_energy')
-            
-            use mod_nonbonded, only: vdw_potential
-            
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-            real(ommp_real) :: evdw
-
-            call c_f_pointer(s_prt, s)
-
-            evdw = 0.0
-            if(s%use_nonbonded) call vdw_potential(s%vdw, evdw)
-
         end function
 
         subroutine C_ommp_update_coordinates(s_prt, new_c_p) &
@@ -817,20 +679,6 @@ module mod_ommp_C_interface
             call ommp_get_full_geomgrad(s, grd)
         end subroutine
 
-        subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
-            use mod_mmpol, only: mmpol_terminate
-
-            implicit none
-            type(c_ptr), value :: s_prt
-            type(ommp_system), pointer :: s
-
-            call c_f_pointer(s_prt, s)
-            call mmpol_terminate(s)
-            
-            deallocate(s)
-
-        end subroutine
-        
         function C_ommp_init_qm_helper(n, cqm, qqm, zqm) &
                 result(c_prt) bind(c, name='ommp_init_qm_helper')
             
@@ -1229,6 +1077,133 @@ module mod_ommp_C_interface
             
         end subroutine C_ommp_checkpoint
 #endif
+        ! Functions to provide direct access to Fortran objects/memory from
+        ! C and derived codes.
+
+        function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_cmm
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_cmm = c_loc(s%top%cmm)
+        end function C_ommp_get_cmm
+
+        function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! polarizable atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_cpol
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_cpol = c_loc(s%eel%cpol)
+        end function C_ommp_get_cpol
+
+        function C_ommp_get_q(s_prt) bind(c, name='ommp_get_q')
+            !! Return the c-pointer to the array containing the static source of 
+            !! the electrostatic field.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_q
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_q = c_loc(s%eel%q)
+        end function C_ommp_get_q
+
+        function C_ommp_get_ipd(s_prt) bind(c, name='ommp_get_ipd')
+            !! Return the c-pointer to the array containing the induced dipoles 
+            !! on polarizable sites.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_ipd
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_ipd = c_loc(s%eel%ipd)
+        end function C_ommp_get_ipd
+        
+        function C_ommp_get_polar_mm(s_prt) bind(c, name='ommp_get_polar_mm')
+            !! Return the c-pointer to the array containing the map from 
+            !! polarizable to MM atoms.
+            use mod_memory, only: mallocate
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_polar_mm
+            
+            call c_f_pointer(s_prt, s)
+            if(.not. allocated(s%eel%C_polar_mm)) then 
+                call mallocate('C_ommp_get_polar_mm [C_polar_mm]', &
+                               size(s%eel%polar_mm), s%eel%C_polar_mm)
+                s%eel%C_polar_mm = s%eel%polar_mm - 1
+            end if
+
+            C_ommp_get_polar_mm = c_loc(s%eel%C_polar_mm)
+        end function C_ommp_get_polar_mm
+
+        function C_ommp_get_mm_atoms(s_prt) bind(c, name='ommp_get_mm_atoms')
+            !! Return the number of MM atoms in the system.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_mm_atoms
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_mm_atoms = s%top%mm_atoms
+        end function C_ommp_get_mm_atoms
+        
+        function C_ommp_get_pol_atoms(s_prt) bind(c, name='ommp_get_pol_atoms')
+            !! Return the number of polarizable atoms in the system.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_pol_atoms
+            
+            call c_f_pointer(s_prt, s)
+
+            C_ommp_get_pol_atoms = s%eel%pol_atoms
+        end function C_ommp_get_pol_atoms
+
+        function C_ommp_get_n_ipd(s_prt) bind(c, name='ommp_get_n_ipd')
+            !! Return the number of dipole's set for the current Force-Field.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_n_ipd
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_n_ipd = s%eel%n_ipd
+        end function C_ommp_get_n_ipd
+
+        function C_ommp_get_ld_cart(s_prt) bind(c, name='ommp_get_ld_cart')
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_ld_cart
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_ld_cart = s%eel%ld_cart
+        end function C_ommp_get_ld_cart
+
+        function C_ommp_ff_is_amoeba(s_prt) bind(c, name='ommp_ff_is_amoeba')
+            !! Return true if the current forcefield is AMOEBA, and false in
+            !! all other cases.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_ff_is_amoeba
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_ff_is_amoeba = s%amoeba
+        end function C_ommp_ff_is_amoeba
 
 end module mod_ommp_C_interface
 
