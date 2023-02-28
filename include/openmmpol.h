@@ -93,6 +93,7 @@ extern void ommp_fixedelec_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_polelec_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_rotation_geomgrad(OMMP_SYSTEM_PRT, const double *, const double *, double *);
 extern void ommp_vdw_geomgrad(OMMP_SYSTEM_PRT, double *);
+extern void ommp_bond_geomgrad(OMMP_SYSTEM_PRT, double *);
 
 extern OMMP_QM_HELPER_PRT ommp_init_qm_helper(int32_t, const double *, const double *, const int32_t *);
 extern void ommp_terminate_qm_helper(OMMP_QM_HELPER_PRT);

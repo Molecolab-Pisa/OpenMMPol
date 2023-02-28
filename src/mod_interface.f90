@@ -470,7 +470,7 @@ module ommp_interface
         end subroutine
 
         subroutine ommp_bond_geomgrad(s, grd)
-            use mod_bonded, only: fake_geomgrad 
+            use mod_bonded, only: bond_geomgrad 
             
             implicit none 
             
@@ -478,11 +478,12 @@ module ommp_interface
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
-            if(s%use_bonded) call fake_geomgrad(s%bds, grd) !call bond_geomgrad(s%bds, grd)
+            if(s%use_bonded) call bond_geomgrad(s%bds, grd)
         end subroutine
         
         subroutine ommp_full_bnd_geomgrad(s, grd)
-            use mod_bonded, only: fake_geomgrad 
+            use mod_bonded, only: fake_geomgrad
+            use mod_bonded, only: bond_geomgrad
             
             implicit none 
             
@@ -491,7 +492,7 @@ module ommp_interface
 
             grd = 0.0
             if(s%use_bonded) then
-                call fake_geomgrad(s%bds, grd) !call bond_geomgrad(s%bds, grd)
+                call bond_geomgrad(s%bds, grd)
                 call fake_geomgrad(s%bds, grd) !call angle_geomgad(s%bds, grd)
                 call fake_geomgrad(s%bds, grd) !call strbnd_geomgad(s%bds, grd)
                 call fake_geomgrad(s%bds, grd) !call urey_geomgad(s%bds, grd)

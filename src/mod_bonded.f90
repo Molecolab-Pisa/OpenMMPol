@@ -153,7 +153,7 @@ module mod_bonded
     end type ommp_bonded_type
 
     public :: ommp_bonded_type
-    public :: bond_init, bond_potential, bond_terminate
+    public :: bond_init, bond_potential, bond_geomgrad, bond_terminate
     public :: angle_init, angle_potential, angle_terminate
     public :: urey_init, urey_potential, urey_terminate
     public :: strbnd_init, strbnd_potential, strbnd_terminate

@@ -116,6 +116,11 @@ target_link_libraries(C_test_geomgrad openmmpol)
 target_compile_options(C_test_geomgrad PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_geomgrad PROPERTY C_STANDARD 99)
 
+add_executable(C_test_geomgrad_xyz src/test_programs/C/test_geomgrad_xyz.c)
+target_link_libraries(C_test_geomgrad_xyz openmmpol)
+target_compile_options(C_test_geomgrad_xyz PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_geomgrad_xyz PROPERTY C_STANDARD 99)
+
 add_executable(ommp_xyz2mmp src/ommp_xyz2mmp.c)
 target_link_libraries(ommp_xyz2mmp openmmpol)
 target_compile_options(ommp_xyz2mmp PRIVATE -Wall -Wextra -pedantic)
