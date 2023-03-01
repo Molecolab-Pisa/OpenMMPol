@@ -26,13 +26,13 @@ module mod_jacobian_mat
         end do
     end subroutine
 
-    subroutine simple_angle_jacobian(ca, cb, cc, J_a, J_b, J_c)
+    pure subroutine simple_angle_jacobian(ca, cb, cc, J_a, J_b, J_c)
         implicit none
 
-        real(rp), intent(inout), dimension(3) :: ca, cb, cc
+        real(rp), intent(in), dimension(3) :: ca, cb, cc
         real(rp), intent(out), dimension(3) :: J_a, J_b, J_c
 
-        real(rp), dimension(3) :: dr1, dr2, J_anum
+        real(rp), dimension(3) :: dr1, dr2
         real(rp) :: l1, l2, dr1_d_dr2, acosd
         integer(ip) :: i
 
@@ -44,40 +44,11 @@ module mod_jacobian_mat
         acosd = 1.0 / sqrt(1.0 - (dr1_d_dr2/(l1*l2))**2)
 
         do i=1,3
-            J_a(i) = ((cc(i) - cb(i)) * l1 - (ca(i)-cb(i)) * dr1_d_dr2 / l1) / (l1**2*l2)
-            J_c(i) = ((ca(i) - cb(i)) * l2 - (cc(i)-cb(i)) * dr1_d_dr2 / l2) / (l1*l2**2)
+            J_a(i) = acosd * (dr2(i) * l1 - dr1(i) * dr1_d_dr2 / l1) / (l1**2*l2)
+            J_c(i) = acosd * (dr1(i) * l2 - dr2(i) * dr1_d_dr2 / l2) / (l1*l2**2)
+            J_b(i) = -(J_a(i) + J_c(i))
         end do
-
-        J_a = J_a * acosd
-        J_b = J_b * acosd
-        J_c = J_c * acosd
-
-        J_anum = 0.0
-        do i=1,3
-            !ca(i) = ca(i) + 1e-5
-            cc(i) = cc(i) + 1e-5
-            dr1 = ca - cb
-            dr2 = cc - cb
-            l1 = norm2(dr1)
-            l2 = norm2(dr2)
-
-            J_anum(i) = acos(dot_product(dr1, dr2)/(l1*l2)) 
-            !ca(i) = ca(i) - 2e-5
-            cc(i) = cc(i) - 2e-5
-            dr1 = ca - cb
-            dr2 = cc - cb
-            l1 = norm2(dr1)
-            l2 = norm2(dr2)
-            J_anum(i) = J_anum(i) - acos(dot_product(dr1, dr2)/(l1*l2)) 
-            J_anum(i) = J_anum(i) / 2e-5
-            
-            !ca(i) = ca(i) + 1e-5
-            cc(i) = cc(i) + 1e-5
-        end do
-
-        write(*,*) J_c 
-        write(*,*) J_anum
-
+    
     end subroutine
 
 end module mod_jacobian_mat
