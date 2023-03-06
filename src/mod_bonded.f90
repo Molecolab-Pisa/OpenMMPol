@@ -361,7 +361,7 @@ module mod_bonded
 
         implicit none
 
-        type(ommp_bonded_type), intent(inout) :: bds
+        type(ommp_bonded_type), intent(in) :: bds
         ! Bonded potential data structure
         real(rp), intent(inout) :: V
         !! Bond potential, result will be added to V
@@ -393,23 +393,7 @@ module mod_bonded
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
-                !! TODO MOVE THIS IN ASSIGNATION AND MAKE bds intent(in)
-                if(bds%angauxat(i) < 1) then
-                    ! Find the auxiliary atom used to define the projection
-                    ! plane
-                    if(bds%top%conn(1)%ri(bds%angleat(2,i)+1) - &
-                       bds%top%conn(1)%ri(bds%angleat(2,i)) /= 3) then
-                        call fatal_error("Angle IN-PLANE defined for a non-&
-                                         &trigonal center")
-                    end if 
-                    do j=bds%top%conn(1)%ri(bds%angleat(2,i)), &
-                         bds%top%conn(1)%ri(bds%angleat(2,i)+1)-1
-                        if(bds%top%conn(1)%ci(j) /= bds%angleat(1,i) .and. &
-                           bds%top%conn(1)%ci(j) /= bds%angleat(3,i)) then
-                            bds%angauxat(i) = bds%top%conn(1)%ci(j)
-                        endif
-                    end do
-                end if
+                
                 a = bds%top%cmm(:, bds%angleat(1,i))
                 b = bds%top%cmm(:, bds%angleat(2,i)) !! Trigonal center
                 c = bds%top%cmm(:, bds%angleat(3,i))

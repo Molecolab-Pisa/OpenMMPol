@@ -2444,6 +2444,27 @@ module mod_prm
                         bds%anglety(iang) = angtype(j)
                         bds%kangle(iang) = kang(j) * kcalmol2au
                         bds%eqangle(iang) = th0ang(j) * deg2rad
+                        ! Find the auxiliary atom for inplane angles
+                        if(bds%anglety(iang) == OMMP_ANG_INPLANE .or. &
+                           bds%anglety(iang) == OMMP_ANG_INPLANE_H0 .or. &
+                           bds%anglety(iang) == OMMP_ANG_INPLANE_H1) then
+                            ! Find the auxiliary atom used to define the
+                            ! projection plane
+                            if(bds%top%conn(1)%ri(bds%angleat(2,iang)+1) - &
+                               bds%top%conn(1)%ri(bds%angleat(2,iang)) /= 3) &
+                            then
+                                call fatal_error("Angle IN-PLANE defined for a&
+                                                 & non-trigonal center")
+                            end if 
+                            do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
+                                bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1
+                                if(bds%top%conn(1)%ci(j) /= bds%angleat(1,iang) .and. &
+                           bds%top%conn(1)%ci(j) /= bds%angleat(3,iang)) then
+                            bds%angauxat(iang) = bds%top%conn(1)%ci(j)
+                                endif
+                            end do
+                        end if
+                        
                         iang = iang + 1
                     else
                         write(errstring, *) "No angle parameter found for &

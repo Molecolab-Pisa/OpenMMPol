@@ -841,6 +841,7 @@ module mod_iohdf5
                 call hdf5_add_array(hg_cur_bp, "k", bds%kangle)
                 call hdf5_add_array(hg_cur_bp, "ang0", bds%eqangle)
                 call hdf5_add_array(hg_cur_bp, "atoms", bds%angleat)
+                call hdf5_add_array(hg_cur_bp, "auxatom", bds%angauxat)
                 call hdf5_add_array(hg_cur_bp, "type", bds%anglety)
             end if
             call h5gclose_f(hg_cur_bp, eflag)
@@ -1111,6 +1112,9 @@ module mod_iohdf5
                 call hdf5_read_array(iof_hdf5, &
                                      namespace//"/bonded/bending/atoms", &
                                      s%bds%angleat)
+                call hdf5_read_array(iof_hdf5, &
+                                     namespace//"/bonded/bending/auxatom", &
+                                     s%bds%angauxat)
                 call hdf5_read_array(iof_hdf5, &
                                      namespace//"/bonded/bending/type", &
                                      s%bds%anglety)
