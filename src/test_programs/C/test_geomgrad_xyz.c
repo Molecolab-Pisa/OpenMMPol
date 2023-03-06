@@ -120,7 +120,7 @@ int main(int argc, char **argv){
     }
 
     if(Mdelta > 1e-11){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (fixed).");
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (fixed).\n");
         retcode = retcode + 1;
     }
     
@@ -143,7 +143,7 @@ int main(int argc, char **argv){
     }
 
     if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (pol).");
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (pol).\n");
         retcode = retcode + 2;
     }
     
@@ -166,11 +166,44 @@ int main(int argc, char **argv){
     }
 
     if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (bond).");
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (bond).\n");
         retcode = retcode + 3;
     }
 
+    for(int i = 0; i < mm_atoms; i++)
+        for(int j=0; j < 3; j++)
+            grad_ana[i][j] = grad_num[i][j] = 0.0;
+    
+    numerical_geomgrad(my_system, ommp_get_angle_energy, grad_num);
     ommp_angle_geomgrad(my_system, _grad_ana);
+   
+    fprintf(fp, "DELTA NUM - ANA ANGLE\n");
+    Mdelta = 0.0;
+    for(int i = 0; i < mm_atoms; i++){
+        fprintf(fp, "A ");
+        for(int j=0; j < 3; j++)
+            fprintf(fp, "%+12.8g ", grad_ana[i][j]);
+        fprintf(fp, "\n");
+        
+        fprintf(fp, "N ");
+        for(int j=0; j < 3; j++)
+            fprintf(fp, "%+12.8g ", grad_num[i][j]);
+        fprintf(fp, "\n");
+    }
+
+    for(int i = 0; i < mm_atoms; i++){
+        for(int j=0; j < 3; j++){
+            delta = grad_num[i][j] - grad_ana[i][j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
+            fprintf(fp, "%+12.8g ", delta);
+        }
+        fprintf(fp, "\n");
+    }
+
+    if(Mdelta > 1e-8){
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (angle).\n");
+        retcode = retcode + 4;
+    }
 
     fclose(fp);
     ommp_terminate(my_system);

@@ -55,6 +55,36 @@ module mod_jacobian_mat
             J_b(i) = -(J_a(i) + J_c(i))
         end do
     end subroutine
+    
+    pure subroutine inplane_angle_jacobian(ca, cb, cc, cx, thet, J_a, J_b, J_c, J_x)
+        implicit none
+
+        real(rp), intent(in), dimension(3) :: ca, cb, cc, cx
+        !! Coordinates of the atoms defining the angle
+        real(rp), intent(out), dimension(3) :: J_a, J_b, J_c, J_x
+        !! The Jacobian components on atoms a, b and c respectively
+        real(rp), intent(out) :: thet
+        !! The angle (in rad) defined by ca-cb-cc
+
+        real(rp), dimension(3) :: dr1, dr2
+        real(rp) :: l1, l2, dr1_d_dr2, acosd, cost
+        integer(ip) :: i
+
+        dr1 = ca - cb
+        dr2 = cc - cb
+        dr1_d_dr2 = dot_product(dr1, dr2)
+        l1 = norm2(dr1)
+        l2 = norm2(dr2)
+        cost = dr1_d_dr2/(l1*l2)
+        thet = acos(cost)
+        acosd = 1.0 / sqrt(1.0 - cost**2)
+
+        do i=1,3
+            J_a(i) = -acosd * (dr2(i) * l1 - dr1(i) * dr1_d_dr2 / l1) / (l1**2*l2)
+            J_c(i) = -acosd * (dr1(i) * l2 - dr2(i) * dr1_d_dr2 / l2) / (l1*l2**2)
+            J_b(i) = -(J_a(i) + J_c(i))
+        end do
+    end subroutine
 
 end module mod_jacobian_mat
 

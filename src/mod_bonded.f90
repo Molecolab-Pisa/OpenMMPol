@@ -462,8 +462,31 @@ module mod_bonded
                 grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
                 grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
                 grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
-            else
-                write(*, *) "UNEXPECTED!"
+            
+            else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
+                
+                a = bds%top%cmm(:, bds%angleat(1,i))
+                b = bds%top%cmm(:, bds%angleat(2,i)) !! Trigonal center
+                c = bds%top%cmm(:, bds%angleat(3,i))
+
+                aux = bds%top%cmm(:, bds%angauxat(i))
+                
+                call inplane_angle_jacobian(a, b, c, aux, thet, Ja, Jb, Jc, Jx)
+                d_theta = thet - bds%eqangle(i) 
+           
+                g = bds%kangle(i) * d_theta * (2.0 &
+                                               + 3.0 * bds%angle_cubic * d_theta &
+                                               + 4.0 * bds%angle_quartic * d_theta**2 &
+                                               + 5.0 * bds%angle_pentic * d_theta**3 &
+                                               + 6.0 * bds%angle_sextic * d_theta**4)
+                
+                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                grad(:,bds%angauxat(i)) = grad(:,bds%angauxat(i)) + g * Jx
+
             end if
         end do
     end subroutine angle_geomgrad
