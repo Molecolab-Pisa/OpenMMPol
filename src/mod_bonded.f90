@@ -386,9 +386,9 @@ module mod_bonded
                 
                 d_theta = thet-bds%eqangle(i) 
                 
-                V = V + bds%kangle(i) * d_theta**2 * (1.0 + bds%angle_cubic*d_theta &
-                    + bds%angle_quartic*d_theta**2 + bds%angle_pentic*d_theta**3 &
-                    + bds%angle_sextic*d_theta**4)
+                !V = V + bds%kangle(i) * d_theta**2 * (1.0 + bds%angle_cubic*d_theta &
+                !    + bds%angle_quartic*d_theta**2 + bds%angle_pentic*d_theta**3 &
+                !    + bds%angle_sextic*d_theta**4)
 
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
@@ -428,7 +428,8 @@ module mod_bonded
     
     subroutine angle_geomgrad(bds, grad)
         use mod_constants, only : eps_rp
-        use mod_jacobian_mat, only: simple_angle_jacobian
+        use mod_jacobian_mat, only: simple_angle_jacobian, &
+                                    inplane_angle_jacobian
 
         implicit none
 
@@ -438,7 +439,8 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
         
         integer(ip) :: i, j
-        real(rp) :: a(3), b(3), c(3), Ja(3), Jb(3), Jc(3), g, thet, d_theta
+        real(rp) :: a(3), b(3), c(3), Ja(3), Jb(3), Jc(3), Jx(3), g, thet, &
+                    d_theta, aux(3)
 
         if(.not. bds%use_angle) return
         
@@ -459,9 +461,9 @@ module mod_bonded
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
 
-                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
-                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
-                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                !grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                !grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                !grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
             
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
@@ -475,13 +477,12 @@ module mod_bonded
                 
                 call inplane_angle_jacobian(a, b, c, aux, thet, Ja, Jb, Jc, Jx)
                 d_theta = thet - bds%eqangle(i) 
-           
                 g = bds%kangle(i) * d_theta * (2.0 &
                                                + 3.0 * bds%angle_cubic * d_theta &
                                                + 4.0 * bds%angle_quartic * d_theta**2 &
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
-                
+               
                 grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
                 grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
                 grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
