@@ -386,9 +386,9 @@ module mod_bonded
                 
                 d_theta = thet-bds%eqangle(i) 
                 
-                !V = V + bds%kangle(i) * d_theta**2 * (1.0 + bds%angle_cubic*d_theta &
-                !    + bds%angle_quartic*d_theta**2 + bds%angle_pentic*d_theta**3 &
-                !    + bds%angle_sextic*d_theta**4)
+                V = V + bds%kangle(i) * d_theta**2 * (1.0 + bds%angle_cubic*d_theta &
+                    + bds%angle_quartic*d_theta**2 + bds%angle_pentic*d_theta**3 &
+                    + bds%angle_sextic*d_theta**4)
 
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
@@ -461,9 +461,9 @@ module mod_bonded
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
 
-                !grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
-                !grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
-                !grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
             
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
