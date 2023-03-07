@@ -58,7 +58,7 @@ module mod_jacobian_mat
     end subroutine
     
     subroutine inplane_angle_jacobian(ca, cb, cc, cx, thet, J_a, J_b, J_c, J_x)
-        use mod_utils, only: cross_product
+        use mod_utils, only: cross_product, vec_skw
 
         implicit none
 
@@ -70,7 +70,8 @@ module mod_jacobian_mat
         !! The angle (in rad) defined by ca-cb-cc
 
         real(rp), dimension(3) :: cr, cv, cp, cpp, cq, cs, J_r
-        real(rp), dimension(3,3) :: drda, drdb, drdc, drdx
+        real(rp), dimension(3,3) :: drda, drdb, drdc, drdx, dkpdp, dppda, &
+                                    dpdpp, dpda
         real(rp) :: dd, k
 
         integer(ip) :: i, j
@@ -87,47 +88,63 @@ module mod_jacobian_mat
         
         call simple_angle_jacobian(ca, cr, cc, thet, J_a, J_r, J_c)
 
+        dd = 1e-5
+        
         drda = 0.0
         drdb = 0.0
         drdc = 0.0
         drdx = 0.0
+        dkpdp = 0.0
 
-        ! Numerical
-        dd = 1e-5
-        do i=1, 3
-            ca(i) = ca(i) + dd
-            
-            cq = ca - cx
-            cs = cc - cx
-            cv = cb - cx
-
-            cpp = cross_product(cq, cs)
-            cp = cpp / norm2(cpp)
-
-            k = dot_product(cv, cp)
-            cr = cb - k * cp
-            !drda(i,:) = cr
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            J_a(i) = thet
-            
-            ca(i) = ca(i) - 2*dd
-            
-            cq = ca - cx
-            cs = cc - cx
-            cv = cb - cx
-
-            cpp = cross_product(cq, cs)
-            cp = cpp / norm2(cpp)
-
-            k = dot_product(cv, cp)
-            cr = cb - k * cp
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            !drda(i,:) = drda(i,:) - cr
-            !drda(i,:) = drda(i,:) / (2*dd)
-            J_a(i) = (J_a(i) - thet)/(2*dd)
-
-            ca(i) = ca(i) + dd
+        do i=1,3
+            dkpdp(i,:) = cv(i) * cp
+            dkpdp(i,i) = dkpdp(i,i) + k
         end do
+
+        do i=1,3
+            dpdpp(i,:) = -cpp(i) * cpp
+            dpdpp(i,i) = norm2(cpp)**2
+        end do
+        dpdpp = dpdpp / norm2(cpp)**3
+
+        dppda = vec_skw(cs)
+        
+        
+        ! Numerical
+        !! do i=1, 3
+        !!     ca(i) = ca(i) + dd
+        !!     
+        !!     cq = ca - cx
+        !!     cs = cc - cx
+        !!     cv = cb - cx
+
+        !!     cpp = cross_product(cq, cs)
+        !!     cp = cpp / norm2(cpp)
+
+        !!     k = dot_product(cv, cp)
+        !!     cr = cb - k * cp
+        !!     dppda(i,:) = cpp
+        !!     !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+        !!     !J_a(i) = thet
+        !!     
+        !!     ca(i) = ca(i) - 2*dd
+        !!     
+        !!     cq = ca - cx
+        !!     cs = cc - cx
+        !!     cv = cb - cx
+
+        !!     cpp = cross_product(cq, cs)
+        !!     cp = cpp / norm2(cpp)
+
+        !!     k = dot_product(cv, cp)
+        !!     cr = cb - k * cp
+        !!     dppda(i,:) = dppda(i,:) - cpp
+        !!     dppda(i,:) = dppda(i,:) / (2*dd)
+        !!     !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+        !!     !J_a(i) = (J_a(i) - thet)/(2*dd)
+
+        !!     ca(i) = ca(i) + dd
+        !! end do
 
         do i=1, 3
             cb(i) = cb(i) + dd
@@ -141,9 +158,9 @@ module mod_jacobian_mat
 
             k = dot_product(cv, cp)
             cr = cb - k * cp
-            !drdb(i,:) = cr
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            J_b(i) = thet
+            drdb(i,:) = cr
+            !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+            !J_b(i) = thet
             
             cb(i) = cb(i) - 2*dd
             
@@ -156,10 +173,10 @@ module mod_jacobian_mat
 
             k = dot_product(cv, cp)
             cr = cb - k * cp
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            !drdb(i,:) = drdb(i,:) - cr
-            !drdb(i,:) = drdb(i,:) / (2*dd)
-            J_b(i) = (J_b(i) - thet)/(2*dd)
+            drdb(i,:) = drdb(i,:) - cr
+            drdb(i,:) = drdb(i,:) / (2*dd)
+            !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+            !J_b(i) = (J_b(i) - thet)/(2*dd)
 
             cb(i) = cb(i) + dd
         end do
@@ -176,9 +193,9 @@ module mod_jacobian_mat
 
             k = dot_product(cv, cp)
             cr = cb - k * cp
-            !drdc(i,:) = cr
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            J_c(i) = thet
+            drdc(i,:) = cr
+            !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+            !J_c(i) = thet
             
             cc(i) = cc(i) - 2*dd
             
@@ -191,10 +208,10 @@ module mod_jacobian_mat
 
             k = dot_product(cv, cp)
             cr = cb - k * cp
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            !drdc(i,:) = drdc(i,:) - cr
-            !drdc(i,:) = drdc(i,:) / (2*dd)
-            J_c(i) = (J_c(i) - thet)/(2*dd)
+            drdc(i,:) = drdc(i,:) - cr
+            drdc(i,:) = drdc(i,:) / (2*dd)
+            !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+            !J_c(i) = (J_c(i) - thet)/(2*dd)
 
             cc(i) = cc(i) + dd
         end do
@@ -211,9 +228,9 @@ module mod_jacobian_mat
 
             k = dot_product(cv, cp)
             cr = cb - k * cp
-            !drdb(i,:) = cr
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            J_x(i) = thet
+            drdx(i,:) = cr
+            !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+            !J_x(i) = thet
             
             cx(i) = cx(i) - 2*dd
             
@@ -226,18 +243,20 @@ module mod_jacobian_mat
 
             k = dot_product(cv, cp)
             cr = cb - k * cp
-            call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
-            !drdb(i,:) = drdb(i,:) - cr
-            !drdb(i,:) = drdb(i,:) / (2*dd)
-            J_x(i) = (J_x(i) - thet)/(2*dd)
+            drdx(i,:) = drdx(i,:) - cr
+            drdx(i,:) = drdx(i,:) / (2*dd)
+            !call simple_angle_jacobian(ca, cr, cc, thet, J_r, J_r, J_r)
+            !J_x(i) = (J_x(i) - thet)/(2*dd)
 
             cx(i) = cx(i) + dd
         end do
+        dpda = matmul(dppda, dpdpp)
+        drda = matmul(dpda, dkpdp)
         
-        !J_a = J_a + matmul(drda, J_r)
-        !J_b = matmul(drdb, J_r)
-        !J_x = matmul(drdx, J_r)
-        !J_c = J_c + matmul(drdc, J_r)
+        J_a = J_a + matmul(drda, J_r)
+        J_b = matmul(drdb, J_r)
+        J_x = matmul(drdx, J_r)
+        J_c = J_c + matmul(drdc, J_r)
     end subroutine
 
 end module mod_jacobian_mat
