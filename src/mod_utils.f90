@@ -12,7 +12,7 @@ module mod_utils
     public :: starts_with_alpha, isreal, isint, tokenize, &
               count_substr_occurence, str_to_lower
     public :: cyclic_spline, compute_bicubic_interp
-    public :: cross_product
+    public :: cross_product, vec_skw
 
     contains
 
@@ -446,6 +446,22 @@ module mod_utils
         c(1) = a(2)*b(3) - a(3)*b(2)
         c(2) = a(3)*b(1) - a(1)*b(3)
         c(3) = a(1)*b(2) - a(2)*b(1)
+    end
+
+    pure function vec_skw(a) result(b)
+        use mod_memory, only: rp
+        implicit none
+        
+        real(rp), dimension(3), intent(in) :: a
+        real(rp), dimension(3,3) :: b
+
+        b = 0.0
+        b(1,2) = a(3)
+        b(1,3) = -a(2)
+        b(2,1) = -a(3)
+        b(2,3) = a(1)
+        b(3,1) = a(2)
+        b(3,2) = -a(3)
     end
 
 end module mod_utils
