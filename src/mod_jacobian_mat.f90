@@ -61,7 +61,8 @@ module mod_jacobian_mat
                                            J_a, J_b, J_c, J_x)
         !! Computes the Jacobian matrix for the inplane angle definition.
         !! It computes the Jacobian for the normal angle using the projected 
-        !! point (R) as central point. Then projects \(J_r\) onto A, B, C, and X 
+        !! point (R) as central point. Then projects 
+        !! \(J_r = \frac{\partial \theta}{\partial \vec{R}} \) onto A, B, C, and X 
         !! (auxiliary point). The projection is done computing the 3x3 matrices
         !! of partial derivative of \(\vec{R}\) wrt any actual point and using
         !! them to project \(J_r\).
@@ -87,11 +88,12 @@ module mod_jacobian_mat
         !! \[J_a = \frac{\partial \theta}{\partial \vec{A}} 
         !! = \left( \frac{\partial \theta}{\partial \vec{A}} \right)_\vec{R} + 
         !!   \frac{\partial \vec{R}}{\partial \vec{A}} \times
-        !!   \frac{\partial \theta}{\partial \vec{R}}
+        !!   J_r
         !! = \left( \frac{\partial \theta}{\partial \vec{A}} \right)_\vec{R} +
         !!   - \frac{\partial \vec{P}}{\partial \vec{A}} \times
         !!     \frac{\partial \hat{P}}{\partial \vec{P}} \times 
-        !!     \frac{\partial (\vec{V} \cdot \hat{P})}{\partial \hat{P}}
+        !!     \frac{\partial (\vec{V} \cdot \hat{P})}{\partial \hat{P}} \times
+        !!     J_r
         !! \]
         use mod_utils, only: cross_product, vec_skw
 
