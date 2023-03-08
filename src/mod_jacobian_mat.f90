@@ -57,12 +57,47 @@ module mod_jacobian_mat
         end do
     end subroutine
     
-    subroutine inplane_angle_jacobian(ca, cb, cc, cx, thet, J_a, J_b, J_c, J_x)
+    pure subroutine inplane_angle_jacobian(ca, cb, cc, cx, thet, &
+                                           J_a, J_b, J_c, J_x)
+        !! Computes the Jacobian matrix for the inplane angle definition.
+        !! It computes the Jacobian for the normal angle using the projected 
+        !! point (R) as central point. Then projects \(J_r\) onto A, B, C, and X 
+        !! (auxiliary point). The projection is done computing the 3x3 matrices
+        !! of partial derivative of \(\vec{R}\) wrt any actual point and using
+        !! them to project \(J_r\).
+        !! \[\frac{\partial \vec{R}}{\partial \vec{A}} = 
+        !!      \begin{bmatrix} 
+        !!          \frac{\partial \vec{R}_x}{\partial \vec{A}_x} & 
+        !!          \frac{\partial \vec{R}_y}{\partial \vec{A}_x} & 
+        !!          \frac{\partial \vec{R}_z}{\partial \vec{A}_x} \\ 
+        !!          \frac{\partial \vec{R}_x}{\partial \vec{A}_y} & 
+        !!          \frac{\partial \vec{R}_y}{\partial \vec{A}_y} & 
+        !!          \frac{\partial \vec{R}_z}{\partial \vec{A}_y} \\ 
+        !!          \frac{\partial \vec{R}_x}{\partial \vec{A}_z} & 
+        !!          \frac{\partial \vec{R}_y}{\partial \vec{A}_z} & 
+        !!          \frac{\partial \vec{R}_z}{\partial \vec{A}_z} \\ 
+        !!      \end{bmatrix} \]
+        !! Those matrices are computed using the chain rule.
+        !!
+        !! Exemple:
+        !! \[\vec{V} = \vec{B} - \vec{X}\]
+        !! \[\vec{P} = (\vec{A} - \vec{X}) \times (\vec{C} - \vec{X})\]
+        !! \[\hat{P} = \frac{\vec{P}}{||\vec{P}||}\]
+        !! \[\vec{R} = \vec{B} - (\vec{V}\cdot\hat{P})\hat{P}\]
+        !! \[J_a = \frac{\partial \theta}{\partial \vec{A}} 
+        !! = \left( \frac{\partial \theta}{\partial \vec{A}} \right)_\vec{R} + 
+        !!   \frac{\partial \vec{R}}{\partial \vec{A}} \times
+        !!   \frac{\partial \theta}{\partial \vec{R}}
+        !! = \left( \frac{\partial \theta}{\partial \vec{A}} \right)_\vec{R} +
+        !!   - \frac{\partial \vec{P}}{\partial \vec{A}} \times
+        !!     \frac{\partial \hat{P}}{\partial \vec{P}} \times 
+        !!     \frac{\partial (\vec{V} \cdot \hat{P})}{\partial \hat{P}}
+        !! \]
         use mod_utils, only: cross_product, vec_skw
 
         implicit none
 
-        real(rp), intent(inout), dimension(3) :: ca, cb, cc, cx
+        real(rp), intent(in), dimension(3) :: ca, cb, cc, cx
         !! Coordinates of the atoms defining the angle
         real(rp), intent(out), dimension(3) :: J_a, J_b, J_c, J_x
         !! The Jacobian components on atoms a, b and c respectively
@@ -71,7 +106,8 @@ module mod_jacobian_mat
 
         real(rp), dimension(3) :: cr, cv, cp, cpp, cq, cs, J_r
         real(rp), dimension(3,3) :: drda, drdb, drdc, drdx, dkpdp, dppda, &
-                                    dpdpp, dpda, dpdc, dppdc, dpdx, dppdx
+                                    dpdpp, dpda, dpdc, dppdc, dpdx, dppdx, &
+                                    dkpdv
         real(rp) :: dd, k
 
         integer(ip) :: i, j
@@ -88,14 +124,6 @@ module mod_jacobian_mat
         
         call simple_angle_jacobian(ca, cr, cc, thet, J_a, J_r, J_c)
 
-        dd = 1e-5
-        
-        drda = 0.0
-        drdb = 0.0
-        drdc = 0.0
-        drdx = 0.0
-        dkpdp = 0.0
-
         do i=1,3
             dkpdp(i,:) = cv(i) * cp
             dkpdp(i,i) = dkpdp(i,i) + k
@@ -103,15 +131,18 @@ module mod_jacobian_mat
 
         do i=1,3
             dpdpp(i,:) = -cpp(i) * cpp
-            dpdpp(i,i) = norm2(cpp)**2
+            dpdpp(i,i) = dpdpp(i,i) + norm2(cpp)**2
         end do
         dpdpp = dpdpp / norm2(cpp)**3
 
-        dppda = vec_skw(cs)
+        do i=1,3
+            dkpdv(i,:) = cp(i) * cp
+        end do
+
+        dppda = -vec_skw(cs)
         dppdc = vec_skw(cq)
        
-        dppdx = -(dppda+dppdc)
-        
+        dppdx = -vec_skw(cs-cq)
 
         dpda = matmul(dppda, dpdpp)
         drda = matmul(dpda, dkpdp)
@@ -120,12 +151,13 @@ module mod_jacobian_mat
         drdc = matmul(dpdc, dkpdp)
 
         dpdx = matmul(dppdx, dpdpp)
-        drdx = matmul(dpdx, dkpdp)
-        
+        drdx = -(matmul(dpdx, dkpdp) - dkpdv)
+
         J_a = J_a + matmul(drda, J_r)
         J_x = matmul(drdx, J_r)
         J_c = J_c + matmul(drdc, J_r)
         J_b = -(J_a+J_c+J_x)
+        
     end subroutine
 
 end module mod_jacobian_mat
