@@ -257,10 +257,16 @@ code_coverage:
         - gcov **/*.gcda
         - lcov --gcov-tool gcov --capture --directory . --output-file ../coverage/coverage.info
         - cd ../coverage
+        - lcov_cobertura coverage.info -o coverage.xml
         - genhtml --output-directory html coverage.info
     artifacts:
         paths:
             - coverage
+          artifacts:
+        reports:
+            coverage_report:
+                coverage_format: cobertura
+                path: coverage/coverage.xml
     only:
         - pushes
 

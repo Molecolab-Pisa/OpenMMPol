@@ -25,6 +25,7 @@ RUN zypper --non-interactive in gcc \
                                 wget \
                                 zlib-devel
 RUN pip install -Iv ford==6.1.11
+RUN pip install lcov_cobertura
 RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py
 #Intel Compilers suite
 RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
