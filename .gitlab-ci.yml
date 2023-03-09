@@ -5,6 +5,7 @@ stages:
     - compile-bin
     - test
     - documentation
+    - coverage
 
 build_docker_env:
     stage: docker-building
@@ -243,3 +244,25 @@ run_tests-nvidia:
         - ctest -E memcheck
     only:
         - schedules
+
+code_coverage:
+    stage: coverage
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - mkdir build_cov coverage
+        - cd build_cov
+        - cmake .. -DCMAKE_BUILD_TYPE=COVERAGE
+        - make 
+        - ctest -E memcheck
+        - gcov **/*.gcda
+        - lcov --gcov-tool gcov --capture --directory . --output-file ../coverage/coverage.info
+        - cd ../coverage
+        - genhtml --output-directory html coverage.info
+    artifacts:
+        paths:
+            - coverage
+    only:
+        - pushes
+
+
+

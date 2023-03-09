@@ -4,6 +4,7 @@ LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive in gcc \
                                 gcc-c++ \ 
                                 gcc-fortran \ 
+                                gcovr \
                                 make \
                                 cmake \
                                 curl \
@@ -16,6 +17,7 @@ RUN zypper --non-interactive in gcc \
                                 python3 \
                                 lapack-devel \
                                 liblapack3 \ 
+                                lcov \
                                 hdf5 \
                                 hdf5-devel \
                                 tar \
