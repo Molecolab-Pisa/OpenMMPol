@@ -12,7 +12,7 @@ module mod_utils
     public :: starts_with_alpha, isreal, isint, tokenize, &
               count_substr_occurence, str_to_lower
     public :: cyclic_spline, compute_bicubic_interp
-    public :: cross_product, vec_skw
+    public :: cross_product, vec_skw, versor_der
 
     contains
 
@@ -437,11 +437,15 @@ module mod_utils
     end subroutine
 
     pure function cross_product(a, b) result(c)
+        !! Computes the cross product between two vectors of dimension 3.
+        !! Used as an inlinable function in geometric manipulations
         use mod_memory, only: rp
         implicit none
 
         real(rp), dimension(3), intent(in) :: a, b
+        !! Input vector
         real(rp), dimension(3) :: c
+        !! Output vector
 
         c(1) = a(2)*b(3) - a(3)*b(2)
         c(2) = a(3)*b(1) - a(1)*b(3)
@@ -449,6 +453,15 @@ module mod_utils
     end
 
     pure function vec_skw(a) result(b)
+        !! Computes the matrix operator corresponding to a cross product of an
+        !! input vector \(\vec{A}\) of dimension 3.
+        !! \[[\vec{A}]_\times = 
+        !!      \begin{bmatrix} 
+        !!          0 & -\vec{A}_z & \vec{A}_y \\ 
+        !!          \vec{A}_z & 0 & -\vec{A}_x \\ 
+        !!          -\vec{A}_y & \vec{A}_x & 0 \\ 
+        !!      \end{bmatrix} \]
+        
         use mod_memory, only: rp
         implicit none
         
@@ -463,5 +476,49 @@ module mod_utils
         b(1,3) = a(2)
         b(2,3) = -a(1)
     end
+
+    pure function versor_der(a) result(g)
+        !! Computes the derivativative matrix of a versor \(\hat{A}\) wrt its
+        !! generator vector \(\vec{A}\).
+        !! \[\hat{A} = \frac{\vec{A}}{||\vec{A}||}\]
+        !! \[\frac{\partial \hat{A}}{\partial \vec{A}} 
+        !! = \frac{1}{||\vec{A}||^3} (||\vec{A}||^2 \mathbb{1}_3 - A^\dagger A)
+        !! = \frac{1}{||\vec{A}||^3} 
+        !!      \begin{bmatrix} 
+        !!          ||\vec{A}||^2 - \vec{A}_x^2 & 
+        !!           - \vec{A}_x \vec{A}_y & 
+        !!          - \vec{A}_x \vec{A}_z \\ 
+        !!          - \vec{A}_y \vec{A}_x & 
+        !!          ||\vec{A}||^2 - \vec{A}_y^2 & 
+        !!          - \vec{A}_y \vec{A}_z \\ 
+        !!          - \vec{A}_z \vec{A}_x & 
+        !!          - \vec{A}_z \vec{A}_y & 
+        !!          ||\vec{A}||^2 - \vec{A}_z^2 \\ 
+        !!      \end{bmatrix}
+        !! \]
+        use mod_memory, only: rp
+        implicit none
+
+        real(rp), dimension(3), intent(in) :: a
+        real(rp), dimension(3,3) :: g
+
+        real(rp) :: na, na2
+
+        na = norm2(a)
+        na2 = na*na
+
+        g = 0.0
+
+        g(1,:) = -a(1) * a
+        g(1,1) = g(1,1) + na2
+        
+        g(2,:) = -a(2) * a
+        g(2,2) = g(2,2) + na2
+        
+        g(3,:) = -a(3) * a
+        g(3,3) = g(3,3) + na2
+
+        g = g / (na*na2)
+    end function
 
 end module mod_utils

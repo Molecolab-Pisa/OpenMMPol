@@ -95,7 +95,7 @@ module mod_jacobian_mat
         !!     \frac{\partial (\vec{V} \cdot \hat{P})}{\partial \hat{P}} \times
         !!     J_r
         !! \]
-        use mod_utils, only: cross_product, vec_skw
+        use mod_utils, only: cross_product, vec_skw, versor_der
 
         implicit none
 
@@ -131,11 +131,7 @@ module mod_jacobian_mat
             dkpdp(i,i) = dkpdp(i,i) + k
         end do
 
-        do i=1,3
-            dpdpp(i,:) = -cpp(i) * cpp
-            dpdpp(i,i) = dpdpp(i,i) + norm2(cpp)**2
-        end do
-        dpdpp = dpdpp / norm2(cpp)**3
+        dpdpp = versor_der(cpp)
 
         do i=1,3
             dkpdv(i,:) = cp(i) * cp
