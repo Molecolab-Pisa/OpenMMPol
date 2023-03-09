@@ -42,7 +42,7 @@ RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; 
     cd -; rm -rf hdf5-1_12_2.tar.gz;
 # NVCompilers suite
 RUN zypper --non-interactive addrepo https://developer.download.nvidia.com/hpc-sdk/sles/nvhpc.repo
-RUN zypper --non-interactive --gpg-auto-import-keys install nvhpc
+RUN zypper --non-interactive --gpg-auto-import-keys --no-gpg-checks install nvhpc
 RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; \
     tar xvf hdf5-1_12_2.tar.gz; \
     rm hdf5-1_12_2.tar.gz; \
