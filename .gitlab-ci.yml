@@ -262,7 +262,6 @@ code_coverage:
     artifacts:
         paths:
             - coverage
-          artifacts:
         reports:
             coverage_report:
                 coverage_format: cobertura
