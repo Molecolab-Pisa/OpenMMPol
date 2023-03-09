@@ -155,7 +155,7 @@ module mod_bonded
     public :: ommp_bonded_type
     public :: bond_init, bond_potential, bond_geomgrad, bond_terminate
     public :: angle_init, angle_potential, angle_geomgrad, angle_terminate
-    public :: urey_init, urey_potential, urey_terminate
+    public :: urey_init, urey_potential, urey_geomgrad, urey_terminate
     public :: strbnd_init, strbnd_potential, strbnd_terminate
     public :: opb_init, opb_potential, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
@@ -289,8 +289,8 @@ module mod_bonded
                 dl = l - bds%l0bond(i)
                 
                 g = 2 * bds%kbond(i) * dl
-                grad(:,ia) = J_a * g
-                grad(:,ib) = J_b * g
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
             end do
         else
             do i=1, bds%nbond
@@ -631,6 +631,57 @@ module mod_bonded
             end do
         end if
     end subroutine urey_potential
+    
+    subroutine urey_geomgrad(bds, grad)
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: Rij_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+        integer :: i, ia, ib
+        logical :: use_cubic, use_quartic
+        real(rp) :: l, dl, dl2, J_a(3), J_b(3), g
+        
+        if(.not. bds%use_urey) return
+
+        use_cubic = (abs(bds%urey_cubic) > eps_rp)
+        use_quartic = (abs(bds%urey_quartic) > eps_rp)
+
+        if(.not. use_cubic .and. .not. use_quartic) then
+            ! This is just a regular harmonic potential
+            do i=1, bds%nurey
+                ia = bds%ureyat(1,i)
+                ib = bds%ureyat(2,i)
+                call Rij_jacobian(bds%top%cmm(:,ia), &
+                                  bds%top%cmm(:,ib), &
+                                  l, J_a, J_b)
+                dl = l - bds%l0urey(i)
+                g = 2 * bds%kurey(i) * dl
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        else
+            do i=1, bds%nurey
+                ia = bds%ureyat(1,i)
+                ib = bds%ureyat(2,i)
+                call Rij_jacobian(bds%top%cmm(:,ia), &
+                                  bds%top%cmm(:,ib), &
+                                  l, J_a, J_b)
+                dl = l - bds%l0urey(i)
+                g = 2 * bds%kurey(i) * dl * (1.0 &
+                                             + 3.0/2.0 * bds%urey_cubic*dl &
+                                             + 2.0 * bds%urey_quartic*dl**2)
+
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        end if
+    end subroutine urey_geomgrad
 
     subroutine opb_init(bds, n, opbtype)
         !! Initialize arrays for out-of-plane bending potential calculation.   
