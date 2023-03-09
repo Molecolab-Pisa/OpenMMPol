@@ -171,7 +171,6 @@ module mod_mmpol
             end do
 
             call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
-            write(*, *) sys_obj%eel%pol_atoms 
             ! compute factors for thole damping
             call thole_init(sys_obj%eel)
         end if
