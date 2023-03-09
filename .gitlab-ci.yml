@@ -261,6 +261,7 @@ code_coverage:
     artifacts:
         paths:
             - coverage
+    coverage: /lines\.\.\.*\: (\d+\.\d)/
     only:
         - pushes
 
