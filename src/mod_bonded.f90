@@ -159,7 +159,7 @@ module mod_bonded
     public :: strbnd_init, strbnd_potential, strbnd_terminate
     public :: opb_init, opb_potential, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
-    public :: torsion_init, torsion_potential, torsion_terminate
+    public :: torsion_init, torsion_potential, torsion_geomgrad, torsion_terminate
     public :: imptorsion_init, imptorsion_potential, imptorsion_terminate
     public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
     public :: strtor_init, strtor_potential, strtor_terminate
@@ -933,6 +933,37 @@ module mod_bonded
         end do
 
     end subroutine torsion_potential
+    
+    subroutine torsion_geomgrad(bds, grad)
+        !! Compute torsion potential
+        use mod_jacobian_mat, only: torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
+        integer(ip) :: i, j
+        
+        if(.not. bds%use_torsion) return
+
+        do i=1, bds%ntorsion
+            call torsion_angle_jacobian(bds%top%cmm(:,bds%torsionat(1,i)), &
+                                        bds%top%cmm(:,bds%torsionat(2,i)), &
+                                        bds%top%cmm(:,bds%torsionat(3,i)), &
+                                        bds%top%cmm(:,bds%torsionat(4,i)), &
+                                        thet, J_a, J_b, J_c, J_d)
+            
+            do j=1, 6
+                if(bds%torsn(j,i) < 1) exit
+                g = -real(bds%torsn(j,i)) * sin(real(bds%torsn(j,i))* thet &
+                                                - bds%torsphase(j,i))
+            end do
+        end do
+
+    end subroutine torsion_geomgrad
     
     subroutine imptorsion_potential(bds, V)
         !! Compute torsion potential

@@ -4,7 +4,8 @@ module mod_jacobian_mat
     private
 
     public :: Rij_jacobian
-    public :: simple_angle_jacobian, inplane_angle_jacobian
+    public :: simple_angle_jacobian, inplane_angle_jacobian, &
+              torsion_angle_jacobian
 
     contains
         
@@ -110,7 +111,7 @@ module mod_jacobian_mat
         real(rp), dimension(3,3) :: drda, drdb, drdc, drdx, dkpdp, dppda, &
                                     dpdpp, dpda, dpdc, dppdc, dpdx, dppdx, &
                                     dkpdv
-        real(rp) :: dd, k
+        real(rp) :: k
 
         integer(ip) :: i, j
 
@@ -158,6 +159,101 @@ module mod_jacobian_mat
         
     end subroutine
 
+    subroutine torsion_angle_jacobian(ca, cb, cc, cd, thet, &
+                                           J_a, J_b, J_c, J_d)
+        !! Computes the Jacobian matrix for torsion angle defined by points 
+        !! \(\vec{A}\), \(\vec{B}\), \(\vec{C}\) and \(\vec{D}\) (connected in
+        !! this order). The angle is defined as follow:
+        !! \[ \vec{U} = (\vec{B} - \vec{C}) \times (\vec{D} - \vec{C}) \\
+        !!    \vec{T} = (\vec{B} - \vec{A}) \times (\vec{B} - \vec{C}) \\
+        !!    cos(\theta) = \vec{U} \cdot \vec{T}
+        !! \]
+        !! Applying the chain rule:
+        !! \[J_a = \frac{\partial \theta}{\partial \vec{A}} 
+        !!       = -\frac{1}{\sqrt{1-\theta^2}} 
+        !!          \frac{\partial cos(\theta)}{\partial \vec{A}} 
+        !!       = -\frac{1}{\sqrt{1-\theta^2}}
+        !!          \frac{\partial \vec{U} \cdot \vec{T}}{\partial \vec{A}} \\
+        !!       = -\frac{1}{\sqrt{1-\theta^2}}
+        !!          \frac{\partial (\vec{B} - \vec{A})}{\partial \vec{A}} \times
+        !!          \frac{\partial \vec{T}}{\partial (\vec{B} - \vec{A})} \times
+        !!          \frac{\partial \hat{T}}{\partial \vec{T}} \times \vec{U} \\
+        !!       = -\frac{1}{\sqrt{1-\theta^2}}
+        !!          (- \mathbb{I}_3) \times
+        !!          skw(B-C) \times
+        !!          \frac{\partial \hat{T}}{\partial \vec{T}} \times \vec{U}
+        !! \]
+        !! \[J_d = \frac{\partial \theta}{\partial \vec{D}} =
+        !!        = -\frac{1}{\sqrt{1-\theta^2}}
+        !!          \mathbb{I}_3 \times (-skw(B-C)) \times
+        !!          \frac{\partial \hat{U}}{\partial \vec{U}} \times \vec{T}
+        !! \]
+        use mod_utils, only: cross_product, vec_skw, versor_der
+        use mod_constants, only: pi, eps_rp
+
+        implicit none
+
+        real(rp), intent(inout), dimension(3) :: ca, cb, cc, cd
+        !! Coordinates of the atoms defining the angle
+        real(rp), intent(out), dimension(3) :: J_a, J_b, J_c, J_d
+        !! The Jacobian components on atoms a, b and c and d respectively
+        real(rp), intent(out) :: thet
+        !! The torsion angle
+
+        real(rp), dimension(3) :: a_b, c_d, c_b, t, u, ht, hu
+        real(rp), dimension(3,3) :: dhudu, dhtdt, dtda, dudd, dhudd, dhtda, &
+                                    dhudb, dhtdb, dudb, dtdb, &
+                                    dhudc, dhtdc, dtdc, dudc
+        real(rp) :: costhet, dacost, dd
+
+        integer(ip) :: i, j
+        
+        a_b = cb - ca
+        c_d = cd - cc
+        c_b = cb - cc
+
+        t = cross_product(a_b,c_b)
+        ht = t / norm2(t)
+        
+        u = cross_product(c_b,c_d)
+        hu = u / norm2(u)
+
+        costhet = dot_product(hu,ht)
+        if(costhet + 1.0 <= eps_rp) then
+            thet = pi
+        else 
+            thet = acos(costhet)
+        end if
+        
+        dacost = - 1.0/sqrt(1.0-costhet**2)
+        
+        dhtdt = versor_der(t)
+        dhudu = versor_der(u)
+
+        dtda = vec_skw(c_b)
+        dudd = dtda 
+        
+        dhtda = matmul(dtda, dhtdt)
+        J_a = -dacost * matmul(dhtda,hu) 
+
+        dudb = vec_skw(c_d)
+        dtdb = vec_skw(ca-cc)
+
+        dhudb = matmul(dudb, dhudu)
+        dhtdb = matmul(dtdb, dhtdt)
+        J_b = dacost * (matmul(dhudb,ht) + matmul(dhtdb,hu))
+
+        dtdc = vec_skw(a_b)
+        dudc = vec_skw(cb - cd)
+
+        dhtdb = matmul(dtdc, dhtdt)
+        dhudc = matmul(dudc, dhudu) 
+        J_c = dacost * (matmul(dhudc,ht) + matmul(dhtdb,hu))
+
+        dhudd = matmul(dudd, dhudu)
+        J_d = -dacost * matmul(dhudd,ht)
+
+    end subroutine
 end module mod_jacobian_mat
 
 
