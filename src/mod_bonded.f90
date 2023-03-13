@@ -945,21 +945,30 @@ module mod_bonded
         real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
         !! Gradients of bond stretching terms of potential energy
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
-        integer(ip) :: i, j
+        integer(ip) :: i, j, ia, ib, ic, id
         
         if(.not. bds%use_torsion) return
 
         do i=1, bds%ntorsion
-            call torsion_angle_jacobian(bds%top%cmm(:,bds%torsionat(1,i)), &
-                                        bds%top%cmm(:,bds%torsionat(2,i)), &
-                                        bds%top%cmm(:,bds%torsionat(3,i)), &
-                                        bds%top%cmm(:,bds%torsionat(4,i)), &
+            ia = bds%torsionat(1,i)
+            ib = bds%torsionat(2,i)
+            ic = bds%torsionat(3,i)
+            id = bds%torsionat(4,i) 
+            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
+                                        bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
                                         thet, J_a, J_b, J_c, J_d)
             
             do j=1, 6
                 if(bds%torsn(j,i) < 1) exit
                 g = -real(bds%torsn(j,i)) * sin(real(bds%torsn(j,i))* thet &
-                                                - bds%torsphase(j,i))
+                                                - bds%torsphase(j,i)) &
+                    * bds%torsamp(j,i)
+                grad(:, ia) = grad(:, ia) + J_a * g
+                grad(:, ib) = grad(:, ib) + J_b * g
+                grad(:, ic) = grad(:, ic) + J_c * g
+                grad(:, id) = grad(:, id) + J_d * g
             end do
         end do
 
