@@ -51,6 +51,7 @@ cmake-config-intel:
             - build_intel
     only:
         - schedules
+        - pushes
 
 cmake-config-nvidia:
     stage: configure
@@ -124,6 +125,7 @@ make-lib-intel:
             - build_intel
     only:
         - schedules
+        - pushes
 
 compile-C-intel:
     stage: compile-bin
@@ -138,6 +140,7 @@ compile-C-intel:
             - build_intel/bin
     only:
         - schedules
+        - pushes
 
 compile-FORTRAN-intel:
     stage: compile-bin
@@ -152,6 +155,7 @@ compile-FORTRAN-intel:
             - build_intel/bin
     only:
         - schedules
+        - pushes
 
 make-lib-nvidia:
     stage: compile-lib
@@ -240,6 +244,7 @@ run_tests-intel:
         - make test
     only:
         - schedules
+        - pushes
 
 run_tests-nvidia:
     stage: test
