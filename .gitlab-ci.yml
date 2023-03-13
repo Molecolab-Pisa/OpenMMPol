@@ -5,14 +5,17 @@ stages:
     - compile-bin
     - test
     - documentation
-
+    - coverage
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE
+    
 build_docker_env:
     stage: docker-building
     image: docker:git
     script:
-        - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN molimen1.dcci.unipi.it:22003
-        - docker build -t molimen1.dcci.unipi.it:22003/molecolab/open-mmpol .
-        - docker push molimen1.dcci.unipi.it:22003/molecolab/open-mmpol
+        - docker login -u $CI_REGISTRY_USER -p $CI_BUILD_TOKEN $CI_REGISTRY
+        - docker build --load -t $IMAGE_TAG .
+        - docker push $IMAGE_TAG
     only:
         refs:
             - pushes
@@ -45,6 +48,9 @@ cmake-config-intel:
     artifacts:
         paths:
             - build_intel
+    only:
+        - schedules
+        - pushes
 
 cmake-config-nvidia:
     stage: configure
@@ -63,6 +69,8 @@ cmake-config-nvidia:
     artifacts:
         paths:
             - build_nvidia
+    only:
+        - schedules
 
 make-lib:
     stage: compile-lib
@@ -243,3 +251,32 @@ run_tests-nvidia:
         - ctest -E memcheck
     only:
         - schedules
+
+code_coverage:
+    stage: coverage
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - mkdir build_cov coverage
+        - cd build_cov
+        - cmake .. -DCMAKE_BUILD_TYPE=COVERAGE
+        - make 
+        - ctest -E "memcheck|1ao6"
+        - find . -iname '*.gcda' | xargs gcov > gcov.out
+        - echo "CODECOVERAGE" `cat gcov.out | tail -n 1 | grep --only-matching -P '.{0,5}%'`
+        - lcov --gcov-tool gcov --capture --directory . --output-file ../coverage/coverage.info
+        - cd ../coverage
+        - lcov_cobertura coverage.info -o coverage.xml
+        - genhtml --output-directory html coverage.info
+    coverage: '/CODECOVERAGE \d+.\d+%/'
+    artifacts:
+        paths:
+            - coverage
+        reports:
+            coverage_report:
+                coverage_format: cobertura
+                path: coverage/coverage.xml
+    only:
+        - pushes
+
+
+

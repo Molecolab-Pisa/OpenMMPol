@@ -473,7 +473,7 @@ module ommp_interface
             use mod_bonded, only: bond_geomgrad 
             
             implicit none 
-            
+        
             type(ommp_system), intent(inout) :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 

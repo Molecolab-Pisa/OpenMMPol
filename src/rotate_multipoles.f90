@@ -269,7 +269,9 @@ end subroutine rotate_multipoles
 
 
 subroutine rotation_matrix(doder,c,cx,cy,cz,mol_frame,r,dri,driz,drix,driy)
+    use mod_io, only: fatal_error
     use mod_memory, only: ip, rp
+    use mod_constants, only: eps_rp
     
     implicit none
     !! given an atom j and the reference atoms jx, jy, and jz, this routine
@@ -409,6 +411,11 @@ subroutine rotation_matrix(doder,c,cx,cy,cz,mol_frame,r,dri,driz,drix,driy)
 !
 ! build the unit vectors:
 !
+  if(norm2(u) < eps_rp .or. norm2(v) < eps_rp) then
+      call fatal_error("Ill defined rotation axis (either u or v vectors have &
+                       &0 norm.")
+  end if
+
   u_sq   = dot_product(u,u)
   u_norm = sqrt(u_sq)
   ez     = u/u_norm

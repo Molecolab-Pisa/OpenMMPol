@@ -333,7 +333,6 @@ module mod_nonbonded
     end subroutine vdw_buffered_7_14_Rijgrad
 
     pure function get_Rij0(vdw, i, j) result(Rij0)
-        use mod_io, only : fatal_error
         
         implicit none
 
@@ -351,13 +350,10 @@ module mod_nonbonded
                        (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
             case default
                 Rij0 = 0.0
-                continue
-                !call fatal_error("Unexpected error in get_Rij0")
         end select
     end function
     
     pure function get_eij(vdw, i, j) result(eij)
-        use mod_io, only : fatal_error
         
         implicit none
 
@@ -375,8 +371,6 @@ module mod_nonbonded
                       (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
             case default
                 eij = 0.0
-                continue
-                !call fatal_error("Unexpected error in get_eij")
         end select
     end function
 

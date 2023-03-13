@@ -7,9 +7,15 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_compile_options($<$<CONFIG:RELEASE>:-O3>
-                    $<$<CONFIG:DEBUG>:-g>)
+                    $<$<CONFIG:DEBUG>:-g>
+                    $<$<CONFIG:COVERAGE>:-O0>)
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options($<$<CONFIG:DEBUG>:-Og>)
+    add_compile_options($<$<CONFIG:RELEASE>:>
+                        $<$<CONFIG:DEBUG>:-Og>
+                        $<$<CONFIG:COVERAGE>:-pg>
+                        $<$<CONFIG:COVERAGE>:-fprofile-arcs>
+                        $<$<CONFIG:COVERAGE>:-ftest-coverage>)
+    add_link_options($<$<CONFIG:COVERAGE>:-coverage>)
 endif()
 
 include_directories(include) # Directory for .h files
