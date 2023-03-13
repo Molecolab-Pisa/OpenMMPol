@@ -21,7 +21,6 @@ build_docker_env:
             - pushes
         changes:
             - Dockerfile
-            - .gitlab-ci.yml
 
 cmake-config:
     stage: configure
@@ -125,7 +124,6 @@ make-lib-intel:
             - build_intel
     only:
         - schedules
-        - pushes
 
 compile-C-intel:
     stage: compile-bin
@@ -134,13 +132,12 @@ compile-C-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp  C_test_potential_hdf5 C_test_init_hdf5
+        - make C_test_init C_test_ipd C_test_energy C_test_init_xyz C_test_potential_xyz ommp_pp C_test_potential_hdf5 C_test_init_hdf5
     artifacts:
         paths:
             - build_intel/bin
     only:
         - schedules
-        - pushes
 
 compile-FORTRAN-intel:
     stage: compile-bin
@@ -155,7 +152,6 @@ compile-FORTRAN-intel:
             - build_intel/bin
     only:
         - schedules
-        - pushes
 
 make-lib-nvidia:
     stage: compile-lib
@@ -244,7 +240,6 @@ run_tests-intel:
         - make test
     only:
         - schedules
-        - pushes
 
 run_tests-nvidia:
     stage: test
