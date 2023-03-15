@@ -156,7 +156,7 @@ module mod_bonded
     public :: bond_init, bond_potential, bond_geomgrad, bond_terminate
     public :: angle_init, angle_potential, angle_geomgrad, angle_terminate
     public :: urey_init, urey_potential, urey_geomgrad, urey_terminate
-    public :: strbnd_init, strbnd_potential, strbnd_terminate
+    public :: strbnd_init, strbnd_potential, strbnd_geomgrad, strbnd_terminate
     public :: opb_init, opb_potential, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
     public :: torsion_init, torsion_potential, torsion_geomgrad, &
@@ -561,6 +561,52 @@ module mod_bonded
             V = V + (d_l1*bds%strbndk1(i) + d_l2*bds%strbndk2(i)) * d_thet
         end do
     end subroutine strbnd_potential
+    
+    subroutine strbnd_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: Rij_jacobian, simple_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+        integer(ip) :: i, ia, ib, ic
+        real(rp) :: d_l1, d_l2, d_thet, l1, l2, thet, g1, g2, g3
+        real(rp), dimension(3) :: a, b, c, &
+                                  J1_a, J1_b, &
+                                  J2_b, J2_c, &
+                                  J3_a, J3_b, J3_c
+        
+        if(.not. bds%use_strbnd) return
+
+        do i=1, bds%nstrbnd
+            ia = bds%strbndat(1,i)
+            ib = bds%strbndat(2,i)
+            ic = bds%strbndat(3,i)
+            a = bds%top%cmm(:, ia)
+            b = bds%top%cmm(:, ib)
+            c = bds%top%cmm(:, ic)
+
+            call Rij_jacobian(a, b, l1, J1_a, J1_b)
+            call Rij_jacobian(b, c, l2, J2_b, J2_c)
+            call simple_angle_jacobian(a, b, c, thet, J3_a, J3_b, J3_c)
+            
+            d_l1 = l1 - bds%strbndl10(i)
+            d_l2 = l2 - bds%strbndl20(i)
+            d_thet = thet - bds%strbndthet0(i) 
+           
+            g1 = bds%strbndk1(i) * d_thet
+            g2 = bds%strbndk2(i) * d_thet
+            g3 = bds%strbndk1(i) * d_l1 + bds%strbndk2(i) * d_l2
+
+            grad(:,ia) = grad(:,ia) + J1_a * g1 + J3_a * g3
+            grad(:,ib) = grad(:,ib) + J1_b * g1 + J2_b * g2 + J3_b * g3 
+            grad(:,ic) = grad(:,ic) + J2_c * g2 + J3_c * g3
+        end do
+
+    end subroutine strbnd_geomgrad
     
     subroutine urey_init(bds, n) 
         !! Initialize Urey-Bradley potential arrays

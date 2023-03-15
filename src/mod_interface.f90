@@ -493,6 +493,18 @@ module ommp_interface
             if(s%use_bonded) call angle_geomgrad(s%bds, grd)
         end subroutine
         
+        subroutine ommp_strbnd_geomgrad(s, grd)
+            use mod_bonded, only: strbnd_geomgrad 
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            if(s%use_bonded) call strbnd_geomgrad(s%bds, grd)
+        end subroutine
+        
         subroutine ommp_urey_geomgrad(s, grd)
             use mod_bonded, only: urey_geomgrad 
             
