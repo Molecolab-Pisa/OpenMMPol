@@ -97,6 +97,7 @@ extern void ommp_bond_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_angle_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_urey_geomgrad(OMMP_SYSTEM_PRT, double *);
 extern void ommp_torsion_geomgrad(OMMP_SYSTEM_PRT, double *);
+extern void ommp_imptorsion_geomgrad(OMMP_SYSTEM_PRT, double *);
 
 extern OMMP_QM_HELPER_PRT ommp_init_qm_helper(int32_t, const double *, const double *, const int32_t *);
 extern void ommp_terminate_qm_helper(OMMP_QM_HELPER_PRT);

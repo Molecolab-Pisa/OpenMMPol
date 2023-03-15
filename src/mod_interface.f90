@@ -517,6 +517,18 @@ module ommp_interface
             if(s%use_bonded) call torsion_geomgrad(s%bds, grd)
         end subroutine
         
+        subroutine ommp_imptorsion_geomgrad(s, grd)
+            use mod_bonded, only: imptorsion_geomgrad 
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            if(s%use_bonded) call imptorsion_geomgrad(s%bds, grd)
+        end subroutine
+        
         subroutine ommp_full_bnd_geomgrad(s, grd)
             use mod_bonded, only: fake_geomgrad
             use mod_bonded, only: bond_geomgrad

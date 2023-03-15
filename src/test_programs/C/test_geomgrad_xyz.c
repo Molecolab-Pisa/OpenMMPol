@@ -241,6 +241,27 @@ int main(int argc, char **argv){
         fprintf(fp, "Numerical-Analytical gradients difference is too large (torsion).\n");
         retcode = retcode + 5;
     }
+    
+    numerical_geomgrad(my_system, ommp_get_imptorsion_energy, grad_num);
+    ommp_imptorsion_geomgrad(my_system, _grad_ana);
+   
+    fprintf(fp, "DELTA NUM - ANA IMPTORSION\n");
+    Mdelta = 0.0;
+    
+    for(int i = 0; i < mm_atoms; i++){
+        for(int j=0; j < 3; j++){
+            delta = grad_num[i][j] - grad_ana[i][j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
+            fprintf(fp, "%+12.8g ", delta);
+        }
+        fprintf(fp, "\n");
+    }
+
+    if(Mdelta > 1e-8){
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (imptorsion).\n");
+        retcode = retcode + 6;
+    }
+    
     fclose(fp);
     ommp_terminate(my_system);
     

@@ -159,8 +159,10 @@ module mod_bonded
     public :: strbnd_init, strbnd_potential, strbnd_terminate
     public :: opb_init, opb_potential, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
-    public :: torsion_init, torsion_potential, torsion_geomgrad, torsion_terminate
-    public :: imptorsion_init, imptorsion_potential, imptorsion_terminate
+    public :: torsion_init, torsion_potential, torsion_geomgrad, &
+              torsion_terminate
+    public :: imptorsion_init, imptorsion_potential, imptorsion_geomgrad, &
+              imptorsion_terminate
     public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
     public :: strtor_init, strtor_potential, strtor_terminate
     public :: angtor_init, angtor_potential, angtor_terminate
@@ -1007,6 +1009,47 @@ module mod_bonded
         end do
 
     end subroutine imptorsion_potential
+    
+    subroutine imptorsion_geomgrad(bds, grad)
+        !! Compute torsion potential
+        use mod_jacobian_mat, only: torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
+        integer(ip) :: i, j, ia, ib, ic, id
+        
+        if(.not. bds%use_imptorsion) return
+        
+        do i=1, bds%nimptorsion
+            ! Atoms that defines the dihedral angle
+            ia = bds%imptorsionat(1,i)
+            ib = bds%imptorsionat(2,i)
+            ic = bds%imptorsionat(3,i)
+            id = bds%imptorsionat(4,i) 
+            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
+                                        bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        thet, J_a, J_b, J_c, J_d)
+            
+            do j=1, 3
+                if(bds%imptorsn(j,i) < 1) exit
+                g = -real(bds%imptorsn(j,i)) * sin(real(bds%imptorsn(j,i))* thet &
+                                                   - bds%imptorsphase(j,i)) &
+                                             * bds%imptorsamp(j,i)
+                grad(:, ia) = grad(:, ia) + J_a * g
+                grad(:, ib) = grad(:, ib) + J_b * g
+                grad(:, ic) = grad(:, ic) + J_c * g
+                grad(:, id) = grad(:, id) + J_d * g
+            end do
+        end do
+
+    end subroutine imptorsion_geomgrad
     
     subroutine imptorsion_init(bds, n)
         !! Initialize improper torsion potential arrays
