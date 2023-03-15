@@ -44,7 +44,7 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), dou
     double *_new_c, **new_c, *cmm, tmp, dd;
     int mm_atoms;
 
-    dd = 1e-5;
+    dd = 1e-6;
     mm_atoms = ommp_get_mm_atoms(s);
     cmm = ommp_get_cmm(s);
 
@@ -73,6 +73,48 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), dou
     }
 }
 
+int num_ana_compare(OMMP_SYSTEM_PRT sys,
+                    double (*ene_f)(OMMP_SYSTEM_PRT), 
+                    void (*grad_f)(OMMP_SYSTEM_PRT, double *), 
+                    FILE *fp, const char *name, double del){
+    
+    int mm_atoms = ommp_get_mm_atoms(sys);
+    
+    double *_grad_num = (double *) malloc(sizeof(double) * 3 * mm_atoms);
+    double **grad_num = (double **) malloc(sizeof(double *) * mm_atoms);
+    double *_grad_ana = (double *) malloc(sizeof(double) * 3 * mm_atoms);
+    double **grad_ana = (double **) malloc(sizeof(double *) * mm_atoms);
+
+    for(int i = 0; i < mm_atoms; i++){
+        grad_ana[i] = &(_grad_ana[i*3]);
+        grad_num[i] = &(_grad_num[i*3]);
+        for(int j=0; j < 3; j++)
+            grad_ana[i][j] = grad_num[i][j] = 0.0;
+    }
+
+    numerical_geomgrad(sys, ene_f, grad_num);
+    grad_f(sys, _grad_ana);
+   
+    fprintf(fp, "DELTA NUM - ANA %s\n", name);
+    double Mdelta = 0.0, delta;
+    
+    for(int i = 0; i < mm_atoms; i++){
+        for(int j=0; j < 3; j++){
+            delta = grad_num[i][j] - grad_ana[i][j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
+            fprintf(fp, "%+12.8g ", delta);
+        }
+        fprintf(fp, "\n");
+    }
+
+
+    if(Mdelta > del){
+        fprintf(fp, "WARNING delta (%.3g) > max_delta (%.3g)\n", Mdelta, del);
+        return 1;
+    }else
+        return 0;
+}
+
 int main(int argc, char **argv){
     if(argc != 4){
         printf("Syntax expected\n");
@@ -80,7 +122,7 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    int pol_atoms, mm_atoms, retcode=0;
+    int pol_atoms, mm_atoms, rc=0;
     double **grad_num, *_grad_num, **grad_ana, *_grad_ana;
     double delta, Mdelta;
 
@@ -104,167 +146,34 @@ int main(int argc, char **argv){
     }
    
     FILE *fp = fopen(argv[3], "w+");
-    
-    numerical_geomgrad(my_system, ommp_get_fixedelec_energy, grad_num);
-    ommp_fixedelec_geomgrad(my_system, _grad_ana);
-    
-    fprintf(fp, "DELTA NUM - ANA FIXEDELEC\n");
-    Mdelta = 0.0;
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
-
-    if(Mdelta > 1e-11){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (fixed).\n");
-        retcode = retcode + 1;
-    }
-    
-    for(int i = 0; i < mm_atoms; i++)
-        for(int j=0; j < 3; j++)
-            grad_ana[i][j] = grad_num[i][j] = 0.0;
-    
-    numerical_geomgrad(my_system, ommp_get_polelec_energy, grad_num);
-    ommp_polelec_geomgrad(my_system, _grad_ana);
    
-    fprintf(fp, "DELTA NUM - ANA POLELEC\n");
-    Mdelta = 0.0;
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
+    rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
+                          fp, "fixedelec", 1e-11);
+    
+    rc += num_ana_compare(my_system, ommp_get_polelec_energy, ommp_polelec_geomgrad,
+                          fp, "polelec", 1e-8);
+    
+    rc += num_ana_compare(my_system, ommp_get_bond_energy, ommp_bond_geomgrad,
+                          fp, "bond", 1e-11);
 
-    if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (pol).\n");
-        retcode = retcode + 2;
-    }
+    rc += num_ana_compare(my_system, ommp_get_angle_energy, ommp_angle_geomgrad,
+                          fp, "angle", 1e-11);
+
+    rc += num_ana_compare(my_system, ommp_get_urey_energy, ommp_urey_geomgrad,
+                          fp, "urey", 1e-11);
     
-    for(int i = 0; i < mm_atoms; i++)
-        for(int j=0; j < 3; j++)
-            grad_ana[i][j] = grad_num[i][j] = 0.0;
+    rc += num_ana_compare(my_system, ommp_get_torsion_energy, ommp_torsion_geomgrad,
+                          fp, "torsion", 1e-11);
+
+    rc += num_ana_compare(my_system, ommp_get_imptorsion_energy, ommp_imptorsion_geomgrad,
+                          fp, "imptorsion", 1e-11);
     
-    numerical_geomgrad(my_system, ommp_get_bond_energy, grad_num);
-    ommp_bond_geomgrad(my_system, _grad_ana);
+    rc += num_ana_compare(my_system, ommp_get_strbnd_energy, ommp_strbnd_geomgrad,
+                          fp, "strbnd", 1e-11);
    
-    fprintf(fp, "DELTA NUM - ANA BOND\n");
-    Mdelta = 0.0;
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
-
-    if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (bond).\n");
-        retcode = retcode + 3;
-    }
-
-    for(int i = 0; i < mm_atoms; i++)
-        for(int j=0; j < 3; j++)
-            grad_ana[i][j] = grad_num[i][j] = 0.0;
-    
-    numerical_geomgrad(my_system, ommp_get_angle_energy, grad_num);
-    ommp_angle_geomgrad(my_system, _grad_ana);
-   
-    fprintf(fp, "DELTA NUM - ANA ANGLE\n");
-    Mdelta = 0.0;
-    
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
-
-    if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (angle).\n");
-        retcode = retcode + 4;
-    }
-
-    for(int i = 0; i < mm_atoms; i++)
-        for(int j=0; j < 3; j++)
-            grad_ana[i][j] = grad_num[i][j] = 0.0;
-    
-    numerical_geomgrad(my_system, ommp_get_urey_energy, grad_num);
-    ommp_urey_geomgrad(my_system, _grad_ana);
-   
-    fprintf(fp, "DELTA NUM - ANA UREY\n");
-    Mdelta = 0.0;
-    
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
-
-    if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (urey).\n");
-        retcode = retcode + 5;
-    }
-
-    for(int i = 0; i < mm_atoms; i++)
-        for(int j=0; j < 3; j++)
-            grad_ana[i][j] = grad_num[i][j] = 0.0;
-    
-    numerical_geomgrad(my_system, ommp_get_torsion_energy, grad_num);
-    ommp_torsion_geomgrad(my_system, _grad_ana);
-   
-    fprintf(fp, "DELTA NUM - ANA TORSION\n");
-    Mdelta = 0.0;
-    
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
-
-    if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (torsion).\n");
-        retcode = retcode + 5;
-    }
-    
-    numerical_geomgrad(my_system, ommp_get_imptorsion_energy, grad_num);
-    ommp_imptorsion_geomgrad(my_system, _grad_ana);
-   
-    fprintf(fp, "DELTA NUM - ANA IMPTORSION\n");
-    Mdelta = 0.0;
-    
-    for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            delta = grad_num[i][j] - grad_ana[i][j];
-            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
-            fprintf(fp, "%+12.8g ", delta);
-        }
-        fprintf(fp, "\n");
-    }
-
-    if(Mdelta > 1e-8){
-        fprintf(fp, "Numerical-Analytical gradients difference is too large (imptorsion).\n");
-        retcode = retcode + 6;
-    }
-    
     fclose(fp);
     ommp_terminate(my_system);
-    
-    return retcode;
+     
+    return rc;
 }
 
