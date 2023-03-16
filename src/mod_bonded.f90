@@ -164,7 +164,7 @@ module mod_bonded
     public :: imptorsion_init, imptorsion_potential, imptorsion_geomgrad, &
               imptorsion_terminate
     public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
-    public :: strtor_init, strtor_potential, strtor_terminate
+    public :: strtor_init, strtor_potential, strtor_geomgrad, strtor_terminate
     public :: angtor_init, angtor_potential, angtor_geomgrad, angtor_terminate
     public :: bonded_terminate
     public :: fake_geomgrad ! TODO
@@ -1387,6 +1387,102 @@ module mod_bonded
         end do
 
     end subroutine strtor_potential
+    
+    subroutine strtor_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: Rij_jacobian, torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        
+        real(rp) :: thet, gt(3), dihef(3), dr1, dr2,  dr3, r1, r2, r3, &
+                    Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
+                    Jb1_a(3), Jb1_b(3), &
+                    Jb2_a(3), Jb2_b(3), &
+                    Jb3_a(3), Jb3_b(3)
+
+        integer(ip) :: i, j, k, ib1, ib2, ib3, &
+                       it_a, it_b, it_c, it_d, &
+                       ib1_a, ib1_b, &
+                       ib2_a, ib2_b, &
+                       ib3_a, ib3_b
+        
+        if(.not. bds%use_strtor) return
+
+        do i=1, bds%nstrtor
+            ! Atoms that defines the dihedral angle
+            it_a = bds%strtorat(1,i)
+            it_b = bds%strtorat(2,i)
+            it_c = bds%strtorat(3,i)
+            it_d = bds%strtorat(4,i) 
+
+            ib1 = bds%strtor_b(1,i)
+            ib1_a = bds%bondat(1,ib1)
+            ib1_b = bds%bondat(2,ib1)
+            
+            ib2 = bds%strtor_b(2,i)
+            ib2_a = bds%bondat(1,ib2)
+            ib2_b = bds%bondat(2,ib2)
+            
+            ib3 = bds%strtor_b(3,i)
+            ib3_a = bds%bondat(1,ib3)
+            ib3_b = bds%bondat(2,ib3)
+
+            call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
+                                        bds%top%cmm(:,it_b), &
+                                        bds%top%cmm(:,it_c), &
+                                        bds%top%cmm(:,it_d), &
+                                        thet, Jt_a, Jt_b, Jt_c, Jt_d)
+            do j=1, 3
+                gt(j) = -real(j) * sin(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            end do
+
+            call Rij_jacobian(bds%top%cmm(:,ib1_a), &
+                              bds%top%cmm(:,ib1_b), &
+                              r1, Jb1_a, Jb1_b) 
+            dr1 = r1 - bds%l0bond(ib1)  
+            
+            call Rij_jacobian(bds%top%cmm(:,ib2_a), &
+                              bds%top%cmm(:,ib2_b), &
+                              r2, Jb2_a, Jb2_b) 
+            dr2 = r2 - bds%l0bond(ib2)  
+            
+            call Rij_jacobian(bds%top%cmm(:,ib3_a), &
+                              bds%top%cmm(:,ib3_b), &
+                              r3, Jb3_a, Jb3_b) 
+            dr3 = r3 - bds%l0bond(ib3)  
+            
+            do k=1, 3
+                grad(:,it_a) = grad(:,it_a) + bds%strtork(k,i) * dr1 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%strtork(k,i) * dr1 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%strtork(k,i) * dr1 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%strtork(k,i) * dr1 * gt(k) * Jt_d
+                
+                grad(:,ib1_a) = grad(:,ib1_a) + bds%strtork(k,i) * dihef(k) * Jb1_a
+                grad(:,ib1_b) = grad(:,ib1_b) + bds%strtork(k,i) * dihef(k) * Jb1_b
+                
+                grad(:,it_a) = grad(:,it_a) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_d
+                
+                grad(:,ib2_a) = grad(:,ib2_a) + bds%strtork(3+k,i) * dihef(k) * Jb2_a
+                grad(:,ib2_b) = grad(:,ib2_b) + bds%strtork(3+k,i) * dihef(k) * Jb2_b
+
+                grad(:,it_a) = grad(:,it_a) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_d
+                
+                grad(:,ib3_a) = grad(:,ib3_a) + bds%strtork(6+k,i) * dihef(k) * Jb3_a
+                grad(:,ib3_b) = grad(:,ib3_b) + bds%strtork(6+k,i) * dihef(k) * Jb3_b
+            end do
+        end do
+    end subroutine strtor_geomgrad
     
     subroutine tortor_init(bds, n)
         !! Initialize torsion-torsion correction potential arrays

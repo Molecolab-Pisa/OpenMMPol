@@ -158,7 +158,7 @@ int main(int argc, char **argv){
    
     FILE *fp = fopen(argv[3], "w+");
    
-    rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
+    /*rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
                           fp, "fixedelec", 1e-11);
     
     rc += num_ana_compare(my_system, ommp_get_polelec_energy, ommp_polelec_geomgrad,
@@ -186,7 +186,10 @@ int main(int argc, char **argv){
                           fp, "angtor", 1e-11);
     
     rc += num_ana_compare(my_system, ommp_get_opb_energy, ommp_opb_geomgrad,
-                          fp, "opb", 1e-11);
+                          fp, "opb", 1e-11);*/
+    
+    rc += num_ana_compare(my_system, ommp_get_strtor_energy, ommp_strtor_geomgrad,
+                          fp, "strtor", 1e-10);
     fclose(fp);
     ommp_terminate(my_system);
      

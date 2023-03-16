@@ -565,6 +565,17 @@ module ommp_interface
             if(s%use_bonded) call opb_geomgrad(s%bds, grd)
         end subroutine
         
+        subroutine ommp_strtor_geomgrad(s, grd)
+            use mod_bonded, only: strtor_geomgrad 
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            if(s%use_bonded) call strtor_geomgrad(s%bds, grd)
+        end subroutine
         
         subroutine ommp_full_bnd_geomgrad(s, grd)
             use mod_bonded, only: fake_geomgrad
