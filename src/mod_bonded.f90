@@ -165,7 +165,7 @@ module mod_bonded
               imptorsion_terminate
     public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
     public :: strtor_init, strtor_potential, strtor_terminate
-    public :: angtor_init, angtor_potential, angtor_terminate
+    public :: angtor_init, angtor_potential, angtor_geomgrad, angtor_terminate
     public :: bonded_terminate
     public :: fake_geomgrad ! TODO
     
@@ -1222,6 +1222,89 @@ module mod_bonded
         end do
 
     end subroutine angtor_potential
+    
+    subroutine angtor_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: simple_angle_jacobian, torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, gt(3), dihef(3), da1, da2, angle1, angle2, &
+                    Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
+                    Ja1_a(3), Ja1_b(3), Ja1_c(3), Ja1_d(3), &
+                    Ja2_a(3), Ja2_b(3), Ja2_c(3), Ja2_d(3)
+
+        integer(ip) :: i, j, k, ia1, ia2, &
+                       it_a, it_b, it_c, it_d, &
+                       ia1_a, ia1_b, ia1_c, &
+                       ia2_a, ia2_b, ia2_c
+        
+        if(.not. bds%use_angtor) return
+
+        do i=1, bds%nangtor
+            ! Atoms that defines the dihedral angle
+            it_a = bds%angtorat(1,i)
+            it_b = bds%angtorat(2,i)
+            it_c = bds%angtorat(3,i)
+            it_d = bds%angtorat(4,i) 
+
+            ia1 = bds%angtor_a(1,i)
+            ia1_a = bds%angleat(1,ia1)
+            ia1_b = bds%angleat(2,ia1)
+            ia1_c = bds%angleat(3,ia1)
+            
+            ia2 = bds%angtor_a(2,i)
+            ia2_a = bds%angleat(1,ia2)
+            ia2_b = bds%angleat(2,ia2)
+            ia2_c = bds%angleat(3,ia2)
+
+            call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
+                                        bds%top%cmm(:,it_b), &
+                                        bds%top%cmm(:,it_c), &
+                                        bds%top%cmm(:,it_d), &
+                                        thet, Jt_a, Jt_b, Jt_c, Jt_d)
+            do j=1, 3
+                gt(j) = -real(j) * sin(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            end do
+
+            call simple_angle_jacobian(bds%top%cmm(:,ia1_a), &
+                                       bds%top%cmm(:,ia1_b), &
+                                       bds%top%cmm(:,ia1_c), &
+                                       angle1, Ja1_a, Ja1_b, Ja1_c)
+            
+            call simple_angle_jacobian(bds%top%cmm(:,ia2_a), &
+                                       bds%top%cmm(:,ia2_b), &
+                                       bds%top%cmm(:,ia2_c), &
+                                       angle2, Ja2_a, Ja2_b, Ja2_c)
+
+            da1 = angle1 - bds%eqangle(ia1)
+            da2 = angle2 - bds%eqangle(ia2)
+
+            do k=1, 3
+                grad(:,it_a) = grad(:,it_a) + bds%angtork(k,i) * da1 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%angtork(k,i) * da1 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%angtork(k,i) * da1 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%angtork(k,i) * da1 * gt(k) * Jt_d
+                
+                grad(:,ia1_a) = grad(:,ia1_a) + bds%angtork(k,i) * dihef(k) * Ja1_a
+                grad(:,ia1_b) = grad(:,ia1_b) + bds%angtork(k,i) * dihef(k) * Ja1_b
+                grad(:,ia1_c) = grad(:,ia1_c) + bds%angtork(k,i) * dihef(k) * Ja1_c
+                
+                grad(:,it_a) = grad(:,it_a) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_d
+                
+                grad(:,ia2_a) = grad(:,ia2_a) + bds%angtork(3+k,i) * dihef(k) * Ja2_a
+                grad(:,ia2_b) = grad(:,ia2_b) + bds%angtork(3+k,i) * dihef(k) * Ja2_b
+                grad(:,ia2_c) = grad(:,ia2_c) + bds%angtork(3+k,i) * dihef(k) * Ja2_c
+            end do
+        end do
+    end subroutine angtor_geomgrad
     
     subroutine strtor_potential(bds, V)
         use mod_constants

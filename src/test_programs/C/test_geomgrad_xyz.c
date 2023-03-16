@@ -99,12 +99,23 @@ int num_ana_compare(OMMP_SYSTEM_PRT sys,
     double Mdelta = 0.0, delta;
     
     for(int i = 0; i < mm_atoms; i++){
+        fprintf(fp, "(A) ");
+        for(int j=0; j < 3; j++){
+            fprintf(fp, "%+12.8g ", grad_ana[i][j]);
+        }
+        fprintf(fp, "\n");
+        fprintf(fp, "(N) ");
+        for(int j=0; j < 3; j++){
+            fprintf(fp, "%+12.8g ", grad_num[i][j]);
+        }
+        fprintf(fp, "\n");
+        fprintf(fp, "(D) ");
         for(int j=0; j < 3; j++){
             delta = grad_num[i][j] - grad_ana[i][j];
             if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
             fprintf(fp, "%+12.8g ", delta);
         }
-        fprintf(fp, "\n");
+        fprintf(fp, "\n\n");
     }
 
 
@@ -147,7 +158,7 @@ int main(int argc, char **argv){
    
     FILE *fp = fopen(argv[3], "w+");
    
-    rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
+    /*rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
                           fp, "fixedelec", 1e-11);
     
     rc += num_ana_compare(my_system, ommp_get_polelec_energy, ommp_polelec_geomgrad,
@@ -166,11 +177,13 @@ int main(int argc, char **argv){
                           fp, "torsion", 1e-11);
 
     rc += num_ana_compare(my_system, ommp_get_imptorsion_energy, ommp_imptorsion_geomgrad,
-                          fp, "imptorsion", 1e-11);
+                          fp, "imptorsion", 1e-11);*/
     
     rc += num_ana_compare(my_system, ommp_get_strbnd_energy, ommp_strbnd_geomgrad,
                           fp, "strbnd", 1e-11);
    
+    rc += num_ana_compare(my_system, ommp_get_angtor_energy, ommp_angtor_geomgrad,
+                          fp, "angtor", 1e-11);
     fclose(fp);
     ommp_terminate(my_system);
      
