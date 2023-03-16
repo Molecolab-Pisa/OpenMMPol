@@ -5,7 +5,7 @@ module mod_jacobian_mat
 
     public :: Rij_jacobian
     public :: simple_angle_jacobian, inplane_angle_jacobian, &
-              torsion_angle_jacobian
+              torsion_angle_jacobian, opb_angle_jacobian
 
     contains
         
@@ -254,6 +254,62 @@ module mod_jacobian_mat
         J_d = -dacost * matmul(dhudd,ht)
 
     end subroutine
+    
+    subroutine opb_angle_jacobian(ca, cb, cc, cd, thet, &
+                                  J_a, J_b, J_c, J_d)
+        use mod_utils, only: cross_product, vec_skw, versor_der
+        use mod_constants, only: pi, eps_rp
+
+        implicit none
+
+        real(rp), intent(inout), dimension(3) :: ca, cb, cc, cd
+        !! Coordinates of the atoms defining the angle
+        real(rp), intent(out), dimension(3) :: J_a, J_b, J_c, J_d
+        !! The Jacobian components on atoms a, b and c and d respectively
+        real(rp), intent(out) :: thet
+        !! The out-of-plane angle
+
+        real(rp), dimension(3) :: a_b, a_c, v, p, hp, hv
+        real(rp), dimension(3,3) :: dhpdp, dhvdv, dpda, dhpda, dvda, &
+                                    dhvda, dhpdb, dpdb, dhpdc, dpdc, dvdd
+        real(rp) :: costhet, dacost, dd, thet0
+
+        integer(ip) :: i, j
+        
+        a_b = ca - cb
+        a_c = ca - cc
+        v = ca - cd
+
+        p = cross_product(a_b,a_c)
+        
+        hp = p / norm2(p)
+        hv = v / norm2(v)
+        
+        costhet = dot_product(hv, hp)
+        if(costhet + 1.0 <= eps_rp) then
+            thet0 = pi
+        else 
+            thet0 = acos(costhet)
+        end if
+
+        thet = abs(pi/2.0 - thet0)
+        dacost = 1.0/sqrt(1.0-costhet**2)
+        if(pi/2.0 - thet0 < 0.0) dacost = -dacost
+        
+        dhpdp = versor_der(p)
+        dhvdv = versor_der(v)
+        
+        dpdb = vec_skw(a_c)
+        dhpdb = matmul(dpdb,dhpdp)
+        J_b = -dacost * matmul(dhpdb,hv)
+
+        dpdc = -vec_skw(a_b)
+        dhpdc = matmul(dpdc, dhpdp)
+        J_c = -dacost * matmul(dhpdc,hv) 
+
+        dvdd = -dhvdv
+        J_d = dacost * matmul(dvdd,hp)
+        
+        J_a = -(J_b + J_c +J_d)
+    end subroutine
 end module mod_jacobian_mat
-
-

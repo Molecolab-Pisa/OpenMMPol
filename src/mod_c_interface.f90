@@ -615,6 +615,22 @@ module mod_ommp_C_interface
             call ommp_angtor_geomgrad(s, grd)    
         end subroutine
         
+        subroutine C_ommp_opb_geomgrad(s_prt, grd_prt) &
+                bind(C, name='ommp_opb_geomgrad')
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: grd_prt
+            
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: grd(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            
+            call ommp_opb_geomgrad(s, grd)    
+        end subroutine
+        
         subroutine C_ommp_full_bnd_geomgrad(s_prt, grd_prt) &
                 bind(C, name='ommp_full_bnd_geomgrad')
             implicit none

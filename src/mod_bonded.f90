@@ -157,7 +157,7 @@ module mod_bonded
     public :: angle_init, angle_potential, angle_geomgrad, angle_terminate
     public :: urey_init, urey_potential, urey_geomgrad, urey_terminate
     public :: strbnd_init, strbnd_potential, strbnd_geomgrad, strbnd_terminate
-    public :: opb_init, opb_potential, opb_terminate
+    public :: opb_init, opb_potential, opb_geomgrad, opb_terminate
     public :: pitors_init, pitors_potential, pitors_terminate
     public :: torsion_init, torsion_potential, torsion_geomgrad, &
               torsion_terminate
@@ -821,6 +821,43 @@ module mod_bonded
                 + bds%opb_sextic*thet4)
         end do
     end subroutine opb_potential
+    
+    subroutine opb_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: opb_angle_jacobian
+        use mod_constants, only : pi
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
+        integer(ip) :: i, ia, ib, ic, id
+        
+        if(.not. bds%use_opb) return
+        
+        do i=1, bds%nopb
+            ia = bds%opbat(2,i)
+            ib = bds%opbat(4,i)
+            ic = bds%opbat(3,i)
+            id = bds%opbat(1,i) 
+            call opb_angle_jacobian(bds%top%cmm(:,ia), & 
+                                    bds%top%cmm(:,ib), &
+                                    bds%top%cmm(:,ic), &
+                                    bds%top%cmm(:,id), &
+                                    thet, J_a, J_b, J_c, J_d)
+            
+            g = bds%kopb(i) * thet * (2.0 + 3.0*bds%opb_cubic*thet &
+                + 4.0*bds%opb_quartic*thet**2 + 5.0*bds%opb_pentic*thet**3 &
+                + 6.0*bds%opb_sextic*thet**4)
+
+            grad(:,ia) = grad(:,ia) + g * J_a
+            grad(:,ib) = grad(:,ib) + g * J_b
+            grad(:,ic) = grad(:,ic) + g * J_c
+            grad(:,id) = grad(:,id) + g * J_d
+        end do
+    end subroutine opb_geomgrad
     
     subroutine pitors_init(bds, n)
         !! Initialize arrays needed to compute pi-torsion potential
