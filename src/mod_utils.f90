@@ -245,14 +245,14 @@ module mod_utils
 
     end subroutine sort_ivec_inplace
 
-    subroutine compute_bicubic_interp(x, y, z, nx, ny, xgrd, ygrd, &
+    subroutine compute_bicubic_interp(x, y, z, dzdx, dzdy, nx, ny, xgrd, ygrd, &
                                       v, vx, vy, vxy)
         !! Evaluate the z value at position (x, y) of a surface built as a 
         !! bicubic spline interpolating the points     
         !! (xgrd(\(x_i\), \(y_i\)), ygrd(\(x_i\), \(y_i\)),
         !! vxgrd(\(x_i\), \(y_i\))).     
-        !! In order to do so also the derivatives of the surface at the points
-        !! of the grid arre needed and in particular if we consider the surface
+        !! In order to do so, also the derivatives of the surface at the points
+        !! of the grid are needed; in particular if we consider the surface
         !! points as
         !! \[(x_i, y_i, V(x_i, y_i))\]
         !! also value of \(\frac{\partial V}{\partial x}\),
@@ -268,6 +268,8 @@ module mod_utils
         !! Coordinates at which the z value of the surface should be computed
         real(rp), intent(out) :: z
         !! The z value of the surface
+        real(rp), intent(out) :: dzdx, dzdy
+        !! Derivatives of z valure w.r.t. x and y coordinates
         integer(ip), intent(in) :: nx, ny
         !! Number of grid points along x and y direction
         real(rp), dimension(ny,nx), intent(in) :: xgrd
@@ -292,7 +294,7 @@ module mod_utils
                                                   0.0,  0.0, -1.0,  1.0],&
                                                  shape(A))
 
-        real(rp) :: alpha(4,4), f(4,4), xx(4), yy(4), &
+        real(rp) :: alpha(4,4), f(4,4), xx(4), yy(4), dxxdx(4), dyydy(4), &
                     deltax, deltay, dx, dy
 
         done = .false.
@@ -337,10 +339,26 @@ module mod_utils
             yy(ii) = yy(ii-1) * deltay
         end do
 
+        dxxdx(1) = 0.0
+        dyydy(1) = 0.0
+        do ii=2, 4
+            dxxdx(ii) = (ii-1) * xx(ii-1) / dx
+            dyydy(ii) = (ii-1) * yy(ii-1) / dy
+        end do
+
         z = 0.0
         do ii=1,4
             do jj=1, 4
                 z = z + alpha(ii, jj) * yy(jj) * xx(ii)
+            end do
+        end do
+        
+        dzdx = 0.0
+        dzdy = 0.0
+        do ii=1,4
+            do jj=1, 4
+                dzdx = dzdx + alpha(ii, jj) * yy(jj) * dxxdx(ii)
+                dzdy = dzdy + alpha(ii, jj) * dyydy(jj) * xx(ii)
             end do
         end do
     end subroutine compute_bicubic_interp

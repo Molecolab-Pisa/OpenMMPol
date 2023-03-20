@@ -1684,7 +1684,7 @@ module mod_bonded
         ! Bonded potential data structure
         real(rp), intent(inout) :: V
         !! torsion potential, result will be added to V
-        real(rp) :: thetx, thety, vtt
+        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy
 
         integer(ip) :: i, j, iprm, ibeg, iend
 
@@ -1703,6 +1703,7 @@ module mod_bonded
             thety = ang_torsion(bds%top, bds%tortorat(2:5,i))
            
             call compute_bicubic_interp(thetx, thety, vtt, &
+                                        dvttdx, dvttdy, &
                                         bds%ttmap_shape(1,iprm), &
                                         bds%ttmap_shape(2,iprm), &
                                         bds%ttmap_ang1(ibeg:iend), &
@@ -1711,6 +1712,7 @@ module mod_bonded
                                         bds%ttmap_vx(ibeg:iend), &
                                         bds%ttmap_vy(ibeg:iend), &
                                         bds%ttmap_vxy(ibeg:iend))
+
             V = V + vtt
         end do
 
