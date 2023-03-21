@@ -163,7 +163,8 @@ module mod_bonded
               torsion_terminate
     public :: imptorsion_init, imptorsion_potential, imptorsion_geomgrad, &
               imptorsion_terminate
-    public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
+    public :: tortor_init, tortor_potential, tortor_geomgrad, &
+              tortor_terminate, tortor_newmap
     public :: strtor_init, strtor_potential, strtor_geomgrad, strtor_terminate
     public :: angtor_init, angtor_potential, angtor_geomgrad, angtor_terminate
     public :: bonded_terminate
@@ -1717,6 +1718,132 @@ module mod_bonded
         end do
 
     end subroutine tortor_potential
+    
+    subroutine tortor_geomgrad(bds, grad)
+        !! Compute torsion potential
+
+        use mod_utils, only: compute_bicubic_interp
+        use mod_jacobian_mat, only: torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy, nx, ny
+        real(rp), dimension(3) :: J1_a, J1_b, J2_b, J1_c, &
+                                  J2_c, J1_d, J2_d, J2_e
+
+        integer(ip) :: i, j, iprm, ibeg, iend, ia, ib, ic, id, ie
+
+        if(.not. bds%use_tortor) return
+        
+        do i=1, bds%ntortor
+            ! Atoms that defines the two angles
+            iprm = bds%tortorprm(i)
+            ibeg = 1
+            do j=1, iprm-1
+                ibeg = ibeg + bds%ttmap_shape(1,j)*bds%ttmap_shape(2,j)
+            end do
+            iend = ibeg + bds%ttmap_shape(1,iprm)*bds%ttmap_shape(2,iprm) - 1
+            
+            ia = bds%tortorat(1,i)
+            ib = bds%tortorat(2,i)
+            ic = bds%tortorat(3,i)
+            id = bds%tortorat(4,i)
+            ie = bds%tortorat(5,i)
+
+            write(*,*) "MB23", ia, ib, ic, id, ie
+            
+            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
+                                        bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        thetx, &
+                                        J1_a, J1_b, J1_c, J1_d)
+            write(*,*) "thetx 1", thetx
+            thetx = ang_torsion(bds%top, bds%tortorat(1:4,i))
+            write(*,*) "thetx 2", thetx
+            
+            
+            call torsion_angle_jacobian(bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        bds%top%cmm(:,ie), &
+                                        thety, &
+                                        J2_b, J2_c, J2_d, J2_e)
+            write(*,*) "thety 1", thety
+            thety = ang_torsion(bds%top, bds%tortorat(2:5,i))
+            write(*,*) "thety 2", thety
+           
+            call compute_bicubic_interp(thetx+1e-5, thety, vtt, &
+                                        dvttdx, dvttdy, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+            nx = vtt
+            call compute_bicubic_interp(thetx-1e-5, thety, vtt, &
+                                        dvttdx, dvttdy, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+            nx = (nx-vtt)/2e-5
+            call compute_bicubic_interp(thetx, thety+1e-5, vtt, &
+                                        dvttdx, dvttdy, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+            ny = vtt
+            call compute_bicubic_interp(thetx, thety-1e-5, vtt, &
+                                        dvttdx, dvttdy, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+            ny = (ny-vtt)/2e-5
+            write(*,*) "N", nx, ny
+
+            call compute_bicubic_interp(thetx, thety, vtt, &
+                                        dvttdx, dvttdy, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+
+            write(*,*) "A", dvttdx, dvttdy
+
+            grad(:,ia) = grad(:,ia) + J1_a * dvttdx
+            grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
+            grad(:,ic) = grad(:,ic) + J1_c * dvttdx + J2_c * dvttdy
+            grad(:,id) = grad(:,id) + J1_d * dvttdx + J2_d * dvttdy
+            grad(:,ie) = grad(:,ie) + J2_e * dvttdy
+        end do
+
+    end subroutine tortor_geomgrad
 
     pure function cos_torsion(top, idx)
         !! Compute the cosine of torsional angle between four atoms specified
@@ -1787,7 +1914,8 @@ module mod_bonded
             
         cos_torsion = dot_product(u,t)
         ang_torsion = acos(cos_torsion)
-        if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
+        !if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
+        ang_torsion = ang_torsion * sign(1.0_rp, -dot_product(ab,u))
 
     end function
 

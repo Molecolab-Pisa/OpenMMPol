@@ -99,17 +99,17 @@ int num_ana_compare(OMMP_SYSTEM_PRT sys,
     double Mdelta = 0.0, delta;
     
     for(int i = 0; i < mm_atoms; i++){
-        fprintf(fp, "(A) ");
+        fprintf(fp, "[%5d] (A) ", i+1);
         for(int j=0; j < 3; j++){
             fprintf(fp, "%+12.8g ", grad_ana[i][j]);
         }
         fprintf(fp, "\n");
-        fprintf(fp, "(N) ");
+        fprintf(fp, "        (N) ");
         for(int j=0; j < 3; j++){
             fprintf(fp, "%+12.8g ", grad_num[i][j]);
         }
         fprintf(fp, "\n");
-        fprintf(fp, "(D) ");
+        fprintf(fp, "        (D) ");
         for(int j=0; j < 3; j++){
             delta = grad_num[i][j] - grad_ana[i][j];
             if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
@@ -186,10 +186,13 @@ int main(int argc, char **argv){
                           fp, "angtor", 1e-11);
     
     rc += num_ana_compare(my_system, ommp_get_opb_energy, ommp_opb_geomgrad,
-                          fp, "opb", 1e-11);*/
+                          fp, "opb", 1e-11);
     
     rc += num_ana_compare(my_system, ommp_get_strtor_energy, ommp_strtor_geomgrad,
-                          fp, "strtor", 1e-10);
+                          fp, "strtor", 1e-10);*/
+    
+    rc += num_ana_compare(my_system, ommp_get_tortor_energy, ommp_tortor_geomgrad,
+                          fp, "tortor", 1e-10);
     fclose(fp);
     ommp_terminate(my_system);
      

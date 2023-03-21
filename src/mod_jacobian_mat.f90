@@ -204,7 +204,7 @@ module mod_jacobian_mat
         real(rp), dimension(3,3) :: dhudu, dhtdt, dtda, dudd, dhudd, dhtda, &
                                     dhudb, dhtdb, dudb, dtdb, &
                                     dhudc, dhtdc, dtdc, dudc
-        real(rp) :: costhet, dacost, dd
+        real(rp) :: costhet, dacost, s
 
         integer(ip) :: i, j
         
@@ -224,8 +224,11 @@ module mod_jacobian_mat
         else 
             thet = acos(costhet)
         end if
+
+        s = sign(1.0_rp, -dot_product(a_b, u))
+        thet = thet * s
         
-        dacost = - 1.0/sqrt(1.0-costhet**2)
+        dacost = - 1.0/sqrt(1.0-costhet**2) * s
         
         dhtdt = versor_der(t)
         dhudu = versor_der(u)
