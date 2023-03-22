@@ -602,8 +602,17 @@ module ommp_interface
         end subroutine
         
         subroutine ommp_full_bnd_geomgrad(s, grd)
-            use mod_bonded, only: fake_geomgrad
-            use mod_bonded, only: bond_geomgrad
+            use mod_bonded, only: bond_geomgrad, &
+                                  angle_geomgrad, &
+                                  strbnd_geomgrad, &
+                                  urey_geomgrad, &
+                                  opb_geomgrad, &
+                                  imptorsion_geomgrad, &
+                                  torsion_geomgrad, &
+                                  pitors_geomgrad, &
+                                  strtor_geomgrad, &
+                                  angtor_geomgrad, &
+                                  tortor_geomgrad
             
             implicit none 
             
@@ -613,16 +622,16 @@ module ommp_interface
             grd = 0.0
             if(s%use_bonded) then
                 call bond_geomgrad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call angle_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call strbnd_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call urey_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call opb_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call imptorsion_geomgad(s%bds, grd) 
-                call fake_geomgrad(s%bds, grd) !call torsion_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call pitors_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call strtor_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call angtor_geomgad(s%bds, grd)
-                call fake_geomgrad(s%bds, grd) !call tortor_geomgad(s%bds, grd)
+                call angle_geomgrad(s%bds, grd)
+                call strbnd_geomgrad(s%bds, grd)
+                call urey_geomgrad(s%bds, grd)
+                call opb_geomgrad(s%bds, grd)
+                call imptorsion_geomgrad(s%bds, grd) 
+                call torsion_geomgrad(s%bds, grd)
+                call pitors_geomgrad(s%bds, grd)
+                call strtor_geomgrad(s%bds, grd)
+                call angtor_geomgrad(s%bds, grd)
+                call tortor_geomgrad(s%bds, grd)
             end if
         end subroutine
         

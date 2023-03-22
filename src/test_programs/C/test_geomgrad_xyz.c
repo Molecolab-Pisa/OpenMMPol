@@ -158,6 +158,15 @@ int main(int argc, char **argv){
    
     FILE *fp = fopen(argv[3], "w+");
    
+    rc = num_ana_compare(my_system, ommp_get_full_energy, ommp_full_geomgrad,
+                         fp, "CompletePotential", 1e-7);
+    
+    if(rc == 0) return 0;
+    
+    rc = 0;
+    rc += num_ana_compare(my_system, ommp_get_vdw_energy, ommp_vdw_geomgrad,
+                          fp, "fixedelec", 1e-11);
+    
     rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
                           fp, "fixedelec", 1e-11);
     
