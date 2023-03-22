@@ -158,7 +158,7 @@ module mod_bonded
     public :: urey_init, urey_potential, urey_geomgrad, urey_terminate
     public :: strbnd_init, strbnd_potential, strbnd_geomgrad, strbnd_terminate
     public :: opb_init, opb_potential, opb_geomgrad, opb_terminate
-    public :: pitors_init, pitors_potential, pitors_terminate
+    public :: pitors_init, pitors_potential, pitors_geomgrad, pitors_terminate
     public :: torsion_init, torsion_potential, torsion_geomgrad, &
               torsion_terminate
     public :: imptorsion_init, imptorsion_potential, imptorsion_geomgrad, &
@@ -960,6 +960,48 @@ module mod_bonded
         end do
 
     end subroutine pitors_potential
+    
+    subroutine pitors_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: pitors_angle_jacobian
+        use mod_constants, only : pi
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3), J_e(3), J_f(3)
+        integer(ip) :: i, ia, ib, ic, id, ie, if_
+
+        if(.not. bds%use_pitors) return
+        
+        do i=1, bds%npitors
+            ia = bds%pitorsat(1,i)
+            ic = bds%pitorsat(2,i)
+            id = bds%pitorsat(3,i)
+            ib = bds%pitorsat(4,i)
+            ie = bds%pitorsat(5,i)
+            if_ = bds%pitorsat(6,i)
+
+            call pitors_angle_jacobian(bds%top%cmm(:,ia), &
+                                       bds%top%cmm(:,ib), &
+                                       bds%top%cmm(:,ic), &
+                                       bds%top%cmm(:,id), &
+                                       bds%top%cmm(:,ie), &
+                                       bds%top%cmm(:,if_), &
+                                       thet, J_a, J_b, J_c, J_d, J_e, J_f)
+
+            g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
+
+            grad(:,ia) = grad(:,ia) + g * J_a
+            grad(:,ib) = grad(:,ib) + g * J_b
+            grad(:,ic) = grad(:,ic) + g * J_c
+            grad(:,id) = grad(:,id) + g * J_d
+            grad(:,ie) = grad(:,ie) + g * J_e
+            grad(:,if_) = grad(:,if_) + g * J_f
+        end do
+    end subroutine pitors_geomgrad
     
     subroutine torsion_init(bds, n)
         !! Initialize torsion potential arrays

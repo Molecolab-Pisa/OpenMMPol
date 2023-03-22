@@ -5,7 +5,8 @@ module mod_jacobian_mat
 
     public :: Rij_jacobian
     public :: simple_angle_jacobian, inplane_angle_jacobian, &
-              torsion_angle_jacobian, opb_angle_jacobian
+              torsion_angle_jacobian, opb_angle_jacobian, &
+              pitors_angle_jacobian
 
     contains
         
@@ -314,5 +315,73 @@ module mod_jacobian_mat
         J_d = dacost * matmul(dvdd,hp)
         
         J_a = -(J_b + J_c +J_d)
+    end subroutine
+
+    subroutine pitors_angle_jacobian(ca, cb, cc, cd, ce, cf, thet, &
+                                     J_a, J_b, J_c, J_d, J_e, J_f)
+        use mod_utils, only: cross_product, vec_skw, versor_der
+
+        implicit none
+
+        real(rp), dimension(3), intent(inout) :: ca, cb, cc, cd, ce, cf
+        real(rp), intent(out) :: thet
+        real(rp), dimension(3), intent(out) :: J_a, J_b, J_c, J_d, J_e, J_f
+
+        real(rp), dimension(3) :: d_b, c_b, f_a, e_a, s, p, r, t, ht, u, hu
+        real(rp) :: costhet, dcosthet
+
+        real(rp), dimension(3,3) :: skw_s, dhtdt, dhudu, &
+                                    skw_c_b, skw_d_b, skw_f_a, skw_e_a, &
+                                    skw_r, skw_p, dpdb, dtdb
+        real(rp), dimension(3) :: dcostdp, dcostdr, dcostdt, dcostdu
+
+        real(rp) :: dd =1e-5, J_n(3)
+        integer(ip) :: j
+        
+        d_b = cd - cb
+        c_b = cc - cb
+        f_a = cf - ca
+        e_a = ce - ca
+        s = cb - ca
+        p = cross_product(d_b, c_b)
+        r = cross_product(f_a, e_a)
+
+        t = cross_product(p, s)
+        ht = t / norm2(t)
+        u = cross_product(s, r)
+        hu = u / norm2(u)
+
+        costhet = dot_product(hu, ht)
+        thet = acos(costhet)
+        dcosthet = - 1.0 / sqrt(1.0 - costhet**2)
+        
+        skw_s = vec_skw(s)
+        skw_r = vec_skw(r)
+        skw_p = vec_skw(p)
+        
+        dhudu = versor_der(u)
+        dhtdt = versor_der(t)
+
+        dcostdt = matmul(dhtdt, hu)
+        dcostdu = matmul(dhudu, ht)
+        
+        dcostdp = matmul(skw_s, dcostdt)
+        dcostdr = -matmul(skw_s, dcostdu)
+
+        skw_c_b = vec_skw(c_b)
+        skw_d_b = vec_skw(d_b)
+        skw_e_a = vec_skw(e_a)
+        skw_f_a = vec_skw(f_a)
+
+        dpdb = skw_d_b - skw_c_b
+        dtdb = matmul(dpdb, skw_s) - skw_p
+
+        J_b = dcosthet * (matmul(skw_r, dcostdu) + matmul(dtdb, dcostdt))
+        J_c = dcosthet * (-matmul(skw_d_b, dcostdp))
+        J_d = dcosthet * (matmul(skw_c_b, dcostdp))
+        J_e = dcosthet * (-matmul(skw_f_a, dcostdr))
+        J_f = dcosthet * (matmul(skw_e_a, dcostdr))
+
+        J_a = -(J_b + J_c + J_d + J_e + J_f)
     end subroutine
 end module mod_jacobian_mat
