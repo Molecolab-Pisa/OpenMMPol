@@ -4,14 +4,9 @@ import sys
 def get_term(fname, term):
     a = None
     with open(fname, 'r') as f:
-        if term.upper() == 'ETOT':
-            a = 0.0
-            for l in f:
-                a += float(l.split()[-1])
-        else:
-            for l in f:
-                if l.startswith("{:s} ".format(term)):
-                    a = float(l.split()[-1])
+        for l in f:
+            if l.startswith("{:s} ".format(term)):
+                a = float(l.split()[-1])
     return a
 
 a = get_term(sys.argv[1], sys.argv[3])
