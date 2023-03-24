@@ -149,7 +149,14 @@ module mod_solvers
 
         ! compute a guess, if required:
         rms_norm = dot_product(x,x)
-        if(rms_norm < eps_rp) call precnd(rhs, x)
+        if(rms_norm < eps_rp) then
+            call ommp_message("Input guess have zero norm, generating a guess&
+                              & from preconditioner.", OMMP_VERBOSE_HIGH)
+            call precnd(rhs, x)
+        else
+            call ommp_message("Using input guess as a starting point for&
+                              & iterative solver.", OMMP_VERBOSE_HIGH)
+        end if
 
         ! compute the residual:
         call matvec(eel, x, z, .true.)
@@ -299,7 +306,14 @@ module mod_solvers
         
         ! if required, compute a guess
         rms_norm = dot_product(x, x)
-        if(rms_norm < eps_rp ) x = inv_diag * rhs !call precnd(rhs, x)
+        if(rms_norm < eps_rp) then
+            call ommp_message("Input guess have zero norm, generating a guess&
+                              & from preconditioner.", OMMP_VERBOSE_HIGH)
+            x = inv_diag * rhs
+        else
+            call ommp_message("Using input guess as a starting point for&
+                              & iterative solver.", OMMP_VERBOSE_HIGH)
+        end if
         
         ! Jacobi iterations
         do it = 1, n_iter

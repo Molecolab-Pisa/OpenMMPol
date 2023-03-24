@@ -69,7 +69,8 @@ module mod_polarization
                                  OMMP_SOLVER_DEFAULT, &
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
-                                 OMMP_SOLVER_INVERSION
+                                 OMMP_SOLVER_INVERSION, &
+                                 eps_rp
       
         implicit none
 
@@ -186,14 +187,17 @@ module mod_polarization
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
             if(amoeba) then
-                if(ipd_mask(_amoeba_D_)) &
-                    call PolVec(eel, e_vec(:, _amoeba_D_), &
-                                ipd0(:, _amoeba_D_))
-                if(ipd_mask(_amoeba_P_)) &
-                    call PolVec(eel, e_vec(:, _amoeba_P_), &
-                                ipd0(:, _amoeba_P_))
+                if(ipd_mask(_amoeba_D_)) then
+                    ipd0(:,_amoeba_D_) = &
+                        reshape(eel%ipd(:,:,_amoeba_D_), [3 * eel%pol_atoms])
+                end if
+                if(ipd_mask(_amoeba_P_)) then
+                   ipd0(:, _amoeba_P_) = &
+                       reshape(eel%ipd(:,:,_amoeba_P_), [3 * eel%pol_atoms])
+                end if
             else
-                call PolVec(eel, e_vec(:,1), ipd0(:,1))
+                ipd0(:, 1) = &
+                    reshape(eel%ipd(:,:,1), [3 * eel%pol_atoms])
             end if
 
             select case(mvmethod)
@@ -205,7 +209,6 @@ module mod_polarization
 
                 case default
                     call fatal_error("Unknown matrix-vector method requested")
-                
             end select
         end if
         
