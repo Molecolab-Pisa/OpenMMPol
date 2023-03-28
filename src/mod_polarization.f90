@@ -70,6 +70,8 @@ module mod_polarization
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
                                  OMMP_SOLVER_INVERSION, &
+                                 OMMP_VERBOSE_DEBUG, &
+                                 OMMP_VERBOSE_HIGH, &
                                  eps_rp
       
         implicit none
@@ -164,6 +166,7 @@ module mod_polarization
         if(mvmethod == OMMP_MATV_INCORE .or. &
            solver == OMMP_SOLVER_INVERSION) then
             if(.not. allocated(eel%tmat)) then !TODO move this in create_tmat
+                call ommp_message("Allocating T matrix.", OMMP_VERBOSE_DEBUG)
                 call mallocate('polarization [TMat]',n,n,eel%tmat)
                 call create_TMat(eel)
             end if
@@ -186,25 +189,32 @@ module mod_polarization
         
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
-            if(amoeba) then
-                if(ipd_mask(_amoeba_D_)) then
-                    ipd0(:,_amoeba_D_) = &
-                        reshape(eel%ipd(:,:,_amoeba_D_), [3 * eel%pol_atoms])
+            if(eel%ipd_done) then
+                if(amoeba) then
+                    if(ipd_mask(_amoeba_D_)) then
+                        ipd0(:,_amoeba_D_) = &
+                            reshape(eel%ipd(:,:,_amoeba_D_), [n])
+                    end if
+                    if(ipd_mask(_amoeba_P_)) then
+                       ipd0(:, _amoeba_P_) = &
+                           reshape(eel%ipd(:,:,_amoeba_P_), [n])
+                    end if
+                else
+                    ! call PolVec(eel, e_vec(:,1), ipd0(:,1))
+                    ipd0(:, 1) = &
+                        reshape(eel%ipd(:,:,1), [n])
                 end if
-                if(ipd_mask(_amoeba_P_)) then
-                   ipd0(:, _amoeba_P_) = &
-                       reshape(eel%ipd(:,:,_amoeba_P_), [3 * eel%pol_atoms])
-                end if
-            else
-                ipd0(:, 1) = &
-                    reshape(eel%ipd(:,:,1), [3 * eel%pol_atoms])
             end if
 
             select case(mvmethod)
                 case(OMMP_MATV_INCORE) 
+                    call ommp_message("Matrix-Vector will be performed in-memory", &
+                                 OMMP_VERBOSE_HIGH)
                     matvec => TMatVec_incore
 
                 case(OMMP_MATV_DIRECT)
+                    call ommp_message("Matrix-Vector will be performed on-the-fly", &
+                                 OMMP_VERBOSE_HIGH)
                     matvec => TMatVec_otf
 
                 case default
@@ -489,7 +499,8 @@ module mod_polarization
         integer(ip) :: i, n
 
         n = 3*eel%pol_atoms
-        
+       
+        write(*, *) allocated(eel%tmat)
         ! Compute the matrix vector product
         call dgemm('N', 'N', n, 1, n, 1.0_rp, eel%tmat, n, x, n, 0.0_rp, y, n)
         ! Subtract the product of diagonal 

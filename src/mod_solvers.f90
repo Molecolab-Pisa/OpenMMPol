@@ -152,7 +152,7 @@ module mod_solvers
         if(rms_norm < eps_rp) then
             call ommp_message("Input guess have zero norm, generating a guess&
                               & from preconditioner.", OMMP_VERBOSE_HIGH)
-            call precnd(rhs, x)
+            call precnd(eel, x, x)
         else
             call ommp_message("Using input guess as a starting point for&
                               & iterative solver.", OMMP_VERBOSE_HIGH)
