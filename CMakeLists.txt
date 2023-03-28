@@ -122,10 +122,20 @@ target_link_libraries(C_test_geomgrad openmmpol)
 target_compile_options(C_test_geomgrad PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_geomgrad PROPERTY C_STANDARD 99)
 
+add_executable(C_test_geomgrad_num src/test_programs/C/test_geomgrad_num.c)
+target_link_libraries(C_test_geomgrad_num openmmpol)
+target_compile_options(C_test_geomgrad_num PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_geomgrad_num PROPERTY C_STANDARD 99)
+
 add_executable(C_test_geomgrad_xyz src/test_programs/C/test_geomgrad_xyz.c)
 target_link_libraries(C_test_geomgrad_xyz openmmpol)
 target_compile_options(C_test_geomgrad_xyz PRIVATE -Wall -Wextra -pedantic)
 set_property(TARGET C_test_geomgrad_xyz PROPERTY C_STANDARD 99)
+
+add_executable(C_test_geomgrad_xyz_num src/test_programs/C/test_geomgrad_xyz_num.c)
+target_link_libraries(C_test_geomgrad_xyz_num openmmpol)
+target_compile_options(C_test_geomgrad_xyz_num PRIVATE -Wall -Wextra -pedantic)
+set_property(TARGET C_test_geomgrad_xyz_num PROPERTY C_STANDARD 99)
 
 add_executable(ommp_xyz2mmp src/ommp_xyz2mmp.c)
 target_link_libraries(ommp_xyz2mmp openmmpol)

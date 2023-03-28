@@ -40,16 +40,50 @@ double **read_ef(char *fin){
     return ef;
 }
 
+void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), double **g){
+    double *_new_c, **new_c, *cmm, tmp, dd;
+    int mm_atoms;
+
+    dd = 1e-5;
+    mm_atoms = ommp_get_mm_atoms(s);
+    cmm = ommp_get_cmm(s);
+
+    _new_c = (double *) malloc(sizeof(double) * 3 * mm_atoms);
+    new_c = (double **) malloc(sizeof(double *) * mm_atoms);
+    for(int i=0; i < mm_atoms; i++){
+        new_c[i] = &(_new_c[i*3]);
+        for(int j=0; j < 3; j++) 
+            new_c[i][j] = cmm[i*3+j];
+    }
+
+    for(int i=0; i < mm_atoms; i++){
+        for(int j=0; j < 3; j++){
+            new_c[i][j] += dd;
+            ommp_update_coordinates(s, _new_c);
+            tmp = ene_f(s);
+
+            new_c[i][j] -= 2*dd;
+            ommp_update_coordinates(s, _new_c);
+            tmp -= ene_f(s);
+            g[i][j] = tmp / (2*dd);
+            
+            new_c[i][j] += dd;
+            ommp_update_coordinates(s, _new_c);
+        }
+    }
+}
+
 int main(int argc, char **argv){
     if(argc != 4 && argc != 3){
         printf("Syntax expected\n");
-        printf("    $ test_geomgrad.exe <INPUT FILE> <OUTPUT FILE>\n");
+        printf("    $ test_init.exe <INPUT FILE> <OUTPUT FILE> [<ELECTRIC FIELD FILE>]\n");
         return 0;
     }
     
     int pol_atoms, mm_atoms, retcode=0;
     double *electric_field;
-    double **external_ef, **grad_ana, *_grad_ana;
+    double **external_ef, **grad_num, *_grad_num, **grad_ana, *_grad_ana;
+    double delta, Mdelta;
     int32_t *polar_mm;
 
     OMMP_SYSTEM_PRT my_system = ommp_init_mmp(argv[1]);
@@ -60,12 +94,15 @@ int main(int argc, char **argv){
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
 
+    _grad_num = (double *) malloc(sizeof(double) * 3 * mm_atoms);
+    grad_num = (double **) malloc(sizeof(double *) * mm_atoms);
     _grad_ana = (double *) malloc(sizeof(double) * 3 * mm_atoms);
     grad_ana = (double **) malloc(sizeof(double *) * mm_atoms);
     for(int i = 0; i < mm_atoms; i++){
         grad_ana[i] = &(_grad_ana[i*3]);
+        grad_num[i] = &(_grad_num[i*3]);
         for(int j=0; j < 3; j++)
-            grad_ana[i][j] = 0.0;
+            grad_ana[i][j] = grad_num[i][j] = 0.0;
     }
    
     if(argc == 4){
@@ -83,29 +120,47 @@ int main(int argc, char **argv){
     
     FILE *fp = fopen(argv[2], "w+");
     
+    numerical_geomgrad(my_system, ommp_get_fixedelec_energy, grad_num);
     ommp_fixedelec_geomgrad(my_system, _grad_ana);
     
-    fprintf(fp, "Grad EM\n");
+    fprintf(fp, "DELTA NUM - ANA FIXEDELEC\n");
+    Mdelta = 0.0;
     for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++)
-            fprintf(fp, "%+12.8g ", grad_ana[i][j]);
+        for(int j=0; j < 3; j++){
+            delta = grad_num[i][j] - grad_ana[i][j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
+            fprintf(fp, "%+12.8g ", delta);
+        }
         fprintf(fp, "\n");
     }
-    fprintf(fp, "\n");
 
+    if(Mdelta > 1e-11){
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (fixed).");
+        retcode = retcode + 1;
+    }
+    
     for(int i = 0; i < mm_atoms; i++)
         for(int j=0; j < 3; j++)
-            grad_ana[i][j] = 0.0;
+            grad_ana[i][j] = grad_num[i][j] = 0.0;
     
+    numerical_geomgrad(my_system, ommp_get_polelec_energy, grad_num);
     ommp_polelec_geomgrad(my_system, _grad_ana);
    
-    fprintf(fp, "Grad EP\n");
+    fprintf(fp, "DELTA NUM - ANA POLELEC\n");
+    Mdelta = 0.0;
     for(int i = 0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++)
-            fprintf(fp, "%+12.8g ", grad_ana[i][j]);
+        for(int j=0; j < 3; j++){
+            delta = grad_num[i][j] - grad_ana[i][j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
+            fprintf(fp, "%+12.8g ", delta);
+        }
         fprintf(fp, "\n");
     }
-    fprintf(fp, "\n");
+
+    if(Mdelta > 1e-8){
+        fprintf(fp, "Numerical-Analytical gradients difference is too large (pol).");
+        retcode = retcode + 2;
+    }
 
     fclose(fp);
     free(electric_field);

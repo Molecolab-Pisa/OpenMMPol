@@ -23,6 +23,7 @@
 #define OMMP_AMOEBA_P 2
 
 #define AU2KCALMOL 627.5096080306
+#define ANG2AU 1.8897261245650 
 
 typedef void* OMMP_SYSTEM_PRT;
 typedef void* OMMP_QM_HELPER_PRT;
