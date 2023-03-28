@@ -1241,6 +1241,8 @@ endif ()
 
 
 # Test on Gradients
+set(RTOL 1e-3)
+set(ATOL 1e-4)
 add_test(NAME NMA_geomgradn_WANG_AL
          COMMAND  bin/${TESTLANG}_test_geomgrad_num
          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/input_WANG_AL.mmp 

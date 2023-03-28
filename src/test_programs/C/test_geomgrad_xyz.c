@@ -57,7 +57,7 @@ int ana_grd_print(OMMP_SYSTEM_PRT sys,
 
     grad_f(sys, _grad_ana);
    
-    fprintf(fp, "Grad %s\n", name);
+    fprintf(fp, "Grad %s \n", name);
     
     for(int i = 0; i < mm_atoms; i++){
         for(int j=0; j < 3; j++){
