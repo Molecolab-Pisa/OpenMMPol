@@ -165,7 +165,7 @@ int main(int argc, char **argv){
     
     rc = 0;
     rc += num_ana_compare(my_system, ommp_get_vdw_energy, ommp_vdw_geomgrad,
-                          fp, "fixedelec", 1e-11);
+                          fp, "non-bonded", 1e-11);
     
     rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
                           fp, "fixedelec", 1e-11);

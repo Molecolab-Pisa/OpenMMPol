@@ -37,9 +37,6 @@ module ommp_interface
 
     use mod_io, only: ommp_set_verbose => set_verbosity
     
-    use mod_geomgrad, only: ommp_fixedelec_geomgrad => fixedelec_geomgrad, &
-                            ommp_polelec_geomgrad => polelec_geomgrad
-    
     use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
@@ -440,18 +437,42 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
-            ene =  ommp_get_vdw_energy(sys_obj)
+            ene = ommp_get_vdw_energy(sys_obj)
             ene = ene + ommp_get_full_ele_energy(sys_obj)
             ene = ene + ommp_get_full_bnd_energy(sys_obj)
         end function
 
         ! Functions for advanced operation and gradients
+        subroutine ommp_fixedelec_geomgrad(s, grd)
+            use mod_geomgrad, only: fixedelec_geomgrad
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout), target :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            call fixedelec_geomgrad(s, grd)
+        end subroutine
+        
+        subroutine ommp_polelec_geomgrad(s, grd)
+            use mod_geomgrad, only: polelec_geomgrad
+            
+            implicit none 
+            
+            type(ommp_system), intent(inout), target :: s
+            real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+
+            grd = 0.0
+            call polelec_geomgrad(s, grd)
+        end subroutine
+
         subroutine ommp_vdw_geomgrad(s, grd)
             use mod_nonbonded, only: vdw_geomgrad
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -461,7 +482,7 @@ module ommp_interface
         subroutine ommp_rotation_geomgrad(s, E, Egrd, grd )
             implicit none
 
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(in) :: E(:,:), Egrd(:,:)
             real(ommp_real), intent(out) :: grd(:,:)
             
@@ -474,7 +495,7 @@ module ommp_interface
             
             implicit none 
         
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -486,7 +507,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -498,7 +519,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -510,7 +531,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -522,7 +543,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -534,7 +555,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -546,7 +567,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -558,7 +579,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -570,7 +591,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -582,7 +603,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -594,7 +615,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -616,7 +637,7 @@ module ommp_interface
             
             implicit none 
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
@@ -640,7 +661,7 @@ module ommp_interface
             use mod_nonbonded, only: vdw_geomgrad
 
             implicit none
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0

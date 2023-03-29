@@ -1,4 +1,4 @@
-module mod_numerical_geomgrad
+module mod_test_numerical_geomgrad
     use ommp_interface
     
     abstract interface
@@ -8,6 +8,15 @@ module mod_numerical_geomgrad
             type(ommp_system), intent(inout), target :: s
             real(rp) :: energy_term
     end function
+    end interface
+
+    abstract interface
+    subroutine grad_term(s, grad)
+        use mod_mmpol, only: ommp_system
+        use mod_memory, only: rp
+        type(ommp_system), intent(inout), target :: s
+        real(rp) :: grad(:,:)
+    end subroutine
     end interface
 
     contains
@@ -51,13 +60,61 @@ module mod_numerical_geomgrad
             
             deallocate(new_c) 
         end subroutine
+        
+        function num_ana_compare(s, ene_f, grd_f, io_file, n, del) result(ok)
+            use mod_mmpol, only: update_coordinates
+            implicit none
+            
+            type(ommp_system), intent(inout) :: s
+            !! System data structure
+            procedure(energy_term), pointer :: ene_f
+            !! The energy function (from interface module) for which
+            !! numerical gradients are needed
+            procedure(grad_term), pointer :: grd_f 
+            !! The analytical gradients function
+            integer :: io_file
+            !! File handler for I/O
+            character(len=*) :: n
+            !! Name of the component for I/O
+            real(ommp_real) :: del
+            !! Maximum absolute difference between numerical and 
+            !! analytical
+
+            real(ommp_real), allocatable :: grad_num(:,:), grad_ana(:,:)
+            real(ommp_real) :: MDelta, delta(3)
+            integer(ommp_integer) :: nat, i, ok
+
+            nat = s%top%mm_atoms
+
+            allocate(grad_num(3,nat))
+            allocate(grad_ana(3,nat))
+
+            call grd_f(s, grad_ana)
+            call numerical_geomgrad(s, ene_f, grad_num)
+            MDelta = 0.0
+            do i=1, nat
+                write(io_file, "('[',I5,'] (A) ', 3F12.8)") i, grad_ana(:,i)
+                write(io_file, "('        (N) ', 3F12.8)") i, grad_num(:,i)
+                delta = grad_num(:,i) - grad_ana(:,i)
+                if(maxval(abs(delta)) > MDelta) MDelta = maxval(abs(delta))
+                write(io_file, "('        (D) ', 3F12.8)") i, delta
+                write(io_file, *)
+            end do
+
+            if(Mdelta > del) then
+                write(io_file, "('WARNING delta (', F5.3, ') > max_delta (', F5.3, ')')") MDelta, del
+                ok = 1
+            else
+                ok = 0
+            end if
+        end function
 end module
 
-program test_geomgrad
+program test_geomgrad_num
     use iso_c_binding, only: c_char
     use iso_fortran_env, only: error_unit
     use ommp_interface
-    use mod_numerical_geomgrad
+    use mod_test_numerical_geomgrad
 
     implicit none
 
@@ -89,12 +146,7 @@ program test_geomgrad
     if(argc == 3) then
         write(*, *) "Currently not supported!"
         write(error_unit, *) retcode
-
-        open(unit=101, file=argv(3)) 
-        do i=1, my_system%top%mm_atoms
-            read(101, *) ef(:, i)
-        end do
-        close(101)
+        stop
     else
         ef = 0.0
     end if
@@ -151,4 +203,4 @@ program test_geomgrad
     else
         stop 0
     end if
-end program test_geomgrad
+end program
