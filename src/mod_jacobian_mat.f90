@@ -222,14 +222,16 @@ module mod_jacobian_mat
         costhet = dot_product(hu,ht)
         if(costhet + 1.0 <= eps_rp) then
             thet = pi
-        else 
+            dacost = -1 / sin(costhet)
+        else
             thet = acos(costhet)
+            dacost = - 1.0/sqrt(1.0-costhet**2)
         end if
 
         s = sign(1.0_rp, -dot_product(a_b, u))
         thet = thet * s
         
-        dacost = - 1.0/sqrt(1.0-costhet**2) * s
+        dacost = dacost * s
         
         dhtdt = versor_der(t)
         dhudu = versor_der(u)
