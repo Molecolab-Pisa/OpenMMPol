@@ -20,7 +20,6 @@ endif()
 
 include_directories(include) # Directory for .h files
 
-#set(CMAKE_VERBOSE_MAKEFILE ON)
 set(LIBRARY_SRC
     src/mod_adjacency_mat.f90
     src/mod_bonded.f90
@@ -43,6 +42,7 @@ set(LIBRARY_SRC
     src/mod_topology.f90
     src/mod_utils.f90
     src/rotate_multipoles.f90)
+
 
 add_library(openmmpol SHARED ${LIBRARY_SRC}) 
 
@@ -87,128 +87,77 @@ if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 
-add_executable(C_test_init_xyz src/test_programs/C/test_init_xyz.c)
-target_link_libraries(C_test_init_xyz openmmpol)
-target_compile_options(C_test_init_xyz PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_init_xyz PROPERTY C_STANDARD 99)
+set(TEST_PROGRAMS
+    test_init_xyz
+    test_init
+    test_reinit
+    test_ipd
+    test_potential_xyz
+    test_energy
+    test_geomgrad
+    test_geomgrad_num
+    test_geomgrad_xyz
+    test_geomgrad_xyz_num)
 
-add_executable(C_test_init src/test_programs/C/test_init.c)
-target_link_libraries(C_test_init openmmpol)
-target_compile_options(C_test_init PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_init PROPERTY C_STANDARD 99)
-
-add_executable(C_test_reinit src/test_programs/C/test_reinit.c)
-target_link_libraries(C_test_reinit openmmpol)
-target_compile_options(C_test_reinit PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_reinit PROPERTY C_STANDARD 99)
-
-add_executable(C_test_ipd src/test_programs/C/test_ipd.c)
-target_link_libraries(C_test_ipd openmmpol)
-target_compile_options(C_test_ipd PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_ipd PROPERTY C_STANDARD 99)
-
-add_executable(C_test_potential_xyz src/test_programs/C/test_potential_xyz.c)
-target_link_libraries(C_test_potential_xyz openmmpol)
-target_compile_options(C_test_potential_xyz PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_potential_xyz PROPERTY C_STANDARD 99)
-
-add_executable(C_test_energy src/test_programs/C/test_energy.c)
-target_link_libraries(C_test_energy openmmpol)
-target_compile_options(C_test_energy PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_energy PROPERTY C_STANDARD 99)
-
-add_executable(C_test_geomgrad src/test_programs/C/test_geomgrad.c)
-target_link_libraries(C_test_geomgrad openmmpol)
-target_compile_options(C_test_geomgrad PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_geomgrad PROPERTY C_STANDARD 99)
-
-add_executable(C_test_geomgrad_num src/test_programs/C/test_geomgrad_num.c)
-target_link_libraries(C_test_geomgrad_num openmmpol)
-target_compile_options(C_test_geomgrad_num PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_geomgrad_num PROPERTY C_STANDARD 99)
-
-add_executable(C_test_geomgrad_xyz src/test_programs/C/test_geomgrad_xyz.c)
-target_link_libraries(C_test_geomgrad_xyz openmmpol)
-target_compile_options(C_test_geomgrad_xyz PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_geomgrad_xyz PROPERTY C_STANDARD 99)
-
-add_executable(C_test_geomgrad_xyz_num src/test_programs/C/test_geomgrad_xyz_num.c)
-target_link_libraries(C_test_geomgrad_xyz_num openmmpol)
-target_compile_options(C_test_geomgrad_xyz_num PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET C_test_geomgrad_xyz_num PROPERTY C_STANDARD 99)
-
-add_executable(ommp_xyz2mmp src/ommp_xyz2mmp.c)
-target_link_libraries(ommp_xyz2mmp openmmpol)
-target_compile_options(ommp_xyz2mmp PRIVATE -Wall -Wextra -pedantic)
-set_property(TARGET ommp_xyz2mmp PROPERTY C_STANDARD 99)
+set(UTILITY_PROGRAMS 
+    ommp_xyz2mmp)
 
 if (HDF5_WORKS)
-    add_executable(ommp_pp src/ommp_compile.c)
-    target_link_libraries(ommp_pp openmmpol)
-    target_compile_options(ommp_pp PRIVATE -Wall -Wextra -pedantic)
-    set_property(TARGET ommp_pp PROPERTY C_STANDARD 99)
-    
-    add_executable(C_test_init_hdf5 src/test_programs/C/test_init_hdf5.c)
-    target_link_libraries(C_test_init_hdf5 openmmpol)
-    target_compile_options(C_test_init_hdf5 PRIVATE -Wall -Wextra -pedantic)
-    set_property(TARGET C_test_init_hdf5 PROPERTY C_STANDARD 99)
-    
-    add_executable(C_test_potential_hdf5 src/test_programs/C/test_potential_hdf5.c)
-    target_link_libraries(C_test_potential_hdf5 openmmpol)
-    target_compile_options(C_test_potential_hdf5 PRIVATE -Wall -Wextra -pedantic)
-    set_property(TARGET C_test_potential_hdf5 PROPERTY C_STANDARD 99)
+    set(UTILITY_PROGRAMS
+        ${UTILITY_PROGRAMS}
+        ommp_pp)
+
+    set(TEST_PROGRAMS
+        ${TEST_PROGRAMS}
+        test_init_hdf5
+        test_potential_hdf5)
 endif ()
 
+set(UTILITY_EXE)
+foreach( exe ${UTILITY_PROGRAMS} )
+    add_executable(${exe} src/${exe}.c)
+    target_compile_options(${exe} PRIVATE -Wall -Wextra -pedantic)
+    set_property(TARGET ${exe} PROPERTY C_STANDARD 99)
+    target_link_libraries(${exe} openmmpol)
+    set(UTILITY_EXE
+        ${UTILITY_EXE}
+        ${exe})
+endforeach()
+add_custom_target(utility_programs DEPENDS ${UTILITY_PROGRAMS})
 
-add_executable(F03_test_init src/test_programs/F03/test_init.f90)
-target_link_libraries(F03_test_init openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F03_test_init PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif ()
+set(TEST_LANG
+    C
+    F03)
+foreach( lang ${TEST_LANG} )
+    set(TEST_EXE)
+    foreach( exe ${TEST_PROGRAMS} )
+        if (${lang} STREQUAL "C")
+            if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/test_programs/${lang}/${exe}.c)
+                continue ()
+            endif ()
 
-add_executable(F03_test_init_xyz src/test_programs/F03/test_init_xyz.f90)
-target_link_libraries(F03_test_init_xyz openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F03_test_init_xyz PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif ()
+            add_executable(${lang}_${exe} src/test_programs/${lang}/${exe}.c)
+            target_compile_options(${lang}_${exe} PRIVATE -Wall -Wextra -pedantic)
+            set_property(TARGET ${lang}_${exe} PROPERTY C_STANDARD 99)
+        endif()
+        if (${lang} STREQUAL "F03") 
+            if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/test_programs/${lang}/${exe}.f90) 
+                continue ()
+            endif ()
 
-add_executable(F03_test_ipd src/test_programs/F03/test_ipd.f90)
-target_link_libraries(F03_test_ipd openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F03_test_ipd PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif ()
+            add_executable(${lang}_${exe} src/test_programs/${lang}/${exe}.f90)
+            if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+                target_compile_options(${lang}_${exe} PRIVATE -Wall -Wextra -pedantic -std=f2003)
+            endif ()
+        endif()
 
-add_executable(F03_test_energy src/test_programs/F03/test_energy.f90)
-target_link_libraries(F03_test_energy openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F03_test_energy PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif ()
-
-add_executable(F03_test_potential_xyz src/test_programs/F03/test_potential_xyz.f90)
-target_link_libraries(F03_test_potential_xyz openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F03_test_potential_xyz PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif ()
-
-add_executable(F03_test_geomgrad src/test_programs/F03/test_geomgrad.f90)
-target_link_libraries(F03_test_geomgrad openmmpol)
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(F03_test_geomgrad PRIVATE -Wall -Wextra -pedantic -std=f2003)
-endif ()
-
-if (HDF5_WORKS)
-    add_executable(F03_test_init_hdf5 src/test_programs/F03/test_init_hdf5.f90)
-    target_link_libraries(F03_test_init_hdf5 openmmpol)
-    if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-        target_compile_options(F03_test_init_hdf5 PRIVATE -Wall -Wextra -pedantic -std=f2003)
-    endif ()
-    
-    add_executable(F03_test_potential_hdf5 src/test_programs/F03/test_potential_hdf5.f90)
-    target_link_libraries(F03_test_potential_hdf5 openmmpol)
-    if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-        target_compile_options(F03_test_potential_hdf5 PRIVATE -Wall -Wextra -pedantic -std=f2003)
-    endif ()
-endif ()
+        target_link_libraries(${lang}_${exe} openmmpol)
+        set(TEST_EXE
+            ${TEST_EXE}
+            ${lang}_${exe})
+    endforeach()
+    add_custom_target(${lang}_test_programs DEPENDS ${TEST_EXE})
+endforeach()
 
 # Python
 option(PYTHON "Build python module (Generally you want to use ./setup.py build_ext for this)" OFF)
