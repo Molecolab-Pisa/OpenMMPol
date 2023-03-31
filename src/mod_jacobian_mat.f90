@@ -109,12 +109,11 @@ module mod_jacobian_mat
         !! The angle (in rad) defined by ca-cb-cc
 
         real(rp), dimension(3) :: cr, cv, cp, cpp, cq, cs, J_r
-        real(rp), dimension(3,3) :: drda, drdb, drdc, drdx, dkpdp, dppda, &
+        real(rp), dimension(3,3) :: drda, drdc, drdx, dkpdp, dppda, &
                                     dpdpp, dpda, dpdc, dppdc, dpdx, dppdx, &
                                     dkpdv
         real(rp) :: k
-
-        integer(ip) :: i, j
+        integer(ip) :: i
 
         cq = ca - cx
         cs = cc - cx
@@ -204,11 +203,9 @@ module mod_jacobian_mat
         real(rp), dimension(3) :: a_b, c_d, c_b, t, u, ht, hu
         real(rp), dimension(3,3) :: dhudu, dhtdt, dtda, dudd, dhudd, dhtda, &
                                     dhudb, dhtdb, dudb, dtdb, &
-                                    dhudc, dhtdc, dtdc, dudc
+                                    dhudc, dtdc, dudc
         real(rp) :: costhet, dacost, s
 
-        integer(ip) :: i, j
-        
         a_b = cb - ca
         c_d = cd - cc
         c_b = cb - cc
@@ -276,12 +273,10 @@ module mod_jacobian_mat
         !! The out-of-plane angle
 
         real(rp), dimension(3) :: a_b, a_c, v, p, hp, hv
-        real(rp), dimension(3,3) :: dhpdp, dhvdv, dpda, dhpda, dvda, &
-                                    dhvda, dhpdb, dpdb, dhpdc, dpdc, dvdd
-        real(rp) :: costhet, dacost, dd, thet0
+        real(rp), dimension(3,3) :: dhpdp, dhvdv, &
+                                    dhpdb, dpdb, dhpdc, dpdc, dvdd
+        real(rp) :: costhet, dacost, thet0
 
-        integer(ip) :: i, j
-        
         a_b = ca - cb
         a_c = ca - cc
         v = ca - cd
@@ -309,7 +304,8 @@ module mod_jacobian_mat
         dhpdb = matmul(dpdb,dhpdp)
         J_b = -dacost * matmul(dhpdb,hv)
 
-        dpdc = -vec_skw(a_b)
+        dpdc = vec_skw(a_b)
+        dpdc = -dpdc
         dhpdc = matmul(dpdc, dhpdp)
         J_c = -dacost * matmul(dhpdc,hv) 
 
@@ -337,9 +333,6 @@ module mod_jacobian_mat
                                     skw_r, skw_p, dpdb, dtdb
         real(rp), dimension(3) :: dcostdp, dcostdr, dcostdt, dcostdu
 
-        real(rp) :: dd =1e-5, J_n(3)
-        integer(ip) :: j
-        
         d_b = cd - cb
         c_b = cc - cb
         f_a = cf - ca
