@@ -1,3 +1,4 @@
+#include "f_cart_components.h"
 module mod_polarization
     !! Module to handle the calculation of the induced dipoles; this means find
     !! the solution of the polarization problem. The polarization problem is 
@@ -70,8 +71,8 @@ module mod_polarization
                                  OMMP_SOLVER_DIIS, &
                                  OMMP_SOLVER_INVERSION, &
                                  OMMP_VERBOSE_DEBUG, &
-                                 OMMP_AMOEBA_P, &
-                                 OMMP_AMOEBA_D 
+                                 OMMP_VERBOSE_HIGH, &
+                                 eps_rp
       
         implicit none
 
@@ -127,10 +128,15 @@ module mod_polarization
         eel => sys_obj%eel
         amoeba = sys_obj%amoeba
 
+        ! Defaults for safety
+        matvec => TMatVec_incore
+        precond => PolVec
+
         if(eel%pol_atoms == 0) then
             ! If the system is not polarizable, there is nothing to do.
             return
         end if
+
         ! Handling of optional arguments
         if(present(arg_solver)) then
             solver = arg_solver
@@ -160,6 +166,7 @@ module mod_polarization
         if(mvmethod == OMMP_MATV_INCORE .or. &
            solver == OMMP_SOLVER_INVERSION) then
             if(.not. allocated(eel%tmat)) then !TODO move this in create_tmat
+                call ommp_message("Allocating T matrix.", OMMP_VERBOSE_DEBUG)
                 call mallocate('polarization [TMat]',n,n,eel%tmat)
                 call create_TMat(eel)
             end if
@@ -169,10 +176,10 @@ module mod_polarization
         ! direct field for Wang and Amoeba
         ! polarization field just for Amoeba
         if(amoeba) then
-            if(ipd_mask(OMMP_AMOEBA_D)) &
-                e_vec(:, OMMP_AMOEBA_D) = reshape(e(:,:,OMMP_AMOEBA_D), (/ n /))
-            if(ipd_mask(OMMP_AMOEBA_P)) &
-                e_vec(:, OMMP_AMOEBA_P) = reshape(e(:,:,OMMP_AMOEBA_P), (/ n /))
+            if(ipd_mask(_amoeba_D_)) &
+                e_vec(:, _amoeba_D_) = reshape(e(:,:,_amoeba_D_), (/ n /))
+            if(ipd_mask(_amoeba_P_)) &
+                e_vec(:, _amoeba_P_) = reshape(e(:,:,_amoeba_P_), (/ n /))
         else
             e_vec(:, 1) = reshape(e(:,:, 1), (/ n /))
         end if
@@ -182,27 +189,36 @@ module mod_polarization
         
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
-            if(amoeba) then
-                if(ipd_mask(OMMP_AMOEBA_D)) &
-                    call PolVec(eel, e_vec(:, OMMP_AMOEBA_D), &
-                                ipd0(:, OMMP_AMOEBA_D))
-                if(ipd_mask(OMMP_AMOEBA_P)) &
-                    call PolVec(eel, e_vec(:, OMMP_AMOEBA_P), &
-                                ipd0(:, OMMP_AMOEBA_P))
-            else
-                call PolVec(eel, e_vec(:,1), ipd0(:,1))
+            if(eel%ipd_done) then
+                if(amoeba) then
+                    if(ipd_mask(_amoeba_D_)) then
+                        ipd0(:,_amoeba_D_) = &
+                            reshape(eel%ipd(:,:,_amoeba_D_), [n])
+                    end if
+                    if(ipd_mask(_amoeba_P_)) then
+                       ipd0(:, _amoeba_P_) = &
+                           reshape(eel%ipd(:,:,_amoeba_P_), [n])
+                    end if
+                else
+                    ! call PolVec(eel, e_vec(:,1), ipd0(:,1))
+                    ipd0(:, 1) = &
+                        reshape(eel%ipd(:,:,1), [n])
+                end if
             end if
 
             select case(mvmethod)
                 case(OMMP_MATV_INCORE) 
+                    call ommp_message("Matrix-Vector will be performed in-memory", &
+                                 OMMP_VERBOSE_HIGH)
                     matvec => TMatVec_incore
 
                 case(OMMP_MATV_DIRECT)
+                    call ommp_message("Matrix-Vector will be performed on-the-fly", &
+                                 OMMP_VERBOSE_HIGH)
                     matvec => TMatVec_otf
 
                 case default
                     call fatal_error("Unknown matrix-vector method requested")
-                
             end select
         end if
         
@@ -212,15 +228,15 @@ module mod_polarization
                 precond => PolVec
 
                 if(amoeba) then
-                    if(ipd_mask(OMMP_AMOEBA_D)) &
+                    if(ipd_mask(_amoeba_D_)) &
                         call conjugate_gradient_solver(n, &
-                                                       e_vec(:,OMMP_AMOEBA_D), &
-                                                       ipd0(:,OMMP_AMOEBA_D), &
+                                                       e_vec(:,_amoeba_D_), &
+                                                       ipd0(:,_amoeba_D_), &
                                                        eel, matvec, precond)
-                    if(ipd_mask(OMMP_AMOEBA_P)) &
+                    if(ipd_mask(_amoeba_P_)) &
                         call conjugate_gradient_solver(n, &
-                                                       e_vec(:,OMMP_AMOEBA_P), &
-                                                       ipd0(:,OMMP_AMOEBA_P), &
+                                                       e_vec(:,_amoeba_P_), &
+                                                       ipd0(:,_amoeba_P_), &
                                                        eel, matvec, precond)
                 else
                     call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), &
@@ -235,15 +251,15 @@ module mod_polarization
                 end do
 
                 if(amoeba) then
-                    if(ipd_mask(OMMP_AMOEBA_D)) &
+                    if(ipd_mask(_amoeba_D_)) &
                         call jacobi_diis_solver(n, &
-                                                e_vec(:,OMMP_AMOEBA_D), &
-                                                ipd0(:,OMMP_AMOEBA_D), &
+                                                e_vec(:,_amoeba_D_), &
+                                                ipd0(:,_amoeba_D_), &
                                                 eel, matvec, inv_diag)
-                    if(ipd_mask(OMMP_AMOEBA_P)) &
+                    if(ipd_mask(_amoeba_P_)) &
                         call jacobi_diis_solver(n, &
-                                                e_vec(:,OMMP_AMOEBA_P), &
-                                                ipd0(:,OMMP_AMOEBA_P), &
+                                                e_vec(:,_amoeba_P_), &
+                                                ipd0(:,_amoeba_P_), &
                                                 eel, matvec, inv_diag)
                 else
                     call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), &
@@ -253,14 +269,14 @@ module mod_polarization
 
             case(OMMP_SOLVER_INVERSION)
                 if(amoeba) then
-                    if(ipd_mask(OMMP_AMOEBA_D)) &
+                    if(ipd_mask(_amoeba_D_)) &
                         call inversion_solver(n, &
-                                              e_vec(:,OMMP_AMOEBA_D), &
-                                              ipd0(:,OMMP_AMOEBA_D), eel%TMat)
-                    if(ipd_mask(OMMP_AMOEBA_P)) &
+                                              e_vec(:,_amoeba_D_), &
+                                              ipd0(:,_amoeba_D_), eel%TMat)
+                    if(ipd_mask(_amoeba_P_)) &
                         call inversion_solver(n, &
-                                              e_vec(:,OMMP_AMOEBA_P), &
-                                              ipd0(:,OMMP_AMOEBA_P), eel%TMat)
+                                              e_vec(:,_amoeba_P_), &
+                                              ipd0(:,_amoeba_P_), eel%TMat)
                 else
                     call inversion_solver(n, e_vec(:,1), ipd0(:,1), eel%TMat)
                 end if
@@ -357,7 +373,7 @@ module mod_polarization
         !! the correct way.
 
         use mod_io, only: print_matrix
-        use mod_constants, only: OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH
+        use mod_constants, only: OMMP_VERBOSE_HIGH
 
         implicit none
         
@@ -437,7 +453,7 @@ module mod_polarization
         !! skipped)
         
         y = 0.0_rp
-        call field_extD2D(eel, y, x)
+        call field_extD2D(eel, x, y)
         y = -1.0_rp * y ! Why? TODO
         if(dodiag) call TMatVec_diag(eel, x, y)
     
@@ -483,7 +499,8 @@ module mod_polarization
         integer(ip) :: i, n
 
         n = 3*eel%pol_atoms
-        
+       
+        write(*, *) allocated(eel%tmat)
         ! Compute the matrix vector product
         call dgemm('N', 'N', n, 1, n, 1.0_rp, eel%tmat, n, x, n, 0.0_rp, y, n)
         ! Subtract the product of diagonal 

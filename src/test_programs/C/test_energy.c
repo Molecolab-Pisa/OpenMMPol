@@ -65,7 +65,7 @@ int main(int argc, char **argv){
     for(int j = 0; j < pol_atoms; j++)
         for(int k = 0; k < 3; k++)
             if(argc == 4)
-                electric_field[j*3+k] = external_ef[polar_mm[j]-1][k];
+                electric_field[j*3+k] = external_ef[polar_mm[j]][k];
             else
                 electric_field[j*3+k] = 0.0;
     

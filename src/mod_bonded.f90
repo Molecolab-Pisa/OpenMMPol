@@ -153,17 +153,20 @@ module mod_bonded
     end type ommp_bonded_type
 
     public :: ommp_bonded_type
-    public :: bond_init, bond_potential, bond_terminate
-    public :: angle_init, angle_potential, angle_terminate
-    public :: urey_init, urey_potential, urey_terminate
-    public :: strbnd_init, strbnd_potential, strbnd_terminate
-    public :: opb_init, opb_potential, opb_terminate
-    public :: pitors_init, pitors_potential, pitors_terminate
-    public :: torsion_init, torsion_potential, torsion_terminate
-    public :: imptorsion_init, imptorsion_potential, imptorsion_terminate
-    public :: tortor_init, tortor_potential, tortor_terminate, tortor_newmap
-    public :: strtor_init, strtor_potential, strtor_terminate
-    public :: angtor_init, angtor_potential, angtor_terminate
+    public :: bond_init, bond_potential, bond_geomgrad, bond_terminate
+    public :: angle_init, angle_potential, angle_geomgrad, angle_terminate
+    public :: urey_init, urey_potential, urey_geomgrad, urey_terminate
+    public :: strbnd_init, strbnd_potential, strbnd_geomgrad, strbnd_terminate
+    public :: opb_init, opb_potential, opb_geomgrad, opb_terminate
+    public :: pitors_init, pitors_potential, pitors_geomgrad, pitors_terminate
+    public :: torsion_init, torsion_potential, torsion_geomgrad, &
+              torsion_terminate
+    public :: imptorsion_init, imptorsion_potential, imptorsion_geomgrad, &
+              imptorsion_terminate
+    public :: tortor_init, tortor_potential, tortor_geomgrad, &
+              tortor_terminate, tortor_newmap
+    public :: strtor_init, strtor_potential, strtor_geomgrad, strtor_terminate
+    public :: angtor_init, angtor_potential, angtor_geomgrad, angtor_terminate
     public :: bonded_terminate
     
     contains
@@ -245,6 +248,61 @@ module mod_bonded
         end if
         
     end subroutine bond_potential
+    
+    subroutine bond_geomgrad(bds, grad)
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: Rij_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+        integer :: i, ia, ib
+        logical :: use_cubic, use_quartic
+        real(rp) :: ca(3), cb(3), J_a(3), J_b(3), l, dl, g
+
+        use_cubic = (abs(bds%bond_cubic) > eps_rp)
+        use_quartic = (abs(bds%bond_quartic) > eps_rp)
+        
+        if(.not. bds%use_bond) return
+
+        if(.not. use_cubic .and. .not. use_quartic) then
+            ! This is just a regular harmonic potential
+            do i=1, bds%nbond
+                ia = bds%bondat(1,i)
+                ib = bds%bondat(2,i)
+                ca = bds%top%cmm(:,ia)
+                cb = bds%top%cmm(:,ib)
+                
+                call Rij_jacobian(ca, cb, l, J_a, J_b)
+                dl = l - bds%l0bond(i)
+                
+                g = 2 * bds%kbond(i) * dl
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        else
+            do i=1, bds%nbond
+                ia = bds%bondat(1,i)
+                ib = bds%bondat(2,i)
+                ca = bds%top%cmm(:,ia)
+                cb = bds%top%cmm(:,ib)
+                
+                call Rij_jacobian(ca, cb, l, J_a, J_b)
+                dl = l - bds%l0bond(i)
+                
+                g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl&
+                                             + 2.0*bds%bond_quartic*dl**2)
+
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        end if
+        
+    end subroutine bond_geomgrad
 
     subroutine angle_init(bds, n)
         !! Initialize arrays used in calculation of angle bending functions
@@ -295,12 +353,12 @@ module mod_bonded
 
         implicit none
 
-        type(ommp_bonded_type), intent(inout) :: bds
+        type(ommp_bonded_type), intent(in) :: bds
         ! Bonded potential data structure
         real(rp), intent(inout) :: V
         !! Bond potential, result will be added to V
         
-        integer(ip) :: i, j
+        integer(ip) :: i
         real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
         real(rp), dimension(3) :: v_dist, plv1, plv2, pln, a, b, c, prj_b, aux
 
@@ -327,23 +385,7 @@ module mod_bonded
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
-                !! TODO MOVE THIS IN ASSIGNATION AND MAKE bds intent(in)
-                if(bds%angauxat(i) < 1) then
-                    ! Find the auxiliary atom used to define the projection
-                    ! plane
-                    if(bds%top%conn(1)%ri(bds%angleat(2,i)+1) - &
-                       bds%top%conn(1)%ri(bds%angleat(2,i)) /= 3) then
-                        call fatal_error("Angle IN-PLANE defined for a non-&
-                                         &trigonal center")
-                    end if 
-                    do j=bds%top%conn(1)%ri(bds%angleat(2,i)), &
-                         bds%top%conn(1)%ri(bds%angleat(2,i)+1)-1
-                        if(bds%top%conn(1)%ci(j) /= bds%angleat(1,i) .and. &
-                           bds%top%conn(1)%ci(j) /= bds%angleat(3,i)) then
-                            bds%angauxat(i) = bds%top%conn(1)%ci(j)
-                        endif
-                    end do
-                end if
+                
                 a = bds%top%cmm(:, bds%angleat(1,i))
                 b = bds%top%cmm(:, bds%angleat(2,i)) !! Trigonal center
                 c = bds%top%cmm(:, bds%angleat(3,i))
@@ -375,6 +417,71 @@ module mod_bonded
             end if
         end do
     end subroutine angle_potential
+    
+    subroutine angle_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: simple_angle_jacobian, &
+                                    inplane_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+        
+        real(rp) :: a(3), b(3), c(3), Ja(3), Jb(3), Jc(3), Jx(3), g, thet, &
+                    d_theta, aux(3)
+        integer(ip) :: i
+
+        if(.not. bds%use_angle) return
+        
+        do i=1, bds%nangle
+            if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
+               bds%anglety(i) == OMMP_ANG_H0 .or. &
+               bds%anglety(i) == OMMP_ANG_H1 .or. &
+               bds%anglety(i) == OMMP_ANG_H2) then
+                a = bds%top%cmm(:, bds%angleat(1,i)) 
+                b = bds%top%cmm(:, bds%angleat(2,i))
+                c = bds%top%cmm(:, bds%angleat(3,i))
+                call simple_angle_jacobian(a, b, c, thet, Ja, Jb, Jc)
+                d_theta = thet - bds%eqangle(i) 
+           
+                g = bds%kangle(i) * d_theta * (2.0 &
+                                               + 3.0 * bds%angle_cubic * d_theta &
+                                               + 4.0 * bds%angle_quartic * d_theta**2 &
+                                               + 5.0 * bds%angle_pentic * d_theta**3 &
+                                               + 6.0 * bds%angle_sextic * d_theta**4)
+
+                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+            
+            else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
+                
+                a = bds%top%cmm(:, bds%angleat(1,i))
+                b = bds%top%cmm(:, bds%angleat(2,i)) !! Trigonal center
+                c = bds%top%cmm(:, bds%angleat(3,i))
+
+                aux = bds%top%cmm(:, bds%angauxat(i))
+                
+                call inplane_angle_jacobian(a, b, c, aux, thet, Ja, Jb, Jc, Jx)
+                d_theta = thet - bds%eqangle(i) 
+                g = bds%kangle(i) * d_theta * (2.0 &
+                                               + 3.0 * bds%angle_cubic * d_theta &
+                                               + 4.0 * bds%angle_quartic * d_theta**2 &
+                                               + 5.0 * bds%angle_pentic * d_theta**3 &
+                                               + 6.0 * bds%angle_sextic * d_theta**4)
+               
+                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                grad(:,bds%angauxat(i)) = grad(:,bds%angauxat(i)) + g * Jx
+
+            end if
+        end do
+    end subroutine angle_geomgrad
    
     subroutine strbnd_init(bds, n)
         !! Initialize arrays for calculation of stretch-bend cross term 
@@ -443,6 +550,52 @@ module mod_bonded
             V = V + (d_l1*bds%strbndk1(i) + d_l2*bds%strbndk2(i)) * d_thet
         end do
     end subroutine strbnd_potential
+    
+    subroutine strbnd_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: Rij_jacobian, simple_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+        integer(ip) :: i, ia, ib, ic
+        real(rp) :: d_l1, d_l2, d_thet, l1, l2, thet, g1, g2, g3
+        real(rp), dimension(3) :: a, b, c, &
+                                  J1_a, J1_b, &
+                                  J2_b, J2_c, &
+                                  J3_a, J3_b, J3_c
+        
+        if(.not. bds%use_strbnd) return
+
+        do i=1, bds%nstrbnd
+            ia = bds%strbndat(1,i)
+            ib = bds%strbndat(2,i)
+            ic = bds%strbndat(3,i)
+            a = bds%top%cmm(:, ia)
+            b = bds%top%cmm(:, ib)
+            c = bds%top%cmm(:, ic)
+
+            call Rij_jacobian(a, b, l1, J1_a, J1_b)
+            call Rij_jacobian(b, c, l2, J2_b, J2_c)
+            call simple_angle_jacobian(a, b, c, thet, J3_a, J3_b, J3_c)
+            
+            d_l1 = l1 - bds%strbndl10(i)
+            d_l2 = l2 - bds%strbndl20(i)
+            d_thet = thet - bds%strbndthet0(i) 
+           
+            g1 = bds%strbndk1(i) * d_thet
+            g2 = bds%strbndk2(i) * d_thet
+            g3 = bds%strbndk1(i) * d_l1 + bds%strbndk2(i) * d_l2
+
+            grad(:,ia) = grad(:,ia) + J1_a * g1 + J3_a * g3
+            grad(:,ib) = grad(:,ib) + J1_b * g1 + J2_b * g2 + J3_b * g3 
+            grad(:,ic) = grad(:,ic) + J2_c * g2 + J3_c * g3
+        end do
+
+    end subroutine strbnd_geomgrad
     
     subroutine urey_init(bds, n) 
         !! Initialize Urey-Bradley potential arrays
@@ -515,6 +668,57 @@ module mod_bonded
             end do
         end if
     end subroutine urey_potential
+    
+    subroutine urey_geomgrad(bds, grad)
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: Rij_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+
+        integer :: i, ia, ib
+        logical :: use_cubic, use_quartic
+        real(rp) :: l, dl, J_a(3), J_b(3), g
+        
+        if(.not. bds%use_urey) return
+
+        use_cubic = (abs(bds%urey_cubic) > eps_rp)
+        use_quartic = (abs(bds%urey_quartic) > eps_rp)
+
+        if(.not. use_cubic .and. .not. use_quartic) then
+            ! This is just a regular harmonic potential
+            do i=1, bds%nurey
+                ia = bds%ureyat(1,i)
+                ib = bds%ureyat(2,i)
+                call Rij_jacobian(bds%top%cmm(:,ia), &
+                                  bds%top%cmm(:,ib), &
+                                  l, J_a, J_b)
+                dl = l - bds%l0urey(i)
+                g = 2 * bds%kurey(i) * dl
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        else
+            do i=1, bds%nurey
+                ia = bds%ureyat(1,i)
+                ib = bds%ureyat(2,i)
+                call Rij_jacobian(bds%top%cmm(:,ia), &
+                                  bds%top%cmm(:,ib), &
+                                  l, J_a, J_b)
+                dl = l - bds%l0urey(i)
+                g = 2 * bds%kurey(i) * dl * (1.0 &
+                                             + 3.0/2.0 * bds%urey_cubic*dl &
+                                             + 2.0 * bds%urey_quartic*dl**2)
+
+                grad(:,ia) = grad(:,ia) + J_a * g
+                grad(:,ib) = grad(:,ib) + J_b * g
+            end do
+        end if
+    end subroutine urey_geomgrad
 
     subroutine opb_init(bds, n, opbtype)
         !! Initialize arrays for out-of-plane bending potential calculation.   
@@ -606,6 +810,42 @@ module mod_bonded
                 + bds%opb_sextic*thet4)
         end do
     end subroutine opb_potential
+    
+    subroutine opb_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: opb_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
+        integer(ip) :: i, ia, ib, ic, id
+        
+        if(.not. bds%use_opb) return
+        
+        do i=1, bds%nopb
+            ia = bds%opbat(2,i)
+            ib = bds%opbat(4,i)
+            ic = bds%opbat(3,i)
+            id = bds%opbat(1,i) 
+            call opb_angle_jacobian(bds%top%cmm(:,ia), & 
+                                    bds%top%cmm(:,ib), &
+                                    bds%top%cmm(:,ic), &
+                                    bds%top%cmm(:,id), &
+                                    thet, J_a, J_b, J_c, J_d)
+            
+            g = bds%kopb(i) * thet * (2.0 + 3.0*bds%opb_cubic*thet &
+                + 4.0*bds%opb_quartic*thet**2 + 5.0*bds%opb_pentic*thet**3 &
+                + 6.0*bds%opb_sextic*thet**4)
+
+            grad(:,ia) = grad(:,ia) + g * J_a
+            grad(:,ib) = grad(:,ib) + g * J_b
+            grad(:,ic) = grad(:,ic) + g * J_c
+            grad(:,id) = grad(:,id) + g * J_d
+        end do
+    end subroutine opb_geomgrad
     
     subroutine pitors_init(bds, n)
         !! Initialize arrays needed to compute pi-torsion potential
@@ -708,6 +948,48 @@ module mod_bonded
 
     end subroutine pitors_potential
     
+    subroutine pitors_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: pitors_angle_jacobian
+        use mod_constants, only : pi
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3), J_e(3), J_f(3)
+        integer(ip) :: i, ia, ib, ic, id, ie, if_
+
+        if(.not. bds%use_pitors) return
+        
+        do i=1, bds%npitors
+            ia = bds%pitorsat(1,i)
+            ic = bds%pitorsat(2,i)
+            id = bds%pitorsat(3,i)
+            ib = bds%pitorsat(4,i)
+            ie = bds%pitorsat(5,i)
+            if_ = bds%pitorsat(6,i)
+
+            call pitors_angle_jacobian(bds%top%cmm(:,ia), &
+                                       bds%top%cmm(:,ib), &
+                                       bds%top%cmm(:,ic), &
+                                       bds%top%cmm(:,id), &
+                                       bds%top%cmm(:,ie), &
+                                       bds%top%cmm(:,if_), &
+                                       thet, J_a, J_b, J_c, J_d, J_e, J_f)
+
+            g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
+
+            grad(:,ia) = grad(:,ia) + g * J_a
+            grad(:,ib) = grad(:,ib) + g * J_b
+            grad(:,ic) = grad(:,ic) + g * J_c
+            grad(:,id) = grad(:,id) + g * J_d
+            grad(:,ie) = grad(:,ie) + g * J_e
+            grad(:,if_) = grad(:,if_) + g * J_f
+        end do
+    end subroutine pitors_geomgrad
+    
     subroutine torsion_init(bds, n)
         !! Initialize torsion potential arrays
 
@@ -767,6 +1049,46 @@ module mod_bonded
 
     end subroutine torsion_potential
     
+    subroutine torsion_geomgrad(bds, grad)
+        !! Compute torsion potential
+        use mod_jacobian_mat, only: torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! Gradients of bond stretching terms of potential energy
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
+        integer(ip) :: i, j, ia, ib, ic, id
+        
+        if(.not. bds%use_torsion) return
+
+        do i=1, bds%ntorsion
+            ia = bds%torsionat(1,i)
+            ib = bds%torsionat(2,i)
+            ic = bds%torsionat(3,i)
+            id = bds%torsionat(4,i) 
+            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
+                                        bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        thet, J_a, J_b, J_c, J_d)
+            
+            do j=1, 6
+                if(bds%torsn(j,i) < 1) exit
+                g = -real(bds%torsn(j,i)) * sin(real(bds%torsn(j,i))* thet &
+                                                - bds%torsphase(j,i)) &
+                    * bds%torsamp(j,i)
+                grad(:, ia) = grad(:, ia) + J_a * g
+                grad(:, ib) = grad(:, ib) + J_b * g
+                grad(:, ic) = grad(:, ic) + J_c * g
+                grad(:, id) = grad(:, id) + J_d * g
+            end do
+        end do
+
+    end subroutine torsion_geomgrad
+    
     subroutine imptorsion_potential(bds, V)
         !! Compute torsion potential
         use mod_constants, only: pi, eps_rp
@@ -800,6 +1122,47 @@ module mod_bonded
         end do
 
     end subroutine imptorsion_potential
+    
+    subroutine imptorsion_geomgrad(bds, grad)
+        !! Compute torsion potential
+        use mod_jacobian_mat, only: torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
+        integer(ip) :: i, j, ia, ib, ic, id
+        
+        if(.not. bds%use_imptorsion) return
+        
+        do i=1, bds%nimptorsion
+            ! Atoms that defines the dihedral angle
+            ia = bds%imptorsionat(1,i)
+            ib = bds%imptorsionat(2,i)
+            ic = bds%imptorsionat(3,i)
+            id = bds%imptorsionat(4,i) 
+            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
+                                        bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        thet, J_a, J_b, J_c, J_d)
+            
+            do j=1, 3
+                if(bds%imptorsn(j,i) < 1) exit
+                g = -real(bds%imptorsn(j,i)) * sin(real(bds%imptorsn(j,i))* thet &
+                                                   - bds%imptorsphase(j,i)) &
+                                             * bds%imptorsamp(j,i)
+                grad(:, ia) = grad(:, ia) + J_a * g
+                grad(:, ib) = grad(:, ib) + J_b * g
+                grad(:, ic) = grad(:, ic) + J_c * g
+                grad(:, id) = grad(:, id) + J_d * g
+            end do
+        end do
+
+    end subroutine imptorsion_geomgrad
     
     subroutine imptorsion_init(bds, n)
         !! Initialize improper torsion potential arrays
@@ -927,6 +1290,89 @@ module mod_bonded
 
     end subroutine angtor_potential
     
+    subroutine angtor_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: simple_angle_jacobian, torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thet, gt(3), dihef(3), da1, da2, angle1, angle2, &
+                    Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
+                    Ja1_a(3), Ja1_b(3), Ja1_c(3), &
+                    Ja2_a(3), Ja2_b(3), Ja2_c(3)
+
+        integer(ip) :: i, j, k, ia1, ia2, &
+                       it_a, it_b, it_c, it_d, &
+                       ia1_a, ia1_b, ia1_c, &
+                       ia2_a, ia2_b, ia2_c
+        
+        if(.not. bds%use_angtor) return
+
+        do i=1, bds%nangtor
+            ! Atoms that defines the dihedral angle
+            it_a = bds%angtorat(1,i)
+            it_b = bds%angtorat(2,i)
+            it_c = bds%angtorat(3,i)
+            it_d = bds%angtorat(4,i) 
+
+            ia1 = bds%angtor_a(1,i)
+            ia1_a = bds%angleat(1,ia1)
+            ia1_b = bds%angleat(2,ia1)
+            ia1_c = bds%angleat(3,ia1)
+            
+            ia2 = bds%angtor_a(2,i)
+            ia2_a = bds%angleat(1,ia2)
+            ia2_b = bds%angleat(2,ia2)
+            ia2_c = bds%angleat(3,ia2)
+
+            call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
+                                        bds%top%cmm(:,it_b), &
+                                        bds%top%cmm(:,it_c), &
+                                        bds%top%cmm(:,it_d), &
+                                        thet, Jt_a, Jt_b, Jt_c, Jt_d)
+            do j=1, 3
+                gt(j) = -real(j) * sin(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            end do
+
+            call simple_angle_jacobian(bds%top%cmm(:,ia1_a), &
+                                       bds%top%cmm(:,ia1_b), &
+                                       bds%top%cmm(:,ia1_c), &
+                                       angle1, Ja1_a, Ja1_b, Ja1_c)
+            
+            call simple_angle_jacobian(bds%top%cmm(:,ia2_a), &
+                                       bds%top%cmm(:,ia2_b), &
+                                       bds%top%cmm(:,ia2_c), &
+                                       angle2, Ja2_a, Ja2_b, Ja2_c)
+
+            da1 = angle1 - bds%eqangle(ia1)
+            da2 = angle2 - bds%eqangle(ia2)
+
+            do k=1, 3
+                grad(:,it_a) = grad(:,it_a) + bds%angtork(k,i) * da1 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%angtork(k,i) * da1 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%angtork(k,i) * da1 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%angtork(k,i) * da1 * gt(k) * Jt_d
+                
+                grad(:,ia1_a) = grad(:,ia1_a) + bds%angtork(k,i) * dihef(k) * Ja1_a
+                grad(:,ia1_b) = grad(:,ia1_b) + bds%angtork(k,i) * dihef(k) * Ja1_b
+                grad(:,ia1_c) = grad(:,ia1_c) + bds%angtork(k,i) * dihef(k) * Ja1_c
+                
+                grad(:,it_a) = grad(:,it_a) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_d
+                
+                grad(:,ia2_a) = grad(:,ia2_a) + bds%angtork(3+k,i) * dihef(k) * Ja2_a
+                grad(:,ia2_b) = grad(:,ia2_b) + bds%angtork(3+k,i) * dihef(k) * Ja2_b
+                grad(:,ia2_c) = grad(:,ia2_c) + bds%angtork(3+k,i) * dihef(k) * Ja2_c
+            end do
+        end do
+    end subroutine angtor_geomgrad
+    
     subroutine strtor_potential(bds, V)
         use mod_constants
 
@@ -971,6 +1417,102 @@ module mod_bonded
         end do
 
     end subroutine strtor_potential
+    
+    subroutine strtor_geomgrad(bds, grad)
+        use mod_jacobian_mat, only: Rij_jacobian, torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        
+        real(rp) :: thet, gt(3), dihef(3), dr1, dr2,  dr3, r1, r2, r3, &
+                    Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
+                    Jb1_a(3), Jb1_b(3), &
+                    Jb2_a(3), Jb2_b(3), &
+                    Jb3_a(3), Jb3_b(3)
+
+        integer(ip) :: i, j, k, ib1, ib2, ib3, &
+                       it_a, it_b, it_c, it_d, &
+                       ib1_a, ib1_b, &
+                       ib2_a, ib2_b, &
+                       ib3_a, ib3_b
+        
+        if(.not. bds%use_strtor) return
+
+        do i=1, bds%nstrtor
+            ! Atoms that defines the dihedral angle
+            it_a = bds%strtorat(1,i)
+            it_b = bds%strtorat(2,i)
+            it_c = bds%strtorat(3,i)
+            it_d = bds%strtorat(4,i) 
+
+            ib1 = bds%strtor_b(1,i)
+            ib1_a = bds%bondat(1,ib1)
+            ib1_b = bds%bondat(2,ib1)
+            
+            ib2 = bds%strtor_b(2,i)
+            ib2_a = bds%bondat(1,ib2)
+            ib2_b = bds%bondat(2,ib2)
+            
+            ib3 = bds%strtor_b(3,i)
+            ib3_a = bds%bondat(1,ib3)
+            ib3_b = bds%bondat(2,ib3)
+
+            call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
+                                        bds%top%cmm(:,it_b), &
+                                        bds%top%cmm(:,it_c), &
+                                        bds%top%cmm(:,it_d), &
+                                        thet, Jt_a, Jt_b, Jt_c, Jt_d)
+            do j=1, 3
+                gt(j) = -real(j) * sin(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            end do
+
+            call Rij_jacobian(bds%top%cmm(:,ib1_a), &
+                              bds%top%cmm(:,ib1_b), &
+                              r1, Jb1_a, Jb1_b) 
+            dr1 = r1 - bds%l0bond(ib1)  
+            
+            call Rij_jacobian(bds%top%cmm(:,ib2_a), &
+                              bds%top%cmm(:,ib2_b), &
+                              r2, Jb2_a, Jb2_b) 
+            dr2 = r2 - bds%l0bond(ib2)  
+            
+            call Rij_jacobian(bds%top%cmm(:,ib3_a), &
+                              bds%top%cmm(:,ib3_b), &
+                              r3, Jb3_a, Jb3_b) 
+            dr3 = r3 - bds%l0bond(ib3)  
+            
+            do k=1, 3
+                grad(:,it_a) = grad(:,it_a) + bds%strtork(k,i) * dr1 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%strtork(k,i) * dr1 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%strtork(k,i) * dr1 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%strtork(k,i) * dr1 * gt(k) * Jt_d
+                
+                grad(:,ib1_a) = grad(:,ib1_a) + bds%strtork(k,i) * dihef(k) * Jb1_a
+                grad(:,ib1_b) = grad(:,ib1_b) + bds%strtork(k,i) * dihef(k) * Jb1_b
+                
+                grad(:,it_a) = grad(:,it_a) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_d
+                
+                grad(:,ib2_a) = grad(:,ib2_a) + bds%strtork(3+k,i) * dihef(k) * Jb2_a
+                grad(:,ib2_b) = grad(:,ib2_b) + bds%strtork(3+k,i) * dihef(k) * Jb2_b
+
+                grad(:,it_a) = grad(:,it_a) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_a
+                grad(:,it_b) = grad(:,it_b) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_b
+                grad(:,it_c) = grad(:,it_c) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_c
+                grad(:,it_d) = grad(:,it_d) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_d
+                
+                grad(:,ib3_a) = grad(:,ib3_a) + bds%strtork(6+k,i) * dihef(k) * Jb3_a
+                grad(:,ib3_b) = grad(:,ib3_b) + bds%strtork(6+k,i) * dihef(k) * Jb3_b
+            end do
+        end do
+    end subroutine strtor_geomgrad
     
     subroutine tortor_init(bds, n)
         !! Initialize torsion-torsion correction potential arrays
@@ -1172,7 +1714,7 @@ module mod_bonded
         ! Bonded potential data structure
         real(rp), intent(inout) :: V
         !! torsion potential, result will be added to V
-        real(rp) :: thetx, thety, vtt
+        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy
 
         integer(ip) :: i, j, iprm, ibeg, iend
 
@@ -1191,6 +1733,7 @@ module mod_bonded
             thety = ang_torsion(bds%top, bds%tortorat(2:5,i))
            
             call compute_bicubic_interp(thetx, thety, vtt, &
+                                        dvttdx, dvttdy, &
                                         bds%ttmap_shape(1,iprm), &
                                         bds%ttmap_shape(2,iprm), &
                                         bds%ttmap_ang1(ibeg:iend), &
@@ -1199,10 +1742,82 @@ module mod_bonded
                                         bds%ttmap_vx(ibeg:iend), &
                                         bds%ttmap_vy(ibeg:iend), &
                                         bds%ttmap_vxy(ibeg:iend))
+
             V = V + vtt
         end do
 
     end subroutine tortor_potential
+    
+    subroutine tortor_geomgrad(bds, grad)
+        !! Compute torsion potential
+
+        use mod_utils, only: compute_bicubic_interp
+        use mod_jacobian_mat, only: torsion_angle_jacobian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        ! Bonded potential data structure
+        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        !! improper torsion potential, result will be added to V
+        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy
+        real(rp), dimension(3) :: J1_a, J1_b, J2_b, J1_c, &
+                                  J2_c, J1_d, J2_d, J2_e
+
+        integer(ip) :: i, j, iprm, ibeg, iend, ia, ib, ic, id, ie
+
+        if(.not. bds%use_tortor) return
+        
+        do i=1, bds%ntortor
+            ! Atoms that defines the two angles
+            iprm = bds%tortorprm(i)
+            ibeg = 1
+            do j=1, iprm-1
+                ibeg = ibeg + bds%ttmap_shape(1,j)*bds%ttmap_shape(2,j)
+            end do
+            iend = ibeg + bds%ttmap_shape(1,iprm)*bds%ttmap_shape(2,iprm) - 1
+            
+            ia = bds%tortorat(1,i)
+            ib = bds%tortorat(2,i)
+            ic = bds%tortorat(3,i)
+            id = bds%tortorat(4,i)
+            ie = bds%tortorat(5,i)
+
+            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
+                                        bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        thetx, &
+                                        J1_a, J1_b, J1_c, J1_d)
+            thetx = ang_torsion(bds%top, bds%tortorat(1:4,i))
+            
+            call torsion_angle_jacobian(bds%top%cmm(:,ib), &
+                                        bds%top%cmm(:,ic), &
+                                        bds%top%cmm(:,id), &
+                                        bds%top%cmm(:,ie), &
+                                        thety, &
+                                        J2_b, J2_c, J2_d, J2_e)
+            thety = ang_torsion(bds%top, bds%tortorat(2:5,i))
+
+            call compute_bicubic_interp(thetx, thety, vtt, &
+                                        dvttdx, dvttdy, &
+                                        bds%ttmap_shape(1,iprm), &
+                                        bds%ttmap_shape(2,iprm), &
+                                        bds%ttmap_ang1(ibeg:iend), &
+                                        bds%ttmap_ang2(ibeg:iend), &
+                                        bds%ttmap_v(ibeg:iend), &
+                                        bds%ttmap_vx(ibeg:iend), &
+                                        bds%ttmap_vy(ibeg:iend), &
+                                        bds%ttmap_vxy(ibeg:iend))
+
+            grad(:,ia) = grad(:,ia) + J1_a * dvttdx
+            grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
+            grad(:,ic) = grad(:,ic) + J1_c * dvttdx + J2_c * dvttdy
+            grad(:,id) = grad(:,id) + J1_d * dvttdx + J2_d * dvttdy
+            grad(:,ie) = grad(:,ie) + J2_e * dvttdy
+        end do
+
+    end subroutine tortor_geomgrad
 
     pure function cos_torsion(top, idx)
         !! Compute the cosine of torsional angle between four atoms specified
@@ -1273,7 +1888,8 @@ module mod_bonded
             
         cos_torsion = dot_product(u,t)
         ang_torsion = acos(cos_torsion)
-        if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
+        !if(dot_product(ab, u) > 0) ang_torsion = - ang_torsion
+        ang_torsion = ang_torsion * sign(1.0_rp, -dot_product(ab,u))
 
     end function
 

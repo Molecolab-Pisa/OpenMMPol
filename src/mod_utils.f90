@@ -12,6 +12,7 @@ module mod_utils
     public :: starts_with_alpha, isreal, isint, tokenize, &
               count_substr_occurence, str_to_lower
     public :: cyclic_spline, compute_bicubic_interp
+    public :: cross_product, vec_skw, versor_der
 
     contains
 
@@ -244,14 +245,14 @@ module mod_utils
 
     end subroutine sort_ivec_inplace
 
-    subroutine compute_bicubic_interp(x, y, z, nx, ny, xgrd, ygrd, &
+    subroutine compute_bicubic_interp(x, y, z, dzdx, dzdy, nx, ny, xgrd, ygrd, &
                                       v, vx, vy, vxy)
         !! Evaluate the z value at position (x, y) of a surface built as a 
         !! bicubic spline interpolating the points     
         !! (xgrd(\(x_i\), \(y_i\)), ygrd(\(x_i\), \(y_i\)),
         !! vxgrd(\(x_i\), \(y_i\))).     
-        !! In order to do so also the derivatives of the surface at the points
-        !! of the grid arre needed and in particular if we consider the surface
+        !! In order to do so, also the derivatives of the surface at the points
+        !! of the grid are needed; in particular if we consider the surface
         !! points as
         !! \[(x_i, y_i, V(x_i, y_i))\]
         !! also value of \(\frac{\partial V}{\partial x}\),
@@ -267,6 +268,8 @@ module mod_utils
         !! Coordinates at which the z value of the surface should be computed
         real(rp), intent(out) :: z
         !! The z value of the surface
+        real(rp), intent(out) :: dzdx, dzdy
+        !! Derivatives of z valure w.r.t. x and y coordinates
         integer(ip), intent(in) :: nx, ny
         !! Number of grid points along x and y direction
         real(rp), dimension(ny,nx), intent(in) :: xgrd
@@ -291,7 +294,7 @@ module mod_utils
                                                   0.0,  0.0, -1.0,  1.0],&
                                                  shape(A))
 
-        real(rp) :: alpha(4,4), f(4,4), xx(4), yy(4), &
+        real(rp) :: alpha(4,4), f(4,4), xx(4), yy(4), dxxdx(4), dyydy(4), &
                     deltax, deltay, dx, dy
 
         done = .false.
@@ -336,10 +339,26 @@ module mod_utils
             yy(ii) = yy(ii-1) * deltay
         end do
 
+        dxxdx(1) = 0.0
+        dyydy(1) = 0.0
+        do ii=2, 4
+            dxxdx(ii) = (ii-1) * xx(ii-1) / dx
+            dyydy(ii) = (ii-1) * yy(ii-1) / dy
+        end do
+
         z = 0.0
         do ii=1,4
             do jj=1, 4
                 z = z + alpha(ii, jj) * yy(jj) * xx(ii)
+            end do
+        end do
+        
+        dzdx = 0.0
+        dzdy = 0.0
+        do ii=1,4
+            do jj=1, 4
+                dzdx = dzdx + alpha(ii, jj) * yy(jj) * dxxdx(ii)
+                dzdy = dzdy + alpha(ii, jj) * dyydy(jj) * xx(ii)
             end do
         end do
     end subroutine compute_bicubic_interp
@@ -434,5 +453,90 @@ module mod_utils
         call mfree('cyclic_spline [ipiv]', ipiv)
 
     end subroutine
+
+    pure function cross_product(a, b) result(c)
+        !! Computes the cross product between two vectors of dimension 3.
+        !! Used as an inlinable function in geometric manipulations
+        use mod_memory, only: rp
+        implicit none
+
+        real(rp), dimension(3), intent(in) :: a, b
+        !! Input vector
+        real(rp), dimension(3) :: c
+        !! Output vector
+
+        c(1) = a(2)*b(3) - a(3)*b(2)
+        c(2) = a(3)*b(1) - a(1)*b(3)
+        c(3) = a(1)*b(2) - a(2)*b(1)
+    end
+
+    pure function vec_skw(a) result(b)
+        !! Computes the matrix operator corresponding to a cross product of an
+        !! input vector \(\vec{A}\) of dimension 3.
+        !! \[[\vec{A}]_\times = 
+        !!      \begin{bmatrix} 
+        !!          0 & -\vec{A}_z & \vec{A}_y \\ 
+        !!          \vec{A}_z & 0 & -\vec{A}_x \\ 
+        !!          -\vec{A}_y & \vec{A}_x & 0 \\ 
+        !!      \end{bmatrix} \]
+        
+        use mod_memory, only: rp
+        implicit none
+        
+        real(rp), dimension(3), intent(in) :: a
+        real(rp), dimension(3,3) :: b
+
+        b = 0.0
+        b(2,1) = a(3)
+        b(3,1) = -a(2)
+        b(1,2) = -a(3)
+        b(3,2) = a(1)
+        b(1,3) = a(2)
+        b(2,3) = -a(1)
+    end
+
+    pure function versor_der(a) result(g)
+        !! Computes the derivativative matrix of a versor \(\hat{A}\) wrt its
+        !! generator vector \(\vec{A}\).
+        !! \[\hat{A} = \frac{\vec{A}}{||\vec{A}||}\]
+        !! \[\frac{\partial \hat{A}}{\partial \vec{A}} 
+        !! = \frac{1}{||\vec{A}||^3} (||\vec{A}||^2 \mathbb{1}_3 - A^\dagger A)
+        !! = \frac{1}{||\vec{A}||^3} 
+        !!      \begin{bmatrix} 
+        !!          ||\vec{A}||^2 - \vec{A}_x^2 & 
+        !!           - \vec{A}_x \vec{A}_y & 
+        !!          - \vec{A}_x \vec{A}_z \\ 
+        !!          - \vec{A}_y \vec{A}_x & 
+        !!          ||\vec{A}||^2 - \vec{A}_y^2 & 
+        !!          - \vec{A}_y \vec{A}_z \\ 
+        !!          - \vec{A}_z \vec{A}_x & 
+        !!          - \vec{A}_z \vec{A}_y & 
+        !!          ||\vec{A}||^2 - \vec{A}_z^2 \\ 
+        !!      \end{bmatrix}
+        !! \]
+        use mod_memory, only: rp
+        implicit none
+
+        real(rp), dimension(3), intent(in) :: a
+        real(rp), dimension(3,3) :: g
+
+        real(rp) :: na, na2
+
+        na = norm2(a)
+        na2 = na*na
+
+        g = 0.0
+
+        g(1,:) = -a(1) * a
+        g(1,1) = g(1,1) + na2
+        
+        g(2,:) = -a(2) * a
+        g(2,2) = g(2,2) + na2
+        
+        g(3,:) = -a(3) * a
+        g(3,3) = g(3,3) + na2
+
+        g = g / (na*na2)
+    end function
 
 end module mod_utils

@@ -1,4 +1,4 @@
-program test_ipd
+program test_energy
     use iso_c_binding, only: c_char
     use ommp_interface
 
@@ -56,4 +56,4 @@ program test_ipd
     deallocate(ef_pol)
     call ommp_terminate(my_system)
 
-end program test_ipd
+end program test_energy

@@ -48,7 +48,7 @@ module mod_prm
         !! name of the input PRM file
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: i, ist, nmultipole, ncharge, tokb, toke, ff_type
+        integer(ip) :: ist, nmultipole, ncharge, tokb, toke, ff_type
         character(len=OMMP_STR_CHAR_MAX) :: line, polarization
         
         ! open tinker prm file
@@ -147,7 +147,7 @@ module mod_prm
                 natype = max(natype, iat)
             end if
         end do
-        
+       
         call mallocate('read_prm [typeclass]', natype, typeclass)
         call mallocate('read_prm [atz]', natype, typez)
         typeclass = 0
@@ -196,8 +196,13 @@ module mod_prm
         close(iof_prminp)
 
         do i = 1, top%mm_atoms
-            top%atclass(i) = typeclass(top%attype(i)) 
-            top%atz(i) = typez(top%attype(i)) 
+            if(.not. top%atclass_initialized) then
+                top%atclass(i) = typeclass(top%attype(i)) 
+            end if
+
+            if(.not. top%atz_initialized) then
+                top%atz(i) = typez(top%attype(i)) 
+            end if
         end do
         
         top%atclass_initialized = .true.
@@ -1429,7 +1434,7 @@ module mod_prm
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-                                    t_n(:,:), tmpat(:,:), tmpprm(:), tmpf(:)
+                                    t_n(:,:), tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
         real(rp) :: amp, phase, imptorsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
@@ -1686,7 +1691,7 @@ module mod_prm
     subroutine assign_strtor(bds, prm_file)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: strtor_init
-        use mod_constants, only: kcalmol2au, deg2rad, eps_rp, angstrom2au
+        use mod_constants, only: kcalmol2au, angstrom2au
         
         implicit none
         
@@ -1697,12 +1702,11 @@ module mod_prm
 
         integer(ip), parameter :: iof_prminp = 201
         integer(ip) :: ist, i, j, tokb, toke, it, nt, &
-                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
+                       cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
-        real(rp) :: phase, torsion_unit = 1.0
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
         type(ommp_topology_type), pointer :: top
 
@@ -2439,6 +2443,27 @@ module mod_prm
                         bds%anglety(iang) = angtype(j)
                         bds%kangle(iang) = kang(j) * kcalmol2au
                         bds%eqangle(iang) = th0ang(j) * deg2rad
+                        ! Find the auxiliary atom for inplane angles
+                        if(bds%anglety(iang) == OMMP_ANG_INPLANE .or. &
+                           bds%anglety(iang) == OMMP_ANG_INPLANE_H0 .or. &
+                           bds%anglety(iang) == OMMP_ANG_INPLANE_H1) then
+                            ! Find the auxiliary atom used to define the
+                            ! projection plane
+                            if(bds%top%conn(1)%ri(bds%angleat(2,iang)+1) - &
+                               bds%top%conn(1)%ri(bds%angleat(2,iang)) /= 3) &
+                            then
+                                call fatal_error("Angle IN-PLANE defined for a&
+                                                 & non-trigonal center")
+                            end if 
+                            do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
+                                bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1
+                                if(bds%top%conn(1)%ci(j) /= bds%angleat(1,iang) .and. &
+                           bds%top%conn(1)%ci(j) /= bds%angleat(3,iang)) then
+                            bds%angauxat(iang) = bds%top%conn(1)%ci(j)
+                                endif
+                            end do
+                        end if
+                        
                         iang = iang + 1
                     else
                         write(errstring, *) "No angle parameter found for &

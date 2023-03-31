@@ -47,7 +47,7 @@ int main(int argc, char **argv){
     }
     
     int pol_atoms;
-    double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, 
+    double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot, 
            ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex;
     
     double *electric_field;
@@ -79,6 +79,7 @@ int main(int argc, char **argv){
     eat =  ommp_get_angtor_energy(my_system);
     ebt =  ommp_get_strtor_energy(my_system);
     eit = ommp_get_imptorsion_energy(my_system);
+    etot = ommp_get_full_energy(my_system);
 
     FILE *fp = fopen(argv[2], "w+");
 
@@ -111,6 +112,7 @@ int main(int argc, char **argv){
     eat *= AU2KCALMOL;
     ebt *= AU2KCALMOL;
     eit *= AU2KCALMOL;
+    etot *= AU2KCALMOL;
 
     fprintf(fp, "EM      %20.12e\n", em);
     fprintf(fp, "EP      %20.12e\n", ep);
@@ -141,6 +143,7 @@ int main(int argc, char **argv){
     fprintf(fp, "ELF     %20.12e\n", elf);
     fprintf(fp, "EG      %20.12e\n", eg);
     fprintf(fp, "EX      %20.12e\n", ex);
+    fprintf(fp, "ETOT      %20.12e\n", etot);
     
     fclose(fp);
     free(electric_field);
