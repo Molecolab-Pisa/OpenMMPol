@@ -33,7 +33,7 @@ else()
     message(DEPRECATION "Your source folder is not a git repository, so an accurate tracking of version cannot be performed. Version name is \"${OMMP_VERSION}\". We strongly recommend to install OpenMMPol from a git repository to have a proper version identifier needed for reproducing results.")
 endif()
 
-file(WRITE include/version.h "#define OMMP_VERSION \"${OMMP_VERSION}\"")
+file(WRITE include/version.h "#define _OMMP_VERSION \"${OMMP_VERSION}\"")
 
 set(LIBRARY_SRC
     src/mod_adjacency_mat.f90

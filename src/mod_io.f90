@@ -18,7 +18,6 @@ module mod_io
     
     public :: iof_memory, iof_mmpol, iof_mmpinp
     public :: set_verbosity, ommp_message, fatal_error, ommp_version
-    public :: print_header
     public :: print_matrix, print_int_vec
 
     interface print_matrix
@@ -119,7 +118,7 @@ module mod_io
     subroutine ommp_version(v)
         integer(ip), intent(in) :: v
 
-        call ommp_message("OpenMMPol version: "//OMMP_VERSION, &
+        call ommp_message("OpenMMPol version: "//_OMMP_VERSION, &
                           v, "version")
     end subroutine
 

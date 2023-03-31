@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include "version.h"
 
 #define OMMP_VERBOSE_DEBUG 3
 #define OMMP_VERBOSE_HIGH 2 
@@ -23,7 +24,8 @@
 #define OMMP_AMOEBA_P 2
 
 #define AU2KCALMOL 627.5096080306
-#define ANG2AU 1.8897261245650 
+#define ANG2AU 1.8897261245650
+#define OMMP_VERSION_STRING _OMMP_VERSION
 
 typedef void* OMMP_SYSTEM_PRT;
 typedef void* OMMP_QM_HELPER_PRT;

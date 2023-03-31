@@ -1,4 +1,5 @@
 #include "f_cart_components.h"
+#include "version.h"
 ! Wrapper function for open-mmpol library
 module ommp_interface
     !! The interface of the library, basically all the operation performed
@@ -45,6 +46,8 @@ module ommp_interface
 
     implicit none
     
+    character(*), parameter :: ommp_version_string = _OMMP_VERSION
+
     contains
         
         subroutine ommp_init_mmp(s, filename)
