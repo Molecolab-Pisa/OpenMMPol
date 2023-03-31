@@ -358,7 +358,7 @@ module mod_bonded
         real(rp), intent(inout) :: V
         !! Bond potential, result will be added to V
         
-        integer(ip) :: i, j
+        integer(ip) :: i
         real(rp) :: l1, l2, dr1(3), dr2(3), thet, d_theta
         real(rp), dimension(3) :: v_dist, plv1, plv2, pln, a, b, c, prj_b, aux
 
@@ -419,7 +419,6 @@ module mod_bonded
     end subroutine angle_potential
     
     subroutine angle_geomgrad(bds, grad)
-        use mod_constants, only : eps_rp
         use mod_jacobian_mat, only: simple_angle_jacobian, &
                                     inplane_angle_jacobian
 
@@ -430,9 +429,9 @@ module mod_bonded
         real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
         !! Gradients of bond stretching terms of potential energy
         
-        integer(ip) :: i, j
         real(rp) :: a(3), b(3), c(3), Ja(3), Jb(3), Jc(3), Jx(3), g, thet, &
                     d_theta, aux(3)
+        integer(ip) :: i
 
         if(.not. bds%use_angle) return
         
@@ -683,7 +682,7 @@ module mod_bonded
 
         integer :: i, ia, ib
         logical :: use_cubic, use_quartic
-        real(rp) :: l, dl, dl2, J_a(3), J_b(3), g
+        real(rp) :: l, dl, J_a(3), J_b(3), g
         
         if(.not. bds%use_urey) return
 
@@ -814,7 +813,6 @@ module mod_bonded
     
     subroutine opb_geomgrad(bds, grad)
         use mod_jacobian_mat, only: opb_angle_jacobian
-        use mod_constants, only : pi
 
         implicit none
 
@@ -1303,8 +1301,8 @@ module mod_bonded
         !! improper torsion potential, result will be added to V
         real(rp) :: thet, gt(3), dihef(3), da1, da2, angle1, angle2, &
                     Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
-                    Ja1_a(3), Ja1_b(3), Ja1_c(3), Ja1_d(3), &
-                    Ja2_a(3), Ja2_b(3), Ja2_c(3), Ja2_d(3)
+                    Ja1_a(3), Ja1_b(3), Ja1_c(3), &
+                    Ja2_a(3), Ja2_b(3), Ja2_c(3)
 
         integer(ip) :: i, j, k, ia1, ia2, &
                        it_a, it_b, it_c, it_d, &
@@ -1762,7 +1760,7 @@ module mod_bonded
         ! Bonded potential data structure
         real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
         !! improper torsion potential, result will be added to V
-        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy, nx, ny
+        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy
         real(rp), dimension(3) :: J1_a, J1_b, J2_b, J1_c, &
                                   J2_c, J1_d, J2_d, J2_e
 

@@ -48,7 +48,7 @@ module mod_prm
         !! name of the input PRM file
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: i, ist, nmultipole, ncharge, tokb, toke, ff_type
+        integer(ip) :: ist, nmultipole, ncharge, tokb, toke, ff_type
         character(len=OMMP_STR_CHAR_MAX) :: line, polarization
         
         ! open tinker prm file
@@ -1434,7 +1434,7 @@ module mod_prm
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-                                    t_n(:,:), tmpat(:,:), tmpprm(:), tmpf(:)
+                                    t_n(:,:), tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
         real(rp) :: amp, phase, imptorsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
@@ -1707,7 +1707,6 @@ module mod_prm
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
                                     tmpat(:,:), tmpprm(:)
         real(rp), allocatable :: kat(:,:)
-        real(rp) :: phase, torsion_unit = 1.0
         logical :: tor_done, bnd1_done, bnd2_done, bnd3_done
         type(ommp_topology_type), pointer :: top
 
