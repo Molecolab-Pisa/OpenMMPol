@@ -20,6 +20,21 @@ endif()
 
 include_directories(include) # Directory for .h files
 
+# Create the define version.h needed for tracking version
+# of the library.
+find_package(Git REQUIRED)
+execute_process(COMMAND ${GIT_EXECUTABLE} -C ${CMAKE_SOURCE_DIR} rev-parse OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE CMAKE_SOURCE_DIR_IS_GIT)
+
+if (CMAKE_SOURCE_DIR_IS_GIT EQUAL 0)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty --broken OUTPUT_VARIABLE OMMP_VERSION)
+    string(STRIP ${OMMP_VERSION} OMMP_VERSION)
+else()
+    set(OMMP_VERSION "unknown-nogit")
+    message(DEPRECATION "Your source folder is not a git repository, so an accurate tracking of version cannot be performed. Version name is \"${OMMP_VERSION}\". We strongly recommend to install OpenMMPol from a git repository to have a proper version identifier needed for reproducing results.")
+endif()
+
+file(WRITE include/version.h "#define OMMP_VERSION \"${OMMP_VERSION}\"")
+
 set(LIBRARY_SRC
     src/mod_adjacency_mat.f90
     src/mod_bonded.f90

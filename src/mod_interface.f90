@@ -36,7 +36,7 @@ module ommp_interface
                          ommp_update_coordinates => update_coordinates, &
                          ommp_print_summary_to_file => mmpol_ommp_print_summary
 
-    use mod_io, only: ommp_set_verbose => set_verbosity
+    use mod_io, only: ommp_set_verbose => set_verbosity, ommp_version
     
     use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
@@ -55,6 +55,7 @@ module ommp_interface
             type(ommp_system), pointer, intent(inout) :: s
             character(len=*) :: filename
 
+            call ommp_version(OMMP_VERBOSE_LOW)
             allocate(s)
             call mmpol_init_from_mmp(trim(filename), s)
         end subroutine
@@ -67,6 +68,7 @@ module ommp_interface
             type(ommp_system), pointer, intent(inout) :: s
             character(len=*) :: xyzfile, prmfile
 
+            call ommp_version(OMMP_VERBOSE_LOW)
             allocate(s)
             call mmpol_init_from_xyz(s, trim(xyzfile), trim(prmfile))
         end subroutine
@@ -687,6 +689,7 @@ module ommp_interface
             character(len=*) :: filename, namespace
             integer(ommp_integer) :: ok
 
+            call ommp_version(OMMP_VERBOSE_LOW)
             allocate(s)
             call mmpol_init_from_hdf5(filename, namespace, s, ok)
             

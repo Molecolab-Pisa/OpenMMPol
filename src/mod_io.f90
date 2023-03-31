@@ -1,3 +1,5 @@
+#include "version.h"
+
 module mod_io
     !! Unified Input/Output handling across the code.
     
@@ -15,7 +17,7 @@ module mod_io
     !! 3 (debug printing)
     
     public :: iof_memory, iof_mmpol, iof_mmpinp
-    public :: set_verbosity, ommp_message, fatal_error
+    public :: set_verbosity, ommp_message, fatal_error, ommp_version
     public :: print_header
     public :: print_matrix, print_int_vec
 
@@ -68,8 +70,8 @@ module mod_io
 
         integer(ip) :: outunit
         character(len=12) :: pre
-
-        if(level >= verbose) return
+        
+        if(level > verbose) return
 
         if(present(u)) then
             outunit = u
@@ -90,7 +92,7 @@ module mod_io
             end select
         end if
 
-        write(outunit, '(A12, " ", A)') pre, trim(s)
+        write(outunit, '(A6, A12, " ", A)') '[OMMP]', pre, trim(s)
     end subroutine ommp_message
     
     subroutine fatal_error(message)
@@ -114,29 +116,12 @@ module mod_io
         stop
     end subroutine fatal_error
 
-    subroutine print_header()
-        !! Print the header of OpenMMPol library
-        implicit none
-      
-        9000 format(t3,' .d88888b.                             888b     d888 888b     d888 8888888b.          888 ',/,&
-                    t3,'d88P" "Y88b                            8888b   d8888 8888b   d8888 888   Y88b         888 ',/,&
-                    t3,'888     888                            88888b.d88888 88888b.d88888 888    888         888 ',/,&
-                    t3,'888     888 88888b.   .d88b.  88888b.  888Y88888P888 888Y88888P888 888   d88P .d88b.  888 ',/,&
-                    t3,'888     888 888 "88b d8P  Y8b 888 "88b 888 Y888P 888 888 Y888P 888 8888888P" d88""88b 888 ',/,&
-                    t3,'888     888 888  888 88888888 888  888 888  Y8P  888 888  Y8P  888 888       888  888 888 ',/,&
-                    t3,'Y88b. .d88P 888 d88P Y8b.     888  888 888   "   888 888   "   888 888       Y88..88P 888 ',/,&
-                    t3,' "Y88888P"  88888P"   "Y8888  888  888 888       888 888       888 888        "Y88P"  888 ',/,&
-                    t3,'            888                                                                           ',/,&
-                    t3,'            888                                                                           ',/,&
-                    t3,'            888                                                                           ')
-        9100 format(t3,'an open-source implementation of MMPol and AMOEBA embedding for polarizable QM/MM',/, &
-                    t5,'by Vladislav Slama, Lorenzo Cupellini, Benedetta Mennucci, Filippo Lipparini',/, &
-                    t5,'MoLECoLab Pisa')
+    subroutine ommp_version(v)
+        integer(ip), intent(in) :: v
 
-        write(iof_mmpol,9000)
-        write(iof_mmpol,9100)
-        write(iof_mmpol,*)
-    end subroutine print_header
+        call ommp_message("OpenMMPol version: "//OMMP_VERSION, &
+                          v, "version")
+    end subroutine
 
     subroutine d1_print_matrix(trans, label, matrix, ofunit)
         !! Output a 1D-matrix of real in a well formatted way
