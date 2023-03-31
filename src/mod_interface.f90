@@ -659,6 +659,7 @@ module ommp_interface
         subroutine ommp_full_geomgrad(s, grd)
             use mod_memory, only: mallocate
             use mod_nonbonded, only: vdw_geomgrad
+            use mod_geomgrad, only: polelec_geomgrad, fixedelec_geomgrad
 
             implicit none
             type(ommp_system), intent(inout), target :: s
@@ -666,8 +667,8 @@ module ommp_interface
 
             grd = 0.0
             call ommp_full_bnd_geomgrad(s, grd)
-            call ommp_fixedelec_geomgrad(s, grd)
-            call ommp_polelec_geomgrad(s, grd)
+            call fixedelec_geomgrad(s, grd)
+            call polelec_geomgrad(s, grd)
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
 
         end subroutine
