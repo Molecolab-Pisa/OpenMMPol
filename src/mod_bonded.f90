@@ -1785,18 +1785,13 @@ module mod_bonded
             id = bds%tortorat(4,i)
             ie = bds%tortorat(5,i)
 
-            write(*,*) "MB23", ia, ib, ic, id, ie
-            
             call torsion_angle_jacobian(bds%top%cmm(:,ia), &
                                         bds%top%cmm(:,ib), &
                                         bds%top%cmm(:,ic), &
                                         bds%top%cmm(:,id), &
                                         thetx, &
                                         J1_a, J1_b, J1_c, J1_d)
-            write(*,*) "thetx 1", thetx
             thetx = ang_torsion(bds%top, bds%tortorat(1:4,i))
-            write(*,*) "thetx 2", thetx
-            
             
             call torsion_angle_jacobian(bds%top%cmm(:,ib), &
                                         bds%top%cmm(:,ic), &
@@ -1804,55 +1799,7 @@ module mod_bonded
                                         bds%top%cmm(:,ie), &
                                         thety, &
                                         J2_b, J2_c, J2_d, J2_e)
-            write(*,*) "thety 1", thety
             thety = ang_torsion(bds%top, bds%tortorat(2:5,i))
-            write(*,*) "thety 2", thety
-           
-            call compute_bicubic_interp(thetx+1e-5, thety, vtt, &
-                                        dvttdx, dvttdy, &
-                                        bds%ttmap_shape(1,iprm), &
-                                        bds%ttmap_shape(2,iprm), &
-                                        bds%ttmap_ang1(ibeg:iend), &
-                                        bds%ttmap_ang2(ibeg:iend), &
-                                        bds%ttmap_v(ibeg:iend), &
-                                        bds%ttmap_vx(ibeg:iend), &
-                                        bds%ttmap_vy(ibeg:iend), &
-                                        bds%ttmap_vxy(ibeg:iend))
-            nx = vtt
-            call compute_bicubic_interp(thetx-1e-5, thety, vtt, &
-                                        dvttdx, dvttdy, &
-                                        bds%ttmap_shape(1,iprm), &
-                                        bds%ttmap_shape(2,iprm), &
-                                        bds%ttmap_ang1(ibeg:iend), &
-                                        bds%ttmap_ang2(ibeg:iend), &
-                                        bds%ttmap_v(ibeg:iend), &
-                                        bds%ttmap_vx(ibeg:iend), &
-                                        bds%ttmap_vy(ibeg:iend), &
-                                        bds%ttmap_vxy(ibeg:iend))
-            nx = (nx-vtt)/2e-5
-            call compute_bicubic_interp(thetx, thety+1e-5, vtt, &
-                                        dvttdx, dvttdy, &
-                                        bds%ttmap_shape(1,iprm), &
-                                        bds%ttmap_shape(2,iprm), &
-                                        bds%ttmap_ang1(ibeg:iend), &
-                                        bds%ttmap_ang2(ibeg:iend), &
-                                        bds%ttmap_v(ibeg:iend), &
-                                        bds%ttmap_vx(ibeg:iend), &
-                                        bds%ttmap_vy(ibeg:iend), &
-                                        bds%ttmap_vxy(ibeg:iend))
-            ny = vtt
-            call compute_bicubic_interp(thetx, thety-1e-5, vtt, &
-                                        dvttdx, dvttdy, &
-                                        bds%ttmap_shape(1,iprm), &
-                                        bds%ttmap_shape(2,iprm), &
-                                        bds%ttmap_ang1(ibeg:iend), &
-                                        bds%ttmap_ang2(ibeg:iend), &
-                                        bds%ttmap_v(ibeg:iend), &
-                                        bds%ttmap_vx(ibeg:iend), &
-                                        bds%ttmap_vy(ibeg:iend), &
-                                        bds%ttmap_vxy(ibeg:iend))
-            ny = (ny-vtt)/2e-5
-            write(*,*) "N", nx, ny
 
             call compute_bicubic_interp(thetx, thety, vtt, &
                                         dvttdx, dvttdy, &
@@ -1864,8 +1811,6 @@ module mod_bonded
                                         bds%ttmap_vx(ibeg:iend), &
                                         bds%ttmap_vy(ibeg:iend), &
                                         bds%ttmap_vxy(ibeg:iend))
-
-            write(*,*) "A", dvttdx, dvttdy
 
             grad(:,ia) = grad(:,ia) + J1_a * dvttdx
             grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
