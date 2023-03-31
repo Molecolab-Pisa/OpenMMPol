@@ -22,7 +22,8 @@ RUN zypper --non-interactive in gcc \
                                 tar \
                                 valgrind \
                                 wget \
-                                zlib-devel
+                                zlib-devel \
+                                git
 RUN pip install -Iv ford==6.1.11
 RUN zypper --non-interactive in lcov
 RUN pip install lcov_cobertura
