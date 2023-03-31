@@ -1348,12 +1348,12 @@ add_test(NAME NMA_geomgrad_full_AMOEBA_comp_ebt
          Testing/output 
          EBT
          ${RTOL} ${ATOL})
-#add_test(NAME NMA_geomgrad_full_AMOEBA_comp_etot
-#         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
-#         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
-#         Testing/output 
-#         ETOT
-#         ${RTOL} ${ATOL})
+add_test(NAME NMA_geomgrad_full_AMOEBA_comp_etot
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref
+         Testing/output 
+         ETOT
+         ${RTOL} ${ATOL})
  
 add_test(NAME 1crn_geomgrad_full_AMOEBA
          COMMAND  bin/${TESTLANG}_test_geomgrad_xyz
@@ -1438,12 +1438,12 @@ add_test(NAME 1crn_geomgrad_full_AMOEBA_comp_ebt
          Testing/output 
          EBT
          ${RTOL} ${ATOL})
-#add_test(NAME 1crn_geomgrad_full_AMOEBA_comp_etot
-#         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
-#         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#         Testing/output 
-#         ETOT
-#         ${RTOL} ${ATOL})
+add_test(NAME 1crn_geomgrad_full_AMOEBA_comp_etot
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+         Testing/output 
+         ETOT
+         ${RTOL} ${ATOL})
  
 add_test(NAME 1ubq_geomgrad_full_AMOEBA
          COMMAND  bin/${TESTLANG}_test_geomgrad_xyz
@@ -1528,12 +1528,12 @@ add_test(NAME 1ubq_geomgrad_full_AMOEBA_comp_ebt
          Testing/output 
          EBT
          ${RTOL} ${ATOL})
-#add_test(NAME 1ubq_geomgrad_full_AMOEBA_comp_etot
-#         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
-#         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
-#         Testing/output 
-#         ETOT
-#         ${RTOL} ${ATOL})
+add_test(NAME 1ubq_geomgrad_full_AMOEBA_comp_etot
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+         Testing/output 
+         ETOT
+         ${RTOL} ${ATOL})
  
 add_test(NAME 2d94_geomgrad_full_AMOEBA
          COMMAND  bin/${TESTLANG}_test_geomgrad_xyz
@@ -1618,9 +1618,9 @@ add_test(NAME 2d94_geomgrad_full_AMOEBA_comp_ebt
          Testing/output 
          EBT
          ${RTOL} ${ATOL})
-#add_test(NAME 2d94_geomgrad_full_AMOEBA_comp_etot
-#         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
-#         ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref
-#         Testing/output 
-#         ETOT
-#         ${RTOL} ${ATOL})
+add_test(NAME 2d94_geomgrad_full_AMOEBA_comp_etot
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref
+         Testing/output 
+         ETOT
+         ${RTOL} ${ATOL})
