@@ -183,6 +183,10 @@ program test_geomgrad_xyz_num
     grd_f => ommp_bond_geomgrad
     rc = rc + num_ana_compare(my_system, ene_f, grd_f, fp, "bond", 1e-7_ommp_real)
     
+    ene_f => ommp_get_torsion_energy
+    grd_f => ommp_torsion_geomgrad
+    rc = rc + num_ana_compare(my_system, ene_f, grd_f, fp, "torsion", 1e-7_ommp_real)
+    
     ene_f => ommp_get_angle_energy
     grd_f => ommp_angle_geomgrad
     rc = rc + num_ana_compare(my_system, ene_f, grd_f, fp, "angle", 1e-7_ommp_real)

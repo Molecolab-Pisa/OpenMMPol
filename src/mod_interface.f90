@@ -20,7 +20,8 @@ module ommp_interface
                              OMMP_MATV_DEFAULT, &
                              OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
-                             OMMP_AU2KCALMOL => au2kcalmol
+                             OMMP_AU2KCALMOL => au2kcalmol, &
+                             OMMP_ANG2AU => angstrom2au
     
     ! Internal types
     use mod_memory, only: ommp_integer => ip, &

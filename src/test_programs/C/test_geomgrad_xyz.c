@@ -5,42 +5,7 @@
 
 #include "openmmpol.h"
 
-int countLines(char *fin){
-    FILE *fp = fopen(fin, "r");
-    
-    char c;
-    int lines = 1;
-
-    if(fp == NULL) return 0;
-
-    do{
-        c = fgetc(fp);
-        if(c == '\n') lines++;
-    }while(c != EOF);
-
-    fclose(fp);
-  
-    return lines - 1;
-}
-
-double **read_ef(char *fin){
-    double **ef;
-    
-    int pol_atoms = countLines(fin);
-
-    ef = (double **) malloc(sizeof(double *) * 3 * pol_atoms);
-
-    FILE *fp = fopen(fin, "r");
-    for(int i =0; i < pol_atoms; i++){
-        ef[i] = (double *) malloc(sizeof(double) * 3);
-        fscanf(fp, "%lf %lf %lf", &(ef[i][0]), &(ef[i][1]),  &(ef[i][2]));
-    }
-    fclose(fp);
-
-    return ef;
-}
-
-int ana_grd_print(OMMP_SYSTEM_PRT sys,
+void ana_grd_print(OMMP_SYSTEM_PRT sys,
                   void (*grad_f)(OMMP_SYSTEM_PRT, double *), 
                   FILE *fp, const char *name){
     
@@ -61,7 +26,7 @@ int ana_grd_print(OMMP_SYSTEM_PRT sys,
     
     for(int i = 0; i < mm_atoms; i++){
         for(int j=0; j < 3; j++){
-            fprintf(fp, "%+12.8g ", grad_ana[i][j]*AU2KCALMOL*ANG2AU);
+            fprintf(fp, "%+20.8g ", grad_ana[i][j]*AU2KCALMOL*ANG2AU);
         }
         fprintf(fp, "\n");
     }
@@ -84,9 +49,6 @@ int main(int argc, char **argv){
     pol_atoms = ommp_get_pol_atoms(my_system);
     mm_atoms = ommp_get_mm_atoms(my_system);
     
-    //electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
-    //polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
-
     _grad_num = (double *) malloc(sizeof(double) * 3 * mm_atoms);
     grad_num = (double **) malloc(sizeof(double *) * mm_atoms);
     _grad_ana = (double *) malloc(sizeof(double) * 3 * mm_atoms);
@@ -100,7 +62,7 @@ int main(int argc, char **argv){
    
     FILE *fp = fopen(argv[3], "w+");
    
-    //ana_grd_print(my_system, ommp_full_geomgrad, fp, "ETOT");
+    ana_grd_print(my_system, ommp_full_geomgrad, fp, "ETOT");
     
     ana_grd_print(my_system, ommp_vdw_geomgrad, fp, "EV");
     ana_grd_print(my_system, ommp_fixedelec_geomgrad, fp, "EM");
