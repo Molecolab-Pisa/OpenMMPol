@@ -1,5 +1,5 @@
 FROM opensuse/leap:latest
-LABEL version="1.5.2"
+LABEL version="1.5.3"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive install \
                                 cmake \
@@ -9,6 +9,7 @@ RUN zypper --non-interactive install \
                                 gcc-fortran \
                                 gcovr \
                                 git \
+                                gzip \
                                 hdf5 \
                                 hdf5-devel \
                                 lapack-devel \
