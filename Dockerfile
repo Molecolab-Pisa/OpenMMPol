@@ -1,5 +1,5 @@
 FROM opensuse/leap:latest
-LABEL version="1.5.4"
+LABEL version="1.5.3"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive install \
                                 cmake \
@@ -12,6 +12,8 @@ RUN zypper --non-interactive install \
                                 gzip \
                                 hdf5 \
                                 hdf5-devel \
+                                kernel-devel \
+                                kmod \
                                 lapack-devel \
                                 lcov \
                                 liblapack3 \
@@ -36,7 +38,7 @@ RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
 RUN curl https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB > intel.key
 RUN rpm --import intel.key
 RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
-                                                            intel-hpckit
+                                                            intel-hpckit \
 #RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; \
 #    tar xvf hdf5-1_12_2.tar.gz; \
 #    rm hdf5-1_12_2.tar.gz; \
