@@ -1,5 +1,5 @@
 FROM opensuse/leap:latest
-LABEL version="1.5"
+LABEL version="1.5.1"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive in gcc \
                                 gcc-c++ \ 
@@ -22,8 +22,7 @@ RUN zypper --non-interactive in gcc \
                                 tar \
                                 valgrind \
                                 wget \
-                                zlib-devel \
-                                git
+                                zlib-devel
 RUN pip install -Iv ford==6.1.11
 RUN zypper --non-interactive in lcov
 RUN pip install lcov_cobertura
@@ -42,6 +41,7 @@ RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; 
     CC=icx CXX=icpx FC=ifort ./configure --prefix /opt/intel/hdf5-1.12.2 --enable-fortran --enable-build-mode=production --enable-shared; \
     make; make install; \
     cd -; rm -rf hdf5-1_12_2.tar.gz;
+RUN zypper --non-interactive install git
 # NVCompilers suite
 #RUN zypper --non-interactive addrepo https://developer.download.nvidia.com/hpc-sdk/sles/nvhpc.repo
 #RUN zypper --non-interactive --gpg-auto-import-keys --no-gpg-checks install nvhpc
