@@ -1,20 +1,19 @@
 FROM opensuse/leap:latest
-LABEL version="1.5.2_a1"
+LABEL version="1.5.2_a2"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive install \
                                 cmake \
                                 curl \
                                 gcc \
-                                gcc-c++ \ 
-                                gcc-fortran \ 
+                                gcc-c++ \
+                                gcc-fortran \
                                 gcovr \
                                 git \
                                 hdf5 \
                                 hdf5-devel \
                                 lapack-devel \
                                 lcov \
-                                lcov_cobertura \
-                                liblapack3 \ 
+                                liblapack3 \
                                 make \
                                 python-pybind11-common-devel \
                                 python3-numpy \
@@ -26,6 +25,8 @@ RUN zypper --non-interactive install \
                                 valgrind \
                                 wget \
                                 zlib-devel
+# lcov_cobertura needed to convert lcov output to cobertura format (needed by gitlab)
+#RUN pip install lcov_cobertura
 # Installation of Ford (needed for documentation)
 #RUN pip install -Iv ford==6.1.11
 #RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py
