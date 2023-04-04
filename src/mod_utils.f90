@@ -205,7 +205,7 @@ module mod_utils
         !! version of the code.   
         !! @warning This function should not be used in efficiency-critical
         !! part of the code!
-        use mod_memory, only: mallocate, mfree
+        use mod_memory, only: mallocate
 
         implicit none
 
@@ -228,12 +228,13 @@ module mod_utils
         end do
 
         deallocate(mask)
-        call mfree('sort_ivec', ov)
 
     end subroutine sort_ivec
     
     subroutine sort_ivec_inplace(iv)
         !! Inplace equivalent of [[sort_ivec]] routine.
+
+        use mod_memory, only: mfree
 
         implicit none
 
@@ -243,6 +244,7 @@ module mod_utils
 
         call sort_ivec(iv, ov)
         iv = ov
+        call mfree('sort_ivec_inplace', ov)
 
     end subroutine sort_ivec_inplace
 
