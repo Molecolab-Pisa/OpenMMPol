@@ -228,6 +228,7 @@ module mod_utils
         end do
 
         deallocate(mask)
+        call mfree('sort_ivec', ov)
 
     end subroutine sort_ivec
     
