@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.17)
-project(Open-MMPol)
+project(openMMPol)
 enable_language(Fortran)
 enable_testing()
 
@@ -26,14 +26,28 @@ find_package(Git REQUIRED)
 execute_process(COMMAND ${GIT_EXECUTABLE} -C ${CMAKE_SOURCE_DIR} rev-parse OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE CMAKE_SOURCE_DIR_IS_GIT)
 
 if (CMAKE_SOURCE_DIR_IS_GIT EQUAL 0)
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty --broken OUTPUT_VARIABLE OMMP_VERSION)
+    message(NOTICE "Version read from git repository information.")
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty --broken 
+                    COMMAND sed "s/\\([^-]*-g\\)/r\\1/;s/-/./g"
+                    OUTPUT_VARIABLE OMMP_VERSION)
     string(STRIP ${OMMP_VERSION} OMMP_VERSION)
 else()
-    set(OMMP_VERSION "unknown-nogit")
-    message(DEPRECATION "Your source folder is not a git repository, so an accurate tracking of version cannot be performed. Version name is \"${OMMP_VERSION}\". We strongly recommend to install OpenMMPol from a git repository to have a proper version identifier needed for reproducing results.")
+    if(NOT EXISTS ${CMAKE_SOURCE_DIR}/include/version.h)
+        set(OMMP_VERSION "unknown-nogit")
+        message(DEPRECATION "Your source folder is not a git repository, so an accurate tracking of version cannot be performed. Version name is \"${OMMP_VERSION}\". We strongly recommend to install OpenMMPol from a git repository to have a proper version identifier needed for reproducing results.")
+    else()
+        message(NOTICE "Version read from ${CMAKE_SOURCE_DIR}/include/version.h")
+        execute_process(COMMAND echo \#include \"version.h\"\n_OMMP_VERSION
+                        COMMAND ${CMAKE_C_COMPILER} -E -P -I${CMAKE_SOURCE_DIR}/include -
+                        COMMAND tr -d \"
+                        OUTPUT_VARIABLE OMMP_VERSION)
+    endif()
 endif()
 
-file(WRITE include/version.h "#define _OMMP_VERSION \"${OMMP_VERSION}\"")
+file(WRITE ${CMAKE_BINARY_DIR}/include/version.h "#define _OMMP_VERSION \"${OMMP_VERSION}\"")
+configure_file(${CMAKE_SOURCE_DIR}/include/_openmmpol.h ${CMAKE_BINARY_DIR}/include/openmmpol.h)
+include_directories(${CMAKE_BINARY_DIR}/include) # Directory for .h files
+message(NOTICE "Version string ${OMMP_VERSION}")
 
 set(LIBRARY_SRC
     src/mod_adjacency_mat.f90
@@ -201,5 +215,21 @@ if (PYTHON)
     set_target_properties(pyopenmmpol PROPERTIES OUTPUT_NAME pyopenmmpol)
 endif()
 
+include(GNUInstallDirs)
+install(TARGETS openmmpol ${UTILITY_EXE}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/openMMPol-${OMMP_VERSION})
+install(TARGETS ${UTILITY_EXE})
+install(FILES ${CMAKE_BINARY_DIR}/include/openmmpol.h ${CMAKE_BINARY_DIR}/mod/ommp_interface.mod
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openMMPol-${OMMP_VERSION})
+
+configure_file(${CMAKE_SOURCE_DIR}/cmake/openmmpol-config.cmake.in 
+               ${CMAKE_BINARY_DIR}/cmake/openmmpol-config.cmake @ONLY)
+configure_file(${CMAKE_SOURCE_DIR}/cmake/openmmpol-config-version.cmake.in 
+               ${CMAKE_BINARY_DIR}/cmake/openmmpol-config-version.cmake @ONLY)
+
+install(FILES ${CMAKE_BINARY_DIR}/cmake/openmmpol-config.cmake
+              ${CMAKE_BINARY_DIR}/cmake/openmmpol-config-version.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION})
 # Tests
 include(tests/CMakeLists.txt)
