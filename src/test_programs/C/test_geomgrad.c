@@ -16,7 +16,6 @@ int main(int argc, char **argv){
     double **grad_ana, *_grad_ana;
 
     OMMP_SYSTEM_PRT my_system = ommp_init_mmp(argv[1]);
-    ommp_set_verbose(OMMP_VERBOSE_NONE);
     
     pol_atoms = ommp_get_pol_atoms(my_system);
     mm_atoms = ommp_get_mm_atoms(my_system);

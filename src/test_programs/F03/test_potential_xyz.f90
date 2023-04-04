@@ -20,7 +20,6 @@ program test_potential_xyz
         call get_command_argument(2, args(2))
         call get_command_argument(3, args(3))
        
-        call ommp_set_verbose(OMMP_VERBOSE_DEBUG)
         call ommp_init_xyz(my_system, trim(args(1)), trim(args(2)))
         
         allocate(ef(3, my_system%eel%pol_atoms))

@@ -45,7 +45,6 @@ int main(int argc, char **argv){
     double delta, Mdelta;
 
     OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
-    ommp_set_verbose(OMMP_VERBOSE_NONE);
     pol_atoms = ommp_get_pol_atoms(my_system);
     mm_atoms = ommp_get_mm_atoms(my_system);
     

@@ -52,7 +52,6 @@ int main(int argc, char **argv){
     
     double *electric_field;
 
-    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
     OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
     
     pol_atoms = ommp_get_pol_atoms(my_system);

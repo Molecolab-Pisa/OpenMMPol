@@ -21,7 +21,6 @@ program test_geomgrad
         call get_command_argument(i, argv(i))
     end do
 
-    call ommp_set_verbose(OMMP_VERBOSE_LOW)
     call ommp_init_mmp(my_system, argv(1))
     mm_atoms = my_system%top%mm_atoms
 

@@ -21,7 +21,6 @@ program test_ipd
         call get_command_argument(i, argv(i))
     end do
 
-    call ommp_set_verbose(OMMP_VERBOSE_DEBUG)
     call ommp_init_mmp(my_system, argv(1))
 
     select case(argv(3))

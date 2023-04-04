@@ -4,6 +4,10 @@ module mod_io
     !! Unified Input/Output handling across the code.
     
     use mod_memory, only: ip, rp
+    use mod_constants, only: OMMP_VERBOSE_DEBUG, &
+                             OMMP_VERBOSE_HIGH, &
+                             OMMP_VERBOSE_LOW, &
+                             OMMP_VERBOSE_NONE
 
     implicit none
     private
@@ -12,7 +16,7 @@ module mod_io
     integer, parameter :: iof_mmpol = 6
     integer, parameter :: iof_mmpinp = 100
     
-    integer(ip), protected :: verbose = 0_ip
+    integer(ip), protected :: verbose = OMMP_VERBOSE_LOW
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
     
@@ -51,9 +55,6 @@ module mod_io
         !! @note All the output messages should pass for this function, if it
         !! is necessary, first use write to format the message on a string and 
         !! then pass the string to [[ommp_message]]
-        use mod_constants, only: OMMP_VERBOSE_DEBUG, &
-                                 OMMP_VERBOSE_HIGH, &
-                                 OMMP_VERBOSE_LOW
 
         implicit none
 
@@ -99,7 +100,6 @@ module mod_io
         !! function should be used in all the conditions 
         !! where the program cannot proceed.
 
-        use mod_constants, only: OMMP_VERBOSE_LOW
         implicit none
       
         character (len=*), intent(in) :: message

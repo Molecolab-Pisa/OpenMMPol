@@ -19,7 +19,6 @@ program test_potential_hdf5
         call get_command_argument(1, args(1))
         call get_command_argument(2, args(2))
        
-        call ommp_set_verbose(OMMP_VERBOSE_DEBUG)
         call ommp_init_hdf5(my_system, trim(args(1)), "system")
         
         allocate(ef(3, my_system%eel%pol_atoms))

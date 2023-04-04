@@ -139,7 +139,6 @@ program test_geomgrad_xyz_num
         call get_command_argument(i, argv(i))
     end do
 
-    call ommp_set_verbose(OMMP_VERBOSE_LOW)
     call ommp_init_xyz(my_system, argv(1), argv(2))
 
     allocate(ef(3, my_system%top%mm_atoms))

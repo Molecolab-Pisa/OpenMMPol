@@ -17,7 +17,6 @@ program test_init
         if(narg == 3) &
             call get_command_argument(3, args(3))
        
-        call ommp_set_verbose(OMMP_VERBOSE_DEBUG)
         call ommp_init_xyz(my_system, trim(args(1)), trim(args(2)))
         if(narg == 3) then
              call ommp_print_summary_to_file(my_system, args(3))
