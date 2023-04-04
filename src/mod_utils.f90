@@ -205,7 +205,7 @@ module mod_utils
         !! version of the code.   
         !! @warning This function should not be used in efficiency-critical
         !! part of the code!
-        use mod_memory, only: mallocate
+        use mod_memory, only: mallocate, mfree
 
         implicit none
 
