@@ -693,6 +693,7 @@ void set_verbose(int32_t v){
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
     m.attr("available_solvers") = solvers;
+    m.attr("__version__") = OMMP_VERSION_STRING;
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
              "pyOpenMMPol creator, takes the path to a .mmp file as input.", 
