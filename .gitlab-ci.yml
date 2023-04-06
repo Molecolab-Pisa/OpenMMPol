@@ -71,6 +71,7 @@ cmake-config-nvidia:
             - build_nvidia
     only:
         - schedules
+        - pushes
 
 make-lib:
     stage: compile-lib
