@@ -200,6 +200,52 @@ module ommp_interface
             
             call potential_M2E(s%eel, cext, v)
         end subroutine
+        
+        subroutine ommp_field_mmpol2ext(s, n, cext, E)
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: field_D2E, field_M2E
+
+            implicit none
+            
+            integer(ommp_integer), intent(in), value :: n
+            type(ommp_system), intent(in), target :: s
+            real(ommp_real),  intent(in) :: cext(3,n)
+            real(ommp_real),  intent(out) :: E(3,n)
+           
+            call field_M2E(s%eel, cext, E)
+            call field_D2E(s%eel, cext, E)
+        end subroutine
+        
+        subroutine ommp_field_mm2ext(s, n, cext, E)
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: field_M2E
+
+            implicit none
+            
+            integer(ommp_integer), intent(in), value :: n
+            type(ommp_system), intent(in), target :: s
+            real(ommp_real),  intent(in) :: cext(3,n)
+            real(ommp_real),  intent(out) :: E(3,n)
+           
+            call field_M2E(s%eel, cext, E)
+        end subroutine
+
+        subroutine ommp_field_pol2ext(s, n, cext, E)
+            ! Compute the electric potential of static sites at
+            ! arbitrary coordinates
+            use mod_electrostatics, only: field_D2E
+
+            implicit none
+            
+            integer(ommp_integer), intent(in), value :: n
+            type(ommp_system), intent(in), target :: s
+            real(ommp_real),  intent(in) :: cext(3,n)
+            real(ommp_real),  intent(out) :: E(3,n)
+           
+            call field_D2E(s%eel, cext, E)
+        end subroutine
 
         function ommp_get_polelec_energy(sys_obj) result(ene)
             !! Solve the polarization equation for a certain external field

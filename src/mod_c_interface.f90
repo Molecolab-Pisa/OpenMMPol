@@ -946,8 +946,6 @@ module mod_ommp_C_interface
                 bind(c, name='ommp_field_mmpol2ext')
             ! Compute the electric potential of static sites at
             ! arbitrary coordinates
-            use mod_electrostatics, only: field_D2E, field_M2E
-
             implicit none
             
             integer(ommp_integer), intent(in), value :: n
@@ -958,8 +956,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call c_f_pointer(cext, fcext, [3,n])
             call c_f_pointer(E, fE, [3,n])
-            call field_M2E(s%eel, fcext, fE)
-            call field_D2E(s%eel, fcext, fE)
+            call ommp_field_mmpol2ext(s, n, fcext, fE)
         end subroutine
         
         subroutine C_ommp_field_mm2ext(s_prt, n, cext, E) &
