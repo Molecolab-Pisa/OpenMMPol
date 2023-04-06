@@ -736,7 +736,7 @@ class OMMPQmHelper{
             return;
         }
 
-        void set_vdw_parameters_from_prm(py_ciarray qm_attype, std::string prmfile){
+        void init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
 
             if(qm_attype.ndim() != 1 || 
                qm_attype.shape(0) != get_qm_atoms()){
@@ -746,7 +746,7 @@ class OMMPQmHelper{
             ommp_qm_helper_init_vdw_prm(handler, qm_attype.data(), prmfile.c_str());
         }
         
-        void set_vdw_parameters(py_cdarray eps, py_cdarray rad, py_cdarray fac,
+        void init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
                                 std::string vdw_type, std::string radius_rule,
                                 std::string radius_size, std::string radius_type,
                                 std::string eps_rule){
@@ -769,12 +769,12 @@ class OMMPQmHelper{
                                     radius_type.c_str(), eps_rule.c_str());
         }
 
-        double get_qmmm_vdw_energy(OMMPSystem& s){
+        double vdw_energy(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             return ommp_qm_helper_vdw_energy(handler, s_handler);
         }
         
-        std::map<std::string, py_cdarray> get_qmmm_vdw_geomgrad(OMMPSystem& s){
+        std::map<std::string, py_cdarray> vdw_geomgrad(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             double *mmg = new double[s.get_mm_atoms()*3];
             double *qmg = new double[get_qm_atoms()*3];
@@ -798,12 +798,12 @@ class OMMPQmHelper{
             return res;
         }
 
-        void prepare_energy(OMMPSystem& s){
+        void prepare_qm_ele_ene(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             ommp_prepare_qm_ele_ene(s_handler, handler);
         }
         
-        void prepare_geomgrad(OMMPSystem& s){
+        void prepare_qm_ele_grd(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
             ommp_prepare_qm_ele_grd(s_handler, handler);
         }
@@ -1088,13 +1088,13 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
              "OMMPQmHelper creator, takes the coordinates and nuclear charges of QM system as input.", 
              py::arg("coord_qm"), py::arg("charge_qm"), py::arg("z_qm"))
-        .def("set_vdw_parameters_from_prm",
-             &OMMPQmHelper::set_vdw_parameters_from_prm,
+        .def("init_vdw_prm",
+             &OMMPQmHelper::init_vdw_prm,
              "Set the VdW parameters for the QM atoms using a prm forcefield and atomtypes for QM atoms.",
              py::arg("qm_attype"), 
              py::arg("prmfile")) 
-        .def("set_vdw_parameters",
-             &OMMPQmHelper::set_vdw_parameters,
+        .def("init_vdw",
+             &OMMPQmHelper::init_vdw,
              "Set the VdW parameters for the QM atoms, this is needed in geometry optimization and MD to avoid clashes between QM and MM atoms",
              py::arg("eps"), 
              py::arg("rad"), 
@@ -1104,20 +1104,20 @@ PYBIND11_MODULE(pyopenmmpol, m){
              py::arg("radius_size")="diameter", 
              py::arg("radius_type")="r-min", 
              py::arg("eps_rule")="hhg")
-        .def("get_qmmm_vdw_geomgrad",
-             &OMMPQmHelper::get_qmmm_vdw_geomgrad,
+        .def("vdw_geomgrad",
+             &OMMPQmHelper::vdw_geomgrad,
              "Compute the geometrical gradients of VdW interaction between QM and MM parts of the system",
              py::arg("OMMP_system"))
-        .def("get_qmmm_vdw_energy",
-             &OMMPQmHelper::get_qmmm_vdw_energy,
+        .def("vdw_energy",
+             &OMMPQmHelper::vdw_energy,
              "Compute the VdW interaction energy between QM and MM parts of the system",
              py::arg("OMMP_system"))
-        .def("prepare_energy",
-             &OMMPQmHelper::prepare_energy, 
+        .def("prepare_qm_ele_ene",
+             &OMMPQmHelper::prepare_qm_ele_ene, 
              "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",
              py::arg("OMMP_system"))
-        .def("prepare_geomgrad",
-             &OMMPQmHelper::prepare_geomgrad, 
+        .def("prepare_qm_ele_grd",
+             &OMMPQmHelper::prepare_qm_ele_grd, 
              "Prepeare the quantities available in helper for a gradients SCF calculation (electric field gradients of nuclei at polarizable sites, electric field of MM system (polarizable and static) at nuclei, electric field, gradients and Hessian of nuclei at static sites) with the MM system passed as argument.",
              py::arg("OMMP_system"))
         .def_property_readonly("E_n2p", &OMMPQmHelper::get_E_n2p, "Electric field of nuclei at polarizable sites")
