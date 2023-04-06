@@ -27,7 +27,7 @@ execute_process(COMMAND ${GIT_EXECUTABLE} -C ${CMAKE_SOURCE_DIR} rev-parse OUTPU
 
 if (CMAKE_SOURCE_DIR_IS_GIT EQUAL 0)
     message(NOTICE "Version read from git repository information.")
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty
                     COMMAND sed "s/-/+r/;s/-/./g"
                     OUTPUT_VARIABLE OMMP_VERSION)
     string(STRIP ${OMMP_VERSION} OMMP_VERSION)
