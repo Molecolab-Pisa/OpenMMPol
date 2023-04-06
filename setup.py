@@ -66,29 +66,12 @@ def ommp_local_v(version):
     return lv
 
 setup(
-    name="pyopenmmpol",
-    description="Python interface of OpenMMPol library",
-    version="0.7",
-    author="Molecolab Group",
-    author_email="benedetta.mennucci@unipi.it",
-    license="LGPL v3",
-    url="https://github.com/Molecolab-Pisa/",
-    project_urls={
-        "Source": "https://github.com/Molecolab-Pisa/OpenMMPol",
-        "Issues": "https://github.com/Molecolab-Pisa/OpenMMPol/issues",
-    },
-    setup_requires=['setuptools_scm'],
     ext_modules=[CMakeExtension("pyopenmmpol")],
-    zip_safe=False,
-    platforms=["Linux"],
-    python_requires=">=3.6",
-    install_requires=["numpy >= 1.17", 
-                      "cmake >= 3.17"],
+    cmdclass={"build_ext": CMakeBuild},
     use_scm_version = {
         "root": "./",
         "relative_to": __file__,
         "version_scheme": ommp_v,
         "local_scheme": ommp_local_v,
     },
-    cmdclass={"build_ext": CMakeBuild},
 )

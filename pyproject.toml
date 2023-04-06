@@ -1,0 +1,27 @@
+[project]
+name = "pyopenmmpol"
+dynamic = ["version"]
+authors = [
+    {name = "Mattia Bondanza", email = "mattia.bondanza@unipi.it"},
+    {name = "Filippo Lipparini", email = "filippo.lipparini@unipi.it"},
+    {name = "Benedetta Mennucci", email = "benedetta.mennucci@unipi.it"},
+]
+description = "Python interface of OpenMMPol library"
+requires-python = ">=3.7"
+license = {text = "LGPL v3"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy >= 1.17"
+]
+[project.urls]
+"Homepage" = "https://github.com/Molecolab-Pisa/OpenMMPol"
+"Bug Tracker" = "https://github.com/Molecolab-Pisa/OpenMMPol/issues"
+
+[build-system]
+requires = ["setuptools", 
+            "setuptools-scm", 
+            "cmake >= 3.17"]
+build-backend = "setuptools.build_meta"
+
