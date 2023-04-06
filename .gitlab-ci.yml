@@ -50,6 +50,7 @@ cmake-config-intel:
             - build_intel
     only:
         - schedules
+        - pushes
 
 cmake-config-nvidia:
     stage: configure
