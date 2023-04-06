@@ -4,6 +4,7 @@ stages:
     - compile-lib
     - compile-bin
     - test
+    - packaging
     - documentation
     - coverage
 variables:
@@ -204,6 +205,19 @@ compile-FORTRAN-nvidia:
             - build_nvidia/bin
     only:
         - schedules
+
+build-python-pkg:
+    stage: packaging
+    image: python:latest
+    only: 
+        - pushes
+    script:
+        - pip install wheel twine
+        - python setup.py sdis bdist_wheel
+        - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+    artifacts:
+        paths:
+            - dist/*
 
 make-doc:
     stage: documentation
