@@ -50,7 +50,7 @@ class OMMPSystem{
             return;
         }
 
-        void save_mmp_file(std::string outfile, int version = 3){
+        void save_mmp(std::string outfile, int version = 3){
             ommp_save_mmp(handler, outfile.c_str(), version);
             return;
         }
@@ -159,7 +159,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        py_cdarray pol_potential_at_external(py_cdarray cext){
+        py_cdarray potential_pol2ext(py_cdarray cext){
             if(cext.ndim() != 2 || 
                cext.shape(1) != 3){
                 throw py::value_error("cext should be shaped [:, 3]");
@@ -178,7 +178,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray mm_potential_at_external(py_cdarray cext){
+        py_cdarray potential_mm2ext(py_cdarray cext){
             if(cext.ndim() != 2 || 
                cext.shape(1) != 3){
                 throw py::value_error("cext should be shaped [:, 3]");
@@ -197,7 +197,26 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray mmpol_field_at_external(py_cdarray cext){
+        py_cdarray potential_mmpol2ext(py_cdarray cext){
+            if(cext.ndim() != 2 || 
+               cext.shape(1) != 3){
+                throw py::value_error("cext should be shaped [:, 3]");
+            }
+            double *mem = new double[cext.shape(0)];
+            for(int i=0; i < cext.shape(0); i++)
+                mem[i] = 0.0;
+
+            ommp_potential_mmpol2ext(handler, cext.shape(0), cext.data(), mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {cext.shape(0)},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray field_mmpol2ext(py_cdarray cext){
             if(cext.ndim() != 2 || 
                cext.shape(1) != 3){
                 throw py::value_error("cext should be shaped [:, 3]");
@@ -218,7 +237,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray mm_field_at_external(py_cdarray cext){
+        py_cdarray field_mm2ext(py_cdarray cext){
             if(cext.ndim() != 2 || 
                cext.shape(1) != 3){
                 throw py::value_error("cext should be shaped [:, 3]");
@@ -239,7 +258,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray pol_field_at_external(py_cdarray cext){
+        py_cdarray field_pol2ext(py_cdarray cext){
             if(cext.ndim() != 2 || 
                cext.shape(1) != 3){
                 throw py::value_error("cext should be shaped [:, 3]");
@@ -313,7 +332,7 @@ class OMMPSystem{
             }
         }
 
-        py_cdarray get_full_grad(bool numerical=false){
+        py_cdarray full_geomgrad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
 
             if(!numerical)
@@ -327,7 +346,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        py_cdarray get_rotation_grad(py_cdarray E, py_cdarray Egrd){
+        py_cdarray rotation_geomgrad(py_cdarray E, py_cdarray Egrd){
             double *mem = new double[get_mm_atoms()*3];
             for(int i=0; i < get_mm_atoms()*3; i++)
                 mem[i] = 0.0;
@@ -342,7 +361,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray get_fixedelec_grad(bool numerical=false){
+        py_cdarray fixedelec_geomgrad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
             for(int i=0; i < get_mm_atoms()*3; i++)
                 mem[i] = 0.0;
@@ -360,7 +379,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        py_cdarray get_polelec_grad(bool numerical=false){
+        py_cdarray polelec_geomgrad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
             for(int i=0; i < get_mm_atoms()*3; i++)
                 mem[i] = 0.0;
@@ -378,7 +397,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
         
-        py_cdarray get_vdw_grad(bool numerical=false){
+        py_cdarray vdw_geomgrad(bool numerical=false){
             double *mem = new double[get_mm_atoms()*3];
             for(int i=0; i < get_mm_atoms()*3; i++)
                 mem[i] = 0.0;
@@ -387,6 +406,222 @@ class OMMPSystem{
                 numerical_grad(&OMMPSystem::get_vdw_energy, mem);
             else
                 ommp_vdw_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray bond_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_bond_energy, mem);
+            else
+                ommp_bond_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray angle_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_angle_energy, mem);
+            else
+                ommp_angle_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray strbnd_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_strbnd_energy, mem);
+            else
+                ommp_strbnd_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray urey_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_urey_energy, mem);
+            else
+                ommp_urey_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray torsion_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_torsion_energy, mem);
+            else
+                ommp_torsion_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray imptorsion_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_imptorsion_energy, mem);
+            else
+                ommp_imptorsion_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray angtor_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_angtor_energy, mem);
+            else
+                ommp_angtor_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray opb_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_opb_energy, mem);
+            else
+                ommp_opb_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray strtor_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_strtor_energy, mem);
+            else
+                ommp_strtor_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray tortor_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_tortor_energy, mem);
+            else
+                ommp_tortor_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray pitors_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_pitors_energy, mem);
+            else
+                ommp_pitors_geomgrad(handler, mem);
+            
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_mm_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray full_bnd_geomgrad(bool numerical=false){
+            double *mem = new double[get_mm_atoms()*3];
+            for(int i=0; i < get_mm_atoms()*3; i++)
+                mem[i] = 0.0;
+
+            if(numerical)
+                numerical_grad(&OMMPSystem::get_full_bnd_energy, mem);
+            else
+                ommp_full_bnd_geomgrad(handler, mem);
             
             py::buffer_info bufinfo(mem, sizeof(double),
                                     py::format_descriptor<double>::format(),
@@ -452,11 +687,11 @@ class OMMPSystem{
             return ommp_get_vdw_energy(handler);
         }
 
-        double get_full_electrostatic_energy(void){
+        double get_full_ele_energy(void){
             return ommp_get_full_ele_energy(handler);
         }
         
-        double get_full_bonded_energy(void){
+        double get_full_bnd_energy(void){
             return ommp_get_full_bnd_energy(handler);
         }
         
@@ -706,25 +941,33 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::print_summary, 
              "Output a summary of loaded quantites, if outfile is specified, it is printed on file.", 
              py::arg("outfile") = "")
-        .def("save_mmp_file", 
-             &OMMPSystem::save_mmp_file, 
+        .def("save_mmp", 
+             &OMMPSystem::save_mmp, 
              "Save the data of OMMPSystem into a .mmp file (note that some informations are dropped in the process).", 
              py::arg("outfile"), 
              py::arg("version") = 3)
-        .def("mm_potential_at_external",
-             &OMMPSystem::mm_potential_at_external,
+        .def("potential_mm2ext",
+             &OMMPSystem::potential_mm2ext,
              "Compute the electrostatic potential of the static part of the system to arbitrary coordinates.",
              py::arg("coord"))
-        .def("pol_field_at_external",
-             &OMMPSystem::pol_field_at_external,
+        .def("potential_pol2ext",
+             &OMMPSystem::potential_pol2ext,
              "Compute the electrostatic field of the polarizable part of the system to arbitrary coordinates.",
              py::arg("cext"))
-        .def("mm_field_at_external",
-             &OMMPSystem::mm_field_at_external,
+        .def("potential_mmpol2ext",
+             &OMMPSystem::potential_mmpol2ext,
+             "Compute the electrostatic field of the polarizable and static part of the system to arbitrary coordinates.",
+             py::arg("cext"))
+        .def("field_mm2ext",
+             &OMMPSystem::field_mm2ext,
              "Compute the electrostatic field of the static part of the system to arbitrary coordinates.",
              py::arg("cext"))
-        .def("mmpol_field_at_external",
-             &OMMPSystem::mmpol_field_at_external,
+        .def("field_pol2ext",
+             &OMMPSystem::field_pol2ext,
+             "Compute the electrostatic field of the polarizable part of the system to arbitrary coordinates.",
+             py::arg("cext"))
+        .def("field_mmpol2ext",
+             &OMMPSystem::field_mmpol2ext,
              "Compute the electrostatic field of the static and polarizable part of the system to arbitrary coordinates.",
              py::arg("cext"))
 
@@ -734,44 +977,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
              py::arg("external_field"),
              py::arg("nomm") = false,
              py::arg("solver") = "default")
-        .def("pol_potential_at_external",
-             &OMMPSystem::pol_potential_at_external,
-             "Get the potential generated by polariable electrostatics at external coordinates provided in input",
-             py::arg("c_ext"))
-        .def("mm_potential_at_external",
-             &OMMPSystem::mm_potential_at_external,
-             "Get the potential generated by fixed electrostatics at external coordinates provided in input",
-             py::arg("c_ext"))
-        .def("mmpol_potential_at_external",
-             &OMMPSystem::mm_potential_at_external,
-             "Get the potential generated by the full electrostatics at external coordinates provided in input",
-             py::arg("c_ext"))
-
         
-        .def("update_coordinates", 
-             &OMMPSystem::update_coordinates,
-             "Update system's coordinates.",
-             py::arg("coord"))
-        .def("do_full_grad",
-             &OMMPSystem::get_full_grad,
-             "Compute the geometrical gradients of all the active MM components of the energy.",
-             py::arg("numerical") = false)
-        .def("do_fixedelec_grad",
-             &OMMPSystem::get_fixedelec_grad,
-             "Compute the geometrical gradients of fixed electrostatic energy.",
-             py::arg("numerical") = false)
-        .def("do_polelec_grad",
-             &OMMPSystem::get_polelec_grad,
-             "Compute the geometrical gradients of polarizable electrostatic energy.",
-             py::arg("numerical") = false)
-        .def("do_rotation_grad",
-             &OMMPSystem::get_rotation_grad,
-             "Compute the geometrical gradients on MM atoms due to the rotation of multipoles in an external electric field.",
-             py::arg("electric_field"), py::arg("electric_field_gradients"))
-        .def("do_vdw_grad",
-             &OMMPSystem::get_vdw_grad,
-             "Compute the geometrical gradients of Van der Waal energy.",
-             py::arg("numerical") = false)
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")
         .def("get_torsion_energy", &OMMPSystem::get_torsion_energy, "Compute the energy of dihedral torsion")
@@ -783,13 +989,85 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def("get_strtor_energy", &OMMPSystem::get_strtor_energy, "Compute the energy of stretching torsion couplings")
         .def("get_angtor_energy", &OMMPSystem::get_angtor_energy, "Compute the energy of bending torsion couplings")
         .def("get_tortor_energy", &OMMPSystem::get_tortor_energy, "Compute the energy of torsion-torsion cmap")
-        .def("get_full_bonded_energy", &OMMPSystem::get_full_bonded_energy, "Compute the sum of all bonded components")
-        .def("get_full_electrostatic_energy", &OMMPSystem::get_full_electrostatic_energy, "Compute the sum of all electrostatic components")
+        .def("get_full_bnd_energy", &OMMPSystem::get_full_bnd_energy, "Compute the sum of all bonded components")
+        .def("get_full_ele_energy", &OMMPSystem::get_full_ele_energy, "Compute the sum of all electrostatic components")
         .def("get_full_energy", &OMMPSystem::get_full_energy, "Compute the sum of all energy components")
-        
         .def("get_vdw_energy", &OMMPSystem::get_vdw_energy, "Compute the energy of Van der Waals terms")
         .def("get_fixedelec_energy", &OMMPSystem::get_fixedelec_energy, "Compute the energy of fixed electrostatics")
         .def("get_polelec_energy", &OMMPSystem::get_polelec_energy, "Compute the energy of polarizable electrostatics")
+        
+        .def("update_coordinates", 
+             &OMMPSystem::update_coordinates,
+             "Update system's coordinates.",
+             py::arg("coord"))
+        .def("full_geomgrad",
+             &OMMPSystem::full_geomgrad,
+             "Compute the geometrical gradients of all the active MM components of the energy.",
+             py::arg("numerical") = false)
+        .def("fixedelec_geomgrad",
+             &OMMPSystem::fixedelec_geomgrad,
+             "Compute the geometrical gradients of fixed electrostatic energy.",
+             py::arg("numerical") = false)
+        .def("polelec_geomgrad",
+             &OMMPSystem::polelec_geomgrad,
+             "Compute the geometrical gradients of polarizable electrostatic energy.",
+             py::arg("numerical") = false)
+        .def("rotation_grad",
+             &OMMPSystem::rotation_geomgrad,
+             "Compute the geometrical gradients on MM atoms due to the rotation of multipoles in an external electric field.",
+             py::arg("electric_field"), py::arg("electric_field_gradients"))
+        .def("full_bnd_geomgrad",
+             &OMMPSystem::full_bnd_geomgrad,
+             "Compute the geometrical gradients of bonded energy.",
+             py::arg("numerical") = false)
+        .def("bond_geomgrad",
+             &OMMPSystem::bond_geomgrad,
+             "Compute the geometrical gradients of bond stretching energy.",
+             py::arg("numerical") = false)
+        .def("angle_geomgrad",
+             &OMMPSystem::angle_geomgrad,
+             "Compute the geometrical gradients of angle bending energy.",
+             py::arg("numerical") = false)
+        .def("angtor_geomgrad",
+             &OMMPSystem::angtor_geomgrad,
+             "Compute the geometrical gradients of bending-torsion coupling energy.",
+             py::arg("numerical") = false)
+        .def("strtor_geomgrad",
+             &OMMPSystem::strtor_geomgrad,
+             "Compute the geometrical gradients of stretching-torsion coupling energy.",
+             py::arg("numerical") = false)
+        .def("strbnd_geomgrad",
+             &OMMPSystem::strbnd_geomgrad,
+             "Compute the geometrical gradients of stretching-bending coupling energy.",
+             py::arg("numerical") = false)
+        .def("opb_geomgrad",
+             &OMMPSystem::opb_geomgrad,
+             "Compute the geometrical gradients of out-of-plane bending energy.",
+             py::arg("numerical") = false)
+        .def("pitors_geomgrad",
+             &OMMPSystem::pitors_geomgrad,
+             "Compute the geometrical gradients of pi-torsion energy.",
+             py::arg("numerical") = false)
+        .def("torsion_geomgrad",
+             &OMMPSystem::torsion_geomgrad,
+             "Compute the geometrical gradients of torsion energy.",
+             py::arg("numerical") = false)
+        .def("imptorsion_geomgrad",
+             &OMMPSystem::imptorsion_geomgrad,
+             "Compute the geometrical gradients of improper torsion energy.",
+             py::arg("numerical") = false)
+        .def("tortor_geomgrad",
+             &OMMPSystem::tortor_geomgrad,
+             "Compute the geometrical gradients of torsion-torsion coupling energy.",
+             py::arg("numerical") = false)
+        .def("urey_geomgrad",
+             &OMMPSystem::urey_geomgrad,
+             "Compute the geometrical gradients of Urey-Bradley energy.",
+             py::arg("numerical") = false)
+        .def("vdw_geomgrad",
+             &OMMPSystem::vdw_geomgrad,
+             "Compute the geometrical gradients of Van der Waal energy.",
+             py::arg("numerical") = false)
 
         .def_property_readonly("is_init", &OMMPSystem::is_init, "Flag to check system initialization.")
         .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms, "Number of polarizable atoms")
