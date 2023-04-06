@@ -66,6 +66,7 @@ def ommp_local_v(version):
     return lv
 
 setup(
+    name="pyopenmmpol",
     ext_modules=[CMakeExtension("pyopenmmpol")],
     cmdclass={"build_ext": CMakeBuild},
     use_scm_version = {

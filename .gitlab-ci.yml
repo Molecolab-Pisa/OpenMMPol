@@ -208,7 +208,7 @@ compile-FORTRAN-nvidia:
 
 build-python-pkg:
     stage: packaging
-    image: python:latest
+    image: $CI_REGISTRY_IMAGE:latest
     only: 
         - pushes
     script:
