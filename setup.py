@@ -49,6 +49,21 @@ class CMakeBuild(build_ext):
 if not os.path.isfile("src/pyommp_interface.cpp"):
     raise RuntimeError("Running setup.py is only supported "
                        "from top level of repository as './setup.py <command>'")
+def ommp_v(version):
+    return str(version.tag)
+
+def ommp_local_v(version):
+    if version.distance > 0 or version.dirty:
+        lv = '+'
+    else:
+        lv = ''
+    if version.distance > 0:
+        lv += "r{:d}.{:s}".format(version.distance, version.node)
+        if version.dirty:
+            lv += '.dirty'
+    elif version.dirty:
+         lv += 'dirty'
+    return lv
 
 setup(
     name="pyopenmmpol",
@@ -59,14 +74,21 @@ setup(
     license="LGPL v3",
     url="https://github.com/Molecolab-Pisa/",
     project_urls={
-        "Source": "https://github.com/Molecolab-Pisa/",
-        "Issues": "https://github.com/Molecolab-Pisa/",
+        "Source": "https://github.com/Molecolab-Pisa/OpenMMPol",
+        "Issues": "https://github.com/Molecolab-Pisa/OpenMMPol/issues",
     },
-    #
+    setup_requires=['setuptools_scm'],
     ext_modules=[CMakeExtension("pyopenmmpol")],
     zip_safe=False,
     platforms=["Linux"],
     python_requires=">=3.6",
-    install_requires=["numpy >= 1.17"],
+    install_requires=["numpy >= 1.17", 
+                      "cmake >= 3.17"],
+    use_scm_version = {
+        "root": "./",
+        "relative_to": __file__,
+        "version_scheme": ommp_v,
+        "local_scheme": ommp_local_v,
+    },
     cmdclass={"build_ext": CMakeBuild},
 )
