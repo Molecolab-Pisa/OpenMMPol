@@ -27,8 +27,8 @@ execute_process(COMMAND ${GIT_EXECUTABLE} -C ${CMAKE_SOURCE_DIR} rev-parse OUTPU
 
 if (CMAKE_SOURCE_DIR_IS_GIT EQUAL 0)
     message(NOTICE "Version read from git repository information.")
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty --broken 
-                    COMMAND sed "s/\\([^-]*-g\\)/r\\1/;s/-/./g"
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty
+                    COMMAND sed "s/-/+r/;s/-/./g"
                     OUTPUT_VARIABLE OMMP_VERSION)
     string(STRIP ${OMMP_VERSION} OMMP_VERSION)
 else()
@@ -208,7 +208,7 @@ if (PYTHON)
     endif()
 
     pybind11_add_module(pyopenmmpol MODULE src/pyommp_interface.cpp)
-    target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO="0.7")
+    target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO=${OMMP_VERSION})
     target_link_libraries(pyopenmmpol PRIVATE openmmpol_static)
 
     set_target_properties(pyopenmmpol PROPERTIES LIBRARY_OUTPUT_DIRECTORY  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
