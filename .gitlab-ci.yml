@@ -210,7 +210,7 @@ build-python-pkg:
     stage: packaging
     image: $CI_REGISTRY_IMAGE:latest
     only: 
-        - pushes
+        - tags
     script:
         - pip install wheel twine build
         - python3 -m build
