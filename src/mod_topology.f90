@@ -14,6 +14,12 @@ module mod_topology
         !! connectivity matrices listing atoms separetad by 1, 2, 3 
         !! (and 4 -- only for AMOEBA) bonds. 1st element is the adjacency 
         !! matrix.
+        logical :: use_frozen = .false.
+        !! Flag to use the frozen atom feature, if it is set to true frozen
+        !! array is read/used otherwise all atoms are active
+        logical, allocatable :: frozen(:)
+        !! For each atom, if set to true, it will contribute to the total
+        !! energy but its coordinates are locked to the initial value.
         integer(ip), allocatable :: atz(:)
         !! The atomic number for each atom of the system, when it is not 
         !! initialized, it contains only zeros.
@@ -56,7 +62,7 @@ module mod_topology
             ! Temporary allocation, it should be allocated of the proper
             ! size when all the connectivity matricies are built, now
             ! it should only contain adjacency matrix.
-            allocate(top_obj%conn(1)) 
+            allocate(top_obj%conn(1))
             
             call mallocate('topology_init [atz]', top_obj%mm_atoms, top_obj%atz)
             top_obj%atz = 0
@@ -164,6 +170,32 @@ module mod_topology
             call mfree('guess_connectivity [i12]', i12)
             call mfree('guess_connectivity [n12]', n12)
         end subroutine
+
+        subroutine set_frozen(top_obj, frozen_atoms)
+            !! Set the frozen atoms in the current topology, if the
+            !! the frozen atoms has already been set, it reinitialize
+            !! the whole list, without taking into account the content
+            !! of [[top_obj%frozen]]
+            use mod_io, only: fatal_error
+            implicit none
+
+            type(ommp_topology_type), intent(inout) :: top_obj
+            !! Topology object to use
+            integer(ip) :: frozen_atoms(:)
+            !! Indexes of atoms to be frozen
+
+            integer(ip) :: n, i
+
+            top_obj%use_frozen = .true.
+            if(.not. allocated(top_obj%frozen)) &
+                allocate(top_obj%frozen(top_obj%mm_atoms))
+
+            top_obj%frozen = .false.
+            n = size(frozen_atoms)
+            do i=1, n
+                top_obj%frozen(frozen_atoms(i)) = .true.
+            end do
+        end subroutine
         
         subroutine topology_terminate(top_obj)
             use mod_memory, only: mfree
@@ -178,6 +210,9 @@ module mod_topology
             call mfree('topology_terminate [atz]', top_obj%atz)
             call mfree('topology_terminate [atclass]', top_obj%atclass)
             call mfree('topology_terminate [attype]', top_obj%attype)
+            
+            if(allocated(top_obj%frozen)) &
+                deallocate(top_obj%frozen)
             
             if(allocated(top_obj%conn)) then
                 do i=1, size(top_obj%conn)
