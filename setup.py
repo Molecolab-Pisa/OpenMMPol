@@ -53,11 +53,11 @@ def ommp_v(version):
     return str(version.tag)
 
 def ommp_local_v(version):
-    if version.distance > 0 or version.dirty:
+    if (version.distance is not None and version.distance > 0) or version.dirty:
         lv = '+'
     else:
         lv = ''
-    if version.distance > 0:
+    if version.distance is not None and version.distance > 0:
         lv += "r{:d}.{:s}".format(version.distance, version.node)
         if version.dirty:
             lv += '.dirty'
