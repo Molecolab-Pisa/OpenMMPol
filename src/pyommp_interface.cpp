@@ -1012,7 +1012,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::polelec_geomgrad,
              "Compute the geometrical gradients of polarizable electrostatic energy.",
              py::arg("numerical") = false)
-        .def("rotation_grad",
+        .def("rotation_geomgrad",
              &OMMPSystem::rotation_geomgrad,
              "Compute the geometrical gradients on MM atoms due to the rotation of multipoles in an external electric field.",
              py::arg("electric_field"), py::arg("electric_field_gradients"))
