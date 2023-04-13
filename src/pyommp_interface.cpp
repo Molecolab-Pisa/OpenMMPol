@@ -55,6 +55,14 @@ class OMMPSystem{
             return;
         }
 
+        void set_frozen_atoms(py_ciarray frozen){
+            if(frozen.ndim() != 1){
+                throw py::value_error("frozen should be shaped [:]");
+            }
+
+            ommp_set_frozen_atoms(handler, frozen.shape(1), frozen.data());
+        }
+
         int get_n_ipd(){
             return ommp_get_n_ipd(handler);
         }
@@ -735,6 +743,14 @@ class OMMPQmHelper{
             handler = nullptr;
             return;
         }
+        
+        void set_frozen_atoms(py_ciarray frozen){
+            if(frozen.ndim() != 1){
+                throw py::value_error("frozen should be shaped [:]");
+            }
+
+            ommp_qm_helper_set_frozen_atoms(handler, frozen.shape(1), frozen.data());
+        }
 
         void init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
 
@@ -937,6 +953,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "pyOpenMMPol creator, takes the path to a Tinker .xyz and .prm files as input.", 
              py::arg("xyz_filename"), 
              py::arg("prm_filename"))
+        .def("set_frozen_atoms", 
+             &OMMPSystem::set_frozen_atoms, 
+             "Set the atoms of the system that should be frozen (1-based list) that is unable to move.", 
+             py::arg("frozen_list"))
         .def("print_summary", 
              &OMMPSystem::print_summary, 
              "Output a summary of loaded quantites, if outfile is specified, it is printed on file.", 
@@ -1093,6 +1113,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "Set the VdW parameters for the QM atoms using a prm forcefield and atomtypes for QM atoms.",
              py::arg("qm_attype"), 
              py::arg("prmfile")) 
+        .def("set_frozen_atoms", 
+             &OMMPQmHelper::set_frozen_atoms, 
+             "Set the atoms of the system that should be frozen (1-based list) that is unable to move.", 
+             py::arg("frozen_list"))
         .def("init_vdw",
              &OMMPQmHelper::init_vdw,
              "Set the VdW parameters for the QM atoms, this is needed in geometry optimization and MD to avoid clashes between QM and MM atoms",

@@ -40,6 +40,7 @@ extern "C" {
 extern OMMP_SYSTEM_PRT ommp_init_mmp(const char *);
 extern OMMP_SYSTEM_PRT ommp_init_xyz(const char *, const char *);
 extern void ommp_save_mmp(OMMP_SYSTEM_PRT, const char *, int32_t);
+extern void ommp_set_frozen_atoms(OMMP_SYSTEM_PRT, int32_t, const int32_t *);
 extern void ommp_terminate(OMMP_SYSTEM_PRT);
 #ifdef USE_HDF5
 extern void ommp_save_as_hdf5(OMMP_SYSTEM_PRT, const char *, const char *);
@@ -113,6 +114,7 @@ extern void ommp_pitors_geomgrad(OMMP_SYSTEM_PRT, double *);
 
 extern OMMP_QM_HELPER_PRT ommp_init_qm_helper(int32_t, const double *, const double *, const int32_t *);
 extern void ommp_terminate_qm_helper(OMMP_QM_HELPER_PRT);
+extern void ommp_qm_helper_set_frozen_atoms(OMMP_QM_HELPER_PRT, int32_t, const int32_t *);
 
 extern void ommp_prepare_qm_ele_ene(OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);
 extern void ommp_prepare_qm_ele_grd(OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);

@@ -76,14 +76,14 @@ module ommp_interface
             call mmpol_init_from_xyz(s, trim(xyzfile), trim(prmfile))
         end subroutine
 
-        subroutine ommp_set_frozen_atoms(s, frozen)
+        subroutine ommp_set_frozen_atoms(s, n, frozen)
             use mod_topology, only: set_frozen
 
             implicit none
 
             type(ommp_system), pointer, intent(inout) :: s
             !! OpenMMPol system
-            integer(ommp_integer), intent(in) :: frozen(:)
+            integer(ommp_integer), intent(in) :: n, frozen(n)
             !! Atoms to freeze
 
             call set_frozen(s%top, frozen)
@@ -802,14 +802,14 @@ module ommp_interface
         call qm_helper_init(s, n, cqm, qqm, zqm)
     end subroutine
 
-    subroutine ommp_qm_helper_set_frozen_atoms(s, frozen)
+    subroutine ommp_qm_helper_set_frozen_atoms(s, n, frozen)
         use mod_topology, only: set_frozen
 
         implicit none
 
         type(ommp_qm_helper), pointer, intent(inout) :: s
         !! OpenMMPol system
-        integer(ommp_integer), intent(in) :: frozen(:)
+        integer(ommp_integer), intent(in) :: n, frozen(n)
         !! Atoms to freeze
 
         call set_frozen(s%qm_top, frozen)

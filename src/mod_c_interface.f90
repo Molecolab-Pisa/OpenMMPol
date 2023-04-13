@@ -157,6 +157,19 @@ module mod_ommp_C_interface
             c_prt = c_loc(s)
         end function
         
+        subroutine C_ommp_set_frozen_atoms(s_prt, n, frozen) &
+                bind(c, name='ommp_set_frozen_atoms')
+            implicit none
+            type(c_ptr), value :: s_prt, frozen
+            integer(ommp_integer), value :: n
+            type(ommp_system), pointer :: s
+            integer(ommp_integer), pointer :: f(:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(frozen, f, [n])
+            call ommp_set_frozen_atoms(s, n, f)
+        end subroutine
+        
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
             !! Terminate a OMMP System Object
             implicit none
@@ -1016,6 +1029,19 @@ module mod_ommp_C_interface
             call ommp_init_qm_helper(s, n, fcqm, fqqm, fzqm)
             c_prt = c_loc(s)
         end function
+        
+        subroutine C_ommp_qm_helper_set_frozen_atoms(s_prt, n, frozen) &
+                bind(c, name='ommp_qm_helper_set_frozen_atoms')
+            implicit none
+            type(c_ptr), value :: s_prt, frozen
+            integer(ommp_integer), value :: n
+            type(ommp_qm_helper), pointer :: s
+            integer(ommp_integer), pointer :: f(:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(frozen, f, [n])
+            call ommp_qm_helper_set_frozen_atoms(s, n, f)
+        end subroutine
 
         subroutine C_ommp_terminate_qm_helper(s_ptr) &
                 bind(c, name='ommp_terminate_qm_helper')
