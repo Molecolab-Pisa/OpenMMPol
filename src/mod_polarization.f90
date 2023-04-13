@@ -246,6 +246,8 @@ module mod_polarization
             case(OMMP_SOLVER_DIIS)
                 ! Create a vector containing inverse of diagonal of T matrix
                 call mallocate('polarization [inv_diag]', n, inv_diag)
+
+                !$omp parallel do default(shared) private(i) schedule(static)
                 do i=1, eel%pol_atoms
                     inv_diag(3*(i-1)+1:3*(i-1)+3) = eel%pol(i) 
                 end do
@@ -391,6 +393,8 @@ module mod_polarization
         ! Initialize the tensor with zeros
         eel%tmat = 0.0_rp
         
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,tensor,ii,jj) 
         do i = 1, eel%pol_atoms
             do j = 1, i
                 call dipole_T(eel, i, j, tensor)
@@ -475,6 +479,7 @@ module mod_polarization
 
         integer(ip) :: i, ii
 
+        !$omp parallel do default(shared) private(i,ii) 
         do i=1, 3*eel%pol_atoms
             ii = (i+2)/3
             y(i) = y(i) + x(i) / eel%pol(ii)

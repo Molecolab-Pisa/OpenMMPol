@@ -159,6 +159,7 @@ module mod_mmpol
                               OMMP_VERBOSE_DEBUG)
             ! invert mm_polar list creating mm_polar
             sys_obj%eel%mm_polar(:) = 0
+            !$omp parallel do default(shared) private(i)
             do i = 1, sys_obj%eel%pol_atoms
                 sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
             end do
@@ -166,6 +167,7 @@ module mod_mmpol
             call ommp_message("Populating coordinates of polarizable atoms", &
                               OMMP_VERBOSE_DEBUG)
             ! populate cpol list of coordinates
+            !$omp parallel do default(shared) private(i)
             do i = 1, sys_obj%eel%pol_atoms
                 sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
             end do
