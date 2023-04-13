@@ -437,7 +437,7 @@ module mod_electrostatics
                     j = eel%top%conn(ineigh)%ci(ij)
                     call screening_rules(eel, i, 'S', j, 'S', '-', &
                                          to_do, to_scale, scalf)
-                    if(to_do .or. to_scale) then
+                    if(.not. to_do .or. to_scale) then
                         eel%list_S_S%ci(eel%list_S_S%ri(i+1)) = j
                         ltmp(eel%list_S_S%ri(i+1)) = to_do
                         rtmp(eel%list_S_S%ri(i+1)) = scalf
@@ -466,7 +466,7 @@ module mod_electrostatics
                     if(jp > 0) then
                         call screening_rules(eel, ip, 'P', jp, 'P', '-', &
                                             to_do, to_scale, scalf)
-                        if(to_do .or. to_scale) then
+                        if(.not. to_do .or. to_scale) then
                             eel%list_P_P%ci(eel%list_P_P%ri(ip+1)) = jp
                             ltmp(eel%list_P_P%ri(ip+1)) = to_do
                             rtmp(eel%list_P_P%ri(ip+1)) = scalf
@@ -1191,7 +1191,7 @@ module mod_electrostatics
 
 
         real(rp) :: kernel(6), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
-        integer(ip) :: i, j, ikernel
+        integer(ip) :: i, j, idx, ikernel
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
 
@@ -1212,15 +1212,31 @@ module mod_electrostatics
 
         if(eel%amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
                     if(j == i) cycle
                     !loop on target
-                    call screening_rules(eel, i, 'S', j, 'S', '-', &
-                                         to_do, to_scale, scalf)
-                    
+
+                    to_do = .true.
+                    to_scale = .false.
+                    scalf = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
+                        if(eel%list_S_S%ci(idx) == j) then
+                            to_scale = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale) then
+                        to_do = eel%todo_S_S(idx)
+                        scalf = eel%scalef_S_S(idx)
+                    end if
+
                     if(to_do) then
                         dr = top%cmm(:,j) - top%cmm(:, i)
                         call coulomb_kernel(dr, ikernel, kernel)
@@ -1266,14 +1282,29 @@ module mod_electrostatics
             end do
         else
             !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
                     if(j == i) cycle
                     !loop on target
-                    call screening_rules(eel, i, 'S', j, 'S', '-', &
-                                         to_do, to_scale, scalf)
+                    to_do = .true.
+                    to_scale = .false.
+                    scalf = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
+                        if(eel%list_S_S%ci(idx) == j) then
+                            to_scale = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale) then
+                        to_do = eel%todo_S_S(idx)
+                        scalf = eel%scalef_S_S(idx)
+                    end if
                     
                     if(to_do) then
                         dr = top%cmm(:,j) - top%cmm(:, i)
