@@ -15,6 +15,7 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
     real(rp), dimension(3) :: dip
     real(rp), dimension(3,3) :: r, rt, qua, rqua, ddip
     real(rp), dimension(3,3,3) :: dri, driz, drix, driy, dqua, dtmp
+    logical :: frozen_j, frozen_jx, frozen_jy, frozen_jz
 
     ! TODO prepare_fixedelec
 
@@ -27,6 +28,23 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
         if(jx == 0) jx = j
         jy = eel%iy(j)
         if(jy == 0) jy = j
+        
+        if(eel%top%use_frozen .and. &
+           eel%top%frozen(j) .and. &
+           eel%top%frozen(jx) .and. &
+           eel%top%frozen(jy) .and. &
+           eel%top%frozen(jz)) cycle
+
+       frozen_j = .false.
+       frozen_jx = .false.
+       frozen_jy = .false.
+       frozen_jz = .false.
+       if(eel%top%use_frozen) then
+           frozen_j = eel%top%frozen(j)
+           frozen_jx = eel%top%frozen(jx)
+           frozen_jy = eel%top%frozen(jy)
+           frozen_jz = eel%top%frozen(jz)
+       end if
         
         call rotation_matrix(.true., & 
                              eel%top%cmm(:,j), eel%top%cmm(:,jx), &
@@ -85,17 +103,19 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
             end do
         end do
 
-        ! increment the forces for the dipoles...
-        grad(:,j) = grad(:,j) - ddip(:,_x_)*E(_x_,j) &
-                              - ddip(:,_y_)*E(_y_,j) & 
-                              - ddip(:,_z_)*E(_z_,j)
-        ! ... and for the quadrupoles:
-        grad(:,j) = grad(:,j) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
-                              + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
-                              + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
-                              + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
-                              +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
-                              +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        if(.not. frozen_j) then
+            ! increment the forces for the dipoles...
+            grad(:,j) = grad(:,j) - ddip(:,_x_)*E(_x_,j) &
+                                - ddip(:,_y_)*E(_y_,j) & 
+                                - ddip(:,_z_)*E(_z_,j)
+            ! ... and for the quadrupoles:
+            grad(:,j) = grad(:,j) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
+                                + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
+                                + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
+                                + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
+                                +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
+                                +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        end if
      
         ! do jx
         ddip = 0.0_rp
@@ -119,17 +139,19 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
             end do
         end do
 
-        ! increment the forces for the dipoles...
-        grad(:,jx) = grad(:,jx) - ddip(:,_x_)*E(_x_,j) &
-                                - ddip(:,_y_)*E(_y_,j) & 
-                                - ddip(:,_z_)*E(_z_,j)
-        ! ... and for the quadrupoles:
-        grad(:,jx) = grad(:,jx) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
-                                + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
-                                + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
-                                + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
-                                +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
-                                +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        if(.not. frozen_jx) then
+            ! increment the forces for the dipoles...
+            grad(:,jx) = grad(:,jx) - ddip(:,_x_)*E(_x_,j) &
+                                    - ddip(:,_y_)*E(_y_,j) & 
+                                    - ddip(:,_z_)*E(_z_,j)
+            ! ... and for the quadrupoles:
+            grad(:,jx) = grad(:,jx) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
+                                    + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
+                                    + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
+                                    + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
+                                    +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
+                                    +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        end if
                 
         ! do jy
         ddip = 0.0_rp
@@ -152,18 +174,20 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
                 end do
             end do
         end do
-        
-        ! increment the forces for the dipoles...
-        grad(:,jy) = grad(:,jy) - ddip(:,_x_)*E(_x_,j) &
-                                - ddip(:,_y_)*E(_y_,j) & 
-                                - ddip(:,_z_)*E(_z_,j)
-        ! ... and for the quadrupoles:
-        grad(:,jy) = grad(:,jy) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
-                                + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
-                                + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
-                                + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
-                                +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
-                                +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+       
+        if(.not. frozen_jy) then
+            ! increment the forces for the dipoles...
+            grad(:,jy) = grad(:,jy) - ddip(:,_x_)*E(_x_,j) &
+                                    - ddip(:,_y_)*E(_y_,j) & 
+                                    - ddip(:,_z_)*E(_z_,j)
+            ! ... and for the quadrupoles:
+            grad(:,jy) = grad(:,jy) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
+                                    + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
+                                    + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
+                                    + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
+                                    +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
+                                    +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        end if
          
         ! Do jz
         ddip = 0.0_rp
@@ -187,17 +211,19 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
             end do
         end do
         
-        ! increment the forces for the dipoles...
-        grad(:,jz) = grad(:,jz) - ddip(:,_x_)*E(_x_,j) &
-                                - ddip(:,_y_)*E(_y_,j) & 
-                                - ddip(:,_z_)*E(_z_,j)
-        ! ... and for the quadrupoles:
-        grad(:,jz) = grad(:,jz) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
-                                + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
-                                + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
-                                + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
-                                +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
-                                +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        if(.not. frozen_jz) then
+            ! increment the forces for the dipoles...
+            grad(:,jz) = grad(:,jz) - ddip(:,_x_)*E(_x_,j) &
+                                    - ddip(:,_y_)*E(_y_,j) & 
+                                    - ddip(:,_z_)*E(_z_,j)
+            ! ... and for the quadrupoles:
+            grad(:,jz) = grad(:,jz) + dqua(:,_x_,_x_)*Egrd(_xx_,j) &
+                                    + dqua(:,_y_,_y_)*Egrd(_yy_,j) &
+                                    + dqua(:,_z_,_z_)*Egrd(_zz_,j) &
+                                    + 2*(dqua(:,_x_,_y_)*Egrd(_xy_,j) &
+                                    +    dqua(:,_x_,_z_)*Egrd(_xz_,j) &
+                                    +    dqua(:,_y_,_z_)*Egrd(_yz_,j))
+        end if
 
     end do 
 end subroutine rotation_geomgrad
