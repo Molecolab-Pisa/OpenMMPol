@@ -1354,7 +1354,7 @@ module mod_electrostatics
         real(rp), intent(inout) :: E(3, eel%pol_atoms)
         !! Electric field (results will be added)
 
-        integer(ip) :: i, j
+        integer(ip) :: i, j, idx
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
@@ -1362,8 +1362,23 @@ module mod_electrostatics
             do j=1, eel%pol_atoms
                 if(j == i) cycle
                 !loop on target
-                call screening_rules(eel, i, 'P', j, 'P', '-', &
-                                     to_do, to_scale, scalf)
+                to_do = .true.
+                to_scale = .false.
+                scalf = 1.0
+
+                ! Check if the element should be scaled
+                do idx=eel%list_P_P%ri(i), eel%list_P_P%ri(i+1)-1
+                    if(eel%list_P_P%ci(idx) == j) then
+                        to_scale = .true.
+                        exit
+                    end if
+                end do
+
+                !If it should set the correct variables
+                if(to_scale) then
+                    to_do = eel%todo_P_P(idx)
+                    scalf = eel%scalef_P_P(idx)
+                end if
                 
                 if(to_do) then
                     call damped_coulomb_kernel(eel, eel%polar_mm(i), &
@@ -1397,7 +1412,7 @@ module mod_electrostatics
         !! Flag to control which properties have to be computed.
         character, intent(in) :: in_kind
 
-        integer(ip) :: i, j, ikernel, knd
+        integer(ip) :: i, j, idx, ikernel, knd
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
@@ -1426,13 +1441,28 @@ module mod_electrostatics
         end if
 
         !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-        !$omp private(i,j,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+        !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
         do i=1, eel%pol_atoms
             do j=1, eel%pol_atoms
                 if(j == i) cycle
                 !loop on target
-                call screening_rules(eel, i, 'P', j, 'P', '-', &
-                                     to_do, to_scale, scalf)
+                to_do = .true.
+                to_scale = .false.
+                scalf = 1.0
+
+                ! Check if the element should be scaled
+                do idx=eel%list_P_P%ri(i), eel%list_P_P%ri(i+1)-1
+                    if(eel%list_P_P%ci(idx) == j) then
+                        to_scale = .true.
+                        exit
+                    end if
+                end do
+
+                !If it should set the correct variables
+                if(to_scale) then
+                    to_do = eel%todo_P_P(idx)
+                    scalf = eel%scalef_P_P(idx)
+                end if
                 
                 if(to_do) then
                     call damped_coulomb_kernel(eel, eel%polar_mm(i), &
