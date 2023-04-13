@@ -167,14 +167,15 @@ module mod_electrostatics
         
         logical :: screening_list_done = .false.
         !! Flag to check if screening list have already been prepared
-        type(yale_sparse), allocatable :: list_S_S, list_P_P
+        type(yale_sparse), allocatable :: list_S_S, list_P_P, list_S_P_P, list_S_P_D
         !! Sparse matrix containg the scale factors for the scaled elements
         !! of electrostatic interactions (all the element that are not 
         !! present in the sparse matrix have a scaling factor 1.0).
-        logical, dimension(:), allocatable :: todo_S_S, todo_P_P
+        logical, dimension(:), allocatable :: todo_S_S, todo_P_P, todo_S_P_P, todo_S_P_D
         !! Logical array of the same dimension of column-index vector; true if 
         !! the scaling factor is zero, false otherwise
-        real(rp), dimension(:), allocatable :: scalef_S_S, scalef_P_P
+        real(rp), dimension(:), allocatable :: scalef_S_S, scalef_P_P, &
+                                               scalef_S_P_P, scalef_S_P_D
         !! Array of the same dimension of column-index vector; contains the 
         !! value of the scaling factors different from 1.0
     end type ommp_electrostatics_type
@@ -426,6 +427,18 @@ module mod_electrostatics
         allocate(eel%list_P_P%ci(ns_guess))
         eel%list_P_P%n = ns_guess
 
+        allocate(eel%list_S_P_P)
+        allocate(eel%list_S_P_P%ri(n+1))
+        eel%list_S_P_P%ri = 1
+        allocate(eel%list_S_P_P%ci(ns_guess))
+        eel%list_S_P_P%n = ns_guess
+
+        allocate(eel%list_S_P_D)
+        allocate(eel%list_S_P_D%ri(n+1))
+        eel%list_S_P_D%ri = 1
+        allocate(eel%list_S_P_D%ci(ns_guess))
+        eel%list_S_P_D%n = ns_guess
+
         allocate(ltmp(ns_guess))
         call mallocate('make_screening_list [rtmp]', ns_guess, rtmp)
 
@@ -484,6 +497,55 @@ module mod_electrostatics
         eel%scalef_P_P = rtmp(:ns)
         eel%todo_P_P = ltmp(:ns)
         call reallocate_mat(eel%list_P_P, ns)
+        
+        ! Build S P lists
+        do i=1, n
+            eel%list_S_P_P%ri(i+1) = eel%list_S_P_P%ri(i)
+            eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i)
+            do ineigh=1, 4
+                do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
+                    j = eel%top%conn(ineigh)%ci(ij)
+                    jp = eel%mm_polar(j)
+                    if(jp > 0) then
+                        ! Needed for either amoeba or amber
+                        call screening_rules(eel, i, 'S', jp, 'P', 'P', &
+                                            to_do, to_scale, scalf)
+                        if(.not. to_do .or. to_scale) then
+                            eel%list_S_P_P%ci(eel%list_S_P_P%ri(i+1)) = jp
+                            ltmp(eel%list_S_P_P%ri(i+1)) = to_do
+                            rtmp(eel%list_S_P_P%ri(i+1)) = scalf
+                            eel%list_S_P_P%ri(i+1) = eel%list_S_P_P%ri(i+1) + 1
+                        end if
+                            
+                        if(eel%amoeba) then
+                            call screening_rules(eel, i, 'S', jp, 'P', 'D', &
+                                                to_do, to_scale, scalf)
+                            if(.not. to_do .or. to_scale) then
+                                eel%list_S_P_D%ci(eel%list_S_P_D%ri(i+1)) = jp
+                                ltmp(eel%list_S_P_D%ri(i+1)) = to_do
+                                rtmp(eel%list_S_P_D%ri(i+1)) = scalf
+                                eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i+1) + 1
+                            end if
+                        endif
+                    end if
+                end do
+            end do
+        end do
+
+        ! Shrink all the list to the actual number of needed elements
+        ns = eel%list_S_P_P%ri(npol+1)-1
+        call mallocate('make_screening_list [scalef_S_P_P]', ns, eel%scalef_S_P_P)
+        allocate(eel%todo_S_P_P(ns))
+        eel%scalef_S_P_P = rtmp(:ns)
+        eel%todo_S_P_P = ltmp(:ns)
+        call reallocate_mat(eel%list_S_P_P, ns)
+        
+        ns = eel%list_S_P_D%ri(npol+1)-1
+        call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%scalef_S_P_D)
+        allocate(eel%todo_S_P_D(ns))
+        eel%scalef_S_P_D = rtmp(:ns)
+        eel%todo_S_P_D = ltmp(:ns)
+        call reallocate_mat(eel%list_S_P_D, ns)
         
         eel%screening_list_done = .true.
 
