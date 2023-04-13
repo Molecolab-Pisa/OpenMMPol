@@ -396,7 +396,7 @@ module mod_electrostatics
         type(ommp_electrostatics_type), intent(inout) :: eel
         
         integer(ip) :: i, ineigh, ij, j, ns, ns_guess, n, npol, &
-                       ip, jp
+                       ip, jp, ns_guess_grp, pg_i, igrp, grp
         logical :: to_do, to_scale
         real(rp) :: scalf
         logical, allocatable :: ltmp(:)
@@ -415,6 +415,27 @@ module mod_electrostatics
             end do
         end do
         
+        if(eel%amoeba) then
+            ! If amoeba is used, some scaling (D-field) are performed using 
+            ! polarization group, so a second guess should be done and the 
+            ! maximum is used in memory allocation.
+            do i=1, n
+                pg_i = eel%mmat_polgrp(i)
+                do ineigh=1, 4
+                    do igrp=eel%pg_conn(ineigh)%ri(pg_i), &
+                            eel%pg_conn(ineigh)%ri(pg_i+1)-1
+
+                        grp = eel%pg_conn(ineigh)%ci(igrp)
+                        ns_guess_grp = ns_guess_grp + \
+                                       eel%polgrp_mmat%ri(grp+1)-eel%polgrp_mmat%ri(grp)
+                    end do
+                end do
+            end do
+            
+            if(ns_guess_grp > ns_guess) ns_guess = ns_guess_grp
+
+        end if
+
         allocate(eel%list_S_S)
         allocate(eel%list_S_S%ri(n+1))
         eel%list_S_S%ri = 1
@@ -432,12 +453,14 @@ module mod_electrostatics
         eel%list_S_P_P%ri = 1
         allocate(eel%list_S_P_P%ci(ns_guess))
         eel%list_S_P_P%n = ns_guess
-
-        allocate(eel%list_S_P_D)
-        allocate(eel%list_S_P_D%ri(n+1))
-        eel%list_S_P_D%ri = 1
-        allocate(eel%list_S_P_D%ci(ns_guess))
-        eel%list_S_P_D%n = ns_guess
+        
+        if(eel%amoeba) then
+            allocate(eel%list_S_P_D)
+            allocate(eel%list_S_P_D%ri(n+1))
+            eel%list_S_P_D%ri = 1
+            allocate(eel%list_S_P_D%ci(ns_guess))
+            eel%list_S_P_D%n = ns_guess
+        end if
 
         allocate(ltmp(ns_guess))
         call mallocate('make_screening_list [rtmp]', ns_guess, rtmp)
@@ -501,7 +524,6 @@ module mod_electrostatics
         ! Build S P lists
         do i=1, n
             eel%list_S_P_P%ri(i+1) = eel%list_S_P_P%ri(i)
-            eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i)
             do ineigh=1, 4
                 do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
                     j = eel%top%conn(ineigh)%ci(ij)
@@ -516,36 +538,55 @@ module mod_electrostatics
                             rtmp(eel%list_S_P_P%ri(i+1)) = scalf
                             eel%list_S_P_P%ri(i+1) = eel%list_S_P_P%ri(i+1) + 1
                         end if
-                            
-                        if(eel%amoeba) then
-                            call screening_rules(eel, i, 'S', jp, 'P', 'D', &
-                                                to_do, to_scale, scalf)
-                            if(.not. to_do .or. to_scale) then
-                                eel%list_S_P_D%ci(eel%list_S_P_D%ri(i+1)) = jp
-                                ltmp(eel%list_S_P_D%ri(i+1)) = to_do
-                                rtmp(eel%list_S_P_D%ri(i+1)) = scalf
-                                eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i+1) + 1
-                            end if
-                        endif
                     end if
                 end do
             end do
         end do
 
         ! Shrink all the list to the actual number of needed elements
-        ns = eel%list_S_P_P%ri(npol+1)-1
+        ns = eel%list_S_P_P%ri(n+1)-1
         call mallocate('make_screening_list [scalef_S_P_P]', ns, eel%scalef_S_P_P)
         allocate(eel%todo_S_P_P(ns))
         eel%scalef_S_P_P = rtmp(:ns)
         eel%todo_S_P_P = ltmp(:ns)
         call reallocate_mat(eel%list_S_P_P, ns)
         
-        ns = eel%list_S_P_D%ri(npol+1)-1
-        call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%scalef_S_P_D)
-        allocate(eel%todo_S_P_D(ns))
-        eel%scalef_S_P_D = rtmp(:ns)
-        eel%todo_S_P_D = ltmp(:ns)
-        call reallocate_mat(eel%list_S_P_D, ns)
+        if(eel%amoeba) then
+            do i=1, n
+                eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i)
+                pg_i = eel%mmat_polgrp(i)
+                
+                do ineigh=1, 4
+                    do igrp=eel%pg_conn(ineigh)%ri(pg_i), &
+                            eel%pg_conn(ineigh)%ri(pg_i+1)-1
+                        
+                        grp = eel%pg_conn(ineigh)%ci(igrp)
+
+                        do j=eel%polgrp_mmat%ri(grp), &
+                             eel%polgrp_mmat%ri(grp+1)-1
+                            jp = eel%mm_polar(j)
+                            if(jp > 0) then
+                                call screening_rules(eel, i, 'S', jp, 'P', 'D', &
+                                                    to_do, to_scale, scalf)
+                                if(.not. to_do .or. to_scale) then
+                                    eel%list_S_P_D%ci(eel%list_S_P_D%ri(i+1)) = jp
+                                    ltmp(eel%list_S_P_D%ri(i+1)) = to_do
+                                    rtmp(eel%list_S_P_D%ri(i+1)) = scalf
+                                    eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i+1) + 1
+                                end if
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+
+            ns = eel%list_S_P_D%ri(n+1)-1
+            call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%scalef_S_P_D)
+            allocate(eel%todo_S_P_D(ns))
+            eel%scalef_S_P_D = rtmp(:ns)
+            eel%todo_S_P_D = ltmp(:ns)
+            call reallocate_mat(eel%list_S_P_D, ns)
+        end if
         
         eel%screening_list_done = .true.
 
@@ -1572,7 +1613,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
         !! Flag to control which properties have to be computed.
 
-        integer(ip) :: i, j, ikernel
+        integer(ip) :: i, j, idx, ikernel
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale, &
                    amoeba
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
@@ -1598,16 +1639,47 @@ module mod_electrostatics
         
         if(amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, eel%pol_atoms
                     if(eel%polar_mm(j) == i) cycle
                     !loop on target
-                    call screening_rules(eel, i, 'S', j, 'P', 'P', &
-                                         to_do_p, to_scale_p, scalf_p)
-                    call screening_rules(eel, i, 'S', j, 'P', 'D', &
-                                         to_do_d, to_scale_d, scalf_d)
+                    to_do_p = .true.
+                    to_scale_p = .false.
+                    scalf_p = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_P_P%ri(i), eel%list_S_P_P%ri(i+1)-1
+                        if(eel%list_S_P_P%ci(idx) == j) then
+                            to_scale_p = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale_p) then
+                        to_do_p = eel%todo_S_P_P(idx)
+                        scalf_p = eel%scalef_S_P_P(idx)
+                    end if
+                    
+                    to_do_d = .true.
+                    to_scale_d = .false.
+                    scalf_d = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_P_D%ri(i), eel%list_S_P_D%ri(i+1)-1
+                        if(eel%list_S_P_D%ci(idx) == j) then
+                            to_scale_d = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale_d) then
+                        to_do_d = eel%todo_S_P_D(idx)
+                        scalf_d = eel%scalef_S_P_D(idx)
+                    end if
                     
                     if(to_do_p .or. to_do_d) then
                         call damped_coulomb_kernel(eel, i, eel%polar_mm(j), &
@@ -1668,14 +1740,30 @@ module mod_electrostatics
             end do
         else
             !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, top%mm_atoms
                 ! loop on sources
                 do j=1, eel%pol_atoms
                     if(eel%polar_mm(j) == i) cycle
                     !loop on target
-                    call screening_rules(eel, i, 'S', j, 'P', 'P', &
-                                         to_do, to_scale, scalf)
+                    to_do = .true.
+                    to_scale = .false.
+                    scalf = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_P_P%ri(i), eel%list_S_P_P%ri(i+1)-1
+                        if(eel%list_S_P_P%ci(idx) == j) then
+                            to_scale = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale) then
+                        to_do = eel%todo_S_P_P(idx)
+                        scalf = eel%scalef_S_P_P(idx)
+                    end if
+
                     if(to_do) then
                         call damped_coulomb_kernel(eel, i, eel%polar_mm(j), & 
                                                    ikernel, kernel, dr)
@@ -1721,7 +1809,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
         !! Flag to control which properties have to be computed.
 
-        integer(ip) :: i, j, ikernel, knd
+        integer(ip) :: i, j, idx, ikernel, knd
         logical :: to_do, to_scale, amoeba
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
                     scalf
@@ -1762,14 +1850,50 @@ module mod_electrostatics
         
         if(amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, eel%pol_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
                     if(eel%polar_mm(i) == j) cycle
                     !loop on target
-                    call screening_rules(eel, i, 'P', j, 'S', screening_type, &
-                                         to_do, to_scale, scalf)
+                    if(screening_type == 'P') then
+                        to_do = .true.
+                        to_scale = .false.
+                        scalf = 1.0
+
+                        ! Check if the element should be scaled
+                        do idx=eel%list_S_P_P%ri(j), eel%list_S_P_P%ri(j+1)-1
+                            if(eel%list_S_P_P%ci(idx) == i) then
+                                to_scale = .true.
+                                exit
+                            end if
+                        end do
+
+                        !If it should set the correct variables
+                        if(to_scale) then
+                            to_do = eel%todo_S_P_P(idx)
+                            scalf = eel%scalef_S_P_P(idx)
+                        end if
+                    else
+                        to_do = .true.
+                        to_scale = .false.
+                        scalf = 1.0
+
+                        ! Check if the element should be scaled
+                        do idx=eel%list_S_P_D%ri(j), eel%list_S_P_D%ri(j+1)-1
+                            if(eel%list_S_P_D%ci(idx) == i) then
+                                to_scale = .true.
+                                exit
+                            end if
+                        end do
+
+                        !If it should set the correct variables
+                        if(to_scale) then
+                            to_do = eel%todo_S_P_D(idx)
+                            scalf = eel%scalef_S_P_D(idx)
+                        end if
+                    end if
+
                     
                     if(to_do) then
                         call damped_coulomb_kernel(eel, eel%polar_mm(i), j, & 
@@ -1803,14 +1927,30 @@ module mod_electrostatics
             end do
         else
             !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, eel%pol_atoms
                 ! loop on sources
                 do j=1, top%mm_atoms
                     if(eel%polar_mm(i) == j) cycle
                     !loop on target
-                    call screening_rules(eel, i, 'P', j, 'S', 'P', &
-                                         to_do, to_scale, scalf)
+                    to_do = .true.
+                    to_scale = .false.
+                    scalf = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_P_P%ri(j), eel%list_S_P_P%ri(j+1)-1
+                        if(eel%list_S_P_P%ci(idx) == i) then
+                            to_scale = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale) then
+                        to_do = eel%todo_S_P_P(idx)
+                        scalf = eel%scalef_S_P_P(idx)
+                    end if
+                    
                     if(to_do) then
                         call damped_coulomb_kernel(eel, eel%polar_mm(i), j, & 
                                                    ikernel, kernel, dr)
