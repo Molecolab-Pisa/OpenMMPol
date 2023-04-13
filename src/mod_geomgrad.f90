@@ -32,6 +32,9 @@ module mod_geomgrad
 
             if(eel%amoeba) then
                 do i=1, s%top%mm_atoms
+                    ! If the atom is frozen, there are no contribution to compute
+                    if(s%top%use_frozen .and. s%top%frozen(i)) cycle
+
                     ! Charges -qE
                     grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_M2M(:,i)
                     
@@ -77,6 +80,9 @@ module mod_geomgrad
                 call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
             else
                 do i=1, s%top%mm_atoms
+                    ! Skip frozen atoms contributions
+                    if(s%top%use_frozen .and. s%top%frozen(i)) cycle
+                    
                     ! Here the minus sign is due to the definition of Electric
                     ! field that is E = -\nabla V.
                     ! The factor 1/2 that is present in the definition of the
@@ -115,6 +121,9 @@ module mod_geomgrad
 
             if(eel%amoeba) then
                 do i=1, eel%top%mm_atoms
+                    ! Skip frozen atoms contributions
+                    if(s%top%use_frozen .and. s%top%frozen(i)) cycle
+                    
                     ! Charges q E
                     grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_D2M(:,i)
                     
@@ -157,6 +166,9 @@ module mod_geomgrad
                 end do
               
                 do i=1, eel%pol_atoms
+                    ! Skip frozen atoms contributions
+                    if(s%top%use_frozen .and. s%top%frozen(eel%polar_mm(i))) cycle
+                    
                     ! \mu_D Egrd_P
                     grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
                                   + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_xx_,i,_amoeba_P_) &
@@ -204,10 +216,16 @@ module mod_geomgrad
                 end do
             else
                 do i=1, eel%top%mm_atoms
+                    ! Skip frozen atoms contributions
+                    if(s%top%use_frozen .and. s%top%frozen(i)) cycle
+
                     grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_D2M(:,i)
                 end do
                 
                 do i=1, eel%pol_atoms
+                    ! Skip frozen atoms contributions
+                    if(s%top%use_frozen .and. s%top%frozen(eel%polar_mm(i))) cycle
+                    
                     grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
                                   + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_xx_,i,1) &
                                                       + eel%Egrd_D2D(_xx_,i,1)) &
