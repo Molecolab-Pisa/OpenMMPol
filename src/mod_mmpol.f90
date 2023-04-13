@@ -132,7 +132,8 @@ module mod_mmpol
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_DEBUG
-        use mod_electrostatics, only: thole_init, remove_null_pol
+        use mod_electrostatics, only: thole_init, remove_null_pol, &
+                                      make_screening_lists
 
         implicit none
         
@@ -196,6 +197,9 @@ module mod_mmpol
             ! performs multipoles rotation
             call rotate_multipoles(sys_obj%eel)
         end if
+
+        call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)
+        call make_screening_lists(sys_obj%eel)
 
     end subroutine mmpol_prepare
 

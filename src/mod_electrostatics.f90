@@ -80,7 +80,8 @@ module mod_electrostatics
         !! Polarizabilities for each polarizable atom
         
         integer(ip), allocatable :: mm_polar(:)
-        !! indices of the MM atoms that are polarizable
+        !! for each mm atom: 0 if is not polarizable, index in 
+        !! polarizable atom list otherwise
 
         integer(ip), allocatable :: polar_mm(:)
         !! positions of a polarizable atom in the mm atoms list
@@ -163,12 +164,26 @@ module mod_electrostatics
         real(rp), allocatable :: TMat(:,:)
         !! Interaction tensor, only allocated for the methods that explicitly 
         !! requires it.
+        
+        logical :: screening_list_done = .false.
+        !! Flag to check if screening list have already been prepared
+        type(yale_sparse), allocatable :: list_S_S, list_P_P
+        !! Sparse matrix containg the scale factors for the scaled elements
+        !! of electrostatic interactions (all the element that are not 
+        !! present in the sparse matrix have a scaling factor 1.0).
+        logical, dimension(:), allocatable :: todo_S_S, todo_P_P
+        !! Logical array of the same dimension of column-index vector; true if 
+        !! the scaling factor is zero, false otherwise
+        real(rp), dimension(:), allocatable :: scalef_S_S, scalef_P_P
+        !! Array of the same dimension of column-index vector; contains the 
+        !! value of the scaling factors different from 1.0
     end type ommp_electrostatics_type
 
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
     public :: thole_init, remove_null_pol
-    public :: screening_rules, damped_coulomb_kernel, field_extD2D
+    public :: screening_rules, make_screening_lists
+    public :: damped_coulomb_kernel, field_extD2D
     public :: energy_MM_MM, energy_MM_pol
     public :: prepare_fixedelec, prepare_polelec
     public :: q_elec_prop, coulomb_kernel
@@ -281,6 +296,19 @@ module mod_electrostatics
         call mfree('electrostatics_terminate [E_M2M]', eel_obj%E_M2M)
         call mfree('electrostatics_terminate [Egrd_M2M]', eel_obj%Egrd_M2M)
 
+        if(allocated(eel_obj%todo_S_S)) deallocate(eel_obj%todo_S_S)
+        if(allocated(eel_obj%todo_P_P)) deallocate(eel_obj%todo_P_P)
+        call mfree('electrostatics_terminate [scalef_S_S]', eel_obj%scalef_S_S)
+        call mfree('electrostatics_terminate [scalef_P_P]', eel_obj%scalef_P_P)
+        if(allocated(eel_obj%list_S_S)) then
+            call matfree(eel_obj%list_S_S)
+            deallocate(eel_obj%list_S_S)
+        end if
+        if(allocated(eel_obj%list_P_P)) then
+            call matfree(eel_obj%list_P_P)
+            deallocate(eel_obj%list_P_P)
+        end if
+
     end subroutine electrostatics_terminate
 
     subroutine remove_null_pol(eel)
@@ -356,6 +384,111 @@ module mod_electrostatics
             call mfree('remove_null_pol [idx]', idx)
         end if
 
+    end subroutine
+
+    subroutine make_screening_lists(eel)
+        use mod_memory, only: mallocate, mfree
+        use mod_adjacency_mat, only: reallocate_mat
+        
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        
+        integer(ip) :: i, ineigh, ij, j, ns, ns_guess, n, npol, &
+                       ip, jp
+        logical :: to_do, to_scale
+        real(rp) :: scalf
+        logical, allocatable :: ltmp(:)
+        real(rp), allocatable :: rtmp(:)
+
+        if(eel%screening_list_done) return
+
+        n = eel%top%mm_atoms
+        npol = eel%pol_atoms
+
+        ! First estimate the maximum number of elements to scale
+        ns_guess = 0
+        do i=1, n
+            do ineigh=1, 4
+                ns_guess = ns_guess + eel%top%conn(ineigh)%ri(i+1) - eel%top%conn(ineigh)%ri(i)
+            end do
+        end do
+        
+        allocate(eel%list_S_S)
+        allocate(eel%list_S_S%ri(n+1))
+        eel%list_S_S%ri = 1
+        allocate(eel%list_S_S%ci(ns_guess))
+        eel%list_S_S%n = ns_guess
+        
+        allocate(eel%list_P_P)
+        allocate(eel%list_P_P%ri(n+1))
+        eel%list_P_P%ri = 1
+        allocate(eel%list_P_P%ci(ns_guess))
+        eel%list_P_P%n = ns_guess
+
+        allocate(ltmp(ns_guess))
+        call mallocate('make_screening_list [rtmp]', ns_guess, rtmp)
+
+        ! Build S S list
+        do i=1, n
+            eel%list_S_S%ri(i+1) = eel%list_S_S%ri(i)
+            do ineigh=1, 4
+                do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
+                    j = eel%top%conn(ineigh)%ci(ij)
+                    call screening_rules(eel, i, 'S', j, 'S', '-', &
+                                         to_do, to_scale, scalf)
+                    if(to_do .or. to_scale) then
+                        eel%list_S_S%ci(eel%list_S_S%ri(i+1)) = j
+                        ltmp(eel%list_S_S%ri(i+1)) = to_do
+                        rtmp(eel%list_S_S%ri(i+1)) = scalf
+                        eel%list_S_S%ri(i+1) = eel%list_S_S%ri(i+1) + 1
+                    end if
+                end do
+            end do
+        end do
+
+        ! Shrink all the list to the actual number of needed elements
+        ns = eel%list_S_S%ri(n+1)-1
+        call mallocate('make_screening_list [scalef_S_S]', ns, eel%scalef_S_S)
+        allocate(eel%todo_S_S(ns))
+        eel%scalef_S_S = rtmp(:ns)
+        eel%todo_S_S = ltmp(:ns)
+        call reallocate_mat(eel%list_S_S, ns)
+
+        ! Build P P list
+        do ip=1, npol
+            eel%list_P_P%ri(ip+1) = eel%list_P_P%ri(ip)
+            i = eel%polar_mm(ip)
+            do ineigh=1, 4
+                do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
+                    j = eel%top%conn(ineigh)%ci(ij)
+                    jp = eel%mm_polar(j)
+                    if(jp > 0) then
+                        call screening_rules(eel, ip, 'P', jp, 'P', '-', &
+                                            to_do, to_scale, scalf)
+                        if(to_do .or. to_scale) then
+                            eel%list_P_P%ci(eel%list_P_P%ri(ip+1)) = jp
+                            ltmp(eel%list_P_P%ri(ip+1)) = to_do
+                            rtmp(eel%list_P_P%ri(ip+1)) = scalf
+                            eel%list_P_P%ri(ip+1) = eel%list_P_P%ri(ip+1) + 1
+                        end if
+                    end if
+                end do
+            end do
+        end do
+
+        ! Shrink all the list to the actual number of needed elements
+        ns = eel%list_P_P%ri(npol+1)-1
+        call mallocate('make_screening_list [scalef_P_P]', ns, eel%scalef_P_P)
+        allocate(eel%todo_P_P(ns))
+        eel%scalef_P_P = rtmp(:ns)
+        eel%todo_P_P = ltmp(:ns)
+        call reallocate_mat(eel%list_P_P, ns)
+        
+        eel%screening_list_done = .true.
+
+        deallocate(ltmp)
+        call mfree('make_screening_list [rtmp]', rtmp)
     end subroutine
 
     subroutine thole_init(eel)
