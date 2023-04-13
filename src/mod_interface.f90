@@ -75,6 +75,19 @@ module ommp_interface
             allocate(s)
             call mmpol_init_from_xyz(s, trim(xyzfile), trim(prmfile))
         end subroutine
+
+        subroutine ommp_set_frozen_atoms(s, frozen)
+            use mod_topology, only: set_frozen
+
+            implicit none
+
+            type(ommp_system), pointer, intent(inout) :: s
+            !! OpenMMPol system
+            integer(ommp_integer), intent(in) :: frozen(:)
+            !! Atoms to freeze
+
+            call set_frozen(s%top, frozen)
+        end subroutine
         
         subroutine ommp_terminate(s)
             use mod_mmpol, only: mmpol_terminate
@@ -787,6 +800,19 @@ module ommp_interface
 
         allocate(s)
         call qm_helper_init(s, n, cqm, qqm, zqm)
+    end subroutine
+
+    subroutine ommp_qm_helper_set_frozen_atoms(s, frozen)
+        use mod_topology, only: set_frozen
+
+        implicit none
+
+        type(ommp_qm_helper), pointer, intent(inout) :: s
+        !! OpenMMPol system
+        integer(ommp_integer), intent(in) :: frozen(:)
+        !! Atoms to freeze
+
+        call set_frozen(s%qm_top, frozen)
     end subroutine
     
     subroutine ommp_terminate_qm_helper(s) 

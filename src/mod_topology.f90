@@ -44,6 +44,7 @@ module mod_topology
 
     public :: ommp_topology_type
     public :: topology_init, topology_terminate, guess_connectivity
+    public :: set_frozen
 
     contains
 
@@ -181,7 +182,7 @@ module mod_topology
 
             type(ommp_topology_type), intent(inout) :: top_obj
             !! Topology object to use
-            integer(ip) :: frozen_atoms(:)
+            integer(ip), intent(in) :: frozen_atoms(:)
             !! Indexes of atoms to be frozen
 
             integer(ip) :: n, i
