@@ -426,7 +426,7 @@ module mod_electrostatics
                             eel%pg_conn(ineigh)%ri(pg_i+1)-1
 
                         grp = eel%pg_conn(ineigh)%ci(igrp)
-                        ns_guess_grp = ns_guess_grp + \
+                        ns_guess_grp = ns_guess_grp + &
                                        eel%polgrp_mmat%ri(grp+1)-eel%polgrp_mmat%ri(grp)
                     end do
                 end do
