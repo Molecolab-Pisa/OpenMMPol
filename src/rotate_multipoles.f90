@@ -29,11 +29,12 @@ subroutine rotation_geomgrad(eel, E, Egrd, grad)
         jy = eel%iy(j)
         if(jy == 0) jy = j
         
-        if(eel%top%use_frozen .and. &
-           eel%top%frozen(j) .and. &
-           eel%top%frozen(jx) .and. &
-           eel%top%frozen(jy) .and. &
-           eel%top%frozen(jz)) cycle
+        if(eel%top%use_frozen) then
+            if(eel%top%frozen(j) .and. &
+               eel%top%frozen(jx) .and. &
+               eel%top%frozen(jy) .and. &
+               eel%top%frozen(jz)) cycle
+        end if
 
        frozen_j = .false.
        frozen_jx = .false.
