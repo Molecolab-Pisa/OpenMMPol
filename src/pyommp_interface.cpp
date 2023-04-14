@@ -917,6 +917,10 @@ class OMMPQmHelper{
             }
         }
 
+        bool get_use_nonbonded(void){
+            return ommp_qm_helper_use_nonbonded(handler);
+        }
+
     private:
         OMMP_QM_HELPER_PRT handler;
 };
@@ -1120,6 +1124,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPQmHelper::prepare_qm_ele_grd, 
              "Prepeare the quantities available in helper for a gradients SCF calculation (electric field gradients of nuclei at polarizable sites, electric field of MM system (polarizable and static) at nuclei, electric field, gradients and Hessian of nuclei at static sites) with the MM system passed as argument.",
              py::arg("OMMP_system"))
+        .def_property_readonly("use_nonbonded", &OMMPQmHelper::get_use_nonbonded, "Flag for enable/disable usage of QM-MM VdW potential")
         .def_property_readonly("E_n2p", &OMMPQmHelper::get_E_n2p, "Electric field of nuclei at polarizable sites")
         .def_property_readonly("G_n2p", &OMMPQmHelper::get_G_n2p, "Electric field gradients of nuclei at polarizable sites")
         .def_property_readonly("V_m2n", &OMMPQmHelper::get_V_m2n, "Electrostatic potential of MM system at QM nuclei")

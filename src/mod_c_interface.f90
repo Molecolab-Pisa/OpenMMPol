@@ -1300,5 +1300,19 @@ module mod_ommp_C_interface
             n = qm_help%qm_top%mm_atoms
         end function
 
+        function C_ommp_qm_helper_use_nonbonded(qm_ptr) &
+                result(u) bind(C, name='ommp_qm_helper_use_nonbonded')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+            type(ommp_qm_helper), pointer :: qm_help
+            logical(c_bool) :: u
+
+            call c_f_pointer(qm_ptr, qm_help)
+            u = qm_help%use_nonbonded
+        end function
+
 end module mod_ommp_C_interface
 
