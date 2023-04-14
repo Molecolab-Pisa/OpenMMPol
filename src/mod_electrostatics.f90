@@ -1314,11 +1314,11 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%amoeba) then
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+            !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
-            do i=1, top%mm_atoms
+            do j=1, top%mm_atoms
                 ! loop on sources
-                do j=1, top%mm_atoms
+                do i=1, top%mm_atoms
                     if(j == i) cycle
                     !loop on target
 
@@ -1367,7 +1367,6 @@ module mod_electrostatics
                                             do_Egrd, tmpEgr, &
                                             do_EHes, tmpHE)
 
-                        !$omp critical
                         if(to_scale) then
                             if(do_V) eel%V_M2M(j) = eel%V_M2M(j) + tmpV * scalf
                             if(do_E) eel%E_M2M(:,j) = eel%E_M2M(:,j) + tmpE * scalf
@@ -1379,16 +1378,15 @@ module mod_electrostatics
                             if(do_Egrd) eel%Egrd_M2M(:,j) = eel%Egrd_M2M(:,j) + tmpEgr
                             if(do_EHes) eel%EHes_M2M(:,j) = eel%EHes_M2M(:,j) + tmpHE
                         end if
-                        !$omp end critical
                     end if
                 end do
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+            !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE) 
-            do i=1, top%mm_atoms
+            do j=1, top%mm_atoms
                 ! loop on sources
-                do j=1, top%mm_atoms
+                do i=1, top%mm_atoms
                     if(j == i) cycle
                     !loop on target
                     to_do = .true.
@@ -1424,7 +1422,6 @@ module mod_electrostatics
                                          do_Egrd, tmpEgr, &
                                          do_EHes, tmpHE)
 
-                        !$omp critical
                         if(to_scale) then
                             if(do_V) eel%V_M2M(j) = eel%V_M2M(j) + tmpV * scalf
                             if(do_E) eel%E_M2M(:,j) = eel%E_M2M(:,j) + tmpE * scalf
@@ -1436,7 +1433,6 @@ module mod_electrostatics
                             if(do_Egrd) eel%Egrd_M2M(:,j) = eel%Egrd_M2M(:,j) + tmpEgr
                             if(do_EHes) eel%EHes_M2M(:,j) = eel%EHes_M2M(:,j) + tmpHE
                         end if
-                        !$omp end critical
                     end if
                 end do
             end do
@@ -1461,8 +1457,10 @@ module mod_electrostatics
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
 
-        do i=1, eel%pol_atoms
-            do j=1, eel%pol_atoms
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,to_do,to_scale,scalf,idx,tmpV,tmpE,tmpEgr,tmpHE,kernel,dr)
+        do j=1, eel%pol_atoms
+            do i=1, eel%pol_atoms
                 if(j == i) cycle
                 !loop on target
                 to_do = .true.
@@ -1543,10 +1541,10 @@ module mod_electrostatics
             return
         end if
 
-        !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-        do i=1, eel%pol_atoms
-            do j=1, eel%pol_atoms
+        do j=1, eel%pol_atoms
+            do i=1, eel%pol_atoms
                 if(j == i) cycle
                 !loop on target
                 to_do = .true.
@@ -1582,7 +1580,6 @@ module mod_electrostatics
                                       do_E, tmpE, &
                                       do_Egrd, tmpEgr, & 
                                       do_EHes, tmpHE)
-                    !$omp critical
                     if(to_scale) then
                         if(do_V) eel%V_D2D(j,knd) = eel%V_D2D(j,knd) + tmpV * scalf
                         if(do_E) eel%E_D2D(:, j,knd) = eel%E_D2D(:, j,knd) + tmpE * scalf
@@ -1594,7 +1591,6 @@ module mod_electrostatics
                         if(do_Egrd) eel%Egrd_D2D(:, j,knd) = eel%Egrd_D2D(:, j,knd) + tmpEgr
                         if(do_EHes) eel%EHes_D2D(:, j,knd) = eel%EHes_D2D(:, j,knd) + tmpHE
                     end if
-                    !$omp end critical
                 end if
             end do
         end do
@@ -1638,11 +1634,11 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2 
         
         if(amoeba) then
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+            !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
-            do i=1, top%mm_atoms
+            do j=1, eel%pol_atoms
                 ! loop on sources
-                do j=1, eel%pol_atoms
+                do i=1, top%mm_atoms
                     if(eel%polar_mm(j) == i) cycle
                     !loop on target
                     to_do_p = .true.
@@ -1706,7 +1702,6 @@ module mod_electrostatics
                                             do_Egrd, tmpEgr, & 
                                             do_EHes, tmpHE)
 
-                        !$omp critical
                         if(to_do_p) then
                             if(to_scale_p) then
                                 if(do_V) eel%V_M2D(j, _amoeba_P_) = eel%V_M2D(j, _amoeba_P_) + tmpV * scalf_p
@@ -1734,16 +1729,15 @@ module mod_electrostatics
                                 if(do_EHes) eel%EHes_M2D(:, j, _amoeba_D_) = eel%EHes_M2D(:, j, _amoeba_D_) + tmpHE
                             end if
                         end if
-                        !$omp end critical
                     end if
                 end do
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+            !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-            do i=1, top%mm_atoms
+            do j=1, eel%pol_atoms
                 ! loop on sources
-                do j=1, eel%pol_atoms
+                do i=1, top%mm_atoms
                     if(eel%polar_mm(j) == i) cycle
                     !loop on target
                     to_do = .true.
@@ -1778,7 +1772,6 @@ module mod_electrostatics
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
                                          do_EHes, tmpHE)
-                        !$omp critical
                         if(to_scale) then
                             if(do_V) eel%V_M2D(j, 1) = eel%V_M2D(j, 1) + tmpV * scalf
                             if(do_E) eel%E_M2D(:, j, 1) = eel%E_M2D(:, j, 1) + tmpE * scalf
@@ -1790,7 +1783,6 @@ module mod_electrostatics
                             if(do_Egrd) eel%Egrd_M2D(:, j, 1) = eel%Egrd_M2D(:, j, 1) + tmpEgr
                             if(do_EHes) eel%EHes_M2D(:, j, 1) = eel%EHes_M2D(:, j, 1) + tmpHE
                         end if 
-                        !$omp end critical
                     end if
                 end do
             end do
@@ -1849,11 +1841,11 @@ module mod_electrostatics
         end if
         
         if(amoeba) then
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+            !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-            do i=1, eel%pol_atoms
+            do j=1, top%mm_atoms
                 ! loop on sources
-                do j=1, top%mm_atoms
+                do i=1, eel%pol_atoms
                     if(eel%polar_mm(i) == j) cycle
                     !loop on target
                     if(screening_type == 'P') then
@@ -1909,7 +1901,6 @@ module mod_electrostatics
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
                                          do_EHes, tmpHE)
-                        !$omp critical
                         if(to_scale) then
                             if(do_V) eel%V_D2M(j) = eel%V_D2M(j) + tmpV * scalf
                             if(do_E) eel%E_D2M(:, j) = eel%E_D2M(:, j) + tmpE * scalf
@@ -1921,16 +1912,15 @@ module mod_electrostatics
                             if(do_Egrd) eel%Egrd_D2M(:, j) = eel%Egrd_D2M(:, j) + tmpEgr
                             if(do_EHes) eel%EHes_D2M(:, j) = eel%EHes_D2M(:, j) + tmpHE
                         end if 
-                        !$omp end critical
                     end if
                 end do
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
+            !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-            do i=1, eel%pol_atoms
+            do j=1, top%mm_atoms
                 ! loop on sources
-                do j=1, top%mm_atoms
+                do i=1, eel%pol_atoms
                     if(eel%polar_mm(i) == j) cycle
                     !loop on target
                     to_do = .true.
@@ -1965,7 +1955,6 @@ module mod_electrostatics
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
                                          do_EHes, tmpHE)
-                        !$omp critical
                         if(to_scale) then
                             if(do_V) eel%V_D2M(j) = eel%V_D2M(j) + tmpV * scalf
                             if(do_E) eel%E_D2M(:, j) = eel%E_D2M(:, j) + tmpE * scalf
@@ -1977,7 +1966,6 @@ module mod_electrostatics
                             if(do_Egrd) eel%Egrd_D2M(:, j) = eel%Egrd_D2M(:, j) + tmpEgr
                             if(do_EHes) eel%EHes_D2M(:, j) = eel%EHes_D2M(:, j) + tmpHE
                         end if 
-                        !$omp end critical
                     end if
                 end do
             end do
@@ -2123,8 +2111,8 @@ module mod_electrostatics
         n_cpt = size(cpt, 2)
 
         if(eel%amoeba) then
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE) reduction(+:E)
             do i=1, eel%pol_atoms
                 do j=1, n_cpt
                     dr = cpt(:,j) - eel%cpol(:,i)
@@ -2135,14 +2123,12 @@ module mod_electrostatics
                                       .true., tmpE, .false., tmpEgr, & 
                                       .false., tmpHE)
 
-                    !$omp critical
-                    E(:,j) = E(:,j) + tmpE
-                    !$omp end critical
+                    E(:,j) = E(:,j) + tmpE 
                 end do
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE) reduction(+:E)
             do i=1, eel%pol_atoms
                 ! loop on sources
                 do j=1, n_cpt
@@ -2154,9 +2140,7 @@ module mod_electrostatics
                                      .true., tmpE, .false., tmpEgr, & 
                                      .false., tmpHE)
                     
-                    !$omp critical
                     E(:,j) = E(:,j) + tmpE
-                    !$omp end critical
                 end do
             end do
         end if
@@ -2182,8 +2166,8 @@ module mod_electrostatics
         n_cpt = size(cpt, 2)
 
         if(eel%amoeba) then
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,tmpE,tmpV,tmpEgr,tmpHE)
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,dr,kernel,tmpE,tmpV,tmpEgr,tmpHE) reduction(+:E)
             do i=1, eel%top%mm_atoms
                 do j=1, n_cpt
                     dr = cpt(:,j) - eel%top%cmm(:,i)
@@ -2200,14 +2184,12 @@ module mod_electrostatics
                                         .true., tmpE, .false., tmpEgr, & 
                                         .false., tmpHE)
 
-                    !$omp critical
                     E(:,j) = E(:,j) + tmpE
-                    !$omp end critical
                 end do
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) collapse(2) &
-            !$omp private(i,j,dr,kernel,tmpE,tmpV,tmpEgr,tmpHE)
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,dr,kernel,tmpE,tmpV,tmpEgr,tmpHE) reduction(+:E)
             do i=1, eel%top%mm_atoms
                 ! loop on sources
                 do j=1, n_cpt
@@ -2219,9 +2201,7 @@ module mod_electrostatics
                                      .true., tmpE, .false., tmpEgr, & 
                                      .false., tmpHE)
                     
-                    !$omp critical
                     E(:,j) = E(:,j) + tmpE
-                    !$omp end critical
                 end do
             end do
         end if
