@@ -123,6 +123,8 @@ extern double *ommp_qm_helper_get_G_n2p(OMMP_QM_HELPER_PRT);
 extern double *ommp_qm_helper_get_E_n2m(OMMP_QM_HELPER_PRT);
 extern double *ommp_qm_helper_get_G_n2m(OMMP_QM_HELPER_PRT);
 extern double *ommp_qm_helper_get_H_n2m(OMMP_QM_HELPER_PRT);
+extern int32_t ommp_qm_helper_get_npol(OMMP_QM_HELPER_PRT);
+extern int32_t ommp_qm_helper_get_nmm(OMMP_QM_HELPER_PRT);
 extern int32_t ommp_qm_helper_get_qm_atoms(OMMP_QM_HELPER_PRT);
 extern void ommp_qm_helper_init_vdw_prm(OMMP_QM_HELPER_PRT, const int32_t *, const char *);
 extern void ommp_qm_helper_init_vdw(OMMP_QM_HELPER_PRT, const double *, const double *,

@@ -812,6 +812,14 @@ class OMMPQmHelper{
             return ommp_qm_helper_get_qm_atoms(handler);
         }
 
+        int32_t get_npol(void){
+            return ommp_qm_helper_get_npol(handler);
+        }
+        
+        int32_t get_nmm(void){
+            return ommp_qm_helper_get_nmm(handler);
+        }
+
         py_cdarray get_E_n2p(void){
             double *memory = ommp_qm_helper_get_E_n2p(handler);
             if(!memory){
@@ -821,7 +829,7 @@ class OMMPQmHelper{
                 py::buffer_info bufinfo(memory, sizeof(double),
                                         py::format_descriptor<double>::format(),
                                         2,
-                                        {get_qm_atoms(), 3},
+                                        {get_npol(), 3},
                                         {3*sizeof(double), sizeof(double)});
                 return py_cdarray(bufinfo);
             }
@@ -836,7 +844,7 @@ class OMMPQmHelper{
                 py::buffer_info bufinfo(memory, sizeof(double),
                                         py::format_descriptor<double>::format(),
                                         2,
-                                        {get_qm_atoms(), 6},
+                                        {get_npol(), 6},
                                         {6*sizeof(double), sizeof(double)});
                 return py_cdarray(bufinfo);
             }
@@ -851,7 +859,7 @@ class OMMPQmHelper{
                 py::buffer_info bufinfo(memory, sizeof(double),
                                         py::format_descriptor<double>::format(),
                                         2,
-                                        {get_qm_atoms(), 3},
+                                        {get_nmm(), 3},
                                         {3*sizeof(double), sizeof(double)});
                 return py_cdarray(bufinfo);
             }
@@ -866,7 +874,7 @@ class OMMPQmHelper{
                 py::buffer_info bufinfo(memory, sizeof(double),
                                         py::format_descriptor<double>::format(),
                                         2,
-                                        {get_qm_atoms(), 6},
+                                        {get_nmm(), 6},
                                         {6*sizeof(double), sizeof(double)});
                 return py_cdarray(bufinfo);
             }
@@ -881,7 +889,7 @@ class OMMPQmHelper{
                 py::buffer_info bufinfo(memory, sizeof(double),
                                         py::format_descriptor<double>::format(),
                                         2,
-                                        {get_qm_atoms(), 10},
+                                        {get_nmm(), 10},
                                         {10*sizeof(double), sizeof(double)});
                 return py_cdarray(bufinfo);
             }

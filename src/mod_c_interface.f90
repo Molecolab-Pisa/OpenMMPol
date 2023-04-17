@@ -1152,6 +1152,44 @@ module mod_ommp_C_interface
             call ommp_prepare_qm_ele_grd(s, qm_help)
         end subroutine 
 
+        function C_ommp_qm_helper_get_npol(qm_ptr) &
+                result(npol) bind(C, name='ommp_qm_helper_get_npol')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            integer(ommp_integer) :: npol
+
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_n2p_done) then
+                npol = size(qm_help%E_n2p, 2, ommp_integer)
+            else
+                npol = 0
+            end if
+        end function
+        
+        function C_ommp_qm_helper_get_nmm(qm_ptr) &
+                result(nmm) bind(C, name='ommp_qm_helper_get_nmm')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            integer(ommp_integer) :: nmm
+
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_n2m_done) then
+                nmm = size(qm_help%E_n2m, 2, ommp_integer)
+            else
+                nmm = 0
+            end if
+        end function
+
         function C_ommp_qm_helper_get_E_n2p(qm_ptr) &
                 result(ptr) bind(C, name='ommp_qm_helper_get_E_n2p')
             use mod_qm_helper, only: ommp_qm_helper
