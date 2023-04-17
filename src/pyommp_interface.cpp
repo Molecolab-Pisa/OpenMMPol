@@ -776,9 +776,10 @@ class OMMPQmHelper{
         
         std::map<std::string, py_cdarray> vdw_geomgrad(OMMPSystem& s){
             OMMP_SYSTEM_PRT s_handler = s.get_handler();
+
             double *mmg = new double[s.get_mm_atoms()*3];
             double *qmg = new double[get_qm_atoms()*3];
-            ommp_qm_helper_vdw_geomgrad(handler, s_handler, mmg, qmg);
+            ommp_qm_helper_vdw_geomgrad(handler, s_handler, qmg, mmg);
             
             py::buffer_info bufinfo_mm(mmg, sizeof(double),
                                        py::format_descriptor<double>::format(),

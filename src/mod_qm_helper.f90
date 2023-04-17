@@ -157,7 +157,6 @@ module mod_qm_helper
         
         subroutine qm_helper_vdw_geomgrad(qm, mm, qmg, mmg)
             use mod_nonbonded, only: vdw_geomgrad_inter
-
             use mod_mmpol, only: ommp_system
 
             implicit none
@@ -168,7 +167,7 @@ module mod_qm_helper
                                        mmg(3,mm%top%mm_atoms)
         
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
-                call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, qmg, mmg)
+                call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, mmg, qmg)
             end if
         end subroutine
 
