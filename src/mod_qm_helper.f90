@@ -52,7 +52,8 @@ module mod_qm_helper
     public :: ommp_qm_helper
     public :: qm_helper_init, qm_helper_terminate
     public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, &
-              qm_helper_vdw_energy, qm_helper_vdw_geomgrad
+              qm_helper_vdw_energy, qm_helper_vdw_geomgrad, &
+              qm_helper_update_coord
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -83,6 +84,24 @@ module mod_qm_helper
 
             call guess_connectivity(qm%qm_top)
 
+        end subroutine
+        
+        subroutine qm_helper_update_coord(qm, cnew)
+            implicit none
+            type(ommp_qm_helper), intent(inout) :: qm
+            !! [[ommp_qm_helper]] object to be initialized
+            real(rp), intent(in) :: cnew(3,qm%qm_top%mm_atoms)
+            !! Coordinates of QM atoms
+
+            qm%qm_top%cmm = cnew
+            qm%E_n2p_done = .false.
+            qm%G_n2p_done = .false.
+            qm%E_n2m_done = .false.
+            qm%G_n2m_done = .false.
+            qm%H_n2m_done = .false.
+            qm%V_m2n_done = .false.
+            qm%E_m2n_done = .false.
+            !call guess_connectivity(qm%qm_top) !TODO
         end subroutine
 
         subroutine qm_helper_init_vdw(qm, eps, rad, fac, &

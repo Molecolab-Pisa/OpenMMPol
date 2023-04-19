@@ -801,6 +801,18 @@ module ommp_interface
         deallocate(s)
     end subroutine
     
+    subroutine ommp_qm_helper_update_coord(s, cqm)
+        
+        use mod_qm_helper, only: qm_helper_update_coord
+        
+        implicit none
+
+        type(ommp_qm_helper), pointer, intent(inout) :: s
+        real(ommp_real), intent(in) :: cqm(:,:)
+
+        call qm_helper_update_coord(s, cqm)
+    end subroutine
+    
     function ommp_qm_helper_vdw_energy(qm, s) result(evdw)
         use mod_qm_helper, only: qm_helper_vdw_energy
 

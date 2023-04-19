@@ -1032,6 +1032,21 @@ module mod_ommp_C_interface
             deallocate(s)
         end subroutine
         
+        subroutine C_ommp_qm_helper_update_coord(s_ptr, cqm) &
+                bind(c, name='ommp_qm_helper_update_coord')
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            type(c_ptr), value, intent(in) :: cqm
+            
+            real(ommp_real), pointer :: fcqm(:,:)
+            type(ommp_qm_helper), pointer :: s
+            
+            call c_f_pointer(s_ptr, s)
+            call c_f_pointer(cqm, fcqm, [3,s%qm_top%mm_atoms])
+            call ommp_qm_helper_update_coord(s, fcqm)
+        end subroutine
+
         subroutine C_ommp_qm_helper_init_vdw_prm(pqm, pattype, cprmfile) &
                  bind(c, name='ommp_qm_helper_init_vdw_prm')
             implicit none
@@ -1190,6 +1205,21 @@ module mod_ommp_C_interface
             end if
         end function
 
+        function C_ommp_qm_helper_get_cqm(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_cqm')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            ptr = c_loc(qm_help%qm_top%cmm)
+        end function
+        
         function C_ommp_qm_helper_get_E_n2p(qm_ptr) &
                 result(ptr) bind(C, name='ommp_qm_helper_get_E_n2p')
             use mod_qm_helper, only: ommp_qm_helper

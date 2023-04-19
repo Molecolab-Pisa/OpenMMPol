@@ -736,6 +736,14 @@ class OMMPQmHelper{
             return;
         }
 
+        void update_coord(py_cdarray qmc){
+            if(qmc.ndim() != 2 || 
+               qmc.shape(0) != get_qm_atoms() || qmc.shape(1) != 3){
+                throw py::value_error("eps should be shaped [n_qm_atoms,3]");
+            }
+            ommp_qm_helper_update_coord(handler, qmc.data());
+        }
+
         void init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
 
             if(qm_attype.ndim() != 1 || 
@@ -821,6 +829,21 @@ class OMMPQmHelper{
             return ommp_qm_helper_get_nmm(handler);
         }
 
+        py_cdarray get_cqm(void){
+            double *memory = ommp_qm_helper_get_cqm(handler);
+            if(!memory){
+                throw py::attribute_error("cqm cannot be accessed for a memory error");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 3},
+                                        {3*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
         py_cdarray get_E_n2p(void){
             double *memory = ommp_qm_helper_get_E_n2p(handler);
             if(!memory){
@@ -1101,6 +1124,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
              "OMMPQmHelper creator, takes the coordinates and nuclear charges of QM system as input.", 
              py::arg("coord_qm"), py::arg("charge_qm"), py::arg("z_qm"))
+        .def("update_coord",
+             &OMMPQmHelper::update_coord,
+             "Update the coordinates of QM atoms",
+             py::arg("qm_atoms_coordinates")) 
         .def("init_vdw_prm",
              &OMMPQmHelper::init_vdw_prm,
              "Set the VdW parameters for the QM atoms using a prm forcefield and atomtypes for QM atoms.",
@@ -1134,6 +1161,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "Prepeare the quantities available in helper for a gradients SCF calculation (electric field gradients of nuclei at polarizable sites, electric field of MM system (polarizable and static) at nuclei, electric field, gradients and Hessian of nuclei at static sites) with the MM system passed as argument.",
              py::arg("OMMP_system"))
         .def_property_readonly("use_nonbonded", &OMMPQmHelper::get_use_nonbonded, "Flag for enable/disable usage of QM-MM VdW potential")
+        .def_property_readonly("cqm", &OMMPQmHelper::get_cqm, "Get the coordinates of QM nuclei")
         .def_property_readonly("E_n2p", &OMMPQmHelper::get_E_n2p, "Electric field of nuclei at polarizable sites")
         .def_property_readonly("G_n2p", &OMMPQmHelper::get_G_n2p, "Electric field gradients of nuclei at polarizable sites")
         .def_property_readonly("V_m2n", &OMMPQmHelper::get_V_m2n, "Electrostatic potential of MM system at QM nuclei")
