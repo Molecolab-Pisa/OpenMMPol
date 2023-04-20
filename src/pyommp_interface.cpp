@@ -949,6 +949,36 @@ class OMMPQmHelper{
             }
         }
 
+        py_cdarray get_V_p2n(void){
+            double *memory = ommp_qm_helper_get_V_p2n(handler);
+            if(!memory){
+                throw py::attribute_error("V_p2n is not available. OMMPQmHelper.prepare_energy() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        1,
+                                        {get_qm_atoms()},
+                                        {sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+        
+        py_cdarray get_E_p2n(void){
+            double *memory = ommp_qm_helper_get_E_p2n(handler);
+            if(!memory){
+                throw py::attribute_error("E_p2n is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+            }
+            else{
+                py::buffer_info bufinfo(memory, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {get_qm_atoms(), 3},
+                                        {3*sizeof(double), sizeof(double)});
+                return py_cdarray(bufinfo);
+            }
+        }
+
         bool get_use_nonbonded(void){
             return ommp_qm_helper_use_nonbonded(handler);
         }
@@ -1164,8 +1194,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("cqm", &OMMPQmHelper::get_cqm, "Get the coordinates of QM nuclei")
         .def_property_readonly("E_n2p", &OMMPQmHelper::get_E_n2p, "Electric field of nuclei at polarizable sites")
         .def_property_readonly("G_n2p", &OMMPQmHelper::get_G_n2p, "Electric field gradients of nuclei at polarizable sites")
-        .def_property_readonly("V_m2n", &OMMPQmHelper::get_V_m2n, "Electrostatic potential of MM system at QM nuclei")
-        .def_property_readonly("E_m2n", &OMMPQmHelper::get_E_m2n, "Electric field of MM system at QM nuclei")
+        .def_property_readonly("V_m2n", &OMMPQmHelper::get_V_m2n, "Electrostatic potential of MM system (static part) at QM nuclei")
+        .def_property_readonly("V_p2n", &OMMPQmHelper::get_V_p2n, "Electrostatic potential of MM system (polarizable part) at QM nuclei")
+        .def_property_readonly("E_m2n", &OMMPQmHelper::get_E_m2n, "Electric field of MM system (static part) at QM nuclei")
+        .def_property_readonly("E_p2n", &OMMPQmHelper::get_E_p2n, "Electric field of MM system (polarizable part) at QM nuclei")
         .def_property_readonly("E_n2m", &OMMPQmHelper::get_E_n2m, "Electric field of MM system at QM nuclei")
         .def_property_readonly("G_n2m", &OMMPQmHelper::get_G_n2m, "Electric field gradients of MM system at QM nuclei")
         .def_property_readonly("H_n2m", &OMMPQmHelper::get_H_n2m, "Electric field Hessian of MM system at QM nuclei")

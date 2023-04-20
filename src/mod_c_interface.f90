@@ -1334,6 +1334,25 @@ module mod_ommp_C_interface
             end if
         end function
         
+        function C_ommp_qm_helper_get_E_p2n(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_E_p2n')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_p2n_done) then
+                ptr = c_loc(qm_help%E_p2n)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+        
         function C_ommp_qm_helper_get_V_m2n(qm_ptr) &
                 result(ptr) bind(C, name='ommp_qm_helper_get_V_m2n')
             use mod_qm_helper, only: ommp_qm_helper
@@ -1348,6 +1367,25 @@ module mod_ommp_C_interface
             call c_f_pointer(qm_ptr, qm_help)
             if(qm_help%V_m2n_done) then
                 ptr = c_loc(qm_help%V_m2n)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+       
+        function C_ommp_qm_helper_get_V_p2n(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_V_p2n')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%V_p2n_done) then
+                ptr = c_loc(qm_help%V_p2n)
             else
                 ptr = c_null_ptr
             end if
