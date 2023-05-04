@@ -274,6 +274,10 @@ module mod_bonded
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
                 ib = bds%bondat(2,i)
+                
+                if(bds%top%use_frozen .and. bds%top%frozen(ia) .and. bds%top%frozen(ib)) &
+                    cycle
+                
                 ca = bds%top%cmm(:,ia)
                 cb = bds%top%cmm(:,ib)
                 
@@ -281,13 +285,20 @@ module mod_bonded
                 dl = l - bds%l0bond(i)
                 
                 g = 2 * bds%kbond(i) * dl
-                grad(:,ia) = grad(:,ia) + J_a * g
-                grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ia))) &
+                    grad(:,ia) = grad(:,ia) + J_a * g
+
+                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ib))) &
+                    grad(:,ib) = grad(:,ib) + J_b * g
             end do
         else
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
                 ib = bds%bondat(2,i)
+                
+                if(bds%top%use_frozen .and. bds%top%frozen(ia) .and. bds%top%frozen(ib)) &
+                    cycle
+                
                 ca = bds%top%cmm(:,ia)
                 cb = bds%top%cmm(:,ib)
                 
@@ -297,8 +308,10 @@ module mod_bonded
                 g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl&
                                              + 2.0*bds%bond_quartic*dl**2)
 
-                grad(:,ia) = grad(:,ia) + J_a * g
-                grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ia))) &
+                    grad(:,ia) = grad(:,ia) + J_a * g
+                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ib))) &
+                    grad(:,ib) = grad(:,ib) + J_b * g
             end do
         end if
         
