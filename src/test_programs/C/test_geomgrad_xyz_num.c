@@ -40,9 +40,11 @@ double **read_ef(char *fin){
     return ef;
 }
 
-void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), double **g){
+void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), double **g,
+                        int nfrozen, int *frozen){
     double *_new_c, **new_c, *cmm, tmp, dd;
     int mm_atoms;
+    bool done;
 
     dd = 1e-6;
     mm_atoms = ommp_get_mm_atoms(s);
@@ -57,18 +59,28 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), dou
     }
 
     for(int i=0; i < mm_atoms; i++){
-        for(int j=0; j < 3; j++){
-            new_c[i][j] += dd;
-            ommp_update_coordinates(s, _new_c);
-            tmp = ene_f(s);
+        done = false;
+        for(int j=0; j < nfrozen; j++){
+            if(frozen[j] == i+1){
+                for(int l=0; l<3; l++) 
+                    g[i][l] = 0.0;
+                done = true;
+            }
+        }
+        if(!done){
+            for(int j=0; j < 3; j++){
+                new_c[i][j] += dd;
+                ommp_update_coordinates(s, _new_c);
+                tmp = ene_f(s);
 
-            new_c[i][j] -= 2*dd;
-            ommp_update_coordinates(s, _new_c);
-            tmp -= ene_f(s);
-            g[i][j] = tmp / (2*dd);
-            
-            new_c[i][j] += dd;
-            ommp_update_coordinates(s, _new_c);
+                new_c[i][j] -= 2*dd;
+                ommp_update_coordinates(s, _new_c);
+                tmp -= ene_f(s);
+                g[i][j] = tmp / (2*dd);
+                
+                new_c[i][j] += dd;
+                ommp_update_coordinates(s, _new_c);
+            }
         }
     }
 }
@@ -76,7 +88,8 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT s, double (*ene_f)(OMMP_SYSTEM_PRT), dou
 int num_ana_compare(OMMP_SYSTEM_PRT sys,
                     double (*ene_f)(OMMP_SYSTEM_PRT), 
                     void (*grad_f)(OMMP_SYSTEM_PRT, double *), 
-                    FILE *fp, const char *name, double del){
+                    FILE *fp, const char *name, double del,
+                    int32_t nfrozen, int32_t *frozen){
     
     int mm_atoms = ommp_get_mm_atoms(sys);
     
@@ -92,7 +105,7 @@ int num_ana_compare(OMMP_SYSTEM_PRT sys,
             grad_ana[i][j] = grad_num[i][j] = 0.0;
     }
 
-    numerical_geomgrad(sys, ene_f, grad_num);
+    numerical_geomgrad(sys, ene_f, grad_num, nfrozen, frozen);
     grad_f(sys, _grad_ana);
    
     fprintf(fp, "DELTA NUM - ANA %s\n", name);
@@ -136,8 +149,11 @@ int main(int argc, char **argv){
     int pol_atoms, mm_atoms, rc=0;
     double **grad_num, *_grad_num, **grad_ana, *_grad_ana;
     double delta, Mdelta;
+    int32_t frozen[] = {1, 3, 5}, nfrozen = 3;
 
     OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
+    ommp_set_frozen_atoms(my_system, nfrozen, frozen);
+
     pol_atoms = ommp_get_pol_atoms(my_system);
     mm_atoms = ommp_get_mm_atoms(my_system);
     
@@ -158,52 +174,52 @@ int main(int argc, char **argv){
     FILE *fp = fopen(argv[3], "w+");
    
     rc = num_ana_compare(my_system, ommp_get_full_energy, ommp_full_geomgrad,
-                         fp, "CompletePotential", 1e-7);
+                         fp, "CompletePotential", 1e-7, nfrozen, frozen);
     
     if(rc == 0) return 0;
     
     rc = 0;
     rc += num_ana_compare(my_system, ommp_get_vdw_energy, ommp_vdw_geomgrad,
-                          fp, "non-bonded", 1e-11);
+                          fp, "non-bonded", 1e-11, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_fixedelec_energy, ommp_fixedelec_geomgrad,
-                          fp, "fixedelec", 1e-11);
+                          fp, "fixedelec", 1e-11, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_polelec_energy, ommp_polelec_geomgrad,
-                          fp, "polelec", 1e-8);
+                          fp, "polelec", 1e-8, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_bond_energy, ommp_bond_geomgrad,
-                          fp, "bond", 1e-11);
+                          fp, "bond", 1e-11, nfrozen, frozen);
 
     rc += num_ana_compare(my_system, ommp_get_angle_energy, ommp_angle_geomgrad,
-                          fp, "angle", 1e-11);
+                          fp, "angle", 1e-11, nfrozen, frozen);
 
     rc += num_ana_compare(my_system, ommp_get_urey_energy, ommp_urey_geomgrad,
-                          fp, "urey", 1e-11);
+                          fp, "urey", 1e-11, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_torsion_energy, ommp_torsion_geomgrad,
-                          fp, "torsion", 1e-11);
+                          fp, "torsion", 1e-11, nfrozen, frozen);
 
     rc += num_ana_compare(my_system, ommp_get_imptorsion_energy, ommp_imptorsion_geomgrad,
-                          fp, "imptorsion", 1e-11);
+                          fp, "imptorsion", 1e-11, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_strbnd_energy, ommp_strbnd_geomgrad,
-                          fp, "strbnd", 1e-11);
+                          fp, "strbnd", 1e-11, nfrozen, frozen);
    
     rc += num_ana_compare(my_system, ommp_get_angtor_energy, ommp_angtor_geomgrad,
-                          fp, "angtor", 1e-11);
+                          fp, "angtor", 1e-11, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_opb_energy, ommp_opb_geomgrad,
-                          fp, "opb", 1e-11);
+                          fp, "opb", 1e-11, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_strtor_energy, ommp_strtor_geomgrad,
-                          fp, "strtor", 1e-10);
+                          fp, "strtor", 1e-10, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_tortor_energy, ommp_tortor_geomgrad,
-                          fp, "tortor", 1e-10);
+                          fp, "tortor", 1e-10, nfrozen, frozen);
     
     rc += num_ana_compare(my_system, ommp_get_pitors_energy, ommp_pitors_geomgrad,
-                          fp, "pitor", 5e-8);
+                          fp, "pitor", 5e-8, nfrozen, frozen);
     fclose(fp);
     ommp_terminate(my_system);
      
