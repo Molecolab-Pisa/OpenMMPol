@@ -167,7 +167,9 @@ module mod_ommp_C_interface
 
             call c_f_pointer(s_prt, s)
             call c_f_pointer(frozen, f, [n])
+            f = f + 1
             call ommp_set_frozen_atoms(s, n, f)
+            f = f - 1
         end subroutine
         
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
@@ -892,6 +894,24 @@ module mod_ommp_C_interface
 
             C_ommp_get_polar_mm = c_loc(s%eel%C_polar_mm)
         end function C_ommp_get_polar_mm
+        
+        function C_ommp_use_frozen(s_prt) bind(c, name='ommp_use_frozen')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_use_frozen
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_use_frozen = s%top%use_frozen
+        end function C_ommp_use_frozen
+
+        function C_ommp_get_frozen(s_prt) bind(c, name='ommp_get_frozen')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_frozen
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_frozen = c_loc(s%top%frozen)
+        end function C_ommp_get_frozen
 
         function C_ommp_get_mm_atoms(s_prt) bind(c, name='ommp_get_mm_atoms')
             !! Return the number of MM atoms in the system.
@@ -1037,10 +1057,12 @@ module mod_ommp_C_interface
             integer(ommp_integer), value :: n
             type(ommp_qm_helper), pointer :: s
             integer(ommp_integer), pointer :: f(:)
-
             call c_f_pointer(s_prt, s)
             call c_f_pointer(frozen, f, [n])
+
+            f = f + 1
             call ommp_qm_helper_set_frozen_atoms(s, n, f)
+            f = f - 1
         end subroutine
 
         subroutine C_ommp_terminate_qm_helper(s_ptr) &

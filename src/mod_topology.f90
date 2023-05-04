@@ -1,5 +1,5 @@
 module mod_topology
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_adjacency_mat, only: yale_sparse
 
     implicit none 
@@ -14,30 +14,30 @@ module mod_topology
         !! connectivity matrices listing atoms separetad by 1, 2, 3 
         !! (and 4 -- only for AMOEBA) bonds. 1st element is the adjacency 
         !! matrix.
-        logical :: use_frozen = .false.
+        logical(lp) :: use_frozen = .false.
         !! Flag to use the frozen atom feature, if it is set to true frozen
         !! array is read/used otherwise all atoms are active
-        logical, allocatable :: frozen(:)
+        logical(lp), allocatable :: frozen(:)
         !! For each atom, if set to true, it will contribute to the total
         !! energy but its coordinates are locked to the initial value.
         integer(ip), allocatable :: atz(:)
         !! The atomic number for each atom of the system, when it is not 
         !! initialized, it contains only zeros.
-        logical :: atz_initialized = .false.
+        logical(lp) :: atz_initialized = .false.
         !! Initialization flag for atz, when it is filled with actual values
         !! it should be set to true
         integer(ip), allocatable :: attype(:)
         !! Atom class for each atom in the system.
         !! It is only used during certain parameters assignaments; when it
         !! is not initialized, it contains only zeros.
-        logical :: attype_initialized = .false.
+        logical(lp) :: attype_initialized = .false.
         !! Initialization flag for attype, when it is filled with actual values
         !! it should be set to true
         integer(ip), allocatable :: atclass(:)
         !! Atom class for each atom in the system.
         !! It is only used during certain parameters assignaments; when it
         !! is not initialized, it contains only zeros.
-        logical :: atclass_initialized = .false.
+        logical(lp) :: atclass_initialized = .false.
         !! Initialization flag for atclass, when it is filled with actual values
         !! it should be set to true
     end type ommp_topology_type

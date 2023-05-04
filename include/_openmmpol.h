@@ -92,6 +92,9 @@ extern double *ommp_get_q(OMMP_SYSTEM_PRT);
 extern double *ommp_get_ipd(OMMP_SYSTEM_PRT);
 extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 
+extern bool ommp_use_frozen(OMMP_SYSTEM_PRT);
+extern bool *ommp_get_frozen(OMMP_SYSTEM_PRT);
+
 extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
 extern void ommp_full_geomgrad(OMMP_SYSTEM_PRT, double *);

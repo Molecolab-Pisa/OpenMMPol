@@ -16,6 +16,7 @@ std::map<std::string, int32_t> solvers{
 
 typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_ciarray;
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
+typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
 
 class OMMPSystem{
     public:
@@ -60,7 +61,7 @@ class OMMPSystem{
                 throw py::value_error("frozen should be shaped [:]");
             }
 
-            ommp_set_frozen_atoms(handler, frozen.shape(1), frozen.data());
+            ommp_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
         }
 
         int get_n_ipd(){
@@ -81,6 +82,10 @@ class OMMPSystem{
 
         bool is_amoeba(){
             return ommp_ff_is_amoeba(handler);
+        }
+        
+        bool use_frozen(){
+            return ommp_use_frozen(handler);
         }
 
         py_cdarray get_ipd(){
@@ -164,6 +169,16 @@ class OMMPSystem{
                                     1,
                                     {get_pol_atoms()},
                                     {sizeof(int)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cbarray get_frozen(){
+            bool *mem = ommp_get_frozen(handler);
+            py::buffer_info bufinfo(mem, sizeof(bool),
+                                 py::format_descriptor<bool>::format(),
+                                 1,
+                                 {get_mm_atoms()},
+                                 {sizeof(bool)});
             return py_cdarray(bufinfo);
         }
 
@@ -321,22 +336,27 @@ class OMMPSystem{
         void numerical_grad(double (OMMPSystem::*ene_f)(void), double *g, double dd=1e-5){
             double *new_c = new double[get_mm_atoms()*3];
             double *_cmm = ommp_get_cmm(handler);
+            bool *frozen; 
             double tmp;
 
+            if(use_frozen()) frozen = ommp_get_frozen(handler);
+            
             for(int i=0; i < get_mm_atoms()*3; i++)
                 new_c[i] = _cmm[i];
 
             for(int i=0;  i < get_mm_atoms()*3; i++){
-                new_c[i] += dd;
-                ommp_update_coordinates(handler, new_c);
-                tmp = (this->*ene_f)();
+                if(!(use_frozen() && frozen[i/3])){
+                    new_c[i] += dd;
+                    ommp_update_coordinates(handler, new_c);
+                    tmp = (this->*ene_f)();
 
-                new_c[i] -= 2*dd;
-                ommp_update_coordinates(handler, new_c);
-                g[i] += (tmp-(this->*ene_f)()) / (2*dd);
+                    new_c[i] -= 2*dd;
+                    ommp_update_coordinates(handler, new_c);
+                    g[i] += (tmp-(this->*ene_f)()) / (2*dd);
 
-                new_c[i] += dd;
-                ommp_update_coordinates(handler, new_c);
+                    new_c[i] += dd;
+                    ommp_update_coordinates(handler, new_c);
+                }
             }
         }
 
@@ -749,7 +769,7 @@ class OMMPQmHelper{
                 throw py::value_error("frozen should be shaped [:]");
             }
 
-            ommp_qm_helper_set_frozen_atoms(handler, frozen.shape(1), frozen.data());
+            ommp_qm_helper_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
         }
 
         void init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
@@ -1102,7 +1122,9 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("static_charges", &OMMPSystem::get_static_charges, "Static charges (read only) [mm_atoms]")
         .def_property_readonly("static_dipoles", &OMMPSystem::get_static_dipoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 3], else None")
         .def_property_readonly("static_quadrupoles", &OMMPSystem::get_static_quadrupoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 6], else None")
-        .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]");
+        .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]")
+        .def_property_readonly("use_frozen", &OMMPSystem::use_frozen, "Flag to check if frozen atoms are used")
+        .def_property_readonly("frozen", &OMMPSystem::get_frozen, "Logical array, for each atom True means frozen False means mobile.");
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 

@@ -15,6 +15,7 @@ module mod_memory
 #endif
     !! Required precision for integer type
     integer(ip), parameter :: rp = c_double !! Required precision for real type
+    integer(ip), parameter :: lp = c_bool
 
     integer(ip), parameter :: iof_memory = 6
     !! Unit file for memory errors, warning and debug
@@ -24,7 +25,7 @@ module mod_memory
     integer(ip) :: size_of_real !! Number of bytes for a real
     logical :: do_chk_limit !! Decide if the soft memory limit is on
 
-    public :: rp, ip
+    public :: rp, ip, lp
     public :: mallocate, mfree, print_memory_info, & 
               memory_init
     public :: use_8bytes_int 
