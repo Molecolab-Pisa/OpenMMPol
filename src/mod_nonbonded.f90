@@ -553,9 +553,9 @@ module mod_nonbonded
                     if(top%use_frozen) then
                         skip = .true.
                         skip = skip .and. top%frozen(i)
-                        skip = skip .and. top%frozen(i)
+                        skip = skip .and. top%frozen(j)
                         if(ineigh_i > 0) skip = skip .and. top%frozen(ineigh_i)
-                        if(ineigh_i > 0) skip = skip .and. top%frozen(ineigh_j)
+                        if(ineigh_j > 0) skip = skip .and. top%frozen(ineigh_j)
                         if(skip) cycle
                     end if
 
@@ -695,6 +695,7 @@ module mod_nonbonded
         integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp, Rijg, f_i, f_j, &
                     J_i(3), J_j(3)
+        logical :: skip
         type(ommp_topology_type), pointer :: top1, top2
 
         top1 => vdw1%top
@@ -719,11 +720,6 @@ module mod_nonbonded
             endif
                 
             do j=1, top2%mm_atoms
-                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
-                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
-                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
-                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
-            
                 if(abs(vdw2%vdw_f(j) - 1.0) < eps_rp) then
                     cj = top2%cmm(:,j)
                     ineigh_j = 0
@@ -742,27 +738,49 @@ module mod_nonbonded
                          (top2%cmm(:,j) - top2%cmm(:,ineigh_j)) * f_j
                 endif
                 
+                skip = top1%use_frozen .and. top2%use_frozen
+                if(skip .and. top1%use_frozen) then
+                    skip = skip .and. top1%frozen(i)
+                    if(ineigh_i > 0) skip = skip .and. top1%frozen(ineigh_i)
+                end if
+                if(skip .and. top2%use_frozen) then
+                    skip = skip .and. top2%frozen(j)
+                    if(ineigh_j > 0) skip = skip .and. top2%frozen(ineigh_j)
+                end if
+                if(skip) cycle
+                
+                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
+                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
+                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
+                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
+            
                 call Rij_jacobian(ci, cj, Rij, J_i, J_j)
                 call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
 
                 if(ineigh_i == 0) then
-                    grad1(:,i) =  grad1(:,i) + J_i * Rijg
+                    if(.not. (top1%use_frozen .and. top1%frozen(i))) &
+                        grad1(:,i) =  grad1(:,i) + J_i * Rijg
                 else
                     ! If the center is displaced, the forces should be 
                     ! projected onto the two atoms that determine the
                     ! position of the center
-                    grad1(:,i) = grad1(:,i) + J_i * Rijg * f_i
-                    grad1(:,ineigh_i) = grad1(:,ineigh_i) + J_i * Rijg * (1-f_i)
+                    if(.not. (top1%use_frozen .and. top1%frozen(i))) &
+                        grad1(:,i) = grad1(:,i) + J_i * Rijg * f_i
+                    if(.not. (top1%use_frozen .and. top1%frozen(ineigh_i))) &
+                        grad1(:,ineigh_i) = grad1(:,ineigh_i) + J_i * Rijg * (1-f_i)
                 end if
 
                 if(ineigh_j == 0) then
-                    grad2(:,j) =  grad2(:,j) + J_j * Rijg
+                    if(.not. (top2%use_frozen .and. top2%frozen(j))) &
+                        grad2(:,j) =  grad2(:,j) + J_j * Rijg
                 else
                     ! If the center is displaced, the forces should be 
                     ! projected onto the two atoms that determine the
                     ! position of the center
-                    grad2(:,j) = grad2(:,j) + J_j * Rijg * f_j
-                    grad2(:,ineigh_j) = grad2(:,ineigh_j) + J_j * Rijg * (1-f_j)
+                    if(.not. (top2%use_frozen .and. top2%frozen(j))) &
+                        grad2(:,j) = grad2(:,j) + J_j * Rijg * f_j
+                    if(.not. (top2%use_frozen .and. top2%frozen(ineigh_j))) &
+                        grad2(:,ineigh_j) = grad2(:,ineigh_j) + J_j * Rijg * (1-f_j)
                 endif
             end do
         end do
