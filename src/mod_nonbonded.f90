@@ -492,6 +492,7 @@ module mod_nonbonded
         integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, J_i(3), J_j(3), Rijg, &
                     f_i, f_j
+        logical :: skip
         type(ommp_topology_type), pointer :: top
 
         top => vdw%top
@@ -530,24 +531,6 @@ module mod_nonbonded
                 end do
                 
                 if(s > eps_rp) then
-                    ipair = -1
-                    do l=vdw%vdw_pair%ri(i), vdw%vdw_pair%ri(i+1)-1
-                        if(vdw%vdw_pair%ci(l) == j) then
-                            ipair = l
-                            exit
-                        end if
-                    end do
-
-                    if(ipair > 0) then
-                        Rij0 = vdw%vdw_pair_r(ipair)
-                        eij = vdw%vdw_pair_e(ipair)
-                    else 
-                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
-                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
-                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
-                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
-                    end if
-                
                     if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
                         cj = top%cmm(:,j)
                         ineigh_j = 0 ! This is needed later for force projection
@@ -565,28 +548,62 @@ module mod_nonbonded
                         cj = top%cmm(:,ineigh_j) + &
                              (top%cmm(:,j) - top%cmm(:,ineigh_j)) * f_j
                     endif
+                    ! if all atoms in the interaction are frozen 
+                    ! just skip to next iteration
+                    if(top%use_frozen) then
+                        skip = .true.
+                        skip = skip .and. top%frozen(i)
+                        skip = skip .and. top%frozen(i)
+                        if(ineigh_i > 0) skip = skip .and. top%frozen(ineigh_i)
+                        if(ineigh_i > 0) skip = skip .and. top%frozen(ineigh_j)
+                        if(skip) cycle
+                    end if
+
+                    ipair = -1
+                    do l=vdw%vdw_pair%ri(i), vdw%vdw_pair%ri(i+1)-1
+                        if(vdw%vdw_pair%ci(l) == j) then
+                            ipair = l
+                            exit
+                        end if
+                    end do
+
+                    if(ipair > 0) then
+                        Rij0 = vdw%vdw_pair_r(ipair)
+                        eij = vdw%vdw_pair_e(ipair)
+                    else 
+                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
+                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
+                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
+                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
+                    end if
 
                     call Rij_jacobian(ci, cj, Rij, J_i, J_j)
                     call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
 
                     if(ineigh_i == 0) then
-                        grad(:,i) =  grad(:,i) + J_i * Rijg
+                        if(.not. (top%use_frozen .and. top%frozen(i))) &
+                            grad(:,i) =  grad(:,i) + J_i * Rijg
                     else
                         ! If the center is displaced, the forces should be 
                         ! projected onto the two atoms that determine the
                         ! position of the center
-                        grad(:,i) = grad(:,i) + J_i * Rijg * f_i
-                        grad(:,ineigh_i) = grad(:,ineigh_i) + J_i * Rijg * (1-f_i)
+                        if(.not. (top%use_frozen .and. top%frozen(i))) &
+                            grad(:,i) = grad(:,i) + J_i * Rijg * f_i
+                        if(.not. (top%use_frozen .and. top%frozen(ineigh_i))) &
+                            grad(:,ineigh_i) = grad(:,ineigh_i) + J_i * Rijg * (1-f_i)
                     end if
 
                     if(ineigh_j == 0) then
-                        grad(:,j) =  grad(:,j) + J_j * Rijg
+                        if(.not. (top%use_frozen .and. top%frozen(j))) &
+                            grad(:,j) =  grad(:,j) + J_j * Rijg
                     else
                         ! If the center is displaced, the forces should be 
                         ! projected onto the two atoms that determine the
                         ! position of the center
-                        grad(:,j) = grad(:,j) + J_j * Rijg * f_j
-                        grad(:,ineigh_j) = grad(:,ineigh_j) + J_j * Rijg * (1-f_j)
+                        if(.not. (top%use_frozen .and. top%frozen(j))) &
+                            grad(:,j) = grad(:,j) + J_j * Rijg * f_j
+                        if(.not. (top%use_frozen .and. top%frozen(ineigh_j))) &
+                            grad(:,ineigh_j) = grad(:,ineigh_j) + J_j * Rijg * (1-f_j)
                     endif
                 end if
             end do

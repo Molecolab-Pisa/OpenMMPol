@@ -76,6 +76,11 @@ module mod_topology
                            top_obj%attype)
             top_obj%attype = 0
             top_obj%attype_initialized = .false.
+            
+            top_obj%use_frozen = .false.
+            if(.not. allocated(top_obj%frozen)) &
+                allocate(top_obj%frozen(top_obj%mm_atoms))
+            top_obj%frozen = .false.
         end subroutine
 
         subroutine guess_connectivity(top)
