@@ -261,7 +261,7 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
 
         integer :: i, ia, ib
-        logical :: use_cubic, use_quartic
+        logical :: use_cubic, use_quartic, sk_a, sk_b
         real(rp) :: ca(3), cb(3), J_a(3), J_b(3), l, dl, g
 
         use_cubic = (abs(bds%bond_cubic) > eps_rp)
@@ -275,8 +275,14 @@ module mod_bonded
                 ia = bds%bondat(1,i)
                 ib = bds%bondat(2,i)
                 
-                if(bds%top%use_frozen .and. bds%top%frozen(ia) .and. bds%top%frozen(ib)) &
-                    cycle
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(ia)
+                    sk_b = bds%top%frozen(ib)
+                    if(sk_a .and. sk_b) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                end if
                 
                 ca = bds%top%cmm(:,ia)
                 cb = bds%top%cmm(:,ib)
@@ -285,19 +291,22 @@ module mod_bonded
                 dl = l - bds%l0bond(i)
                 
                 g = 2 * bds%kbond(i) * dl
-                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ia))) &
-                    grad(:,ia) = grad(:,ia) + J_a * g
-
-                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ib))) &
-                    grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
+                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
             end do
         else
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
                 ib = bds%bondat(2,i)
                 
-                if(bds%top%use_frozen .and. bds%top%frozen(ia) .and. bds%top%frozen(ib)) &
-                    cycle
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(ia)
+                    sk_b = bds%top%frozen(ib)
+                    if(sk_a .and. sk_b) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                end if
                 
                 ca = bds%top%cmm(:,ia)
                 cb = bds%top%cmm(:,ib)
@@ -308,10 +317,8 @@ module mod_bonded
                 g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl&
                                              + 2.0*bds%bond_quartic*dl**2)
 
-                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ia))) &
-                    grad(:,ia) = grad(:,ia) + J_a * g
-                if(.not. (bds%top%use_frozen .and. bds%top%frozen(ib))) &
-                    grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
+                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
             end do
         end if
         
