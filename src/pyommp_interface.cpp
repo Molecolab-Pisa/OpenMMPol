@@ -95,6 +95,16 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
+        py_ciarray get_zmm(){
+            int32_t *mem = ommp_get_zmm(handler);
+            py::buffer_info bufinfo(mem, sizeof(int32_t),
+                                 py::format_descriptor<int32_t>::format(),
+                                 1,
+                                 {get_mm_atoms()},
+                                 {sizeof(int32_t)});
+            return py_ciarray(bufinfo);
+        }
+
         py_cdarray get_cpol(){
             double *mem = ommp_get_cpol(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
@@ -1143,6 +1153,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("is_amoeba", &OMMPSystem::is_amoeba, "Flag for Amoeba FF")
         .def_property_readonly("ipd", &OMMPSystem::get_ipd, "Induced dipoles (read only)")
         .def_property_readonly("cmm", &OMMPSystem::get_cmm, "Coordinates of atoms (read only) [mm_atoms, 3]")
+        .def_property_readonly("zmm", &OMMPSystem::get_zmm, "Atomic number of MM atoms (read only) [mm_atoms]")
         .def_property_readonly("cpol", &OMMPSystem::get_cpol, "Coordinates of polarizable atoms (read only) [pol_atoms, 3]")
         .def_property_readonly("_q", &OMMPSystem::get_q, "Full descriptor of static sites (read only) [mm_atoms, _ld_cart]")
         .def_property_readonly("static_charges", &OMMPSystem::get_static_charges, "Static charges (read only) [mm_atoms]")

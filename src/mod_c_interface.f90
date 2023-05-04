@@ -827,6 +827,17 @@ module mod_ommp_C_interface
             C_ommp_get_cmm = c_loc(s%top%cmm)
         end function C_ommp_get_cmm
 
+        function C_ommp_get_zmm(s_prt) bind(c, name='ommp_get_zmm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_zmm
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_zmm = c_loc(s%top%atz)
+        end function C_ommp_get_zmm
+
         function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
             !! Return the c-pointer to the array containing the coordinates of
             !! polarizable atoms.
