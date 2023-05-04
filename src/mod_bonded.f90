@@ -739,7 +739,7 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
 
         integer :: i, ia, ib
-        logical :: use_cubic, use_quartic
+        logical :: use_cubic, use_quartic, sk_a, sk_b
         real(rp) :: l, dl, J_a(3), J_b(3), g
         
         if(.not. bds%use_urey) return
@@ -752,18 +752,38 @@ module mod_bonded
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
                 ib = bds%ureyat(2,i)
+
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(ia)
+                    sk_b = bds%top%frozen(ib)
+                    if(sk_a .and. sk_b) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                end if
+
                 call Rij_jacobian(bds%top%cmm(:,ia), &
                                   bds%top%cmm(:,ib), &
                                   l, J_a, J_b)
                 dl = l - bds%l0urey(i)
                 g = 2 * bds%kurey(i) * dl
-                grad(:,ia) = grad(:,ia) + J_a * g
-                grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
+                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
             end do
         else
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
                 ib = bds%ureyat(2,i)
+
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(ia)
+                    sk_b = bds%top%frozen(ib)
+                    if(sk_a .and. sk_b) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                end if
+
                 call Rij_jacobian(bds%top%cmm(:,ia), &
                                   bds%top%cmm(:,ib), &
                                   l, J_a, J_b)
@@ -772,8 +792,8 @@ module mod_bonded
                                              + 3.0/2.0 * bds%urey_cubic*dl &
                                              + 2.0 * bds%urey_quartic*dl**2)
 
-                grad(:,ia) = grad(:,ia) + J_a * g
-                grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
+                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
             end do
         end if
     end subroutine urey_geomgrad
@@ -880,6 +900,7 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
         integer(ip) :: i, ia, ib, ic, id
+        logical :: sk_a, sk_b, sk_c, sk_d
         
         if(.not. bds%use_opb) return
         
@@ -888,6 +909,20 @@ module mod_bonded
             ib = bds%opbat(4,i)
             ic = bds%opbat(3,i)
             id = bds%opbat(1,i) 
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+            end if
+
             call opb_angle_jacobian(bds%top%cmm(:,ia), & 
                                     bds%top%cmm(:,ib), &
                                     bds%top%cmm(:,ic), &
@@ -898,10 +933,10 @@ module mod_bonded
                 + 4.0*bds%opb_quartic*thet**2 + 5.0*bds%opb_pentic*thet**3 &
                 + 6.0*bds%opb_sextic*thet**4)
 
-            grad(:,ia) = grad(:,ia) + g * J_a
-            grad(:,ib) = grad(:,ib) + g * J_b
-            grad(:,ic) = grad(:,ic) + g * J_c
-            grad(:,id) = grad(:,id) + g * J_d
+            if(.not. sk_a) grad(:,ia) = grad(:,ia) + g * J_a
+            if(.not. sk_b) grad(:,ib) = grad(:,ib) + g * J_b
+            if(.not. sk_c) grad(:,ic) = grad(:,ic) + g * J_c
+            if(.not. sk_d) grad(:,id) = grad(:,id) + g * J_d
         end do
     end subroutine opb_geomgrad
     
@@ -1018,6 +1053,7 @@ module mod_bonded
         !! improper torsion potential, result will be added to V
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3), J_e(3), J_f(3)
         integer(ip) :: i, ia, ib, ic, id, ie, if_
+        logical :: sk_a, sk_b, sk_c, sk_d, sk_e, sk_f
 
         if(.not. bds%use_pitors) return
         
@@ -1028,6 +1064,23 @@ module mod_bonded
             ib = bds%pitorsat(4,i)
             ie = bds%pitorsat(5,i)
             if_ = bds%pitorsat(6,i)
+            
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                sk_e = bds%top%frozen(ie)
+                sk_f = bds%top%frozen(if_)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d .and. sk_e .and. sk_f) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+                sk_e = .false.
+                sk_f = .false.
+            end if
 
             call pitors_angle_jacobian(bds%top%cmm(:,ia), &
                                        bds%top%cmm(:,ib), &
@@ -1039,12 +1092,12 @@ module mod_bonded
 
             g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
 
-            grad(:,ia) = grad(:,ia) + g * J_a
-            grad(:,ib) = grad(:,ib) + g * J_b
-            grad(:,ic) = grad(:,ic) + g * J_c
-            grad(:,id) = grad(:,id) + g * J_d
-            grad(:,ie) = grad(:,ie) + g * J_e
-            grad(:,if_) = grad(:,if_) + g * J_f
+            if(.not. sk_a) grad(:,ia) = grad(:,ia) + g * J_a
+            if(.not. sk_b) grad(:,ib) = grad(:,ib) + g * J_b
+            if(.not. sk_c) grad(:,ic) = grad(:,ic) + g * J_c
+            if(.not. sk_d) grad(:,id) = grad(:,id) + g * J_d
+            if(.not. sk_e) grad(:,ie) = grad(:,ie) + g * J_e
+            if(.not. sk_f) grad(:,if_) = grad(:,if_) + g * J_f
         end do
     end subroutine pitors_geomgrad
     
@@ -1134,6 +1187,7 @@ module mod_bonded
                 sk_b = bds%top%frozen(ib)
                 sk_c = bds%top%frozen(ic)
                 sk_d = bds%top%frozen(id)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
             else
                 sk_a = .false.
                 sk_b = .false.
@@ -1207,6 +1261,7 @@ module mod_bonded
         !! improper torsion potential, result will be added to V
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
         integer(ip) :: i, j, ia, ib, ic, id
+        logical :: sk_a, sk_b, sk_c, sk_d
         
         if(.not. bds%use_imptorsion) return
         
@@ -1216,6 +1271,20 @@ module mod_bonded
             ib = bds%imptorsionat(2,i)
             ic = bds%imptorsionat(3,i)
             id = bds%imptorsionat(4,i) 
+            
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+            end if
+
             call torsion_angle_jacobian(bds%top%cmm(:,ia), &
                                         bds%top%cmm(:,ib), &
                                         bds%top%cmm(:,ic), &
@@ -1227,10 +1296,10 @@ module mod_bonded
                 g = -real(bds%imptorsn(j,i)) * sin(real(bds%imptorsn(j,i))* thet &
                                                    - bds%imptorsphase(j,i)) &
                                              * bds%imptorsamp(j,i)
-                grad(:, ia) = grad(:, ia) + J_a * g
-                grad(:, ib) = grad(:, ib) + J_b * g
-                grad(:, ic) = grad(:, ic) + J_c * g
-                grad(:, id) = grad(:, id) + J_d * g
+                if(.not. sk_a) grad(:, ia) = grad(:, ia) + J_a * g
+                if(.not. sk_b) grad(:, ib) = grad(:, ib) + J_b * g
+                if(.not. sk_c) grad(:, ic) = grad(:, ic) + J_c * g
+                if(.not. sk_d) grad(:, id) = grad(:, id) + J_d * g
             end do
         end do
 
@@ -1380,6 +1449,9 @@ module mod_bonded
                        it_a, it_b, it_c, it_d, &
                        ia1_a, ia1_b, ia1_c, &
                        ia2_a, ia2_b, ia2_c
+        logical :: sk_ta, sk_tb, sk_tc, sk_td, &
+                   sk_1a, sk_1b, sk_1c, &
+                   sk_2a, sk_2b, sk_2c
         
         if(.not. bds%use_angtor) return
 
@@ -1399,6 +1471,35 @@ module mod_bonded
             ia2_a = bds%angleat(1,ia2)
             ia2_b = bds%angleat(2,ia2)
             ia2_c = bds%angleat(3,ia2)
+            
+            if(bds%top%use_frozen) then
+                sk_ta = bds%top%frozen(it_a)
+                sk_tb = bds%top%frozen(it_b)
+                sk_tc = bds%top%frozen(it_c)
+                sk_td = bds%top%frozen(it_d)
+                
+                sk_1a = bds%top%frozen(ia1_a)
+                sk_1b = bds%top%frozen(ia1_b)
+                sk_1c = bds%top%frozen(ia1_c)
+                
+                sk_2a = bds%top%frozen(ia2_a)
+                sk_2b = bds%top%frozen(ia2_b)
+                sk_2c = bds%top%frozen(ia2_c)
+                if(sk_ta .and. sk_tb .and. sk_tc .and. sk_td .and. &
+                   sk_1a .and. sk_1b .and. sk_1c .and. &
+                   sk_2a .and. sk_2b .and. sk_2c) cycle
+            else
+                sk_ta = .false.
+                sk_tb = .false.
+                sk_tc = .false.
+                sk_td = .false.
+                sk_1a = .false.
+                sk_1b = .false.
+                sk_1c = .false.
+                sk_2a = .false.
+                sk_2b = .false.
+                sk_2c = .false.
+            end if
 
             call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
                                         bds%top%cmm(:,it_b), &
@@ -1424,23 +1525,23 @@ module mod_bonded
             da2 = angle2 - bds%eqangle(ia2)
 
             do k=1, 3
-                grad(:,it_a) = grad(:,it_a) + bds%angtork(k,i) * da1 * gt(k) * Jt_a
-                grad(:,it_b) = grad(:,it_b) + bds%angtork(k,i) * da1 * gt(k) * Jt_b
-                grad(:,it_c) = grad(:,it_c) + bds%angtork(k,i) * da1 * gt(k) * Jt_c
-                grad(:,it_d) = grad(:,it_d) + bds%angtork(k,i) * da1 * gt(k) * Jt_d
+                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%angtork(k,i) * da1 * gt(k) * Jt_a
+                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%angtork(k,i) * da1 * gt(k) * Jt_b
+                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%angtork(k,i) * da1 * gt(k) * Jt_c
+                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%angtork(k,i) * da1 * gt(k) * Jt_d
                 
-                grad(:,ia1_a) = grad(:,ia1_a) + bds%angtork(k,i) * dihef(k) * Ja1_a
-                grad(:,ia1_b) = grad(:,ia1_b) + bds%angtork(k,i) * dihef(k) * Ja1_b
-                grad(:,ia1_c) = grad(:,ia1_c) + bds%angtork(k,i) * dihef(k) * Ja1_c
+                if(.not. sk_1a) grad(:,ia1_a) = grad(:,ia1_a) + bds%angtork(k,i) * dihef(k) * Ja1_a
+                if(.not. sk_1b) grad(:,ia1_b) = grad(:,ia1_b) + bds%angtork(k,i) * dihef(k) * Ja1_b
+                if(.not. sk_1c) grad(:,ia1_c) = grad(:,ia1_c) + bds%angtork(k,i) * dihef(k) * Ja1_c
                 
-                grad(:,it_a) = grad(:,it_a) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_a
-                grad(:,it_b) = grad(:,it_b) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_b
-                grad(:,it_c) = grad(:,it_c) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_c
-                grad(:,it_d) = grad(:,it_d) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_d
+                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_a
+                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_b
+                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_c
+                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_d
                 
-                grad(:,ia2_a) = grad(:,ia2_a) + bds%angtork(3+k,i) * dihef(k) * Ja2_a
-                grad(:,ia2_b) = grad(:,ia2_b) + bds%angtork(3+k,i) * dihef(k) * Ja2_b
-                grad(:,ia2_c) = grad(:,ia2_c) + bds%angtork(3+k,i) * dihef(k) * Ja2_c
+                if(.not. sk_2a) grad(:,ia2_a) = grad(:,ia2_a) + bds%angtork(3+k,i) * dihef(k) * Ja2_a
+                if(.not. sk_2b) grad(:,ia2_b) = grad(:,ia2_b) + bds%angtork(3+k,i) * dihef(k) * Ja2_b
+                if(.not. sk_2c) grad(:,ia2_c) = grad(:,ia2_c) + bds%angtork(3+k,i) * dihef(k) * Ja2_c
             end do
         end do
     end subroutine angtor_geomgrad
@@ -1511,6 +1612,11 @@ module mod_bonded
                        ib1_a, ib1_b, &
                        ib2_a, ib2_b, &
                        ib3_a, ib3_b
+        logical :: sk_ta, sk_tb, sk_tc, sk_td, &
+                   sk_1a, sk_1b, &
+                   sk_2a, sk_2b, &
+                   sk_3a, sk_3b
+
         
         if(.not. bds%use_strtor) return
 
@@ -1532,6 +1638,38 @@ module mod_bonded
             ib3 = bds%strtor_b(3,i)
             ib3_a = bds%bondat(1,ib3)
             ib3_b = bds%bondat(2,ib3)
+            
+            if(bds%top%use_frozen) then
+                sk_ta = bds%top%frozen(it_a)
+                sk_tb = bds%top%frozen(it_b)
+                sk_tc = bds%top%frozen(it_c)
+                sk_td = bds%top%frozen(it_d)
+                
+                sk_1a = bds%top%frozen(ib1_a)
+                sk_1b = bds%top%frozen(ib1_b)
+                
+                sk_2a = bds%top%frozen(ib2_a)
+                sk_2b = bds%top%frozen(ib2_b)
+
+                sk_3a = bds%top%frozen(ib3_a)
+                sk_3b = bds%top%frozen(ib3_b)
+
+                if(sk_ta .and. sk_tb .and. sk_tc .and. sk_td .and. &
+                   sk_1a .and. sk_1b .and. &
+                   sk_2a .and. sk_2b .and. &
+                   sk_3a .and. sk_3b) cycle
+            else
+                sk_ta = .false.
+                sk_tb = .false.
+                sk_tc = .false.
+                sk_td = .false.
+                sk_1a = .false.
+                sk_1b = .false.
+                sk_2a = .false.
+                sk_2b = .false.
+                sk_3a = .false.
+                sk_3b = .false.
+            end if
 
             call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
                                         bds%top%cmm(:,it_b), &
@@ -1559,29 +1697,29 @@ module mod_bonded
             dr3 = r3 - bds%l0bond(ib3)  
             
             do k=1, 3
-                grad(:,it_a) = grad(:,it_a) + bds%strtork(k,i) * dr1 * gt(k) * Jt_a
-                grad(:,it_b) = grad(:,it_b) + bds%strtork(k,i) * dr1 * gt(k) * Jt_b
-                grad(:,it_c) = grad(:,it_c) + bds%strtork(k,i) * dr1 * gt(k) * Jt_c
-                grad(:,it_d) = grad(:,it_d) + bds%strtork(k,i) * dr1 * gt(k) * Jt_d
+                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(k,i) * dr1 * gt(k) * Jt_a
+                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(k,i) * dr1 * gt(k) * Jt_b
+                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%strtork(k,i) * dr1 * gt(k) * Jt_c
+                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%strtork(k,i) * dr1 * gt(k) * Jt_d
                 
-                grad(:,ib1_a) = grad(:,ib1_a) + bds%strtork(k,i) * dihef(k) * Jb1_a
-                grad(:,ib1_b) = grad(:,ib1_b) + bds%strtork(k,i) * dihef(k) * Jb1_b
+                if(.not. sk_1a) grad(:,ib1_a) = grad(:,ib1_a) + bds%strtork(k,i) * dihef(k) * Jb1_a
+                if(.not. sk_1b) grad(:,ib1_b) = grad(:,ib1_b) + bds%strtork(k,i) * dihef(k) * Jb1_b
                 
-                grad(:,it_a) = grad(:,it_a) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_a
-                grad(:,it_b) = grad(:,it_b) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_b
-                grad(:,it_c) = grad(:,it_c) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_c
-                grad(:,it_d) = grad(:,it_d) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_d
+                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_a
+                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_b
+                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_c
+                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_d
                 
-                grad(:,ib2_a) = grad(:,ib2_a) + bds%strtork(3+k,i) * dihef(k) * Jb2_a
-                grad(:,ib2_b) = grad(:,ib2_b) + bds%strtork(3+k,i) * dihef(k) * Jb2_b
+                if(.not. sk_2a) grad(:,ib2_a) = grad(:,ib2_a) + bds%strtork(3+k,i) * dihef(k) * Jb2_a
+                if(.not. sk_2b) grad(:,ib2_b) = grad(:,ib2_b) + bds%strtork(3+k,i) * dihef(k) * Jb2_b
 
-                grad(:,it_a) = grad(:,it_a) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_a
-                grad(:,it_b) = grad(:,it_b) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_b
-                grad(:,it_c) = grad(:,it_c) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_c
-                grad(:,it_d) = grad(:,it_d) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_d
+                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_a
+                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_b
+                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_c
+                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_d
                 
-                grad(:,ib3_a) = grad(:,ib3_a) + bds%strtork(6+k,i) * dihef(k) * Jb3_a
-                grad(:,ib3_b) = grad(:,ib3_b) + bds%strtork(6+k,i) * dihef(k) * Jb3_b
+                if(.not. sk_3a) grad(:,ib3_a) = grad(:,ib3_a) + bds%strtork(6+k,i) * dihef(k) * Jb3_a
+                if(.not. sk_3b) grad(:,ib3_b) = grad(:,ib3_b) + bds%strtork(6+k,i) * dihef(k) * Jb3_b
             end do
         end do
     end subroutine strtor_geomgrad
@@ -1837,6 +1975,7 @@ module mod_bonded
                                   J2_c, J1_d, J2_d, J2_e
 
         integer(ip) :: i, j, iprm, ibeg, iend, ia, ib, ic, id, ie
+        logical :: sk_a, sk_b, sk_c, sk_d, sk_e
 
         if(.not. bds%use_tortor) return
         
@@ -1854,6 +1993,21 @@ module mod_bonded
             ic = bds%tortorat(3,i)
             id = bds%tortorat(4,i)
             ie = bds%tortorat(5,i)
+            
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                sk_e = bds%top%frozen(ie)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d .and. sk_e) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+                sk_e = .false.
+            end if
 
             call torsion_angle_jacobian(bds%top%cmm(:,ia), &
                                         bds%top%cmm(:,ib), &
@@ -1882,11 +2036,11 @@ module mod_bonded
                                         bds%ttmap_vy(ibeg:iend), &
                                         bds%ttmap_vxy(ibeg:iend))
 
-            grad(:,ia) = grad(:,ia) + J1_a * dvttdx
-            grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
-            grad(:,ic) = grad(:,ic) + J1_c * dvttdx + J2_c * dvttdy
-            grad(:,id) = grad(:,id) + J1_d * dvttdx + J2_d * dvttdy
-            grad(:,ie) = grad(:,ie) + J2_e * dvttdy
+            if(.not. sk_a) grad(:,ia) = grad(:,ia) + J1_a * dvttdx
+            if(.not. sk_b) grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
+            if(.not. sk_c) grad(:,ic) = grad(:,ic) + J1_c * dvttdx + J2_c * dvttdy
+            if(.not. sk_d) grad(:,id) = grad(:,id) + J1_d * dvttdx + J2_d * dvttdy
+            if(.not. sk_e) grad(:,ie) = grad(:,ie) + J2_e * dvttdy
         end do
 
     end subroutine tortor_geomgrad
