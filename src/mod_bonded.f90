@@ -452,6 +452,7 @@ module mod_bonded
         real(rp) :: a(3), b(3), c(3), Ja(3), Jb(3), Jc(3), Jx(3), g, thet, &
                     d_theta, aux(3)
         integer(ip) :: i
+        logical :: sk_a, sk_b, sk_c, sk_x
 
         if(.not. bds%use_angle) return
         
@@ -460,6 +461,17 @@ module mod_bonded
                bds%anglety(i) == OMMP_ANG_H0 .or. &
                bds%anglety(i) == OMMP_ANG_H1 .or. &
                bds%anglety(i) == OMMP_ANG_H2) then
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(bds%angleat(1,i))
+                    sk_b = bds%top%frozen(bds%angleat(2,i))
+                    sk_c = bds%top%frozen(bds%angleat(3,i))
+                    if(sk_a .and. sk_b .and. sk_c) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                    sk_c = .false.
+                end if
+
                 a = bds%top%cmm(:, bds%angleat(1,i)) 
                 b = bds%top%cmm(:, bds%angleat(2,i))
                 c = bds%top%cmm(:, bds%angleat(3,i))
@@ -472,13 +484,26 @@ module mod_bonded
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
 
-                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
-                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
-                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                if(.not. sk_a) grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                if(.not. sk_b) grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                if(.not. sk_c) grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
             
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
+                
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(bds%angleat(1,i))
+                    sk_b = bds%top%frozen(bds%angleat(2,i))
+                    sk_c = bds%top%frozen(bds%angleat(3,i))
+                    sk_x = bds%top%frozen(bds%angauxat(i))
+                    if(sk_a .and. sk_b .and. sk_c .and. sk_x) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                    sk_c = .false.
+                    sk_x = .false.
+                end if
                 
                 a = bds%top%cmm(:, bds%angleat(1,i))
                 b = bds%top%cmm(:, bds%angleat(2,i)) !! Trigonal center
@@ -494,10 +519,10 @@ module mod_bonded
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
                
-                grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
-                grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
-                grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
-                grad(:,bds%angauxat(i)) = grad(:,bds%angauxat(i)) + g * Jx
+                if(.not. sk_a) grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
+                if(.not. sk_b) grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
+                if(.not. sk_c) grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                if(.not. sk_x) grad(:,bds%angauxat(i)) = grad(:,bds%angauxat(i)) + g * Jx
 
             end if
         end do
@@ -587,6 +612,7 @@ module mod_bonded
                                   J1_a, J1_b, &
                                   J2_b, J2_c, &
                                   J3_a, J3_b, J3_c
+        logical :: sk_a, sk_b, sk_c
         
         if(.not. bds%use_strbnd) return
 
@@ -594,6 +620,18 @@ module mod_bonded
             ia = bds%strbndat(1,i)
             ib = bds%strbndat(2,i)
             ic = bds%strbndat(3,i)
+            
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                if(sk_a .and. sk_b .and. sk_c) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+            end if
+
             a = bds%top%cmm(:, ia)
             b = bds%top%cmm(:, ib)
             c = bds%top%cmm(:, ic)
@@ -610,9 +648,9 @@ module mod_bonded
             g2 = bds%strbndk2(i) * d_thet
             g3 = bds%strbndk1(i) * d_l1 + bds%strbndk2(i) * d_l2
 
-            grad(:,ia) = grad(:,ia) + J1_a * g1 + J3_a * g3
-            grad(:,ib) = grad(:,ib) + J1_b * g1 + J2_b * g2 + J3_b * g3 
-            grad(:,ic) = grad(:,ic) + J2_c * g2 + J3_c * g3
+            if(.not. sk_a) grad(:,ia) = grad(:,ia) + J1_a * g1 + J3_a * g3
+            if(.not. sk_b) grad(:,ib) = grad(:,ib) + J1_b * g1 + J2_b * g2 + J3_b * g3 
+            if(.not. sk_c) grad(:,ic) = grad(:,ic) + J2_c * g2 + J3_c * g3
         end do
 
     end subroutine strbnd_geomgrad
@@ -1081,6 +1119,7 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
         integer(ip) :: i, j, ia, ib, ic, id
+        logical :: sk_a, sk_b, sk_c, sk_d
         
         if(.not. bds%use_torsion) return
 
@@ -1089,6 +1128,19 @@ module mod_bonded
             ib = bds%torsionat(2,i)
             ic = bds%torsionat(3,i)
             id = bds%torsionat(4,i) 
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+            end if
+
             call torsion_angle_jacobian(bds%top%cmm(:,ia), &
                                         bds%top%cmm(:,ib), &
                                         bds%top%cmm(:,ic), &
@@ -1100,10 +1152,10 @@ module mod_bonded
                 g = -real(bds%torsn(j,i)) * sin(real(bds%torsn(j,i))* thet &
                                                 - bds%torsphase(j,i)) &
                     * bds%torsamp(j,i)
-                grad(:, ia) = grad(:, ia) + J_a * g
-                grad(:, ib) = grad(:, ib) + J_b * g
-                grad(:, ic) = grad(:, ic) + J_c * g
-                grad(:, id) = grad(:, id) + J_d * g
+                if(.not. sk_a) grad(:, ia) = grad(:, ia) + J_a * g
+                if(.not. sk_b) grad(:, ib) = grad(:, ib) + J_b * g
+                if(.not. sk_c) grad(:, ic) = grad(:, ic) + J_c * g
+                if(.not. sk_d) grad(:, id) = grad(:, id) + J_d * g
             end do
         end do
 
