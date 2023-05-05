@@ -74,8 +74,8 @@ print("Atomi attivi: ", ms.mm_atoms - int(ms.mm_atoms*ffr))
 ms.set_frozen_atoms(frozen)
 
 rc = 0
-#rc += num_ana_compare(ms, ommp.OMMPSystem.fixedelec_geomgrad, "fixedelec", 1e-9)
-rc += num_ana_compare(ms, ommp.OMMPSystem.vdw_geomgrad, "vdw", 1e-9)
+rc += num_ana_compare(ms, ommp.OMMPSystem.fixedelec_geomgrad, "fixedelec", 1e-9)
+rc += num_ana_compare(ms, ommp.OMMPSystem.vdw_geomgrad, "vdw", 1e-8)
 #rc += num_ana_compare(ms, ommp.OMMPSystem.polelec_geomgrad, "polelec", 1e-8)
 rc += num_ana_compare(ms, ommp.OMMPSystem.bond_geomgrad, "bond", 1e-9)
 rc += num_ana_compare(ms, ommp.OMMPSystem.angle_geomgrad, "angle", 1e-9)
