@@ -132,7 +132,8 @@ module mod_mmpol
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
         use mod_io, only: ommp_message
         use mod_constants, only: OMMP_VERBOSE_DEBUG
-        use mod_electrostatics, only: thole_init, remove_null_pol
+        use mod_electrostatics, only: thole_init, remove_null_pol, &
+                                      make_screening_lists
 
         implicit none
         
@@ -159,6 +160,7 @@ module mod_mmpol
                               OMMP_VERBOSE_DEBUG)
             ! invert mm_polar list creating mm_polar
             sys_obj%eel%mm_polar(:) = 0
+            !$omp parallel do default(shared) private(i)
             do i = 1, sys_obj%eel%pol_atoms
                 sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i
             end do
@@ -166,6 +168,7 @@ module mod_mmpol
             call ommp_message("Populating coordinates of polarizable atoms", &
                               OMMP_VERBOSE_DEBUG)
             ! populate cpol list of coordinates
+            !$omp parallel do default(shared) private(i)
             do i = 1, sys_obj%eel%pol_atoms
                 sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
             end do
@@ -194,6 +197,9 @@ module mod_mmpol
             ! performs multipoles rotation
             call rotate_multipoles(sys_obj%eel)
         end if
+
+        call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)
+        call make_screening_lists(sys_obj%eel)
 
     end subroutine mmpol_prepare
 
