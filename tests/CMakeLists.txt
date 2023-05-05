@@ -1539,6 +1539,96 @@ add_test(NAME 1crn_geomgrad_full_AMOEBA_comp_etot
          Testing/output 
          ETOT
          ${RTOL} ${ATOL})
+
+add_test(NAME 1crn_geomgrad_full_AMBER
+         COMMAND  bin/${TESTLANG}_test_geomgrad_xyz
+         ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMBER99SB.xyz
+         amber99sb.prm
+         Testing/output)
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_eb
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EB
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_ev
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EV
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_em
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EM
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_ep
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EP
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_eub
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EUB
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_ea
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EA
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_eba
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EBA
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_eopb
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EOPB
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_ept
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EPT
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_et
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         ET
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_ett
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         ETT
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_eat
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EAT
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_ebt
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         EBT
+         ${RTOL} ${ATOL})
+     add_test(NAME 1crn_geomgrad_full_AMBER_comp_etot
+         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+         Testing/output 
+         ETOT
+         ${RTOL} ${ATOL})
  
 add_test(NAME 1ubq_geomgrad_full_AMOEBA
          COMMAND  bin/${TESTLANG}_test_geomgrad_xyz

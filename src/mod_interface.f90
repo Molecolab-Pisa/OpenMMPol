@@ -520,7 +520,7 @@ module ommp_interface
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
-            call polelec_geomgrad(s, grd)
+            if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
         end subroutine
 
         subroutine ommp_vdw_geomgrad(s, grd)
@@ -724,7 +724,7 @@ module ommp_interface
             grd = 0.0
             call ommp_full_bnd_geomgrad(s, grd)
             call fixedelec_geomgrad(s, grd)
-            call polelec_geomgrad(s, grd)
+            if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
 
         end subroutine
