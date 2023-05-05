@@ -260,15 +260,19 @@ module ommp_interface
             
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
+            
+            if(sys_obj%eel%pol_atoms == 0) then
+                ene = 0.0
+            else
+                if(.not. sys_obj%eel%ipd_done) then
+                    !! Solve the polarization system without external field
+                    call prepare_polelec(sys_obj%eel)
+                    call polarization(sys_obj, sys_obj%eel%e_m2d, OMMP_SOLVER_DEFAULT)
+                end if
 
-            if(.not. sys_obj%eel%ipd_done) then
-                !! Solve the polarization system without external field
-                call prepare_polelec(sys_obj%eel)
-                call polarization(sys_obj, sys_obj%eel%e_m2d, OMMP_SOLVER_DEFAULT)
+                ene = 0.0
+                call energy_MM_pol(sys_obj%eel, ene)
             end if
-
-            ene = 0.0
-            call energy_MM_pol(sys_obj%eel, ene)
         end function
         
         function ommp_get_fixedelec_energy(sys_obj) result(ene)
@@ -516,7 +520,7 @@ module ommp_interface
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
             grd = 0.0
-            call polelec_geomgrad(s, grd)
+            if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
         end subroutine
 
         subroutine ommp_vdw_geomgrad(s, grd)
@@ -720,7 +724,7 @@ module ommp_interface
             grd = 0.0
             call ommp_full_bnd_geomgrad(s, grd)
             call fixedelec_geomgrad(s, grd)
-            call polelec_geomgrad(s, grd)
+            if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
 
         end subroutine

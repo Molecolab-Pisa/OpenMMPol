@@ -64,6 +64,16 @@ module mod_nonbonded
     end subroutine
     end interface
    
+    abstract interface
+    subroutine vdw_gterm(Rij, Rij0, Eij, Rijgrad)
+        use mod_memory, only: rp
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rijgrad
+    end subroutine
+    end interface
+   
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
     public :: vdw_potential_inter, vdw_geomgrad_inter
@@ -286,6 +296,21 @@ module mod_nonbonded
 
     end subroutine vdw_lennard_jones
     
+    subroutine vdw_lennard_jones_Rijgrad(Rij, Rij0, Eij, Rijgrad)
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rijgrad
+
+        real(rp) :: sigma_ov_r, tmp
+
+        sigma_ov_r = Rij0 / Rij
+        Rijgrad = -12.0 * Eij * (sigma_ov_r ** 12 - sigma_ov_r ** 6) / Rij
+
+    end subroutine vdw_lennard_jones_Rijgrad
+    
     subroutine vdw_buffered_7_14(Rij, Rij0, Eij, V)
         !! Compute the dispersion-repulsion energy using the buffered 7-14 
         !! potential. Details can be found in ref: 10.1021/jp027815
@@ -476,7 +501,7 @@ module mod_nonbonded
     end subroutine vdw_potential
     
     subroutine vdw_geomgrad(vdw, grad)
-        !! Compute the dispersion repulsion energy for the whole system
+        !! Compute the dispersion repulsion geometric gradients for the whole system
         !! using a double loop algorithm
 
         use mod_io, only : fatal_error
@@ -493,8 +518,17 @@ module mod_nonbonded
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, J_i(3), J_j(3), Rijg, &
                     f_i, f_j
         type(ommp_topology_type), pointer :: top
+        procedure(vdw_gterm), pointer :: vdw_gfunc
 
         top => vdw%top
+        select case(vdw%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_gfunc => vdw_lennard_jones_Rijgrad
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_gfunc => vdw_buffered_7_14_Rijgrad
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
 
         do i=1, top%mm_atoms
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
@@ -542,10 +576,8 @@ module mod_nonbonded
                         Rij0 = vdw%vdw_pair_r(ipair)
                         eij = vdw%vdw_pair_e(ipair)
                     else 
-                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
-                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
-                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
-                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
+                        Rij0 = get_Rij0(vdw, i, j)
+                        eij = get_eij(vdw, i, j)
                     end if
                 
                     if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
@@ -565,9 +597,10 @@ module mod_nonbonded
                         cj = top%cmm(:,ineigh_j) + &
                              (top%cmm(:,j) - top%cmm(:,ineigh_j)) * f_j
                     endif
-
                     call Rij_jacobian(ci, cj, Rij, J_i, J_j)
-                    call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
+                    call vdw_gfunc(Rij, Rij0, Eij, Rijg)
+
+                    Rijg = Rijg * s
 
                     if(ineigh_i == 0) then
                         grad(:,i) =  grad(:,i) + J_i * Rijg
