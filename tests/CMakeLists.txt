@@ -94,8 +94,8 @@ add_test(NAME 1crn_xyzloading_AMOEBA_comp
      add_test(1crn_xyzloading_AMBER
          bin/${TESTLANG}_test_init_xyz ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMBER99SB.xyz amber99sb.prm Testing/output)
 set_tests_properties(1crn_xyzloading_AMBER PROPERTIES DEPENDS amber99sb.prm)
-#add_test(NAME 1crn_xyzloading_AMBER_comp 
-#         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1crn/summary_AMBER.ref)
+add_test(NAME 1crn_xyzloading_AMBER_comp 
+         COMMAND ${CMAKE_COMMAND} -E compare_files Testing/output ${CMAKE_SOURCE_DIR}/tests/1crn/summary_AMBER99SB.ref)
 
 add_test(1ubq_xyzloading_AMOEBA
     bin/${TESTLANG}_test_init_xyz ${CMAKE_SOURCE_DIR}/tests/1ubq/input.xyz amoebabio18.prm Testing/output)
@@ -690,90 +690,90 @@ add_test(NAME 1ao6_ene1_WANG_AL_CUT10_comp
           ${CMAKE_SOURCE_DIR}/tests/1crn/input_AMBER99SB.xyz
           amber99sb.prm
           Testing/output)
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_eb
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EB
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_ev
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EV
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_em
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EM
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_ep
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EP
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_eub
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EUB
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_ea
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EA
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_eba
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EBA
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_eopb
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EOPB
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_ept
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EPT
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_et
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          ET
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_ett
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          ETT
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_eat
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EAT
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_ebt
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          EBT
-#          ${RTOL} ${ATOL})
-# add_test(NAME 1crn_ene_full_AMOEBA_comp_etot
-#          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
-#          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
-#          Testing/output 
-#          ETOT
-#          2.0e-5 3.0e-4)
+ add_test(NAME 1crn_ene_full_AMBER_comp_eb
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EB
+          ${RTOL} ${ATOL})
+ add_test(NAME 1crn_ene_full_AMBER_comp_ev
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EV
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_em
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EM
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_ep
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EP
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_eub
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EUB
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_ea
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EA
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_eba
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EBA
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_eopb
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EOPB
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_ept
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EPT
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_et
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          ET
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_ett
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          ETT
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_eat
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EAT
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_ebt
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          EBT
+          ${RTOL} ${ATOL})
+      add_test(NAME 1crn_ene_full_AMBER_comp_etot
+          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_full_pot.py
+          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+          Testing/output 
+          ETOT
+          2.0e-5 3.0e-4)
  
  add_test(NAME 1ubq_ene_full_AMOEBA
           COMMAND  bin/${TESTLANG}_test_potential_xyz
