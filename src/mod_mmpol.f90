@@ -427,11 +427,13 @@ module mod_mmpol
         end do
 
         write(of_unit, '(A, 4F8.4)') 'mscale: ', sys_obj%eel%mscale
-        write(of_unit, '(A, 4F8.4)') 'pscale: ', sys_obj%eel%pscale
-        if(sys_obj%amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', &
-                                                      sys_obj%eel%pscale_intra
-        write(of_unit, '(A, 4F8.4)') 'dscale: ', sys_obj%eel%dscale
-        write(of_unit, '(A, 4F8.4)') 'uscale: ', sys_obj%eel%uscale
+        if(sys_obj%eel%pol_atoms > 0) then
+            write(of_unit, '(A, 4F8.4)') 'pscale: ', sys_obj%eel%pscale
+            if(sys_obj%amoeba) write(of_unit, '(A, 4F8.4)') 'pscale (intra): ', &
+                                                          sys_obj%eel%pscale_intra
+            write(of_unit, '(A, 4F8.4)') 'dscale: ', sys_obj%eel%dscale
+            write(of_unit, '(A, 4F8.4)') 'uscale: ', sys_obj%eel%uscale
+        end if
 
         call print_matrix(.true., 'coordinates:', sys_obj%top%cmm, of_unit)
         if(sys_obj%amoeba) then
