@@ -842,6 +842,17 @@ module mod_ommp_C_interface
             C_ommp_get_cmm = c_loc(s%top%cmm)
         end function C_ommp_get_cmm
 
+        function C_ommp_get_zmm(s_prt) bind(c, name='ommp_get_zmm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_zmm
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_get_zmm = c_loc(s%top%atz)
+        end function C_ommp_get_zmm
+
         function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
             !! Return the c-pointer to the array containing the coordinates of
             !! polarizable atoms.
@@ -1080,6 +1091,21 @@ module mod_ommp_C_interface
             deallocate(s)
         end subroutine
         
+        subroutine C_ommp_qm_helper_update_coord(s_ptr, cqm) &
+                bind(c, name='ommp_qm_helper_update_coord')
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            type(c_ptr), value, intent(in) :: cqm
+            
+            real(ommp_real), pointer :: fcqm(:,:)
+            type(ommp_qm_helper), pointer :: s
+            
+            call c_f_pointer(s_ptr, s)
+            call c_f_pointer(cqm, fcqm, [3,s%qm_top%mm_atoms])
+            call ommp_qm_helper_update_coord(s, fcqm)
+        end subroutine
+
         subroutine C_ommp_qm_helper_init_vdw_prm(pqm, pattype, cprmfile) &
                  bind(c, name='ommp_qm_helper_init_vdw_prm')
             implicit none
@@ -1200,6 +1226,59 @@ module mod_ommp_C_interface
             call ommp_prepare_qm_ele_grd(s, qm_help)
         end subroutine 
 
+        function C_ommp_qm_helper_get_npol(qm_ptr) &
+                result(npol) bind(C, name='ommp_qm_helper_get_npol')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            integer(ommp_integer) :: npol
+
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_n2p_done) then
+                npol = size(qm_help%E_n2p, 2, ommp_integer)
+            else
+                npol = 0
+            end if
+        end function
+        
+        function C_ommp_qm_helper_get_nmm(qm_ptr) &
+                result(nmm) bind(C, name='ommp_qm_helper_get_nmm')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            integer(ommp_integer) :: nmm
+
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_n2m_done) then
+                nmm = size(qm_help%E_n2m, 2, ommp_integer)
+            else
+                nmm = 0
+            end if
+        end function
+
+        function C_ommp_qm_helper_get_cqm(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_cqm')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            ptr = c_loc(qm_help%qm_top%cmm)
+        end function
+        
         function C_ommp_qm_helper_get_E_n2p(qm_ptr) &
                 result(ptr) bind(C, name='ommp_qm_helper_get_E_n2p')
             use mod_qm_helper, only: ommp_qm_helper
@@ -1314,6 +1393,25 @@ module mod_ommp_C_interface
             end if
         end function
         
+        function C_ommp_qm_helper_get_E_p2n(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_E_p2n')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%E_p2n_done) then
+                ptr = c_loc(qm_help%E_p2n)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+        
         function C_ommp_qm_helper_get_V_m2n(qm_ptr) &
                 result(ptr) bind(C, name='ommp_qm_helper_get_V_m2n')
             use mod_qm_helper, only: ommp_qm_helper
@@ -1333,6 +1431,25 @@ module mod_ommp_C_interface
             end if
         end function
        
+        function C_ommp_qm_helper_get_V_p2n(qm_ptr) &
+                result(ptr) bind(C, name='ommp_qm_helper_get_V_p2n')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+
+            type(ommp_qm_helper), pointer :: qm_help
+            type(c_ptr) :: ptr
+            
+            call c_f_pointer(qm_ptr, qm_help)
+            if(qm_help%V_p2n_done) then
+                ptr = c_loc(qm_help%V_p2n)
+            else
+                ptr = c_null_ptr
+            end if
+        end function
+       
         function C_ommp_qm_helper_get_qm_atoms(qm_ptr) &
                 result(n) bind(C, name='ommp_qm_helper_get_qm_atoms')
             use mod_qm_helper, only: ommp_qm_helper
@@ -1346,6 +1463,20 @@ module mod_ommp_C_interface
             
             call c_f_pointer(qm_ptr, qm_help)
             n = qm_help%qm_top%mm_atoms
+        end function
+
+        function C_ommp_qm_helper_use_nonbonded(qm_ptr) &
+                result(u) bind(C, name='ommp_qm_helper_use_nonbonded')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: qm_ptr
+            !! C pointer to qm_helper object
+            type(ommp_qm_helper), pointer :: qm_help
+            logical(c_bool) :: u
+
+            call c_f_pointer(qm_ptr, qm_help)
+            u = qm_help%use_nonbonded
         end function
 
 end module mod_ommp_C_interface

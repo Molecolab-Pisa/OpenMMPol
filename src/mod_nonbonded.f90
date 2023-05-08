@@ -64,6 +64,16 @@ module mod_nonbonded
     end subroutine
     end interface
    
+    abstract interface
+    subroutine vdw_gterm(Rij, Rij0, Eij, Rijgrad)
+        use mod_memory, only: rp
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rijgrad
+    end subroutine
+    end interface
+   
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
     public :: vdw_potential_inter, vdw_geomgrad_inter
@@ -282,9 +292,24 @@ module mod_nonbonded
         real(rp) :: sigma_ov_r
 
         sigma_ov_r = Rij0 / Rij
-        V = V + Eij*(sigma_ov_r**12 - 2*sigma_ov_r**6)
+        V = V + Eij*(sigma_ov_r**12 - 2_rp*sigma_ov_r**6)
 
     end subroutine vdw_lennard_jones
+    
+    subroutine vdw_lennard_jones_Rijgrad(Rij, Rij0, Eij, Rijgrad)
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rijgrad
+
+        real(rp) :: sigma_ov_r, tmp
+
+        sigma_ov_r = Rij0 / Rij
+        Rijgrad = -12.0 * Eij * (sigma_ov_r ** 12 - sigma_ov_r ** 6) / Rij
+
+    end subroutine vdw_lennard_jones_Rijgrad
     
     subroutine vdw_buffered_7_14(Rij, Rij0, Eij, V)
         !! Compute the dispersion-repulsion energy using the buffered 7-14 
@@ -402,8 +427,10 @@ module mod_nonbonded
                 call fatal_error("Unexpected error in vdw_potential")
         end select
 
+        !$omp parallel do default(shared) reduction(+:v)  schedule(dynamic) &
+        !$omp private(i,j,ineigh,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
         do i=1, top%mm_atoms
-            if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
+            if(abs(vdw%vdw_f(i) - 1.0_rp) < eps_rp) then
                 ci = top%cmm(:,i)
             else
                 ! Scale factors are used only for monovalent atoms, in that
@@ -421,7 +448,7 @@ module mod_nonbonded
                 
             do j=i+1, top%mm_atoms
                 ! Compute the screening factor for this pair
-                s = 1.0
+                s = 1.0_rp
                 do ineigh=1,4
                     ! Look if j is at distance ineigh from i
                     if(any(top%conn(ineigh)%ci(top%conn(ineigh)%ri(i): &
@@ -450,7 +477,7 @@ module mod_nonbonded
                         eij = get_eij(vdw, i, j)
                     end if
                 
-                    if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
+                    if(abs(vdw%vdw_f(j) - 1.0_rp) < eps_rp) then
                         cj = top%cmm(:,j)
                     else
                         ! Scale factors are used only for monovalent atoms, in that
@@ -467,7 +494,7 @@ module mod_nonbonded
                     endif
                     Rij = norm2(ci-cj)
                     
-                    vtmp = 0.0
+                    vtmp = 0.0_rp
                     call vdw_func(Rij, Rij0, Eij, vtmp)
                     v = v + vtmp*s
                 end if
@@ -476,7 +503,7 @@ module mod_nonbonded
     end subroutine vdw_potential
     
     subroutine vdw_geomgrad(vdw, grad)
-        !! Compute the dispersion repulsion energy for the whole system
+        !! Compute the dispersion repulsion geometric gradients for the whole system
         !! using a double loop algorithm
 
         use mod_io, only : fatal_error
@@ -494,9 +521,21 @@ module mod_nonbonded
                     f_i, f_j
         logical :: skip
         type(ommp_topology_type), pointer :: top
+        procedure(vdw_gterm), pointer :: vdw_gfunc
 
         top => vdw%top
+        select case(vdw%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_gfunc => vdw_lennard_jones_Rijgrad
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_gfunc => vdw_buffered_7_14_Rijgrad
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
 
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,ci,cj,ineigh,ineigh_i,ineigh_j,f_i,f_j,s,ipair,l) &
+        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j)
         do i=1, top%mm_atoms
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top%cmm(:,i)
@@ -518,7 +557,7 @@ module mod_nonbonded
                 
             do j=i+1, top%mm_atoms
                 ! Compute the screening factor for this pair
-                s = 1.0
+                s = 1.0_rp
                 do ineigh=1,4
                     ! Look if j is at distance ineigh from i
                     if(any(top%conn(ineigh)%ci(top%conn(ineigh)%ri(i): &
@@ -548,6 +587,7 @@ module mod_nonbonded
                         cj = top%cmm(:,ineigh_j) + &
                              (top%cmm(:,j) - top%cmm(:,ineigh_j)) * f_j
                     endif
+                    
                     ! if all atoms in the interaction are frozen 
                     ! just skip to next iteration
                     if(top%use_frozen) then
@@ -571,15 +611,16 @@ module mod_nonbonded
                         Rij0 = vdw%vdw_pair_r(ipair)
                         eij = vdw%vdw_pair_e(ipair)
                     else 
-                        Rij0 = (vdw%vdw_r(i)**3 + vdw%vdw_r(j)**3) / &
-                               (vdw%vdw_r(i)**2 + vdw%vdw_r(j)**2)
-                        eij = (4*vdw%vdw_e(i)*vdw%vdw_e(j)) / &
-                              (vdw%vdw_e(i)**0.5 + vdw%vdw_e(j)**0.5)**2
+                        Rij0 = get_Rij0(vdw, i, j)
+                        eij = get_eij(vdw, i, j)
                     end if
 
                     call Rij_jacobian(ci, cj, Rij, J_i, J_j)
-                    call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
+                    call vdw_gfunc(Rij, Rij0, Eij, Rijg)
 
+                    Rijg = Rijg * s
+
+                    !$omp critical
                     if(ineigh_i == 0) then
                         if(.not. (top%use_frozen .and. top%frozen(i))) &
                             grad(:,i) =  grad(:,i) + J_i * Rijg
@@ -605,6 +646,7 @@ module mod_nonbonded
                         if(.not. (top%use_frozen .and. top%frozen(ineigh_j))) &
                             grad(:,ineigh_j) = grad(:,ineigh_j) + J_j * Rijg * (1-f_j)
                     endif
+                    !$omp end critical
                 end if
             end do
         end do
@@ -630,8 +672,10 @@ module mod_nonbonded
         top1 => vdw1%top
         top2 => vdw2%top
         
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
         do i=1, top1%mm_atoms
-            if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
+            if(abs(vdw1%vdw_f(i) - 1.0_rp) < eps_rp) then
                 ci = top1%cmm(:,i)
             else
                 ! Scale factors are used only for monovalent atoms, in that
@@ -653,7 +697,7 @@ module mod_nonbonded
                 eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
                       (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
             
-                if(abs(vdw2%vdw_f(j) - 1.0) < eps_rp) then
+                if(abs(vdw2%vdw_f(j) - 1.0_rp) < eps_rp) then
                     cj = top2%cmm(:,j)
                 else
                     ! Scale factors are used only for monovalent atoms, in that
@@ -670,7 +714,7 @@ module mod_nonbonded
                 endif
                 Rij = norm2(ci-cj)
                 
-                vtmp = 0.0
+                vtmp = 0.0_rp
                 call vdw_buffered_7_14(Rij, Rij0, Eij, vtmp)
                 v = v + vtmp
             end do
@@ -701,6 +745,8 @@ module mod_nonbonded
         top1 => vdw1%top
         top2 => vdw2%top
         
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,ci,cj,f_i,f_j,ineigh_i,ineigh_j,Eij,Rij0,Rij,Rijg,J_i,J_j)
         do i=1, top1%mm_atoms
             if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top1%cmm(:,i)
@@ -757,6 +803,7 @@ module mod_nonbonded
                 call Rij_jacobian(ci, cj, Rij, J_i, J_j)
                 call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
 
+                !$omp critical
                 if(ineigh_i == 0) then
                     if(.not. (top1%use_frozen .and. top1%frozen(i))) &
                         grad1(:,i) =  grad1(:,i) + J_i * Rijg
@@ -782,6 +829,7 @@ module mod_nonbonded
                     if(.not. (top2%use_frozen .and. top2%frozen(ineigh_j))) &
                         grad2(:,ineigh_j) = grad2(:,ineigh_j) + J_j * Rijg * (1-f_j)
                 endif
+                !$omp end critical
             end do
         end do
     end subroutine

@@ -149,10 +149,10 @@ int main(int argc, char **argv){
     int pol_atoms, mm_atoms, rc=0;
     double **grad_num, *_grad_num, **grad_ana, *_grad_ana;
     double delta, Mdelta;
-    int32_t frozen[] = {1, 3, 5}, nfrozen = 3;
+    int32_t *frozen = NULL, nfrozen = 0;
 
     OMMP_SYSTEM_PRT my_system = ommp_init_xyz(argv[1], argv[2]);
-    ommp_set_frozen_atoms(my_system, nfrozen, frozen);
+    // ommp_set_frozen_atoms(my_system, nfrozen, frozen);
 
     pol_atoms = ommp_get_pol_atoms(my_system);
     mm_atoms = ommp_get_mm_atoms(my_system);

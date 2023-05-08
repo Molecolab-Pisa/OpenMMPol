@@ -39,11 +39,19 @@ module mod_qm_helper
         logical :: V_m2n_done = .false.
         !! Flag for [[V_m2n]]
         real(rp), allocatable :: V_m2n(:)
-        !! Electrostatic potential of MMPol atoms at QM nuclei
+        !! Electrostatic potential of MMPol atoms (static) at QM nuclei
         logical :: E_m2n_done = .false.
         !! Flag for [[E_m2n]]
         real(rp), allocatable :: E_m2n(:,:)
-        !! Electrostatic potential of MMPol atoms at QM nuclei
+        !! Electrostatic potential of MMPol atoms (static) at QM nuclei
+        logical :: V_p2n_done = .false.
+        !! Flag for [[V_p2n]]
+        real(rp), allocatable :: V_p2n(:)
+        !! Electrostatic potential of MMPol atoms (polarizable) at QM nuclei
+        logical :: E_p2n_done = .false.
+        !! Flag for [[E_p2n]]
+        real(rp), allocatable :: E_p2n(:,:)
+        !! Electrostatic potential of MMPol atoms (polarizable) at QM nuclei
         logical :: use_nonbonded = .false.
         type(ommp_nonbonded_type), allocatable :: qm_vdw
         !! Structure to store VdW parameter for QM atoms
@@ -52,7 +60,8 @@ module mod_qm_helper
     public :: ommp_qm_helper
     public :: qm_helper_init, qm_helper_terminate
     public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, &
-              qm_helper_vdw_energy, qm_helper_vdw_geomgrad
+              qm_helper_vdw_energy, qm_helper_vdw_geomgrad, &
+              qm_helper_update_coord
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -83,6 +92,24 @@ module mod_qm_helper
 
             call guess_connectivity(qm%qm_top)
 
+        end subroutine
+        
+        subroutine qm_helper_update_coord(qm, cnew)
+            implicit none
+            type(ommp_qm_helper), intent(inout) :: qm
+            !! [[ommp_qm_helper]] object to be initialized
+            real(rp), intent(in) :: cnew(3,qm%qm_top%mm_atoms)
+            !! Coordinates of QM atoms
+
+            qm%qm_top%cmm = cnew
+            qm%E_n2p_done = .false.
+            qm%G_n2p_done = .false.
+            qm%E_n2m_done = .false.
+            qm%G_n2m_done = .false.
+            qm%H_n2m_done = .false.
+            qm%V_m2n_done = .false.
+            qm%E_m2n_done = .false.
+            !call guess_connectivity(qm%qm_top) !TODO
         end subroutine
 
         subroutine qm_helper_init_vdw(qm, eps, rad, fac, &
@@ -116,7 +143,7 @@ module mod_qm_helper
             qm%use_nonbonded = .true.
 
         end subroutine
-        
+       
         subroutine qm_helper_init_vdw_prm(qm, attype, prmfile)
             !! Assign vdw parameters of the QM part from attype and prm file
             use mod_prm, only: assign_vdw
@@ -157,7 +184,6 @@ module mod_qm_helper
         
         subroutine qm_helper_vdw_geomgrad(qm, mm, qmg, mmg)
             use mod_nonbonded, only: vdw_geomgrad_inter
-
             use mod_mmpol, only: ommp_system
 
             implicit none
@@ -168,7 +194,7 @@ module mod_qm_helper
                                        mmg(3,mm%top%mm_atoms)
         
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
-                call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, qmg, mmg)
+                call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, mmg, qmg)
             end if
         end subroutine
 
@@ -210,38 +236,53 @@ module mod_qm_helper
             real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), &
                         tmpHE(10)
             integer(ip) :: i, j
-            
-            if(.not. allocated(qm%E_n2p)) then
-                call mallocate('electrostatic_for_ene [E_n2p]', &
-                               3, system%eel%pol_atoms, qm%E_n2p)
-            end if
+           
+            if(.not. qm%E_n2p_done) then
+                if(.not. allocated(qm%E_n2p)) then
+                    call mallocate('electrostatic_for_ene [E_n2p]', &
+                                3, system%eel%pol_atoms, qm%E_n2p)
+                end if
 
-            qm%E_n2p = 0.0
-            do i=1, qm%qm_top%mm_atoms
-                do j=1, system%eel%pol_atoms
-                    dr = system%eel%cpol(:,j) - qm%qm_top%cmm(:,i)
-                    call coulomb_kernel(dr, 1, kernel)
+                qm%E_n2p = 0.0
+                do i=1, qm%qm_top%mm_atoms
+                    do j=1, system%eel%pol_atoms
+                        dr = system%eel%cpol(:,j) - qm%qm_top%cmm(:,i)
+                        call coulomb_kernel(dr, 1, kernel)
 
-                    tmpE = 0.0
-                    call q_elec_prop(qm%qqm(i), dr, kernel, &
-                                     .false., tmpV, &
-                                     .true., tmpE, &
-                                     .false., tmpEgr, & 
-                                     .false., tmpHE)
-                    
-                    qm%E_n2p(:,j) = qm%E_n2p(:,j) + tmpE
+                        tmpE = 0.0
+                        call q_elec_prop(qm%qqm(i), dr, kernel, &
+                                        .false., tmpV, &
+                                        .true., tmpE, &
+                                        .false., tmpEgr, & 
+                                        .false., tmpHE)
+                        
+                        qm%E_n2p(:,j) = qm%E_n2p(:,j) + tmpE
+                    end do
                 end do
-            end do
-            qm%E_n2p_done = .true.
-            
-            if(.not. allocated(qm%V_m2n)) then
-                call mallocate('electrostatic_for_ene [V_m2n]', &
-                               qm%qm_top%mm_atoms, qm%V_m2n)
+                qm%E_n2p_done = .true.
             end if
-            qm%V_m2n = 0.0
-            call potential_M2E(system%eel, qm%qm_top%cmm, qm%V_m2n)
-            call potential_D2E(system%eel, qm%qm_top%cmm, qm%V_m2n)
-            qm%V_m2n_done = .true.
+            
+            if(.not. qm%V_m2n_done) then
+                if(.not. allocated(qm%V_m2n)) then
+                    call mallocate('electrostatic_for_ene [V_m2n]', &
+                                qm%qm_top%mm_atoms, qm%V_m2n)
+                end if
+            
+                qm%V_m2n = 0.0
+                call potential_M2E(system%eel, qm%qm_top%cmm, qm%V_m2n)
+                qm%V_m2n_done = .true.
+            end if
+
+            if(.not. qm%V_p2n_done .and. system%eel%ipd_done) then
+                if(.not. allocated(qm%V_p2n)) then
+                    call mallocate('electrostatic_for_ene [V_p2n]', &
+                                qm%qm_top%mm_atoms, qm%V_p2n)
+                end if
+
+                qm%V_p2n = 0.0
+                call potential_D2E(system%eel, qm%qm_top%cmm, qm%V_p2n)
+                qm%V_p2n_done = .true.
+            endif
 
         end subroutine
 
@@ -264,7 +305,7 @@ module mod_qm_helper
             real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), &
                         tmpHE(10)
             integer(ip) :: i, j
-            
+           
             if(.not. allocated(qm%G_n2p)) then
                 call mallocate('electrostatic_for_ene [G_n2p]', &
                                6, system%eel%pol_atoms, qm%G_n2p)
@@ -321,7 +362,14 @@ module mod_qm_helper
             end if
             qm%E_m2n = 0.0
             call field_M2E(system%eel, qm%qm_top%cmm, qm%E_m2n)
-            call field_D2E(system%eel, qm%qm_top%cmm, qm%E_m2n)
             qm%E_m2n_done = .true.
+            
+            if(.not. allocated(qm%E_p2n)) then
+                call mallocate('electrostatic_for_ene [E_p2n]', &
+                               3, qm%qm_top%mm_atoms, qm%E_p2n)
+            end if
+            qm%E_p2n = 0.0
+            call field_D2E(system%eel, qm%qm_top%cmm, qm%E_p2n)
+            qm%E_p2n_done = .true.
         end subroutine
 end module
