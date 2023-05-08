@@ -189,7 +189,7 @@ class OMMPSystem{
                                  1,
                                  {get_mm_atoms()},
                                  {sizeof(bool)});
-            return py_cdarray(bufinfo);
+            return py_cbarray(bufinfo);
         }
 
         py_cdarray potential_pol2ext(py_cdarray cext){
@@ -1028,6 +1028,20 @@ class OMMPQmHelper{
         bool get_use_nonbonded(void){
             return ommp_qm_helper_use_nonbonded(handler);
         }
+        
+        py_cbarray get_frozen(){
+            bool *mem = ommp_qm_helper_get_frozen(handler);
+            py::buffer_info bufinfo(mem, sizeof(bool),
+                                 py::format_descriptor<bool>::format(),
+                                 1,
+                                 {get_qm_atoms()},
+                                 {sizeof(bool)});
+            return py_cbarray(bufinfo);
+        }
+        
+        bool get_use_frozen(void){
+            return ommp_qm_helper_use_frozen(handler);
+        }
 
     private:
         OMMP_QM_HELPER_PRT handler;
@@ -1258,5 +1272,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("E_n2m", &OMMPQmHelper::get_E_n2m, "Electric field of MM system at QM nuclei")
         .def_property_readonly("G_n2m", &OMMPQmHelper::get_G_n2m, "Electric field gradients of MM system at QM nuclei")
         .def_property_readonly("H_n2m", &OMMPQmHelper::get_H_n2m, "Electric field Hessian of MM system at QM nuclei")
+        .def_property_readonly("frozen", &OMMPQmHelper::get_frozen, "Logical array, for each atom True means frozen False means mobile.")
+        .def_property_readonly("use_frozen", &OMMPQmHelper::get_use_frozen, "If frozen atoms are used or not.")
     ;
 }

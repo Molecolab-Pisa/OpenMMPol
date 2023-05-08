@@ -136,6 +136,8 @@ extern double *ommp_qm_helper_get_cqm(OMMP_QM_HELPER_PRT);
 extern int32_t ommp_qm_helper_get_npol(OMMP_QM_HELPER_PRT);
 extern int32_t ommp_qm_helper_get_nmm(OMMP_QM_HELPER_PRT);
 extern int32_t ommp_qm_helper_get_qm_atoms(OMMP_QM_HELPER_PRT);
+extern bool *ommp_qm_helper_get_frozen(OMMP_QM_HELPER_PRT);
+extern bool ommp_qm_helper_use_frozen(OMMP_QM_HELPER_PRT);
 extern void ommp_qm_helper_init_vdw_prm(OMMP_QM_HELPER_PRT, const int32_t *, const char *);
 extern void ommp_qm_helper_init_vdw(OMMP_QM_HELPER_PRT, const double *, const double *,
                                     const double *, const char *, const char *, 

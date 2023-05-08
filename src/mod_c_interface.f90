@@ -1478,6 +1478,29 @@ module mod_ommp_C_interface
             call c_f_pointer(qm_ptr, qm_help)
             u = qm_help%use_nonbonded
         end function
+        
+        function C_ommp_qm_helper_use_frozen(s_prt) bind(c, name='ommp_qm_helper_use_frozen')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_qm_helper), pointer :: s
+            logical(c_bool) :: C_ommp_qm_helper_use_frozen
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_qm_helper_use_frozen = s%qm_top%use_frozen
+        end function C_ommp_qm_helper_use_frozen
+
+        function C_ommp_qm_helper_get_frozen(s_prt) bind(c, name='ommp_qm_helper_get_frozen')
+            use mod_qm_helper, only: ommp_qm_helper
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(ommp_qm_helper), pointer :: s
+            type(c_ptr) :: C_ommp_qm_helper_get_frozen
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_qm_helper_get_frozen = c_loc(s%qm_top%frozen)
+        end function C_ommp_qm_helper_get_frozen
 
 end module mod_ommp_C_interface
-
