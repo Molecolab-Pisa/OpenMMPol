@@ -399,6 +399,59 @@ module mod_nonbonded
         end select
     end function
 
+    pure function get_Rij0_inter(vdw1, vdw2, i, j) result(Rij0)
+        
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: i, j
+        !! Indices of interacting atoms
+        real(rp) :: Rij0
+
+        if(vdw1%radrule /= vdw2%radrule .or. &
+           vdw1%radf /= vdw2%radf) then
+           Rij0 = 0.0
+           return
+        end if
+
+        select case(vdw1%radrule) 
+            case(OMMP_RADRULE_ARITHMETIC)
+                Rij0 = vdw1%radf*(vdw1%vdw_r(i) + vdw2%vdw_r(j))/2
+            case(OMMP_RADRULE_CUBIC)
+                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
+                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
+            case default
+                Rij0 = 0.0
+        end select
+    end function
+    
+    pure function get_eij_inter(vdw1, vdw2, i, j) result(eij)
+        
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in) :: vdw1, vdw2
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: i, j
+        !! Indices of interacting atoms
+        real(rp) :: eij
+
+        if(vdw1%epsrule /= vdw2%epsrule) then
+            eij = 0.0
+            return
+        end if
+
+        select case(vdw1%epsrule) 
+            case(OMMP_EPSRULE_GEOMETRIC)
+                eij = sqrt(vdw1%vdw_e(i)*vdw2%vdw_e(j))
+            case(OMMP_EPSRULE_HHG)
+                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
+                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
+            case default
+                eij = 0.0
+        end select
+    end function
+
     subroutine vdw_potential(vdw, V)
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm
@@ -535,7 +588,7 @@ module mod_nonbonded
 
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,ci,cj,ineigh,ineigh_i,ineigh_j,f_i,f_j,s,ipair,l) &
-        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j)
+        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j,skip)
         do i=1, top%mm_atoms
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top%cmm(:,i)
@@ -668,10 +721,27 @@ module mod_nonbonded
         integer(ip) :: i, j, l, ipair, ineigh
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
         type(ommp_topology_type), pointer :: top1, top2
+        procedure(vdw_term), pointer :: vdw_func
 
         top1 => vdw1%top
         top2 => vdw2%top
-        
+
+        if(vdw1%vdwtype /= vdw2%vdwtype .or. &
+           vdw1%radrule /= vdw2%radrule .or. &
+           vdw1%epsrule /= vdw2%epsrule) then
+            call fatal_error("Requested VdW potential between two incompatible &
+                             &VdW groups.")
+       end if
+
+        select case(vdw1%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_func => vdw_lennard_jones
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_func => vdw_buffered_7_14
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
+
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
         do i=1, top1%mm_atoms
@@ -692,10 +762,8 @@ module mod_nonbonded
             endif
                 
             do j=1, top2%mm_atoms
-                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
-                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
-                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
-                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
+                Rij0 = get_Rij0_inter(vdw1, vdw2, i, j)
+                eij = get_eij_inter(vdw1, vdw2, i, j)
             
                 if(abs(vdw2%vdw_f(j) - 1.0_rp) < eps_rp) then
                     cj = top2%cmm(:,j)
@@ -715,7 +783,7 @@ module mod_nonbonded
                 Rij = norm2(ci-cj)
                 
                 vtmp = 0.0_rp
-                call vdw_buffered_7_14(Rij, Rij0, Eij, vtmp)
+                call vdw_func(Rij, Rij0, Eij, vtmp)
                 v = v + vtmp
             end do
         end do
@@ -741,12 +809,29 @@ module mod_nonbonded
                     J_i(3), J_j(3)
         logical :: skip
         type(ommp_topology_type), pointer :: top1, top2
+        procedure(vdw_gterm), pointer :: vdw_grad
 
         top1 => vdw1%top
         top2 => vdw2%top
         
+        if(vdw1%vdwtype /= vdw2%vdwtype .or. &
+           vdw1%radrule /= vdw2%radrule .or. &
+           vdw1%epsrule /= vdw2%epsrule) then
+            call fatal_error("Requested VdW potential between two incompatible &
+                             &VdW groups.")
+       end if
+
+        select case(vdw1%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_grad => vdw_lennard_jones_Rijgrad
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_grad => vdw_buffered_7_14_Rijgrad
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
+        
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,j,ci,cj,f_i,f_j,ineigh_i,ineigh_j,Eij,Rij0,Rij,Rijg,J_i,J_j)
+        !$omp private(i,j,ci,cj,f_i,f_j,ineigh_i,ineigh_j,Eij,Rij0,Rij,Rijg,J_i,J_j,skip)
         do i=1, top1%mm_atoms
             if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top1%cmm(:,i)
@@ -795,13 +880,11 @@ module mod_nonbonded
                 end if
                 if(skip) cycle
                 
-                Rij0 = (vdw1%vdw_r(i)**3 + vdw2%vdw_r(j)**3) / &
-                       (vdw1%vdw_r(i)**2 + vdw2%vdw_r(j)**2)
-                eij = (4*vdw1%vdw_e(i)*vdw2%vdw_e(j)) / &
-                      (vdw1%vdw_e(i)**0.5 + vdw2%vdw_e(j)**0.5)**2
+                Rij0 = get_Rij0_inter(vdw1, vdw2, i, j)
+                eij = get_eij_inter(vdw1, vdw2, i, j)
             
                 call Rij_jacobian(ci, cj, Rij, J_i, J_j)
-                call vdw_buffered_7_14_Rijgrad(Rij, Rij0, Eij, Rijg)
+                call vdw_grad(Rij, Rij0, Eij, Rijg)
 
                 !$omp critical
                 if(ineigh_i == 0) then
