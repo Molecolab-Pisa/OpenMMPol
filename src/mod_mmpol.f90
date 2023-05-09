@@ -11,6 +11,7 @@ module mod_mmpol
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_nonbonded, only: ommp_nonbonded_type
     use mod_bonded, only: ommp_bonded_type
+    use mod_link_atom, only: ommp_link_atom_type
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -37,6 +38,10 @@ module mod_mmpol
         type(ommp_nonbonded_type), allocatable :: vdw
         !! Data structure containing all the information needed to run the
         !! non-bonded terms calculations
+        logical :: use_linkatoms = .false.
+        type(ommp_link_atom_type), allocatable :: la
+        !! Data structure containing all the information needed to handle 
+        !! link atoms with a certain QM part described by a QM Helper object
     end type ommp_system
     
     contains
@@ -113,7 +118,7 @@ module mod_mmpol
         sys_obj%bds%top => sys_obj%top
 
     end subroutine mmpol_init_bonded
-
+        
     subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 
         !! are used during the calculation. The upstream code have

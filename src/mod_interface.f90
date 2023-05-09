@@ -42,7 +42,8 @@ module ommp_interface
     use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
-                             ommp_prepare_qm_ele_grd => electrostatic_for_grad
+                             ommp_prepare_qm_ele_grd => electrostatic_for_grad, &
+                             ommp_qm_helper_init_link_atom => init_linkatoms
 
     implicit none
     
@@ -869,6 +870,20 @@ module ommp_interface
         mmg = 0.0
         qmg = 0.0
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+    end subroutine
+
+    subroutine ommp_create_link_atom(qm, s, iqm, imm)
+        use mod_link_atom, only: create_link_atom
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(inout) :: qm
+        integer(ommp_integer), intent(in) :: iqm, imm
+
+        if(.not. s%use_linkatoms) call ommp_qm_helper_init_link_atom(qm, s)
+        call create_link_atom(s%la, iqm, imm)
+
     end subroutine
 
 end module ommp_interface

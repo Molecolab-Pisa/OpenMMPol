@@ -1503,4 +1503,35 @@ module mod_ommp_C_interface
             C_ommp_qm_helper_get_frozen = c_loc(s%qm_top%frozen)
         end function C_ommp_qm_helper_get_frozen
 
+        subroutine C_ommp_qm_helper_init_link_atom(qm_prt, s_prt) &
+                bind(c, name='ommp_qm_helper_init_link_atom')
+            implicit none
+            
+            type(c_ptr), value :: s_prt, qm_prt
+
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+
+            call ommp_qm_helper_init_link_atom(qm, s)
+        end subroutine
+
+        subroutine C_ommp_create_link_atom(qm_prt, s_prt, iqm, imm) &
+                bind(c, name='ommp_create_link_atom')
+            implicit none
+            
+            type(c_ptr), value :: s_prt, qm_prt
+            integer(ommp_integer), value :: iqm, imm
+
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+
+            call ommp_create_link_atom(qm, s, iqm, imm)
+        end subroutine
+
 end module mod_ommp_C_interface

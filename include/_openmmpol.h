@@ -146,6 +146,10 @@ extern double ommp_qm_helper_vdw_energy(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 extern double ommp_qm_helper_vdw_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
                                           double *, double *);
 extern bool ommp_qm_helper_use_nonbonded(OMMP_QM_HELPER_PRT);
+
+extern void ommp_qm_helper_init_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
+extern void ommp_create_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
+                                  int32_t, int32_t);
 #ifdef __cplusplus
 }
 #endif

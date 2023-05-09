@@ -61,6 +61,7 @@ set(LIBRARY_SRC
     src/mod_io.f90
     src/mod_iohdf5.f90
     src/mod_jacobian_mat.f90
+    src/mod_link_atom.f90
     src/mod_memory.f90
     src/mod_mmpol.f90
     src/mod_nonbonded.f90
