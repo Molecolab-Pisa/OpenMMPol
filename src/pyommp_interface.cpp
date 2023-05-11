@@ -18,6 +18,45 @@ typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
 
+class OMMPSystem;
+class OMMPQmHelper{
+    public:
+        OMMPQmHelper();
+        OMMPQmHelper(py_cdarray, py_cdarray, py_ciarray);
+        ~OMMPQmHelper();
+        OMMP_QM_HELPER_PRT get_handler(void);
+        void set_frozen_atoms(py_ciarray frozen);
+        void update_coord(py_cdarray qmc);
+        void init_vdw_prm(py_ciarray qm_attype, std::string prmfile);
+        void init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
+                                std::string vdw_type, std::string radius_rule,
+                                std::string radius_size, std::string radius_type,
+                                std::string eps_rule);
+        double vdw_energy(OMMPSystem& s);
+        std::map<std::string, py_cdarray> vdw_geomgrad(OMMPSystem& s);
+        void prepare_qm_ele_ene(OMMPSystem& s);
+        void prepare_qm_ele_grd(OMMPSystem& s);
+        int32_t get_qm_atoms(void);
+        int32_t get_npol(void);
+        int32_t get_nmm(void);
+        py_cdarray get_cqm(void);
+        py_cdarray get_E_n2p(void);
+        py_cdarray get_G_n2p(void);
+        py_cdarray get_E_n2m(void);
+        py_cdarray get_G_n2m(void);
+        py_cdarray get_H_n2m(void);
+        py_cdarray get_V_m2n(void);
+        py_cdarray get_E_m2n(void);
+        py_cdarray get_V_p2n(void);
+        py_cdarray get_E_p2n(void);
+        bool get_use_nonbonded(void);
+        py_cbarray get_frozen();
+        bool get_use_frozen(void);
+
+    private:
+        OMMP_QM_HELPER_PRT handler;
+};
+
 class OMMPSystem{
     public:
         OMMPSystem(){
@@ -739,317 +778,326 @@ class OMMPSystem{
         OMMP_SYSTEM_PRT get_handler(void){
             return handler;
         }
+        
+        int32_t create_link_atom(OMMPQmHelper& qm, int imm, int iqm, int ila){
+            return ommp_create_link_atom(qm.get_handler(), handler, imm, iqm, ila);
+        }
+
+        py_cdarray get_link_atom_coordinates(int la_idx){
+            double *c = new double[3];
+            ommp_get_link_atom_coordinates(handler, la_idx, c);
+
+            py::buffer_info bufinfo(c, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {3},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
 
     private: 
         OMMP_SYSTEM_PRT handler;
 };
 
-class OMMPQmHelper{
-    public:
-        OMMPQmHelper(){
-            handler = nullptr;
-        }
+OMMPQmHelper::OMMPQmHelper(){
+    handler = nullptr;
+}
 
-        OMMPQmHelper(py_cdarray coord_qm, py_cdarray charge_qm, py_ciarray z_qm){
-            if(coord_qm.ndim() != 2 || 
-               coord_qm.shape(1) != 3){
-                throw py::value_error("coord_qm should be shaped [:, 3]");
-            }
-            if(charge_qm.ndim() != 1 || 
-               charge_qm.shape(0) != coord_qm.shape(0)){
-                throw py::value_error("charge_qm should be shaped [coord_qm.shape[0]]");
-            }
-            
-            if(z_qm.ndim() != 1 || 
-               z_qm.shape(0) != z_qm.shape(0)){
-                throw py::value_error("z_qm should be shaped [coord_qm.shape[0]]");
-            }
+OMMPQmHelper::OMMPQmHelper(py_cdarray coord_qm, py_cdarray charge_qm, py_ciarray z_qm){
+    if(coord_qm.ndim() != 2 || 
+        coord_qm.shape(1) != 3){
+        throw py::value_error("coord_qm should be shaped [:, 3]");
+    }
+    if(charge_qm.ndim() != 1 || 
+        charge_qm.shape(0) != coord_qm.shape(0)){
+        throw py::value_error("charge_qm should be shaped [coord_qm.shape[0]]");
+    }
+    
+    if(z_qm.ndim() != 1 || 
+        z_qm.shape(0) != z_qm.shape(0)){
+        throw py::value_error("z_qm should be shaped [coord_qm.shape[0]]");
+    }
 
-            handler = ommp_init_qm_helper(coord_qm.shape(0), coord_qm.data(), charge_qm.data(), z_qm.data());
-        }
+    handler = ommp_init_qm_helper(coord_qm.shape(0), coord_qm.data(), charge_qm.data(), z_qm.data());
+}
 
-        ~OMMPQmHelper(){
-            ommp_terminate_qm_helper(handler);
-            handler = nullptr;
-            return;
-        }
-        
-        void set_frozen_atoms(py_ciarray frozen){
-            if(frozen.ndim() != 1){
-                throw py::value_error("frozen should be shaped [:]");
-            }
+OMMPQmHelper::~OMMPQmHelper(){
+    ommp_terminate_qm_helper(handler);
+    handler = nullptr;
+    return;
+}
 
-            ommp_qm_helper_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
-        }
+OMMP_QM_HELPER_PRT OMMPQmHelper::get_handler(void){
+    return handler;
+}
+void OMMPQmHelper::set_frozen_atoms(py_ciarray frozen){
+    if(frozen.ndim() != 1){
+        throw py::value_error("frozen should be shaped [:]");
+    }
 
-        void update_coord(py_cdarray qmc){
-            if(qmc.ndim() != 2 || 
-               qmc.shape(0) != get_qm_atoms() || qmc.shape(1) != 3){
-                throw py::value_error("eps should be shaped [n_qm_atoms,3]");
-            }
-            ommp_qm_helper_update_coord(handler, qmc.data());
-        }
+    ommp_qm_helper_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
+}
 
-        void init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
+void OMMPQmHelper::update_coord(py_cdarray qmc){
+    if(qmc.ndim() != 2 || 
+        qmc.shape(0) != get_qm_atoms() || qmc.shape(1) != 3){
+        throw py::value_error("eps should be shaped [n_qm_atoms,3]");
+    }
+    ommp_qm_helper_update_coord(handler, qmc.data());
+}
 
-            if(qm_attype.ndim() != 1 || 
-               qm_attype.shape(0) != get_qm_atoms()){
-                throw py::value_error("eps should be shaped [n_qm_atoms]");
-            }
+void OMMPQmHelper::init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
 
-            ommp_qm_helper_init_vdw_prm(handler, qm_attype.data(), prmfile.c_str());
-        }
-        
-        void init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
-                                std::string vdw_type, std::string radius_rule,
-                                std::string radius_size, std::string radius_type,
-                                std::string eps_rule){
+    if(qm_attype.ndim() != 1 || 
+        qm_attype.shape(0) != get_qm_atoms()){
+        throw py::value_error("eps should be shaped [n_qm_atoms]");
+    }
 
-            if(eps.ndim() != 1 || 
-               eps.shape(0) != get_qm_atoms()){
-                throw py::value_error("eps should be shaped [n_qm_atoms]");
-            }
-            if(rad.ndim() != 1 || 
-               eps.shape(0) != get_qm_atoms()){
-                throw py::value_error("eps should be shaped [n_qm_atoms]");
-            }
-            if(fac.ndim() != 1 || 
-               eps.shape(0) != get_qm_atoms()){
-                throw py::value_error("eps should be shaped [n_qm_atoms]");
-            }
+    ommp_qm_helper_init_vdw_prm(handler, qm_attype.data(), prmfile.c_str());
+}
 
-            ommp_qm_helper_init_vdw(handler, eps.data(), rad.data(), fac.data(),
-                                    vdw_type.c_str(), radius_rule.c_str(), radius_size.c_str(),
-                                    radius_type.c_str(), eps_rule.c_str());
-        }
+void OMMPQmHelper::init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
+                        std::string vdw_type, std::string radius_rule,
+                        std::string radius_size, std::string radius_type,
+                        std::string eps_rule){
 
-        double vdw_energy(OMMPSystem& s){
-            OMMP_SYSTEM_PRT s_handler = s.get_handler();
-            return ommp_qm_helper_vdw_energy(handler, s_handler);
-        }
-        
-        std::map<std::string, py_cdarray> vdw_geomgrad(OMMPSystem& s){
-            OMMP_SYSTEM_PRT s_handler = s.get_handler();
+    if(eps.ndim() != 1 || 
+        eps.shape(0) != get_qm_atoms()){
+        throw py::value_error("eps should be shaped [n_qm_atoms]");
+    }
+    if(rad.ndim() != 1 || 
+        eps.shape(0) != get_qm_atoms()){
+        throw py::value_error("eps should be shaped [n_qm_atoms]");
+    }
+    if(fac.ndim() != 1 || 
+        eps.shape(0) != get_qm_atoms()){
+        throw py::value_error("eps should be shaped [n_qm_atoms]");
+    }
 
-            double *mmg = new double[s.get_mm_atoms()*3];
-            double *qmg = new double[get_qm_atoms()*3];
-            ommp_qm_helper_vdw_geomgrad(handler, s_handler, qmg, mmg);
-            
-            py::buffer_info bufinfo_mm(mmg, sizeof(double),
-                                       py::format_descriptor<double>::format(),
-                                       2,
-                                       {s.get_mm_atoms(), 3},
-                                       {3*sizeof(double), sizeof(double)});
-            py::buffer_info bufinfo_qm(qmg, sizeof(double),
-                                       py::format_descriptor<double>::format(),
-                                       2,
-                                       {get_qm_atoms(), 3},
-                                       {3*sizeof(double), sizeof(double)});
-            std::map<std::string, py_cdarray> res{
-                {"MM", py_cdarray(bufinfo_mm)},
-                {"QM", py_cdarray(bufinfo_qm)}
-            };
+    ommp_qm_helper_init_vdw(handler, eps.data(), rad.data(), fac.data(),
+                            vdw_type.c_str(), radius_rule.c_str(), radius_size.c_str(),
+                            radius_type.c_str(), eps_rule.c_str());
+}
 
-            return res;
-        }
+double OMMPQmHelper::vdw_energy(OMMPSystem& s){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
+    return ommp_qm_helper_vdw_energy(handler, s_handler);
+}
 
-        void prepare_qm_ele_ene(OMMPSystem& s){
-            OMMP_SYSTEM_PRT s_handler = s.get_handler();
-            ommp_prepare_qm_ele_ene(s_handler, handler);
-        }
-        
-        void prepare_qm_ele_grd(OMMPSystem& s){
-            OMMP_SYSTEM_PRT s_handler = s.get_handler();
-            ommp_prepare_qm_ele_grd(s_handler, handler);
-        }
+std::map<std::string, py_cdarray> OMMPQmHelper::vdw_geomgrad(OMMPSystem& s){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
 
-        int32_t get_qm_atoms(void){
-            return ommp_qm_helper_get_qm_atoms(handler);
-        }
+    double *mmg = new double[s.get_mm_atoms()*3];
+    double *qmg = new double[get_qm_atoms()*3];
+    ommp_qm_helper_vdw_geomgrad(handler, s_handler, qmg, mmg);
+    
+    py::buffer_info bufinfo_mm(mmg, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {s.get_mm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+    py::buffer_info bufinfo_qm(qmg, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_qm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+    std::map<std::string, py_cdarray> res{
+        {"MM", py_cdarray(bufinfo_mm)},
+        {"QM", py_cdarray(bufinfo_qm)}
+    };
 
-        int32_t get_npol(void){
-            return ommp_qm_helper_get_npol(handler);
-        }
-        
-        int32_t get_nmm(void){
-            return ommp_qm_helper_get_nmm(handler);
-        }
+    return res;
+}
 
-        py_cdarray get_cqm(void){
-            double *memory = ommp_qm_helper_get_cqm(handler);
-            if(!memory){
-                throw py::attribute_error("cqm cannot be accessed for a memory error");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_qm_atoms(), 3},
-                                        {3*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_E_n2p(void){
-            double *memory = ommp_qm_helper_get_E_n2p(handler);
-            if(!memory){
-                throw py::attribute_error("E_n2p is not available. OMMPQmHelper.prepare_energy() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_npol(), 3},
-                                        {3*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_G_n2p(void){
-            double *memory = ommp_qm_helper_get_G_n2p(handler);
-            if(!memory){
-                throw py::attribute_error("G_n2p is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_npol(), 6},
-                                        {6*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_E_n2m(void){
-            double *memory = ommp_qm_helper_get_E_n2m(handler);
-            if(!memory){
-                throw py::attribute_error("E_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_nmm(), 3},
-                                        {3*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_G_n2m(void){
-            double *memory = ommp_qm_helper_get_G_n2m(handler);
-            if(!memory){
-                throw py::attribute_error("G_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_nmm(), 6},
-                                        {6*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_H_n2m(void){
-            double *memory = ommp_qm_helper_get_H_n2m(handler);
-            if(!memory){
-                throw py::attribute_error("H_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_nmm(), 10},
-                                        {10*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_V_m2n(void){
-            double *memory = ommp_qm_helper_get_V_m2n(handler);
-            if(!memory){
-                throw py::attribute_error("V_m2n is not available. OMMPQmHelper.prepare_energy() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        1,
-                                        {get_qm_atoms()},
-                                        {sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_E_m2n(void){
-            double *memory = ommp_qm_helper_get_E_m2n(handler);
-            if(!memory){
-                throw py::attribute_error("E_m2n is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_qm_atoms(), 3},
-                                        {3*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
+void OMMPQmHelper::prepare_qm_ele_ene(OMMPSystem& s){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
+    ommp_prepare_qm_ele_ene(s_handler, handler);
+}
 
-        py_cdarray get_V_p2n(void){
-            double *memory = ommp_qm_helper_get_V_p2n(handler);
-            if(!memory){
-                throw py::attribute_error("V_p2n is not available. OMMPQmHelper.prepare_energy() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        1,
-                                        {get_qm_atoms()},
-                                        {sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
-        
-        py_cdarray get_E_p2n(void){
-            double *memory = ommp_qm_helper_get_E_p2n(handler);
-            if(!memory){
-                throw py::attribute_error("E_p2n is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
-            }
-            else{
-                py::buffer_info bufinfo(memory, sizeof(double),
-                                        py::format_descriptor<double>::format(),
-                                        2,
-                                        {get_qm_atoms(), 3},
-                                        {3*sizeof(double), sizeof(double)});
-                return py_cdarray(bufinfo);
-            }
-        }
+void OMMPQmHelper::prepare_qm_ele_grd(OMMPSystem& s){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
+    ommp_prepare_qm_ele_grd(s_handler, handler);
+}
 
-        bool get_use_nonbonded(void){
-            return ommp_qm_helper_use_nonbonded(handler);
-        }
-        
-        py_cbarray get_frozen(){
-            bool *mem = ommp_qm_helper_get_frozen(handler);
-            py::buffer_info bufinfo(mem, sizeof(bool),
-                                 py::format_descriptor<bool>::format(),
-                                 1,
-                                 {get_qm_atoms()},
-                                 {sizeof(bool)});
-            return py_cbarray(bufinfo);
-        }
-        
-        bool get_use_frozen(void){
-            return ommp_qm_helper_use_frozen(handler);
-        }
+int32_t OMMPQmHelper::get_qm_atoms(void){
+    return ommp_qm_helper_get_qm_atoms(handler);
+}
 
-        void create_link_atom(OMMPSystem& s, int iqm, int imm){
-            ommp_create_link_atom(handler, s.get_handler(), iqm, imm);
-        }
+int32_t OMMPQmHelper::get_npol(void){
+    return ommp_qm_helper_get_npol(handler);
+}
 
-    private:
-        OMMP_QM_HELPER_PRT handler;
-};
+int32_t OMMPQmHelper::get_nmm(void){
+    return ommp_qm_helper_get_nmm(handler);
+}
+
+py_cdarray OMMPQmHelper::get_cqm(void){
+    double *memory = ommp_qm_helper_get_cqm(handler);
+    if(!memory){
+        throw py::attribute_error("cqm cannot be accessed for a memory error");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_qm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_E_n2p(void){
+    double *memory = ommp_qm_helper_get_E_n2p(handler);
+    if(!memory){
+        throw py::attribute_error("E_n2p is not available. OMMPQmHelper.prepare_energy() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_npol(), 3},
+                                {3*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_G_n2p(void){
+    double *memory = ommp_qm_helper_get_G_n2p(handler);
+    if(!memory){
+        throw py::attribute_error("G_n2p is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_npol(), 6},
+                                {6*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_E_n2m(void){
+    double *memory = ommp_qm_helper_get_E_n2m(handler);
+    if(!memory){
+        throw py::attribute_error("E_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_nmm(), 3},
+                                {3*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_G_n2m(void){
+    double *memory = ommp_qm_helper_get_G_n2m(handler);
+    if(!memory){
+        throw py::attribute_error("G_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_nmm(), 6},
+                                {6*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_H_n2m(void){
+    double *memory = ommp_qm_helper_get_H_n2m(handler);
+    if(!memory){
+        throw py::attribute_error("H_n2m is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_nmm(), 10},
+                                {10*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_V_m2n(void){
+    double *memory = ommp_qm_helper_get_V_m2n(handler);
+    if(!memory){
+        throw py::attribute_error("V_m2n is not available. OMMPQmHelper.prepare_energy() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                1,
+                                {get_qm_atoms()},
+                                {sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_E_m2n(void){
+    double *memory = ommp_qm_helper_get_E_m2n(handler);
+    if(!memory){
+        throw py::attribute_error("E_m2n is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_qm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_V_p2n(void){
+    double *memory = ommp_qm_helper_get_V_p2n(handler);
+    if(!memory){
+        throw py::attribute_error("V_p2n is not available. OMMPQmHelper.prepare_energy() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                1,
+                                {get_qm_atoms()},
+                                {sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+py_cdarray OMMPQmHelper::get_E_p2n(void){
+    double *memory = ommp_qm_helper_get_E_p2n(handler);
+    if(!memory){
+        throw py::attribute_error("E_p2n is not available. OMMPQmHelper.prepare_geomgrad() should be called before!");
+    }
+    else{
+        py::buffer_info bufinfo(memory, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_qm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+        return py_cdarray(bufinfo);
+    }
+}
+
+bool OMMPQmHelper::get_use_nonbonded(void){
+    return ommp_qm_helper_use_nonbonded(handler);
+}
+
+py_cbarray OMMPQmHelper::get_frozen(){
+    bool *mem = ommp_qm_helper_get_frozen(handler);
+    py::buffer_info bufinfo(mem, sizeof(bool),
+                            py::format_descriptor<bool>::format(),
+                            1,
+                            {get_qm_atoms()},
+                            {sizeof(bool)});
+    return py_cbarray(bufinfo);
+}
+
+bool OMMPQmHelper::get_use_frozen(void){
+    return ommp_qm_helper_use_frozen(handler);
+}
 
 void set_verbose(int32_t v){
     ommp_set_verbose(v);
@@ -1202,7 +1250,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::vdw_geomgrad,
              "Compute the geometrical gradients of Van der Waal energy.",
              py::arg("numerical") = false)
-
+        .def("create_link_atom",
+             &OMMPSystem::create_link_atom,
+             "Create a link atom between QM and MM system",
+             py::arg("OMMP_QM_Helper"), py::arg("i_mm"), py::arg("i_qm"), py::arg("i_la"))
         .def_property_readonly("is_init", &OMMPSystem::is_init, "Flag to check system initialization.")
         .def_property_readonly("pol_atoms", &OMMPSystem::get_pol_atoms, "Number of polarizable atoms")
         .def_property_readonly("mm_atoms", &OMMPSystem::get_mm_atoms, "Number of atoms")
@@ -1265,10 +1316,6 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPQmHelper::prepare_qm_ele_grd, 
              "Prepeare the quantities available in helper for a gradients SCF calculation (electric field gradients of nuclei at polarizable sites, electric field of MM system (polarizable and static) at nuclei, electric field, gradients and Hessian of nuclei at static sites) with the MM system passed as argument.",
              py::arg("OMMP_system"))
-        .def("create_link_atom",
-             &OMMPQmHelper::create_link_atom,
-             "Create a link atom between QM and MM system",
-             py::arg("OMMP_system"), py::arg("i_qm"), py::arg("i_mm"))
         .def_property_readonly("use_nonbonded", &OMMPQmHelper::get_use_nonbonded, "Flag for enable/disable usage of QM-MM VdW potential")
         .def_property_readonly("cqm", &OMMPQmHelper::get_cqm, "Get the coordinates of QM nuclei")
         .def_property_readonly("E_n2p", &OMMPQmHelper::get_E_n2p, "Electric field of nuclei at polarizable sites")

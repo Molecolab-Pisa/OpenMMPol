@@ -118,6 +118,20 @@ module mod_mmpol
         sys_obj%bds%top => sys_obj%top
 
     end subroutine mmpol_init_bonded
+
+    subroutine mmpol_init_linkatom(sys_obj)
+        !! Enable link atom
+        implicit none
+
+        type(ommp_system), intent(inout), target :: sys_obj
+        !! The object to be initialized
+        
+        if(sys_obj%use_linkatoms .and. allocated(sys_obj%la)) return
+        if(allocated(sys_obj%la)) deallocate(sys_obj%la)
+
+        allocate(sys_obj%la)
+        sys_obj%use_linkatoms = .true.
+    end subroutine
         
     subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 

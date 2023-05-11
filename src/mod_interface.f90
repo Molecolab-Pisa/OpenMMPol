@@ -42,8 +42,7 @@ module ommp_interface
     use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
-                             ommp_prepare_qm_ele_grd => electrostatic_for_grad, &
-                             ommp_qm_helper_init_link_atom => init_linkatoms
+                             ommp_prepare_qm_ele_grd => electrostatic_for_grad
 
     implicit none
     
@@ -872,19 +871,50 @@ module ommp_interface
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
     end subroutine
 
-    subroutine ommp_create_link_atom(qm, s, iqm, imm)
-        use mod_link_atom, only: create_link_atom
+    function ommp_create_link_atom(qm, s, imm, iqm, ila) result(la_idx)
+        use mod_link_atom, only: create_link_atom, init_link_atom, link_atom_position
+        use mod_qm_helper, only: qm_helper_update_coord
+        use mod_mmpol, only: mmpol_init_linkatom
 
         implicit none
 
         type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(inout) :: qm
-        integer(ommp_integer), intent(in) :: iqm, imm
+        integer(ommp_integer), intent(in) :: iqm, imm, ila
+        integer(ommp_integer) :: la_idx
+        real(ommp_real), allocatable :: cnew(:,:)
+        real(ommp_real), dimension(3) :: cla
 
-        if(.not. s%use_linkatoms) call ommp_qm_helper_init_link_atom(qm, s)
-        call create_link_atom(s%la, iqm, imm)
+        if(.not. s%use_linkatoms) then
+            call mmpol_init_linkatom(s)
+            call init_link_atom(s%la, qm%qm_top, s%top)
+        end if
 
-    end subroutine
+        call create_link_atom(s%la, imm, iqm, ila)
+        allocate(cnew(3,qm%qm_top%mm_atoms))
+
+        cnew = qm%qm_top%cmm
+        call link_atom_position(s%la, s%la%nla, cla)
+        cnew(:,ila) = cla
+        call qm_helper_update_coord(qm, cnew)
+        
+        deallocate(cnew)
+        la_idx = s%la%nla
+    end function
+
+    subroutine ommp_get_link_atom_coordinates(s, la_idx, crd)
+        use mod_link_atom, only : link_atom_position
+
+        implicit none
+
+        type(ommp_system), intent(in) :: s
+        integer(ommp_integer), intent(in) :: la_idx
+        real(ommp_real), dimension(3), intent(out) :: crd
+
+        if(s%use_linkatoms) then
+            call link_atom_position(s%la, la_idx, crd)
+        end if
+    end subroutine 
 
 end module ommp_interface
 

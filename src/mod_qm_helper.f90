@@ -64,7 +64,6 @@ module mod_qm_helper
               qm_helper_vdw_energy, qm_helper_vdw_geomgrad, &
               qm_helper_update_coord
     public :: electrostatic_for_ene, electrostatic_for_grad
-    public :: init_linkatoms
 
     contains
         subroutine qm_helper_init(qm, qmat, cqm, qqm, zqm)
@@ -200,21 +199,6 @@ module mod_qm_helper
             end if
         end subroutine
     
-        subroutine init_linkatoms(qm, mm)
-            !! Initialize link atoms
-            use mod_link_atom, only: init_link_atom
-            implicit none
-
-            type(ommp_system), intent(inout), target :: mm
-            type(ommp_qm_helper), intent(in), target :: qm
-
-            if(.not. mm%use_linkatoms) then
-                call init_link_atom(mm%la, qm%qm_top, mm%top)
-                mm%use_linkatoms = .true.
-            end if
-        end subroutine
-
-
         subroutine qm_helper_terminate(qm)
             use mod_memory, only: mfree
             use mod_topology, only: topology_terminate
