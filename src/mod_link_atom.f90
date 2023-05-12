@@ -30,7 +30,7 @@ module mod_link_atom
         !! Number of link atoms
     end type
 
-    public :: ommp_link_atom_type, init_link_atom, create_link_atom
+    public :: ommp_link_atom_type, init_link_atom, add_link_atom
     public :: link_atom_position
     public :: default_la_dist, default_la_n_eel_remove
 
@@ -51,52 +51,18 @@ module mod_link_atom
             la%mmtop => mmtop
         end subroutine
 
-        subroutine create_link_atom(la, imm, iqm, ila, la_dist, n_eel_remove)
-            !! Create a bond between atoms imm and iqm, the link atom should
-            !! already be present in the qm part and is identified by ila.
-            use mod_io, only: fatal_error, ommp_message
-            use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
-
+        subroutine add_link_atom(la, imm, iqm, ila, la_dist)
             implicit none
 
-            type(ommp_link_atom_type), intent(inout), target :: la
+            type(ommp_link_atom_type), intent(inout) :: la
             integer(ip), intent(in) :: imm
             integer(ip), intent(in) :: iqm
             integer(ip), intent(in) :: ila
             real(rp), intent(in) :: la_dist
-            integer(ip), intent(in) :: n_eel_remove 
-
-            character(len=OMMP_STR_CHAR_MAX) :: message
+        
             integer(ip), allocatable :: tmp(:,:)
             real(rp), allocatable :: rtmp(:)
             integer(ip) :: nmax
-            real(rp) :: cla(3)
-            
-            ! 0. Initialization
-            ! 0.1. checks
-            if(iqm == ila) then
-                call fatal_error("QM atom and link atom should have different indices")
-            end if
-
-            if(iqm > la%qmtop%mm_atoms .or. iqm < 1) then
-                call fatal_error("QM atom index is not in the topology.")
-            end if
-            
-            if(ila > la%qmtop%mm_atoms .or. ila < 1) then
-                call fatal_error("LA atom index is not in the topology.")
-            end if
-            
-            if(imm > la%mmtop%mm_atoms .or. imm < 1) then
-                call fatal_error("MM atom index is not in the topology.")
-            end if
-
-            ! TODO check that link atom is a monovalent hydrogen
-
-            write(message, "(A, I5, A, I5, A, I5, A)") &
-                  "Creating link atom between atom ", imm, &
-                  "(MM) and ", iqm, "(QM), thrugh ", ila, "(LA) &
-                  &MM -- (LA) -- QM."
-            call ommp_message(message, OMMP_VERBOSE_LOW)
             
             nmax = size(la%links, 2)
             if(la%nla + 1 > nmax) then
@@ -120,11 +86,6 @@ module mod_link_atom
             la%links(_QM_, la%nla) = iqm
             la%links(_LA_, la%nla) = ila
             la%la_distance(la%nla) = la_dist
-
-            ! 1. Electrostatic
-            ! 2. VdW
-            ! 3. Bonded
-
         end subroutine
 
         subroutine link_atom_position(la, idx, crd)
@@ -143,7 +104,7 @@ module mod_link_atom
             dmmqm = rmm-rqm
             dmmqm = dmmqm / norm2(dmmqm)
 
-            crd = rqm + default_la_dist * dmmqm
+            crd = rqm + la%la_distance(idx) * dmmqm
             
         end subroutine
 

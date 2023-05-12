@@ -417,6 +417,63 @@ module mod_mmpol
         ! 2.3 Multipoles rotation
         if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
     end subroutine
+        
+    subroutine create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
+        !! Create a bond between atoms imm and iqm, the link atom should
+        !! already be present in the qm part and is identified by ila.
+        use mod_link_atom, only: ommp_link_atom_type, add_link_atom
+        use mod_io, only: fatal_error, ommp_message
+        use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+
+        implicit none
+
+        type(ommp_system), intent(inout), target :: s
+        integer(ip), intent(in) :: imm
+        integer(ip), intent(in) :: iqm
+        integer(ip), intent(in) :: ila
+        real(rp), intent(in) :: la_dist
+        integer(ip), intent(in) :: n_eel_remove 
+
+        type(ommp_link_atom_type), pointer :: la
+        type(ommp_electrostatics_type), pointer :: eel
+        character(len=OMMP_STR_CHAR_MAX) :: message
+        real(rp) :: cla(3)
+        
+        ! 0. Initialization
+        la => s%la
+        eel => s%eel
+
+        ! 0.1. checks
+        if(iqm == ila) then
+            call fatal_error("QM atom and link atom should have different indices")
+        end if
+
+        if(iqm > la%qmtop%mm_atoms .or. iqm < 1) then
+            call fatal_error("QM atom index is not in the topology.")
+        end if
+        
+        if(ila > la%qmtop%mm_atoms .or. ila < 1) then
+            call fatal_error("LA atom index is not in the topology.")
+        end if
+        
+        if(imm > la%mmtop%mm_atoms .or. imm < 1) then
+            call fatal_error("MM atom index is not in the topology.")
+        end if
+
+        ! TODO check that link atom is a monovalent hydrogen
+
+        write(message, "(A, I5, A, I5, A, I5, A)") &
+                "Creating link atom between atom ", imm, &
+                "(MM) and ", iqm, "(QM), thrugh ", ila, "(LA) &
+                &MM -- (LA) -- QM."
+        call ommp_message(message, OMMP_VERBOSE_LOW)
+        call add_link_atom(la, imm, iqm, ila, la_dist)
+
+        ! 2. VdW
+        ! 3. Bonded
+
+    end subroutine
+
     
     subroutine mmpol_ommp_print_summary(sys_obj, of_name)
         !! Prints a complete summary of all the quantities stored 
