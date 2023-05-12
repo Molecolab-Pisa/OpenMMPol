@@ -424,6 +424,7 @@ module mod_mmpol
         use mod_link_atom, only: ommp_link_atom_type, add_link_atom
         use mod_io, only: fatal_error, ommp_message
         use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+        use mod_memory, only: mfree
 
         implicit none
 
@@ -437,7 +438,8 @@ module mod_mmpol
         type(ommp_link_atom_type), pointer :: la
         type(ommp_electrostatics_type), pointer :: eel
         character(len=OMMP_STR_CHAR_MAX) :: message
-        real(rp) :: cla(3)
+        real(rp) :: cla(3), removed_charge, qred
+        integer(ip) :: i, j, idx
         
         ! 0. Initialization
         la => s%la
@@ -469,6 +471,66 @@ module mod_mmpol
         call ommp_message(message, OMMP_VERBOSE_LOW)
         call add_link_atom(la, imm, iqm, ila, la_dist)
 
+        ! 1. Electrostatic: remove dipoles, multipoles, charges and polarizabilities
+        !    on all the atoms that have a distance from (QM) atom less or equal to
+        !    n_eel_remove. If n_eel_remove is 0, the MM electrostatic is not changed;
+        !    if n_eel_remove is 1, only the connected atom is removed and so on.
+        !    Removed charges is distributed to all the atoms 1 bond further away.
+
+        if(n_eel_remove > 0) then
+            removed_charge = 0.0
+            
+            if(n_eel_remove > size(la%mmtop%conn)) then
+                call fatal_error("Connectivity rebuild is not implemented in link atom")
+            end if
+            
+            ! Remove charges, multipoles and polarizabilities
+            if(s%amoeba) then
+                removed_charge = removed_charge + eel%q0(1,imm)
+                eel%q0(:,imm) = 0.0
+                eel%pol(imm) = 0.0
+            else
+                removed_charge = removed_charge + eel%q(1,imm)
+                eel%q(:,imm) = 0.0
+                eel%pol(imm) = 0.0
+            end if
+            
+            do i=1, n_eel_remove-1
+                do j=eel%top%conn(i)%ri(imm), eel%top%conn(i)%ri(imm+1)-1
+                    idx = eel%top%conn(i)%ci(j)
+                    if(s%amoeba) then
+                        removed_charge = removed_charge + eel%q0(1,idx)
+                        eel%q0(:,idx) = 0.0
+                        eel%pol(idx) = 0.0
+                    else
+                        removed_charge = removed_charge + eel%q(1,idx)
+                        eel%q(:,idx) = 0.0
+                        eel%pol(idx) = 0.0
+                    end if
+                end do
+            end do
+
+            ! Redistribute removed charge to preserve neutrality
+            qred = removed_charge / (eel%top%conn(n_eel_remove)%ri(imm+1) - eel%top%conn(i)%ri(imm))
+
+            do j=eel%top%conn(n_eel_remove)%ri(imm), &
+                 eel%top%conn(n_eel_remove)%ri(imm+1)-1
+                idx = eel%top%conn(n_eel_remove)%ci(j)
+                if(s%amoeba) then
+                    eel%q0(1,idx) = eel%q0(1,idx) + qred
+                else
+                    eel%q(1,idx) = eel%q(1,idx) + qred
+                end if
+            end do
+
+            eel%M2M_done = .false.
+            eel%M2Mgg_done = .false.
+            eel%M2D_done = .false.
+            eel%M2Dgg_done = .false.
+            eel%ipd_done = .false.
+            if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
+            if(s%amoeba) call rotate_multipoles(s%eel)
+        end if
         ! 2. VdW
         ! 3. Bonded
 
