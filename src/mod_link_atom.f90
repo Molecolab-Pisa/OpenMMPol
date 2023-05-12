@@ -11,7 +11,8 @@ module mod_link_atom
     implicit none
     private
 
-    integer(ip), parameter :: la_allocation_chunk = 20
+    integer(ip), parameter :: la_allocation_chunk = 20, &
+                              default_la_n_eel_remove = 2
     real(rp), parameter :: default_la_dist = 0.91 * angstrom2au 
 
     type ommp_link_atom_type
@@ -24,12 +25,14 @@ module mod_link_atom
         !!    links(_MM_,:) contains the index of MM atom in mmtop
         !!    links(_QM_,:) contains the index of QM atom in qmtop
         !!    links(_LA_,:) contains the index of link atom in qmtop
+        real(rp), allocatable :: la_distance(:)
         integer(ip) :: nla
         !! Number of link atoms
     end type
 
     public :: ommp_link_atom_type, init_link_atom, create_link_atom
     public :: link_atom_position
+    public :: default_la_dist, default_la_n_eel_remove
 
     contains
         subroutine init_link_atom(la, qmtop, mmtop)
@@ -41,12 +44,14 @@ module mod_link_atom
             call mallocate('init_linkatoms [links]', &
                            3, la_allocation_chunk, &
                            la%links)
+            call mallocate('init_linkatoms [la_distance]', &
+                           la_allocation_chunk, la%la_distance)
             la%nla = 0
             la%qmtop => qmtop
             la%mmtop => mmtop
         end subroutine
 
-        subroutine create_link_atom(la, imm, iqm, ila)
+        subroutine create_link_atom(la, imm, iqm, ila, la_dist, n_eel_remove)
             !! Create a bond between atoms imm and iqm, the link atom should
             !! already be present in the qm part and is identified by ila.
             use mod_io, only: fatal_error, ommp_message
@@ -58,9 +63,12 @@ module mod_link_atom
             integer(ip), intent(in) :: imm
             integer(ip), intent(in) :: iqm
             integer(ip), intent(in) :: ila
+            real(rp), intent(in) :: la_dist
+            integer(ip), intent(in) :: n_eel_remove 
 
             character(len=OMMP_STR_CHAR_MAX) :: message
             integer(ip), allocatable :: tmp(:,:)
+            real(rp), allocatable :: rtmp(:)
             integer(ip) :: nmax
             real(rp) :: cla(3)
             
@@ -94,17 +102,24 @@ module mod_link_atom
             if(la%nla + 1 > nmax) then
                 ! Reallocate links to accomodate new link atoms
                 call mallocate('create_link_atom [tmp]', 3, nmax, tmp)
+                call mallocate('create_link_atom [rtmp]', nmax, rtmp)
                 tmp = la%links
+                rtmp = la%la_distance
                 call mfree('create_link_atom [la%links]', la%links)
                 call mallocate('create_link_atom [la%links]', 3, nmax+la_allocation_chunk, la%links)
+                call mfree('create_link_atom [la%la_distance]', la%la_distance)
+                call mallocate('create_link_atom [la%la_distance]', nmax+la_allocation_chunk, la%la_distance)
                 la%links = tmp(:,0:nmax)
+                la%la_distance = rtmp(0:nmax)
                 call mfree('create_link_atom [tmp]', tmp)
+                call mfree('create_link_atom [rtmp]', rtmp)
             end if
             ! 0.2. Link atom creation and positioning
             la%nla = la%nla + 1
             la%links(_MM_, la%nla) = imm
             la%links(_QM_, la%nla) = iqm
             la%links(_LA_, la%nla) = ila
+            la%la_distance(la%nla) = la_dist
 
             ! 1. Electrostatic
             ! 2. VdW

@@ -30,6 +30,9 @@
 
 #define OMMP_VERSION_STRING "${OMMP_VERSION}"
 
+#define OMMP_DEFAULT_LA_DIST 0.91
+#define OMMP_DEFAULT_LA_N_EEL_REMOVE 2
+
 typedef void* OMMP_SYSTEM_PRT;
 typedef void* OMMP_QM_HELPER_PRT;
 
@@ -149,9 +152,8 @@ extern bool ommp_qm_helper_use_nonbonded(OMMP_QM_HELPER_PRT);
 
 extern void ommp_qm_helper_init_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 extern int32_t ommp_create_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
-                                     int32_t, int32_t, int32_t);
+                                     int32_t, int32_t, int32_t, double, int32_t);
 extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
-extern bool ommp_la_allocated(OMMP_SYSTEM_PRT);
 #ifdef __cplusplus
 }
 #endif

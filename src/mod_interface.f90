@@ -871,8 +871,11 @@ module ommp_interface
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
     end subroutine
 
-    function ommp_create_link_atom(qm, s, imm, iqm, ila) result(la_idx)
-        use mod_link_atom, only: create_link_atom, init_link_atom, link_atom_position
+    function ommp_create_link_atom(qm, s, imm, iqm, ila, &
+                                   la_dist_in, n_eel_remove_in) result(la_idx)
+
+        use mod_link_atom, only: create_link_atom, init_link_atom, link_atom_position, &
+                                 default_la_dist, default_la_n_eel_remove
         use mod_qm_helper, only: qm_helper_update_coord
         use mod_mmpol, only: mmpol_init_linkatom
 
@@ -881,16 +884,25 @@ module ommp_interface
         type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(inout) :: qm
         integer(ommp_integer), intent(in) :: iqm, imm, ila
-        integer(ommp_integer) :: la_idx
+        integer(ommp_integer), optional, intent(in) :: n_eel_remove_in
+        real(ommp_real), optional, intent(in) :: la_dist_in
+
+        integer(ommp_integer) :: la_idx, n_eel_remove
+        real(ommp_real) :: la_dist
         real(ommp_real), allocatable :: cnew(:,:)
         real(ommp_real), dimension(3) :: cla
+
+        n_eel_remove = default_la_n_eel_remove
+        la_dist = default_la_dist
+        if(present(n_eel_remove_in)) n_eel_remove = n_eel_remove_in
+        if(present(la_dist_in)) la_dist = la_dist_in
 
         if(.not. s%use_linkatoms) then
             call mmpol_init_linkatom(s)
             call init_link_atom(s%la, qm%qm_top, s%top)
         end if
 
-        call create_link_atom(s%la, imm, iqm, ila)
+        call create_link_atom(s%la, imm, iqm, ila, la_dist, n_eel_remove)
         allocate(cnew(3,qm%qm_top%mm_atoms))
 
         cnew = qm%qm_top%cmm
@@ -914,7 +926,7 @@ module ommp_interface
         if(s%use_linkatoms) then
             call link_atom_position(s%la, la_idx, crd)
         end if
-    end subroutine 
+    end subroutine
 
 end module ommp_interface
 
