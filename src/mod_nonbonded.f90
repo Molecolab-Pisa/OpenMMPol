@@ -78,6 +78,7 @@ module mod_nonbonded
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_remove_potential
     public :: vdw_potential, vdw_geomgrad
     public :: vdw_potential_inter, vdw_geomgrad_inter
+    public :: vdw_potential_inter_restricted
 
     contains
 
@@ -767,7 +768,7 @@ module mod_nonbonded
                 ! the atom to its neighbour
                 if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
                     call fatal_error("Scale factors are only expected for &
-                                     &monovalent atoms")
+                                     &monovalent atoms (top1)")
                 end if
                 ineigh = top1%conn(1)%ci(top1%conn(1)%ri(i))
 
@@ -787,7 +788,7 @@ module mod_nonbonded
                     ! the atom to its neighbour
                     if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
                         call fatal_error("Scale factors are only expected &
-                                         & for monovalent atoms")
+                                         & for monovalent atoms (top2) atom")
                     end if
                     ineigh = top2%conn(1)%ci(top2%conn(1)%ri(j))
 

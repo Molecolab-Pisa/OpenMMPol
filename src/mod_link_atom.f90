@@ -184,7 +184,7 @@ module mod_link_atom
             la%vdw_screening_f(la%vdw_n_screening) = s
             write(message, "(A, I0, A, I0, A, F3.2)") &
                   "Screening VdW interactions between atoms ", imm, " (MM) &
-                  &and ", iqm, "(QM) by a factor ", 1.0 - s
+                  &and ", iqm, "(QM) by a factor ", 1.0 + s
             call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
 
         end subroutine
@@ -240,7 +240,7 @@ module mod_link_atom
 
             ! Insert the new screened interactions inside link atom structure
             do idist=1, size(vdw_screening)
-                screen = 1.0-vdw_screening(idist)
+                screen = vdw_screening(idist) - 1.0
                 if(abs(screen) > eps_rp) then
                     do ineigh_qm=1, idist
                         ineigh_mm = idist - ineigh_qm + 1

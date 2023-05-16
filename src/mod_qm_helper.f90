@@ -96,11 +96,17 @@ module mod_qm_helper
         end subroutine
         
         subroutine qm_helper_update_coord(qm, cnew)
+            use mod_adjacency_mat, only: matfree
+            use mod_topology, only: guess_connectivity
+
             implicit none
             type(ommp_qm_helper), intent(inout) :: qm
             !! [[ommp_qm_helper]] object to be initialized
             real(rp), intent(in) :: cnew(3,qm%qm_top%mm_atoms)
             !! Coordinates of QM atoms
+            
+            logical :: reconnect = .true.
+            integer(ip) :: i
 
             qm%qm_top%cmm = cnew
             qm%E_n2p_done = .false.
@@ -110,7 +116,15 @@ module mod_qm_helper
             qm%H_n2m_done = .false.
             qm%V_m2n_done = .false.
             qm%E_m2n_done = .false.
-            !call guess_connectivity(qm%qm_top) !TODO
+            if(reconnect) then
+                do i=1, size(qm%qm_top%conn)
+                    call matfree(qm%qm_top%conn(i))
+                end do
+                deallocate(qm%qm_top%conn)
+                allocate(qm%qm_top%conn(1))
+
+                call guess_connectivity(qm%qm_top)
+            end if
         end subroutine
 
         subroutine qm_helper_init_vdw(qm, eps, rad, fac, &
@@ -168,7 +182,7 @@ module mod_qm_helper
         end subroutine
 
         subroutine qm_helper_vdw_energy(qm, mm, V)
-            use mod_nonbonded, only: vdw_potential_inter
+            use mod_nonbonded, only: vdw_potential_inter, vdw_potential_inter_restricted
             use mod_mmpol, only: ommp_system
 
             implicit none
@@ -176,9 +190,17 @@ module mod_qm_helper
             type(ommp_system), intent(in) :: mm
             type(ommp_qm_helper), intent(in) :: qm
             real(rp), intent(inout) :: V
+
         
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
                 call vdw_potential_inter(mm%vdw, qm%qm_vdw, V)
+                if(mm%use_linkatoms) then
+                    ! Screening due to the presence of link atom
+                    call vdw_potential_inter_restricted(mm%vdw, qm%qm_vdw, &
+                                                        mm%la%vdw_screening_pairs,&
+                                                        mm%la%vdw_screening_f, &
+                                                        mm%la%vdw_n_screening, V)
+                end if
             end if
 
         end subroutine
