@@ -39,7 +39,7 @@ module mod_link_atom
     end type
 
     public :: ommp_link_atom_type, init_link_atom, add_link_atom
-    public :: link_atom_position, check_vdw_pairs, add_screening_pair
+    public :: link_atom_position, init_vdw_for_link_atom
     public :: default_la_dist, default_la_n_eel_remove
 
     contains
@@ -66,6 +66,9 @@ module mod_link_atom
         end subroutine
 
         subroutine add_link_atom(la, imm, iqm, ila, la_dist)
+            use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+            use mod_io, only: ommp_message
+            
             implicit none
 
             type(ommp_link_atom_type), intent(inout) :: la
@@ -77,6 +80,7 @@ module mod_link_atom
             integer(ip), allocatable :: tmp(:,:)
             real(rp), allocatable :: rtmp(:)
             integer(ip) :: nmax
+            character(len=OMMP_STR_CHAR_MAX) :: message
             
             nmax = size(la%links, 2)
             if(la%nla + 1 > nmax) then
@@ -100,6 +104,10 @@ module mod_link_atom
             la%links(_QM_, la%nla) = iqm
             la%links(_LA_, la%nla) = ila
             la%la_distance(la%nla) = la_dist
+            write(message, "(A, I0, A, I0, A, I0, A)") &
+                  "Creating link atom MM [", imm, &
+                  "] - (LA) [", ila, "] - QM [", iqm, "]"
+            call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         end subroutine
 
         subroutine link_atom_position(la, idx, crd)
@@ -156,12 +164,15 @@ module mod_link_atom
         end subroutine
 
         subroutine add_screening_pair(la, iqm, imm, s)
+            use mod_io, only: ommp_message
+            use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_DEBUG
             !! Insert a VdW screening pair in the link atom structure
             implicit none
 
             type(ommp_link_atom_type), intent(inout) :: la
             integer(ip), intent(in) :: iqm, imm
             real(rp), intent(in) :: s
+            character(len=OMMP_STR_CHAR_MAX) :: message
 
             ! Just for safety, it should be done elsewhere for all the pairs
             ! ones want to insert in the structure.
@@ -171,5 +182,105 @@ module mod_link_atom
             la%vdw_screening_pairs(_QM_, la%vdw_n_screening) = iqm
             la%vdw_screening_pairs(_MM_, la%vdw_n_screening) = imm
             la%vdw_screening_f(la%vdw_n_screening) = s
+            write(message, "(A, I0, A, I0, A, F3.2)") &
+                  "Screening interactions between atoms ", imm, " (MM) &
+                  &and ", iqm, "(QM) by a factor ", 1.0 - s
+            call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
+
+        end subroutine
+
+        subroutine init_vdw_for_link_atom(la, iqm, imm, vdw_screening)
+            !! Initialize the quantities needed for vdw screening due to the
+            !! presence of a link atom between iqm and imm
+            use mod_topology, only: check_conn_matrix
+            use mod_io, only: fatal_error, ommp_message
+            use mod_constants, only: eps_rp, OMMP_STR_CHAR_MAX, OMMP_VERBOSE_DEBUG
+
+
+            implicit none
+
+            type(ommp_link_atom_type), intent(inout) :: la
+            integer(ip), intent(in) :: iqm, imm
+            real(rp), intent(in) :: vdw_screening(:)
+
+            integer(ip) :: i, j, ineigh_qm, ineigh_mm, idist, iscr, &
+                           qmneigh(4), mmneigh(4)
+            real(rp) :: screen
+            character(len=OMMP_STR_CHAR_MAX) :: message
+
+            ! Check that the connectivity matrices have been built up to the
+            ! required order.
+            call check_conn_matrix(la%qmtop, size(vdw_screening)-1)
+            call check_conn_matrix(la%mmtop, size(vdw_screening)-1)
+            
+            ! Count how many interactions should be screened
+            qmneigh(1) = 1
+            mmneigh(1) = 1
+            do i=2, size(vdw_screening)
+                qmneigh(i) = la%qmtop%conn(i-1)%ri(iqm+1) - \
+                             la%qmtop%conn(i-1)%ri(iqm)
+                mmneigh(i) = la%mmtop%conn(i-1)%ri(imm+1) - \
+                             la%mmtop%conn(i-1)%ri(imm)
+            end do
+
+            iscr = 0
+            do idist=1, size(vdw_screening)
+                if(abs(vdw_screening(idist) - 1.0) > eps_rp) then
+                    do i=1, idist
+                        iscr = iscr + qmneigh(i) * mmneigh(idist-i+1)
+                    end do
+                end if
+            end do
+            write(message, "(I0, A)") &
+                  iscr, " VdW interactions will be screened due to link atom"
+            call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
+
+            ! Check the allocation of vectors inside link atom structure
+            call check_vdw_pairs(la, iscr)
+
+            ! Insert the new screened interactions inside link atom structure
+            do idist=1, size(vdw_screening)
+                screen = 1.0-vdw_screening(idist)
+                if(abs(screen) > eps_rp) then
+                    do ineigh_qm=1, idist
+                        ineigh_mm = idist - ineigh_qm + 1
+                        if(ineigh_qm == 1) then
+                            if(ineigh_mm == 1) then
+                                call add_screening_pair(la, iqm, imm, screen)
+                            else
+                                do i=la%mmtop%conn(ineigh_mm-1)%ri(imm), &
+                                     la%mmtop%conn(ineigh_mm-1)%ri(imm+1) - 1
+                                    call add_screening_pair(la, &
+                                                            iqm, &
+                                                            la%mmtop%conn(ineigh_mm-1)%ci(i), &
+                                                            screen)
+                                end do
+                            end if
+                        else
+                            if(ineigh_mm == 1) then
+                                do i=la%qmtop%conn(ineigh_qm-1)%ri(iqm), &
+                                     la%qmtop%conn(ineigh_qm-1)%ri(iqm+1) -1
+                                    call add_screening_pair(la, &
+                                                            la%qmtop%conn(ineigh_qm-1)%ci(i), &
+                                                            imm, &
+                                                            screen)
+                                end do
+                            else
+                                do i=la%mmtop%conn(ineigh_mm-1)%ri(imm), &
+                                     la%mmtop%conn(ineigh_mm-1)%ri(imm+1) - 1
+                                    do j=la%qmtop%conn(ineigh_qm-1)%ri(iqm), &
+                                         la%qmtop%conn(ineigh_qm-1)%ri(iqm+1) -1
+                                        call add_screening_pair(la, &
+                                                                la%qmtop%conn(ineigh_qm-1)%ci(j), &
+                                                                la%mmtop%conn(ineigh_mm-1)%ci(i), &
+                                                                screen)
+                                    end do
+                                end do
+                            end if
+                        end if
+                    end do
+                end if
+            end do
+
         end subroutine
 end module
