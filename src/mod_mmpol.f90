@@ -421,10 +421,12 @@ module mod_mmpol
     subroutine create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
         !! Create a bond between atoms imm and iqm, the link atom should
         !! already be present in the qm part and is identified by ila.
-        use mod_link_atom, only: ommp_link_atom_type, add_link_atom
+        use mod_link_atom, only: ommp_link_atom_type, add_link_atom, &
+                                 check_vdw_pairs, add_screening_pair
         use mod_io, only: fatal_error, ommp_message
-        use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+        use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, eps_rp
         use mod_memory, only: mfree
+        use mod_topology, only: check_conn_matrix
 
         implicit none
 
@@ -438,8 +440,9 @@ module mod_mmpol
         type(ommp_link_atom_type), pointer :: la
         type(ommp_electrostatics_type), pointer :: eel
         character(len=OMMP_STR_CHAR_MAX) :: message
-        real(rp) :: cla(3), removed_charge, qred
-        integer(ip) :: i, j, idx
+        real(rp) :: cla(3), removed_charge, qred, screen
+        integer(ip) :: i, j, idx, ineigh, qmneigh(4), mmneigh(4), &
+                       ineigh_qm, ineigh_mm, idist, iscr
         
         ! 0. Initialization
         la => s%la
@@ -531,7 +534,77 @@ module mod_mmpol
             if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
             if(s%amoeba) call rotate_multipoles(s%eel)
         end if
+        
         ! 2. VdW
+        ! 2.1 Count how many interactions should be screened
+        qmneigh(1) = 1
+        mmneigh(1) = 1
+        ! Check that the connectivity matrices have been built up to the
+        ! required order.
+        call check_conn_matrix(s%la%qmtop, size(s%vdw%vdw_screening)-1)
+        call check_conn_matrix(s%la%mmtop, size(s%vdw%vdw_screening)-1)
+        do i=2, size(s%vdw%vdw_screening)
+            qmneigh(i) = s%la%qmtop%conn(i-1)%ri(iqm+1) - \
+                         s%la%qmtop%conn(i-1)%ri(iqm)
+            mmneigh(i) = s%la%mmtop%conn(i-1)%ri(imm+1) - \
+                         s%la%mmtop%conn(i-1)%ri(imm)
+        end do
+
+        iscr = 0
+        do idist=1, size(s%vdw%vdw_screening)
+            if(abs(s%vdw%vdw_screening(idist) - 1.0) > eps_rp) then
+                do i=1, idist
+                    iscr = iscr + qmneigh(i) * mmneigh(idist-i+1)
+                end do
+            end if
+        end do
+        ! 2.2 Check the allocation
+        call check_vdw_pairs(s%la, iscr)
+        ! 2.3 Insert the new screened interactions
+        do idist=1, size(s%vdw%vdw_screening)
+            screen = 1.0-s%vdw%vdw_screening(idist)
+            if(abs(screen) > eps_rp) then
+                do ineigh_qm=1, idist
+                    ineigh_mm = idist - ineigh_qm + 1
+                    if(ineigh_qm == 1) then
+                        if(ineigh_mm == 1) then
+                            call add_screening_pair(s%la, iqm, imm, screen)
+                        else
+                            do i=s%la%mmtop%conn(ineigh_mm-1)%ri(imm), &
+                                 s%la%mmtop%conn(ineigh_mm-1)%ri(imm+1) - 1
+                                call add_screening_pair(s%la, &
+                                                        iqm, &
+                                                        s%la%mmtop%conn(ineigh_mm-1)%ri(i), &
+                                                        screen)
+                            end do
+                        end if
+                    else
+                        if(ineigh_mm == 1) then
+                            do i=s%la%qmtop%conn(ineigh_qm-1)%ri(iqm), &
+                                 s%la%qmtop%conn(ineigh_qm-1)%ri(iqm+1) -1
+                                call add_screening_pair(s%la, &
+                                                        s%la%qmtop%conn(ineigh_qm-1)%ci(i), &
+                                                        imm, &
+                                                        screen)
+                            end do
+                        else
+                            do i=s%la%mmtop%conn(ineigh_mm-1)%ri(imm), &
+                                 s%la%mmtop%conn(ineigh_mm-1)%ri(imm+1) - 1
+                                do j=s%la%qmtop%conn(ineigh_qm-1)%ri(iqm), &
+                                     s%la%qmtop%conn(ineigh_qm-1)%ri(iqm+1) -1
+                                    call add_screening_pair(s%la, &
+                                                            s%la%qmtop%conn(ineigh_qm-1)%ci(j), &
+                                                            s%la%mmtop%conn(ineigh_mm-1)%ri(i), &
+                                                            screen)
+                                end do
+                            end do
+                        end if
+                    end if
+                    iscr = iscr + qmneigh(i) * mmneigh(idist-i+1)
+                end do
+            end if
+        end do
+
         ! 3. Bonded
 
     end subroutine

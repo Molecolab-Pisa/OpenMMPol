@@ -44,7 +44,7 @@ module mod_topology
 
     public :: ommp_topology_type
     public :: topology_init, topology_terminate, guess_connectivity
-    public :: set_frozen
+    public :: set_frozen, check_conn_matrix
 
     contains
 
@@ -201,6 +201,39 @@ module mod_topology
             do i=1, n
                 top_obj%frozen(frozen_atoms(i)) = .true.
             end do
+        end subroutine
+
+        subroutine check_conn_matrix(top_obj, n)
+            !! Check if adjacency matrix up to nth order is present in
+            !! topology object. If it is not present, update the topology
+            !! accordingly.
+            use mod_adjacency_mat, only: matfree, matcpy, build_conn_upto_n
+            use mod_io, only: fatal_error
+
+            implicit none
+            type(ommp_topology_type), intent(inout) :: top_obj
+            integer(ip), intent(in) :: n
+
+            type(yale_sparse) :: adj
+            integer(ip) :: i
+            
+            if(.not. allocated(top_obj%conn) .or. size(top_obj%conn) < 1) then
+                call fatal_error("The topology does not contain a connectivity.")
+            end if 
+
+            if(size(top_obj%conn) < n) then
+                if(size(top_obj%conn) >= 1) then
+                    call matcpy(top_obj%conn(1), adj)
+                end if
+                
+                do i=1, size(top_obj%conn)
+                    call matfree(top_obj%conn(i))
+                end do
+                deallocate(top_obj%conn)
+
+                call build_conn_upto_n(adj, n, top_obj%conn, .false.)
+
+            end if
         end subroutine
         
         subroutine topology_terminate(top_obj)

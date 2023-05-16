@@ -916,5 +916,97 @@ module mod_nonbonded
             end do
         end do
     end subroutine
+    
+    subroutine vdw_potential_inter_restricted(vdw1, vdw2, pairs, s, n, V)
+        !! Compute the dispersion repulsion energy between two systems vdw1
+        !! and vdw2 accounting only for the pairs pairs(1,i)--pairs(2,i) and scaling 
+        !! each interaction by s(i).
 
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: n
+        !! number of pairs for which the interaction should be computed
+        integer(ip), intent(in) :: pairs(2,n)
+        !! pairs of atoms for which the interaction should be computed
+        real(rp), intent(in) :: s(:)
+        !! scaling factors for each interaction
+        real(rp), intent(inout) :: V
+        !! Potential, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh, ip
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), vtmp
+        type(ommp_topology_type), pointer :: top1, top2
+        procedure(vdw_term), pointer :: vdw_func
+
+        top1 => vdw1%top
+        top2 => vdw2%top
+
+        if(vdw1%vdwtype /= vdw2%vdwtype .or. &
+           vdw1%radrule /= vdw2%radrule .or. &
+           vdw1%epsrule /= vdw2%epsrule) then
+            call fatal_error("Requested VdW potential between two incompatible &
+                             &VdW groups.")
+       end if
+
+        select case(vdw1%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_func => vdw_lennard_jones
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_func => vdw_buffered_7_14
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
+        do ip=1, n
+            i = pairs(1,ip)
+            j = pairs(2,ip)
+
+            if(abs(vdw1%vdw_f(i) - 1.0_rp) < eps_rp) then
+                ci = top1%cmm(:,i)
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh = top1%conn(1)%ci(top1%conn(1)%ri(i))
+
+                ci = top1%cmm(:,ineigh) + (top1%cmm(:,i) - top1%cmm(:,ineigh)) &
+                     * vdw1%vdw_f(i)
+            endif
+                
+            Rij0 = get_Rij0_inter(vdw1, vdw2, i, j)
+            eij = get_eij_inter(vdw1, vdw2, i, j)
+        
+            if(abs(vdw2%vdw_f(j) - 1.0_rp) < eps_rp) then
+                cj = top2%cmm(:,j)
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
+                    call fatal_error("Scale factors are only expected &
+                                        & for monovalent atoms")
+                end if
+                ineigh = top2%conn(1)%ci(top2%conn(1)%ri(j))
+
+                cj = top2%cmm(:,ineigh) + &
+                        (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
+            endif
+            Rij = norm2(ci-cj)
+            
+            vtmp = 0.0_rp
+            call vdw_func(Rij, Rij0, Eij, vtmp)
+            v = v + vtmp * s(ip)
+        end do
+    end subroutine vdw_potential_inter_restricted
+    
 end module mod_nonbonded

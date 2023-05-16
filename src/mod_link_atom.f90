@@ -7,6 +7,7 @@ module mod_link_atom
     use mod_memory, only: rp, ip, lp, mallocate, mfree
     use mod_topology, only: ommp_topology_type
     use mod_constants, only: angstrom2au
+    use mod_nonbonded, only: vdw_geomgrad_inter
 
     implicit none
     private
@@ -20,18 +21,25 @@ module mod_link_atom
         !! Topology of MM part of the system
         type(ommp_topology_type), pointer :: qmtop
         !! Topology of QM part of the system
+        integer(ip) :: nla
+        !! Number of link atoms
         integer(ip), allocatable :: links(:,:)
         !! Indexes of link-involved atoms: 
         !!    links(_MM_,:) contains the index of MM atom in mmtop
         !!    links(_QM_,:) contains the index of QM atom in qmtop
         !!    links(_LA_,:) contains the index of link atom in qmtop
         real(rp), allocatable :: la_distance(:)
-        integer(ip) :: nla
-        !! Number of link atoms
+        !! Distance of link atom from QM atom
+        integer(ip), allocatable :: vdw_screening_pairs(:,:)
+        !! Pairs of vdw interactions that should be screened
+        real(rp), allocatable :: vdw_screening_f(:)
+        !! Screening factors for each vdw pair
+        integer(ip) :: vdw_n_screening
+        !! Number of screening vdw to be used
     end type
 
     public :: ommp_link_atom_type, init_link_atom, add_link_atom
-    public :: link_atom_position
+    public :: link_atom_position, check_vdw_pairs, add_screening_pair
     public :: default_la_dist, default_la_n_eel_remove
 
     contains
@@ -46,7 +54,13 @@ module mod_link_atom
                            la%links)
             call mallocate('init_linkatoms [la_distance]', &
                            la_allocation_chunk, la%la_distance)
+            call mallocate('init_linkatoms [vdw_screening_f]', &
+                           la_allocation_chunk, la%vdw_screening_f)
+            call mallocate('init_linkatoms [vdw_screening_pairs]', 2, &
+                           la_allocation_chunk, la%vdw_screening_pairs)
+
             la%nla = 0
+            la%vdw_n_screening = 0
             la%qmtop => qmtop
             la%mmtop => mmtop
         end subroutine
@@ -105,7 +119,57 @@ module mod_link_atom
             dmmqm = dmmqm / norm2(dmmqm)
 
             crd = rqm + la%la_distance(idx) * dmmqm
-            
         end subroutine
 
+        subroutine check_vdw_pairs(la, n)
+            !! Check if n new screening pairs could be allocated
+            !! in la structure. If the allocated arrays are too 
+            !! small, they are reallocated on-the-fly.
+            implicit none
+
+            type(ommp_link_atom_type), intent(inout) :: la
+            integer(ip), intent(in) :: n
+
+            integer(ip), allocatable :: itmp(:,:)
+            real(rp), allocatable :: rtmp(:)
+            integer(ip) :: nnew, nold
+
+            nnew = n + la%vdw_n_screening
+            nold = size(la%vdw_screening_f)
+            if(nnew > nold) then
+                call mallocate('check_vdw_pairs [itmp]', 2, nold, itmp)
+                call mallocate('check_vdw_pairs [rtmp]', nold, rtmp)
+                itmp = la%vdw_screening_pairs
+                rtmp = la%vdw_screening_f
+                call mfree('check_vdw_pairs [vdw_screening_pairs]', la%vdw_screening_pairs)
+                call mfree('check_vdw_pairs [vdw_screening_f]', la%vdw_screening_f)
+                
+                call mallocate('check_vdw_pairs [vdw_screening_pairs]', 2, nnew, la%vdw_screening_pairs)
+                call mallocate('check_vdw_pairs [vdw_screening_f]', nnew, la%vdw_screening_f)
+
+                la%vdw_screening_pairs = itmp
+                la%vdw_screening_f = rtmp
+
+                call mfree('check_vdw_pairs [itmp]', itmp)
+                call mfree('check_vdw_pairs [rtmp]', rtmp)
+            end if
+        end subroutine
+
+        subroutine add_screening_pair(la, iqm, imm, s)
+            !! Insert a VdW screening pair in the link atom structure
+            implicit none
+
+            type(ommp_link_atom_type), intent(inout) :: la
+            integer(ip), intent(in) :: iqm, imm
+            real(rp), intent(in) :: s
+
+            ! Just for safety, it should be done elsewhere for all the pairs
+            ! ones want to insert in the structure.
+            call check_vdw_pairs(la, 1)
+
+            la%vdw_n_screening = la%vdw_n_screening + 1
+            la%vdw_screening_pairs(_QM_, la%vdw_n_screening) = iqm
+            la%vdw_screening_pairs(_MM_, la%vdw_n_screening) = imm
+            la%vdw_screening_f(la%vdw_n_screening) = s
+        end subroutine
 end module
