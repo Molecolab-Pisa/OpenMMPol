@@ -75,7 +75,8 @@ module mod_nonbonded
     end interface
    
     public :: ommp_nonbonded_type
-    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
+    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_remove_potential
+    public :: vdw_potential, vdw_geomgrad
     public :: vdw_potential_inter, vdw_geomgrad_inter
 
     contains
@@ -194,6 +195,19 @@ module mod_nonbonded
         call mfree('vdw_terminate [vdw_pair_r]', vdw%vdw_pair_r)
         call mfree('vdw_terminate [vdw_pair_e]', vdw%vdw_pair_e)
 
+    end subroutine
+
+    subroutine vdw_remove_potential(vdw, i)
+        !! Remove the VdW interaction from the specified atom
+        !! the atom will not interact anymore with any other atom
+        implicit none
+
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        integer(ip), intent(in) :: i
+
+        vdw%vdw_e(i) = 0.0
+        
+        ! TODO do it also for pair interactions
     end subroutine
 
     subroutine vdw_set_pair(vdw, ia, ib, r, e)

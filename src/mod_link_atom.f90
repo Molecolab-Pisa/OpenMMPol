@@ -183,7 +183,7 @@ module mod_link_atom
             la%vdw_screening_pairs(_MM_, la%vdw_n_screening) = imm
             la%vdw_screening_f(la%vdw_n_screening) = s
             write(message, "(A, I0, A, I0, A, F3.2)") &
-                  "Screening interactions between atoms ", imm, " (MM) &
+                  "Screening VdW interactions between atoms ", imm, " (MM) &
                   &and ", iqm, "(QM) by a factor ", 1.0 - s
             call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
 

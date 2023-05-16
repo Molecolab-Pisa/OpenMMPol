@@ -878,6 +878,7 @@ module ommp_interface
                                  default_la_dist, default_la_n_eel_remove
         use mod_qm_helper, only: qm_helper_update_coord
         use mod_mmpol, only: mmpol_init_linkatom, create_link_atom
+        use mod_nonbonded, only: vdw_remove_potential
 
         implicit none
 
@@ -892,25 +893,33 @@ module ommp_interface
         real(ommp_real), allocatable :: cnew(:,:)
         real(ommp_real), dimension(3) :: cla
 
-        if(.not. s%use_linkatoms) then
-            call mmpol_init_linkatom(s)
-            call init_link_atom(s%la, qm%qm_top, s%top)
-        end if
-
+        ! Handle optional arguments
         n_eel_remove = default_la_n_eel_remove
         la_dist = default_la_dist
         if(present(n_eel_remove_in)) n_eel_remove = n_eel_remove_in
         if(present(la_dist_in)) la_dist = la_dist_in
 
-        call create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
-        allocate(cnew(3,qm%qm_top%mm_atoms))
+        ! If it is still not initialized, initialize link atom structure
+        if(.not. s%use_linkatoms) then
+            call mmpol_init_linkatom(s)
+            call init_link_atom(s%la, qm%qm_top, s%top)
+        end if
 
+        ! Create the link atom inside OMMP main object
+        call create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
+
+        ! Remove non-bonded interactions from link atom inside QMHelper object
+        call vdw_remove_potential(qm%qm_vdw, ila)
+        
+        ! Compute new QM coordinates (for link atom only actually) and update
+        allocate(cnew(3,qm%qm_top%mm_atoms))
         cnew = qm%qm_top%cmm
         call link_atom_position(s%la, s%la%nla, cla)
         cnew(:,ila) = cla
         call qm_helper_update_coord(qm, cnew)
-        
         deallocate(cnew)
+        
+        ! Return link atom index
         la_idx = s%la%nla
     end function
 
