@@ -780,11 +780,12 @@ class OMMPSystem{
             return handler;
         }
         
-        int32_t create_link_atom(OMMPQmHelper& qm, int imm, int iqm, int ila, 
+        int32_t create_link_atom(OMMPQmHelper& qm, int imm, int iqm, int ila,
+                                 std::string prmfile,
                                  double la_dist=OMMP_DEFAULT_LA_DIST, 
                                  int neel_remove=OMMP_DEFAULT_LA_N_EEL_REMOVE){
             return ommp_create_link_atom(qm.get_handler(), handler, imm, iqm, ila, 
-                                         la_dist, neel_remove);
+                                         prmfile.c_str(), la_dist, neel_remove);
         }
 
         py_cdarray get_link_atom_coordinates(int la_idx){
@@ -1262,6 +1263,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::create_link_atom,
              "Create a link atom between QM and MM system",
              py::arg("OMMP_QM_Helper"), py::arg("i_mm"), py::arg("i_qm"), py::arg("i_la"),
+             py::arg("prmfile"),
              py::arg("la_distance")=OMMP_DEFAULT_LA_DIST, 
              py::arg("n_eel_remove")=OMMP_DEFAULT_LA_N_EEL_REMOVE)
         .def_property_readonly("is_init", &OMMPSystem::is_init, "Flag to check system initialization.")

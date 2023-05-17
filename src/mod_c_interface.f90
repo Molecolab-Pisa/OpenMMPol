@@ -1516,7 +1516,7 @@ module mod_ommp_C_interface
             C_ommp_qm_helper_get_frozen = c_loc(s%qm_top%frozen)
         end function C_ommp_qm_helper_get_frozen
 
-        function C_ommp_create_link_atom(qm_prt, s_prt, imm, iqm, ila, &
+        function C_ommp_create_link_atom(qm_prt, s_prt, imm, iqm, ila, prmfile, &
                                          ladist, neel_remove) &
                 result(la_idx) &
                 bind(c, name='ommp_create_link_atom')
@@ -1525,17 +1525,20 @@ module mod_ommp_C_interface
             type(c_ptr), value :: s_prt, qm_prt
             integer(ommp_integer), value :: iqm, imm, ila, neel_remove
             real(ommp_real), value :: ladist
+            character(kind=c_char), intent(in) :: prmfile(OMMP_STR_CHAR_MAX)
             
 
             type(ommp_system), pointer :: s
             type(ommp_qm_helper), pointer :: qm
 
             integer(ommp_integer) :: la_idx
-
+            character(len=OMMP_STR_CHAR_MAX) :: prm_file
+            
+            call c2f_string(prmfile, prm_file)
             call c_f_pointer(s_prt, s)
             call c_f_pointer(qm_prt, qm)
 
-            la_idx = ommp_create_link_atom(qm, s, imm, iqm, ila, &
+            la_idx = ommp_create_link_atom(qm, s, imm, iqm, ila, prm_file, &
                                            ladist, neel_remove)
         end function
 

@@ -873,16 +873,16 @@ module ommp_interface
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
     end subroutine
 
-    function ommp_create_link_atom(qm, s, imm, iqm, ila, &
+    function ommp_create_link_atom(qm, s, imm, iqm, ila, prmfile, &
                                    la_dist_in, n_eel_remove_in) result(la_idx)
 
         use mod_link_atom, only: link_atom_position, init_link_atom, &
                                  default_la_dist, default_la_n_eel_remove, &
                                  init_vdw_for_link_atom
-        use mod_qm_helper, only: qm_helper_update_coord
+        use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
         use mod_mmpol, only: mmpol_init_linkatom, create_link_atom
         use mod_nonbonded, only: vdw_remove_potential
-        use mod_io, only: ommp_message
+        use mod_io, only: ommp_message, fatal_error
         use mod_constants, only: OMMP_STR_CHAR_MAX
         use mod_memory, only: lp
 
@@ -891,6 +891,7 @@ module ommp_interface
         type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(inout) :: qm
         integer(ommp_integer), intent(in) :: iqm, imm, ila
+        character(len=*), intent(in) :: prmfile
         integer(ommp_integer), optional, intent(in) :: n_eel_remove_in
         real(ommp_real), optional, intent(in) :: la_dist_in
 
@@ -906,10 +907,22 @@ module ommp_interface
         if(present(n_eel_remove_in)) n_eel_remove = n_eel_remove_in
         if(present(la_dist_in)) la_dist = la_dist_in
 
+        ! Sanity checks
+        if(.not. qm%qm_top%attype_initialized) then
+            call fatal_error("For a correct handling of link atoms you should &
+                             &initialize atom types for QM atoms before.")
+        end if
+
         ! If it is still not initialized, initialize link atom structure
         if(.not. s%use_linkatoms) then
             call mmpol_init_linkatom(s)
             call init_link_atom(s%la, qm%qm_top, s%top)
+            ! TODO otherwise check if the qm system is the same...
+        end if
+
+        ! If VdW for QM part are not initialized, it's the right moment to do so
+        if(.not. qm%use_nonbonded) then
+            call qm_helper_init_vdw_prm(qm, prmfile)
         end if
 
         ! Create the link atom inside OMMP main object
@@ -938,8 +951,7 @@ module ommp_interface
                                         iqm, imm, &
                                         s%vdw%vdw_screening)
         end if
-        
-        
+
         ! Return link atom index
         la_idx = s%la%nla
     end function
