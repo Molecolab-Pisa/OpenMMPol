@@ -21,6 +21,10 @@ module mod_link_atom
         !! Topology of MM part of the system
         type(ommp_topology_type), pointer :: qmtop
         !! Topology of QM part of the system
+        type(ommp_topology_type), allocatable ::qmmmtop
+        !! Linked QM/MM topology
+        integer(ip), allocatable :: mm2full(:), qm2full(:)
+        !! Maps from qm and mm systems to full topology indexes
         integer(ip) :: nla
         !! Number of link atoms
         integer(ip), allocatable :: links(:,:)
@@ -44,6 +48,10 @@ module mod_link_atom
 
     contains
         subroutine init_link_atom(la, qmtop, mmtop)
+            use mod_topology, only: merge_top
+            use mod_constants, only: OMMP_VERBOSE_LOW
+            use mod_io, only: ommp_message
+
             implicit none
             
             type(ommp_link_atom_type), intent(inout) :: la
@@ -63,11 +71,16 @@ module mod_link_atom
             la%vdw_n_screening = 0
             la%qmtop => qmtop
             la%mmtop => mmtop
+            
+            call ommp_message("Creating merged topology", OMMP_VERBOSE_LOW, 'linkatom')
+            allocate(la%qmmmtop)
+            call merge_top(la%mmtop, la%qmtop, la%qmmmtop, la%mm2full, la%qm2full)
         end subroutine
 
         subroutine add_link_atom(la, imm, iqm, ila, la_dist)
             use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
             use mod_io, only: ommp_message
+            use mod_topology, only: create_new_bond
             
             implicit none
 
@@ -104,9 +117,13 @@ module mod_link_atom
             la%links(_QM_, la%nla) = iqm
             la%links(_LA_, la%nla) = ila
             la%la_distance(la%nla) = la_dist
+            
+            call create_new_bond(la%qmmmtop, la%mm2full(imm), la%qm2full(iqm))
+
             write(message, "(A, I0, A, I0, A, I0, A)") &
-                  "Creating link atom MM [", imm, &
+                  "Created link atom MM [", imm, &
                   "] - (LA) [", ila, "] - QM [", iqm, "]"
+            
             call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         end subroutine
 
