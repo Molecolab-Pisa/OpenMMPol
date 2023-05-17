@@ -421,8 +421,7 @@ module mod_mmpol
     subroutine create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
         !! Create a bond between atoms imm and iqm, the link atom should
         !! already be present in the qm part and is identified by ila.
-        use mod_link_atom, only: ommp_link_atom_type, add_link_atom, &
-                                 init_vdw_for_link_atom
+        use mod_link_atom, only: ommp_link_atom_type, add_link_atom
         use mod_io, only: fatal_error, ommp_message
         use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, eps_rp
         use mod_memory, only: mfree
@@ -441,11 +440,11 @@ module mod_mmpol
         real(rp) :: cla(3), removed_charge, qred
         integer(ip) :: i, j, idx, ineigh
         
-        ! 0. Initialization
+        ! Initialization
         la => s%la
         eel => s%eel
 
-        ! 0.1. checks
+        ! Sanity check
         if(iqm == ila) then
             call fatal_error("QM atom and link atom should have different indices")
         end if
@@ -466,7 +465,7 @@ module mod_mmpol
 
         call add_link_atom(la, imm, iqm, ila, la_dist)
 
-        ! 1. Electrostatic: remove dipoles, multipoles, charges and polarizabilities
+        ! Remove dipoles, multipoles, charges and polarizabilities
         !    on all the atoms that have a distance from (QM) atom less or equal to
         !    n_eel_remove. If n_eel_remove is 0, the MM electrostatic is not changed;
         !    if n_eel_remove is 1, only the connected atom is removed and so on.
@@ -526,12 +525,6 @@ module mod_mmpol
             if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
             if(s%amoeba) call rotate_multipoles(s%eel)
         end if
-        
-        ! 2. VdW
-        call init_vdw_for_link_atom(s%la, iqm, imm, s%vdw%vdw_screening)
-
-        ! 3. Bonded
-
     end subroutine
 
     

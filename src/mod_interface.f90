@@ -26,7 +26,8 @@ module ommp_interface
     
     ! Internal types
     use mod_memory, only: ommp_integer => ip, &
-                          ommp_real => rp
+                          ommp_real => rp, &
+                          ommp_logical => lp
     use mod_mmpol, only: ommp_system
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_topology, only: ommp_topology_type
@@ -875,10 +876,14 @@ module ommp_interface
                                    la_dist_in, n_eel_remove_in) result(la_idx)
 
         use mod_link_atom, only: link_atom_position, init_link_atom, &
-                                 default_la_dist, default_la_n_eel_remove
+                                 default_la_dist, default_la_n_eel_remove, &
+                                 init_vdw_for_link_atom
         use mod_qm_helper, only: qm_helper_update_coord
         use mod_mmpol, only: mmpol_init_linkatom, create_link_atom
         use mod_nonbonded, only: vdw_remove_potential
+        use mod_io, only: ommp_message
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+        use mod_memory, only: lp
 
         implicit none
 
@@ -892,6 +897,7 @@ module ommp_interface
         real(ommp_real) :: la_dist
         real(ommp_real), allocatable :: cnew(:,:)
         real(ommp_real), dimension(3) :: cla
+        character(len=OMMP_STR_CHAR_MAX) :: message
 
         ! Handle optional arguments
         n_eel_remove = default_la_n_eel_remove
@@ -908,16 +914,30 @@ module ommp_interface
         ! Create the link atom inside OMMP main object
         call create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
 
-        ! Remove non-bonded interactions from link atom inside QMHelper object
-        call vdw_remove_potential(qm%qm_vdw, ila)
-        
         ! Compute new QM coordinates (for link atom only actually) and update
         allocate(cnew(3,qm%qm_top%mm_atoms))
         cnew = qm%qm_top%cmm
         call link_atom_position(s%la, s%la%nla, cla)
+        write(message, '(A, I0, A, 3F8.4, A, 3F8.4, A)') &
+            "Link atom [", ila, "] will be moved from [", &
+            cnew(:,ila), "] to [", cla, "]."
+        call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         cnew(:,ila) = cla
-        call qm_helper_update_coord(qm, cnew)
+        call qm_helper_update_coord(qm, cnew, logical(.true., lp))
         deallocate(cnew)
+        
+        ! Remove non-bonded interactions from link atom inside QMHelper object
+        write(message, '(A, I0, A)') "Removing VdW interactions from link atom (QM) [", ila, "]"
+        call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
+        call vdw_remove_potential(qm%qm_vdw, ila)
+
+        ! Screen vdw interactions between QM and MM atoms
+        if(qm%use_nonbonded .and. s%use_nonbonded) then
+            call init_vdw_for_link_atom(s%la, &
+                                        iqm, imm, &
+                                        s%vdw%vdw_screening)
+        end if
+        
         
         ! Return link atom index
         la_idx = s%la%nla

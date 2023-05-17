@@ -3,7 +3,7 @@ module mod_qm_helper
 !! but can be initialized and used by a QM program interfaced with openMMPol
 !! to simplify certain steps of the interface using already well tested code.
     
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_mmpol, only: ommp_system
     use mod_topology, only: ommp_topology_type
     use mod_nonbonded, only: ommp_nonbonded_type
@@ -14,6 +14,9 @@ module mod_qm_helper
     type ommp_qm_helper
         type(ommp_topology_type), allocatable :: qm_top
         !! Topology of the QM system
+        logical(lp) :: reconnect = .false.
+        !! Flag to decide if the topology should be rebuily
+        !! at each change of geometry.
         real(rp), allocatable :: qqm(:)
         !! Charges of QM nuclei
         logical :: E_n2p_done = .false.
@@ -95,7 +98,7 @@ module mod_qm_helper
 
         end subroutine
         
-        subroutine qm_helper_update_coord(qm, cnew)
+        subroutine qm_helper_update_coord(qm, cnew, reconnect_in)
             use mod_adjacency_mat, only: matfree
             use mod_topology, only: guess_connectivity
 
@@ -104,9 +107,16 @@ module mod_qm_helper
             !! [[ommp_qm_helper]] object to be initialized
             real(rp), intent(in) :: cnew(3,qm%qm_top%mm_atoms)
             !! Coordinates of QM atoms
-            
-            logical :: reconnect = .true.
+            logical(lp), intent(in), optional :: reconnect_in
+
             integer(ip) :: i
+            logical(lp) :: rc
+
+            if(present(reconnect_in)) then
+                rc = reconnect_in
+            else
+                rc = qm%reconnect
+            end if
 
             qm%qm_top%cmm = cnew
             qm%E_n2p_done = .false.
@@ -116,7 +126,7 @@ module mod_qm_helper
             qm%H_n2m_done = .false.
             qm%V_m2n_done = .false.
             qm%E_m2n_done = .false.
-            if(reconnect) then
+            if(rc) then
                 do i=1, size(qm%qm_top%conn)
                     call matfree(qm%qm_top%conn(i))
                 end do
