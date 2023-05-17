@@ -40,7 +40,8 @@ module ommp_interface
 
     use mod_io, only: ommp_set_verbose => set_verbosity, ommp_version
     
-    use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
+    use mod_qm_helper, only: ommp_qm_helper_set_attype => qm_helper_set_attype, &
+                             ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
                              ommp_prepare_qm_ele_grd => electrostatic_for_grad

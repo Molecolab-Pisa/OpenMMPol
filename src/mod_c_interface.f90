@@ -1106,22 +1106,35 @@ module mod_ommp_C_interface
             call ommp_qm_helper_update_coord(s, fcqm)
         end subroutine
 
-        subroutine C_ommp_qm_helper_init_vdw_prm(pqm, pattype, cprmfile) &
-                 bind(c, name='ommp_qm_helper_init_vdw_prm')
+        subroutine C_ommp_qm_helper_set_attype(pqm, pattype) &
+                 bind(c, name='ommp_qm_helper_set_attype')
             implicit none
 
             type(c_ptr), value, intent(in) :: pqm, pattype
-            character(kind=c_char), intent(in) :: cprmfile(OMMP_STR_CHAR_MAX)
             
             type(ommp_qm_helper), pointer :: qm
-            character(len=OMMP_STR_CHAR_MAX) :: prmfile
             integer(ommp_integer), pointer :: attype(:)
 
             call c_f_pointer(pqm, qm)
             call c_f_pointer(pattype, attype, [qm%qm_top%mm_atoms])
+
+            call ommp_qm_helper_set_attype(qm, attype)
+        end subroutine
+        
+        subroutine C_ommp_qm_helper_init_vdw_prm(pqm, cprmfile) &
+                 bind(c, name='ommp_qm_helper_init_vdw_prm')
+            implicit none
+
+            type(c_ptr), value, intent(in) :: pqm
+            character(kind=c_char), intent(in) :: cprmfile(OMMP_STR_CHAR_MAX)
+            
+            type(ommp_qm_helper), pointer :: qm
+            character(len=OMMP_STR_CHAR_MAX) :: prmfile
+
+            call c_f_pointer(pqm, qm)
             call c2f_string(cprmfile, prmfile)
 
-            call ommp_qm_helper_init_vdw_prm(qm, attype, prmfile)
+            call ommp_qm_helper_init_vdw_prm(qm, prmfile)
         end subroutine
         
         subroutine C_ommp_qm_helper_init_vdw(pqm, peps, prad, pfac, &

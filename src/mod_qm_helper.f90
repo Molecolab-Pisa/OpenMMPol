@@ -65,7 +65,7 @@ module mod_qm_helper
     public :: qm_helper_init, qm_helper_terminate
     public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, &
               qm_helper_vdw_energy, qm_helper_vdw_geomgrad, &
-              qm_helper_update_coord
+              qm_helper_update_coord, qm_helper_set_attype
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -95,9 +95,18 @@ module mod_qm_helper
             qm%qqm = qqm
 
             call guess_connectivity(qm%qm_top)
-
         end subroutine
         
+        subroutine qm_helper_set_attype(qm, attype) 
+            implicit none
+
+            type(ommp_qm_helper), intent(inout) :: qm
+            integer(ip), intent(in) :: attype(qm%qm_top%mm_atoms)
+            
+            qm%qm_top%attype = attype
+            qm%qm_top%attype_initialized = .true.
+        end subroutine
+
         subroutine qm_helper_update_coord(qm, cnew, reconnect_in)
             use mod_adjacency_mat, only: matfree
             use mod_topology, only: guess_connectivity
@@ -169,7 +178,7 @@ module mod_qm_helper
 
         end subroutine
        
-        subroutine qm_helper_init_vdw_prm(qm, attype, prmfile)
+        subroutine qm_helper_init_vdw_prm(qm, prmfile)
             !! Assign vdw parameters of the QM part from attype and prm file
             use mod_prm, only: assign_vdw
             use mod_io, only: fatal_error
@@ -177,16 +186,18 @@ module mod_qm_helper
             implicit none
 
             type(ommp_qm_helper), intent(inout) :: qm
-            integer(ip), intent(in) :: attype(qm%qm_top%mm_atoms)
             character(len=*) :: prmfile
             
             if(qm%use_nonbonded) then
                 call fatal_error("VdW is already initialized!")
             end if
+
+            if(.not. qm%qm_top%attype_initialized) then
+                call fatal_error("Set the types for QM helper atoms before &
+                                 &requesting creation of VdW.")
+            end if
             
             allocate(qm%qm_vdw)
-            qm%qm_top%attype = attype
-            qm%qm_top%attype_initialized = .true.
             call assign_vdw(qm%qm_vdw, qm%qm_top, prmfile)
             qm%use_nonbonded = .true.
         end subroutine

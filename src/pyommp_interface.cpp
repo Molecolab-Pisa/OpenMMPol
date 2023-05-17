@@ -27,7 +27,8 @@ class OMMPQmHelper{
         OMMP_QM_HELPER_PRT get_handler(void);
         void set_frozen_atoms(py_ciarray frozen);
         void update_coord(py_cdarray qmc);
-        void init_vdw_prm(py_ciarray qm_attype, std::string prmfile);
+        void init_vdw_prm(std::string prmfile);
+        void set_attype(py_ciarray qm_attype);
         void init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
                                 std::string vdw_type, std::string radius_rule,
                                 std::string radius_size, std::string radius_type,
@@ -844,19 +845,23 @@ void OMMPQmHelper::set_frozen_atoms(py_ciarray frozen){
 void OMMPQmHelper::update_coord(py_cdarray qmc){
     if(qmc.ndim() != 2 || 
         qmc.shape(0) != get_qm_atoms() || qmc.shape(1) != 3){
-        throw py::value_error("eps should be shaped [n_qm_atoms,3]");
+        throw py::value_error("QM coordinates should be shaped [n_qm_atoms,3]");
     }
     ommp_qm_helper_update_coord(handler, qmc.data());
 }
 
-void OMMPQmHelper::init_vdw_prm(py_ciarray qm_attype, std::string prmfile){
+void OMMPQmHelper::set_attype(py_ciarray qm_attype){
 
     if(qm_attype.ndim() != 1 || 
         qm_attype.shape(0) != get_qm_atoms()){
-        throw py::value_error("eps should be shaped [n_qm_atoms]");
+        throw py::value_error("QM attype should be shaped [n_qm_atoms]");
     }
 
-    ommp_qm_helper_init_vdw_prm(handler, qm_attype.data(), prmfile.c_str());
+    ommp_qm_helper_set_attype(handler, qm_attype.data());
+}
+
+void OMMPQmHelper::init_vdw_prm(std::string prmfile){
+    ommp_qm_helper_init_vdw_prm(handler, prmfile.c_str());
 }
 
 void OMMPQmHelper::init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
@@ -1285,10 +1290,13 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPQmHelper::update_coord,
              "Update the coordinates of QM atoms",
              py::arg("qm_atoms_coordinates")) 
+        .def("set_attype",
+             &OMMPQmHelper::set_attype,
+             "Set atomtypes for QM atoms.",
+             py::arg("qm_attype")) 
         .def("init_vdw_prm",
              &OMMPQmHelper::init_vdw_prm,
-             "Set the VdW parameters for the QM atoms using a prm forcefield and atomtypes for QM atoms.",
-             py::arg("qm_attype"), 
+             "Set the VdW parameters for the QM atoms using a prm forcefield and atomtypes of QM atoms.",
              py::arg("prmfile")) 
         .def("set_frozen_atoms", 
              &OMMPQmHelper::set_frozen_atoms, 
