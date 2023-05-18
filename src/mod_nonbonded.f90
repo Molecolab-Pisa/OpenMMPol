@@ -977,7 +977,7 @@ module mod_nonbonded
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
+        !$omp private(i,j,ip,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
         do ip=1, n
             i = pairs(1,ip)
             j = pairs(2,ip)

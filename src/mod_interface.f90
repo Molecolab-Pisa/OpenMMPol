@@ -339,6 +339,7 @@ module ommp_interface
 
             eb = 0.0
             if(sys_obj%use_bonded) call bond_potential(sys_obj%bds, eb)
+            if(sys_obj%use_linkatoms) call bond_potential(sys_obj%la%bds, eb)
         
         end function
         
@@ -352,6 +353,7 @@ module ommp_interface
 
             ea = 0.0
             if(sys_obj%use_bonded) call angle_potential(sys_obj%bds, ea)
+            if(sys_obj%use_linkatoms) call angle_potential(sys_obj%la%bds, ea)
         
         end function
         
@@ -417,6 +419,7 @@ module ommp_interface
 
             et = 0.0
             if(sys_obj%use_bonded) call torsion_potential(sys_obj%bds, et)
+            if(sys_obj%use_linkatoms) call torsion_potential(sys_obj%la%bds, et)
         
         end function
         
