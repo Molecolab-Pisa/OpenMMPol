@@ -330,7 +330,6 @@ module mod_adjacency_mat
                 allocate(res(n))
                 adj_idx = 1
             end if
-            
             call matcpy(adj, res(adj_idx))
             
             do i=adj_idx+1, adj_idx+n-1

@@ -64,6 +64,7 @@ module mod_topology
             ! size when all the connectivity matricies are built, now
             ! it should only contain adjacency matrix.
             allocate(top_obj%conn(1))
+            top_obj%conn(1)%n = mm_atoms
             
             call mallocate('topology_init [atz]', top_obj%mm_atoms, top_obj%atz)
             top_obj%atz = 0
@@ -222,14 +223,10 @@ module mod_topology
             end if 
 
             if(size(top_obj%conn) < n) then
-                if(size(top_obj%conn) >= 1) then
-                    call matcpy(top_obj%conn(1), adj)
-                end if
-                
+                call matcpy(top_obj%conn(1), adj)
                 do i=1, size(top_obj%conn)
                     call matfree(top_obj%conn(i))
                 end do
-                deallocate(top_obj%conn)
 
                 call build_conn_upto_n(adj, n, top_obj%conn, .false.)
 

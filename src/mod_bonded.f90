@@ -43,9 +43,9 @@ module mod_bonded
         real(rp) :: bond_cubic, bond_quartic
         !! 3rd and 4th order terms coefficients, corresponding to 
         !! \(k^{(2)}\) and \(k^{(3)}\) 
-        real(rp), allocatable :: kbond(:)    
+        real(rp), allocatable :: kbond(:)
         !! Force constants for bond terms
-        real(rp), allocatable :: l0bond(:)   
+        real(rp), allocatable :: l0bond(:)
         !! Equilibrium lengths for bonds
         logical :: use_bond = .false.
         !! Flag to enable the calculation of bond terms in potential 

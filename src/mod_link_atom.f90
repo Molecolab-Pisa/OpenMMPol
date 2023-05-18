@@ -306,10 +306,14 @@ module mod_link_atom
 
         subroutine init_bonded_for_link_atom(la, iqm, imm, prmfile)
             !! Insert in the bonded parameter required for the link atom between iqm and imm
-            use mod_prm, only: assign_bond
-            use mod_bonded, only: bonded_terminate, bond_init
+            use mod_prm, only: assign_bond, assign_angle, assign_torsion
+            use mod_bonded, only: bonded_terminate, bond_init, angle_init, torsion_init
+            use mod_bonded, only: OMMP_ANG_SIMPLE, OMMP_ANG_H0, OMMP_ANG_H1, &
+                                  OMMP_ANG_H2, OMMP_ANG_INPLANE, &
+                                  OMMP_ANG_INPLANE_H0, OMMP_ANG_INPLANE_H1
             use mod_io, only: ommp_message, fatal_error
             use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+            use mod_topology, only: check_conn_matrix
 
             implicit none
 
@@ -318,10 +322,11 @@ module mod_link_atom
             character(len=*), intent(in) :: prmfile
             
             type(ommp_bonded_type) :: tmp_bnd
-            integer(ip), parameter :: maxt = 100
+            integer(ip), parameter :: maxt = 1024
             integer(ip) :: i, nqm, nterms, iterms(maxt)
             character(len=OMMP_STR_CHAR_MAX) :: message
 
+            call check_conn_matrix(la%qmmmtop, 4)
             tmp_bnd%top => la%qmmmtop
 
             ! Bonded terms
@@ -332,7 +337,7 @@ module mod_link_atom
                     nqm = 0
                     if(any(la%qm2full == tmp_bnd%bondat(1,i))) nqm = nqm+1
                     if(any(la%qm2full == tmp_bnd%bondat(2,i))) nqm = nqm+1
-                    if(nqm == 1 .and. any(la%qm2full(iqm) == tmp_bnd%bondat(:,i))) then
+                    if(nqm == 1) then
                         nterms = nterms + 1
                         if(nterms > maxt) then
                             call fatal_error("Maximum number of terms to be added due to link atom &
@@ -351,7 +356,94 @@ module mod_link_atom
                 la%bds%bond_cubic = tmp_bnd%bond_cubic
                 la%bds%bond_quartic = tmp_bnd%bond_quartic
                 
-                write(message, "(I0, A)") nterms, " bonded terms added due to link atoms."
+                write(message, "(I0, A)") nterms, " bond terms added due to link atoms."
+                call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
+            end if
+            
+            call assign_angle(tmp_bnd, prmfile)
+            if(tmp_bnd%use_angle) then
+                nterms = 0
+                do i=1, tmp_bnd%nangle
+                    if(tmp_bnd%anglety(i) == OMMP_ANG_SIMPLE .or. &
+                       tmp_bnd%anglety(i) == OMMP_ANG_H0 .or. &
+                       tmp_bnd%anglety(i) == OMMP_ANG_H1 .or. &
+                       tmp_bnd%anglety(i) == OMMP_ANG_H2) then
+                        nqm = 0
+                        if(any(la%qm2full == tmp_bnd%angleat(1,i))) nqm = nqm+1
+                        if(any(la%qm2full == tmp_bnd%angleat(2,i))) nqm = nqm+1
+                        if(any(la%qm2full == tmp_bnd%angleat(3,i))) nqm = nqm+1
+
+                        if(nqm == 1) then
+                            nterms = nterms + 1
+                            if(nterms > maxt) then
+                                call fatal_error("Maximum number of terms to be added due to link atom &
+                                                &exceeded. This is probably a bug.")
+                            end if
+                            iterms(nterms) = i
+                        end if
+                    else if(tmp_bnd%anglety(i) == OMMP_ANG_INPLANE .or. &
+                            tmp_bnd%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
+                            tmp_bnd%anglety(i) == OMMP_ANG_INPLANE_H1) then
+                        nqm = 0
+                        if(any(la%qm2full == tmp_bnd%angleat(1,i))) nqm = nqm+1
+                        if(any(la%qm2full == tmp_bnd%angleat(2,i))) nqm = nqm+1
+                        if(any(la%qm2full == tmp_bnd%angleat(3,i))) nqm = nqm+1
+                        if(nqm == 1 .and. .not. any(la%qm2full == tmp_bnd%angauxat(i))) then
+                            nterms = nterms + 1
+                            if(nterms > maxt) then
+                                call fatal_error("Maximum number of terms to be added due to link atom &
+                                                &exceeded. This is probably a bug.")
+                            end if
+                            iterms(nterms) = i
+                        end if
+                    end if
+                end do
+
+                call angle_init(la%bds, nterms)
+                do i=1, nterms
+                    la%bds%angleat(:,i) = tmp_bnd%angleat(:,iterms(i))
+                    la%bds%anglety(i) = tmp_bnd%anglety(iterms(i))
+                    la%bds%angauxat(i) = tmp_bnd%angauxat(iterms(i))
+                    la%bds%kangle(i) = tmp_bnd%kangle(iterms(i))
+                    la%bds%eqangle(i) = tmp_bnd%eqangle(iterms(i))
+                end do
+                la%bds%angle_cubic = tmp_bnd%angle_cubic
+                la%bds%angle_quartic = tmp_bnd%angle_quartic
+                la%bds%angle_pentic = tmp_bnd%angle_pentic
+                la%bds%angle_sextic = tmp_bnd%angle_sextic
+                
+                write(message, "(I0, A)") nterms, " angle terms added due to link atoms."
+                call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
+            end if
+            
+            call assign_torsion(tmp_bnd, prmfile)
+            if(tmp_bnd%use_torsion) then
+                nterms = 0
+                do i=1, tmp_bnd%ntorsion
+                    nqm = 0
+                    if(any(la%qm2full == tmp_bnd%angleat(1,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%angleat(2,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%angleat(3,i))) nqm = nqm+1
+
+                    if(nqm == 1 .or. nqm == 2) then
+                        nterms = nterms + 1
+                        if(nterms > maxt) then
+                            call fatal_error("Maximum number of terms to be added due to link atom &
+                                            &exceeded. This is probably a bug.")
+                        end if
+                        iterms(nterms) = i
+                    end if
+                end do
+
+                call torsion_init(la%bds, nterms)
+                do i=1, nterms
+                    la%bds%torsionat(:,i) = tmp_bnd%torsionat(:,iterms(i))
+                    la%bds%torsn(:,i) = tmp_bnd%torsn(:,iterms(i))
+                    la%bds%torsamp(:,i) = tmp_bnd%torsamp(:,iterms(i))
+                    la%bds%torsphase(:,i) = tmp_bnd%torsphase(:,iterms(i))
+                end do
+                
+                write(message, "(I0, A)") nterms, " torsion terms added due to link atoms."
                 call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
             end if
 
