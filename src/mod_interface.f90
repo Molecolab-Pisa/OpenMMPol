@@ -878,7 +878,8 @@ module ommp_interface
 
         use mod_link_atom, only: link_atom_position, init_link_atom, &
                                  default_la_dist, default_la_n_eel_remove, &
-                                 init_vdw_for_link_atom
+                                 init_vdw_for_link_atom, &
+                                 init_bonded_for_link_atom
         use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
         use mod_mmpol, only: mmpol_init_linkatom, create_link_atom
         use mod_nonbonded, only: vdw_remove_potential
@@ -950,6 +951,10 @@ module ommp_interface
             call init_vdw_for_link_atom(s%la, &
                                         iqm, imm, &
                                         s%vdw%vdw_screening)
+        end if
+
+        if(s%use_bonded) then
+            call init_bonded_for_link_atom(s%la, iqm, imm, prmfile)
         end if
 
         ! Return link atom index

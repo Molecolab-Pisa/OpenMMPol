@@ -335,15 +335,16 @@ module mod_topology
             do i=1, top1%mm_atoms
                 map13(i) = i
                 top3%conn(1)%ri(i+1) = top1%conn(1)%ri(i+1)
-                top3%conn(1)%ci(top3%conn(1)%ri(i):top3%conn(1)%ri(i+1)) = &
-                    top1%conn(1)%ci(top1%conn(1)%ri(i):top1%conn(1)%ri(i+1))
+                top3%conn(1)%ci(top3%conn(1)%ri(i):top3%conn(1)%ri(i+1)-1) = &
+                    top1%conn(1)%ci(top1%conn(1)%ri(i):top1%conn(1)%ri(i+1)-1)
             end do
+            
             do i=1, top2%mm_atoms
                 map23(i) = top1%mm_atoms+i
                 top3%conn(1)%ri(top1%mm_atoms+i+1) = &
-                    top2%conn(1)%ri(i+1) + top1%conn(1)%ri(top1%mm_atoms+1)
-                top3%conn(1)%ci(top3%conn(1)%ri(top1%mm_atoms+i):top3%conn(1)%ri(top1%mm_atoms+i+1)) = &
-                    top2%conn(1)%ci(top2%conn(1)%ri(i):top2%conn(1)%ri(i+1))
+                    top2%conn(1)%ri(i+1) + top1%conn(1)%ri(top1%mm_atoms+1)-1
+                top3%conn(1)%ci(top3%conn(1)%ri(top1%mm_atoms+i):top3%conn(1)%ri(top1%mm_atoms+i+1)-1) = &
+                    top2%conn(1)%ci(top2%conn(1)%ri(i):top2%conn(1)%ri(i+1)-1) + top1%mm_atoms
             end do
 
             ! Merge other properties
@@ -352,16 +353,15 @@ module mod_topology
             if(top1%use_frozen) top3%frozen(1:top1%mm_atoms) = top1%frozen
             if(top2%use_frozen) top3%frozen(top1%mm_atoms+1:n) = top2%frozen
             
-            top3%atz_initialized = top1%atz_initialized .or. top2%atz_initialized
+            top3%atz_initialized = top1%atz_initialized .and. top2%atz_initialized
             if(top1%atz_initialized) top3%atz(1:top1%mm_atoms) = top1%atz
             if(top2%atz_initialized) top3%atz(top1%mm_atoms+1:n) = top2%atz
             
-            top3%attype_initialized = top1%attype_initialized .or. top2%attype_initialized
+            top3%attype_initialized = top1%attype_initialized .and. top2%attype_initialized
             if(top1%attype_initialized) top3%attype(1:top1%mm_atoms) = top1%attype
             if(top2%attype_initialized) top3%attype(top1%mm_atoms+1:n) = top2%attype
 
-
-            top3%atclass_initialized = top1%atclass_initialized .or. top2%atclass_initialized
+            top3%atclass_initialized = top1%atclass_initialized .and. top2%atclass_initialized
             if(top1%atclass_initialized) top3%atclass(1:top1%mm_atoms) = top1%atclass
             if(top2%atclass_initialized) top3%atclass(top1%mm_atoms+1:n) = top2%atclass
         end subroutine

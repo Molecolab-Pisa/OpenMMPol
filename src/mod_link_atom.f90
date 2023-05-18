@@ -8,6 +8,7 @@ module mod_link_atom
     use mod_topology, only: ommp_topology_type
     use mod_constants, only: angstrom2au
     use mod_nonbonded, only: vdw_geomgrad_inter
+    use mod_bonded, only: ommp_bonded_type
 
     implicit none
     private
@@ -21,7 +22,7 @@ module mod_link_atom
         !! Topology of MM part of the system
         type(ommp_topology_type), pointer :: qmtop
         !! Topology of QM part of the system
-        type(ommp_topology_type), allocatable ::qmmmtop
+        type(ommp_topology_type), allocatable :: qmmmtop
         !! Linked QM/MM topology
         integer(ip), allocatable :: mm2full(:), qm2full(:)
         !! Maps from qm and mm systems to full topology indexes
@@ -40,10 +41,11 @@ module mod_link_atom
         !! Screening factors for each vdw pair
         integer(ip) :: vdw_n_screening
         !! Number of screening vdw to be used
+        type(ommp_bonded_type), allocatable :: bds
     end type
 
     public :: ommp_link_atom_type, init_link_atom, add_link_atom
-    public :: link_atom_position, init_vdw_for_link_atom
+    public :: link_atom_position, init_vdw_for_link_atom, init_bonded_for_link_atom
     public :: default_la_dist, default_la_n_eel_remove
 
     contains
@@ -75,6 +77,7 @@ module mod_link_atom
             call ommp_message("Creating merged topology", OMMP_VERBOSE_LOW, 'linkatom')
             allocate(la%qmmmtop)
             call merge_top(la%mmtop, la%qmtop, la%qmmmtop, la%mm2full, la%qm2full)
+            allocate(la%bds)
         end subroutine
 
         subroutine add_link_atom(la, imm, iqm, ila, la_dist)
@@ -299,5 +302,59 @@ module mod_link_atom
                 end if
             end do
 
+        end subroutine
+
+        subroutine init_bonded_for_link_atom(la, iqm, imm, prmfile)
+            !! Insert in the bonded parameter required for the link atom between iqm and imm
+            use mod_prm, only: assign_bond
+            use mod_bonded, only: bonded_terminate, bond_init
+            use mod_io, only: ommp_message, fatal_error
+            use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+
+            implicit none
+
+            type(ommp_link_atom_type), intent(inout), target :: la
+            integer(ip), intent(in) :: iqm, imm
+            character(len=*), intent(in) :: prmfile
+            
+            type(ommp_bonded_type) :: tmp_bnd
+            integer(ip), parameter :: maxt = 100
+            integer(ip) :: i, nqm, nterms, iterms(maxt)
+            character(len=OMMP_STR_CHAR_MAX) :: message
+
+            tmp_bnd%top => la%qmmmtop
+
+            ! Bonded terms
+            call assign_bond(tmp_bnd, prmfile)
+            if(tmp_bnd%use_bond) then
+                nterms = 0
+                do i=1, tmp_bnd%nbond
+                    nqm = 0
+                    if(any(la%qm2full == tmp_bnd%bondat(1,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%bondat(2,i))) nqm = nqm+1
+                    if(nqm == 1 .and. any(la%qm2full(iqm) == tmp_bnd%bondat(:,i))) then
+                        nterms = nterms + 1
+                        if(nterms > maxt) then
+                            call fatal_error("Maximum number of terms to be added due to link atom &
+                                            &exceeded. This is probably a bug.")
+                        end if
+                        iterms(nterms) = i
+                    end if
+                end do
+
+                call bond_init(la%bds, nterms)
+                do i=1, nterms
+                    la%bds%bondat(:,i) = tmp_bnd%bondat(:,iterms(i))
+                    la%bds%kbond(i) = tmp_bnd%kbond(iterms(i))
+                    la%bds%l0bond(i) = tmp_bnd%l0bond(iterms(i))
+                end do
+                la%bds%bond_cubic = tmp_bnd%bond_cubic
+                la%bds%bond_quartic = tmp_bnd%bond_quartic
+                
+                write(message, "(I0, A)") nterms, " bonded terms added due to link atoms."
+                call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
+            end if
+
+            call bonded_terminate(tmp_bnd)
         end subroutine
 end module
