@@ -182,7 +182,7 @@ module mod_electrostatics
 
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
-    public :: thole_init, remove_null_pol
+    public :: thole_init, remove_null_pol, set_screening_parameters
     public :: screening_rules, make_screening_lists
     public :: damped_coulomb_kernel, field_extD2D
     public :: energy_MM_MM, energy_MM_pol
@@ -311,6 +311,35 @@ module mod_electrostatics
         end if
 
     end subroutine electrostatics_terminate
+    
+    subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
+        !! Subroutine to initialize the screening parameters
+       
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+        real(rp), intent(in) :: m(4), p(4), d(4), u(4)
+        real(rp), optional, intent(in) :: i(4)
+        
+        eel_obj%mscale = m
+        eel_obj%pscale = p
+        eel_obj%dscale = d
+        eel_obj%uscale = u
+        
+        if(present(i)) then
+            if(eel_obj%amoeba) then
+                eel_obj%pscale_intra = i
+            else
+                call fatal_error("Scale factors for atoms of the same group &
+                                 &cannot be set outside AMOEBA FF")
+            end if
+        else
+            if(eel_obj%amoeba) &
+                call fatal_error("Scale factors for atoms of the same group &
+                                 &should be defined in AMOEBA FF")
+        end if
+        
+    end subroutine set_screening_parameters
 
     subroutine remove_null_pol(eel)
         !! Check which polarizabilities are close enough to 0 to be 

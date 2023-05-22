@@ -16,8 +16,8 @@ module mod_inputloader
         !! and initialize all the quantities need to describe the environment
         !! within this library.
 
-        use mod_mmpol, only: mmpol_prepare, mmpol_init, &
-                             set_screening_parameters
+        use mod_mmpol, only: mmpol_prepare, mmpol_init
+        use mod_electrostatics, only: set_screening_parameters
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: iof_mmpinp

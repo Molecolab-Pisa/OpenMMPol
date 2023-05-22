@@ -2187,7 +2187,7 @@ module mod_prm
                 tokb = 13
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-CUBIC card"
+                    write(errstring, *) "Wrong ANGLE-CUBIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_cubic
@@ -2197,7 +2197,7 @@ module mod_prm
                 tokb = 15
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-QUARTIC card"
+                    write(errstring, *) "Wrong ANGLE-QUARTIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_quartic
@@ -2207,7 +2207,7 @@ module mod_prm
                 tokb = 13
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-PENTIC card"
+                    write(errstring, *) "Wrong ANGLE-PENTIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_pentic
@@ -2217,7 +2217,7 @@ module mod_prm
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-SEXTIC card"
+                    write(errstring, *) "Wrong ANGLE-SEXTIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_sextic
@@ -2227,7 +2227,7 @@ module mod_prm
                 tokb = 7
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) classa(iang)
@@ -2235,7 +2235,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) classb(iang)
@@ -2243,7 +2243,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) classc(iang)
@@ -2251,7 +2251,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) kang(iang)
@@ -2259,7 +2259,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) th0ang(iang)
@@ -2282,26 +2282,29 @@ module mod_prm
                     classc(iang) = classc(iang-1)
                     kang(iang) = kang(iang-1)
                     if(.not. isreal(line(tokb:toke))) then
-                        write(errstring, *) "Wrong ANGLE card"
+                        write(errstring, *) "Wrong ANGLE card "
                         call fatal_error(errstring)
                     end if
                     read(line(tokb:toke), *) th0ang(iang)
                     angtype(iang) = OMMP_ANG_H1
                     
-                    iang = iang + 1
-                    
-                    classa(iang) = classa(iang-1)
-                    classb(iang) = classb(iang-1)
-                    classc(iang) = classc(iang-1)
-                    kang(iang) = kang(iang-1)
-                    angtype(iang) = OMMP_ANG_H2
                     tokb = toke + 1
                     toke = tokenize(line, tokb)
-                    if(.not. isreal(line(tokb:toke))) then
-                        write(errstring, *) "Wrong ANGLE card"
-                        call fatal_error(errstring)
+                    if(toke > 0) then
+                        iang = iang + 1
+                        
+                        classa(iang) = classa(iang-1)
+                        classb(iang) = classb(iang-1)
+                        classc(iang) = classc(iang-1)
+                        kang(iang) = kang(iang-1)
+                        angtype(iang) = OMMP_ANG_H2
+                        if(.not. isreal(line(tokb:toke))) then
+                            write(*,*) line(tokb:toke)
+                            write(errstring, *) "Wrong ANGLE card "
+                            call fatal_error(errstring)
+                        end if
+                        read(line(tokb:toke), *) th0ang(iang)
                     end if
-                    read(line(tokb:toke), *) th0ang(iang)
                     iang = iang + 1
                 end if
             
@@ -2771,7 +2774,7 @@ module mod_prm
     
     subroutine assign_pol(eel, prm_file)
         use mod_memory, only: mallocate, mfree, ip, rp
-        use mod_mmpol, only: set_screening_parameters
+        use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: angstrom2au
         
         implicit none
@@ -3110,7 +3113,7 @@ module mod_prm
     
     subroutine assign_mpoles(eel, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: set_screening_parameters
+        use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
                                  AMOEBA_ROT_Z_THEN_X, &
                                  AMOEBA_ROT_BISECTOR, &

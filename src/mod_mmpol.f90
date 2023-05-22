@@ -346,36 +346,6 @@ module mod_mmpol
 
     end subroutine build_pg_adjacency_matrix
     
-    ! TODO move to eel
-    subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
-        !! Subroutine to initialize the screening parameters
-       
-        implicit none
-
-        type(ommp_electrostatics_type), intent(inout) :: eel_obj
-        real(rp), intent(in) :: m(4), p(4), d(4), u(4)
-        real(rp), optional, intent(in) :: i(4)
-        
-        eel_obj%mscale = m
-        eel_obj%pscale = p
-        eel_obj%dscale = d
-        eel_obj%uscale = u
-        
-        if(present(i)) then
-            if(eel_obj%amoeba) then
-                eel_obj%pscale_intra = i
-            else
-                call fatal_error("Scale factors for atoms of the same group &
-                                 &cannot be set outside AMOEBA FF")
-            end if
-        else
-            if(eel_obj%amoeba) &
-                call fatal_error("Scale factors for atoms of the same group &
-                                 &should be defined in AMOEBA FF")
-        end if
-        
-    end subroutine set_screening_parameters
-
     subroutine update_coordinates(sys_obj, new_c) 
         !! Interface to change the coordinates of the system (eg. during a 
         !! MD or a geometry optimization). This function clears all the 
@@ -385,6 +355,7 @@ module mod_mmpol
         !! this interface.
        
         use mod_memory, only: mfree
+        use mod_link_atom, only: la_update_merged_topology
         implicit none
 
         type(ommp_system), intent(inout), target :: sys_obj
@@ -416,6 +387,8 @@ module mod_mmpol
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
         if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
+        ! 2.3 Update coordinates inside link atom object
+        if(sys_obj%use_linkatoms) call la_update_merged_topology(sys_obj%la)
     end subroutine
         
     subroutine create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)

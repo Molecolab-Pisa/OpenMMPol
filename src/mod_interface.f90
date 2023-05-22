@@ -339,7 +339,10 @@ module ommp_interface
 
             eb = 0.0
             if(sys_obj%use_bonded) call bond_potential(sys_obj%bds, eb)
-            if(sys_obj%use_linkatoms) call bond_potential(sys_obj%la%bds, eb)
+            if(sys_obj%use_linkatoms) then
+                write(*,*) "DIOCANE"
+                call bond_potential(sys_obj%la%bds, eb)
+            endif
         
         end function
         
