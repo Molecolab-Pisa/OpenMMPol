@@ -332,6 +332,7 @@ module ommp_interface
         function ommp_get_bond_energy(sys_obj) result(eb)
             
             use mod_bonded, only: bond_potential
+            use mod_link_atom, only: la_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -340,7 +341,7 @@ module ommp_interface
             eb = 0.0
             if(sys_obj%use_bonded) call bond_potential(sys_obj%bds, eb)
             if(sys_obj%use_linkatoms) then
-                write(*,*) "DIOCANE"
+                call la_update_merged_topology(sys_obj%la)
                 call bond_potential(sys_obj%la%bds, eb)
             endif
         
@@ -349,6 +350,7 @@ module ommp_interface
         function ommp_get_angle_energy(sys_obj) result(ea)
             
             use mod_bonded, only: angle_potential
+            use mod_link_atom, only: la_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -356,7 +358,10 @@ module ommp_interface
 
             ea = 0.0
             if(sys_obj%use_bonded) call angle_potential(sys_obj%bds, ea)
-            if(sys_obj%use_linkatoms) call angle_potential(sys_obj%la%bds, ea)
+            if(sys_obj%use_linkatoms) then
+                call la_update_merged_topology(sys_obj%la)
+                call angle_potential(sys_obj%la%bds, ea)
+            end if
         
         end function
         
@@ -415,6 +420,7 @@ module ommp_interface
         function ommp_get_torsion_energy(sys_obj) result(et)
             
             use mod_bonded, only: torsion_potential
+            use mod_link_atom, only: la_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -422,7 +428,10 @@ module ommp_interface
 
             et = 0.0
             if(sys_obj%use_bonded) call torsion_potential(sys_obj%bds, et)
-            if(sys_obj%use_linkatoms) call torsion_potential(sys_obj%la%bds, et)
+            if(sys_obj%use_linkatoms) then
+                call la_update_merged_topology(sys_obj%la)
+                call torsion_potential(sys_obj%la%bds, et)
+            end if
         
         end function
         
@@ -480,6 +489,7 @@ module ommp_interface
         
         function ommp_get_full_bnd_energy(sys_obj) result(ene)
             
+            use mod_link_atom, only: la_update_merged_topology
             use mod_bonded, only: bond_potential, angtor_potential, &
                                   strbnd_potential, urey_potential, &
                                   opb_potential, pitors_potential, &
@@ -505,6 +515,14 @@ module ommp_interface
                 call strtor_potential(sys_obj%bds, ene)
                 call angtor_potential(sys_obj%bds, ene)
                 call tortor_potential(sys_obj%bds, ene)
+
+                if(sys_obj%use_linkatoms) then
+                    call la_update_merged_topology(sys_obj%la)
+                    call bond_potential(sys_obj%la%bds, ene)
+                    call angle_potential(sys_obj%la%bds, ene)
+                    call torsion_potential(sys_obj%la%bds, ene)
+                end if
+
             end if
         end function
         
@@ -856,7 +874,7 @@ module ommp_interface
 
         implicit none
 
-        type(ommp_system), intent(in) :: s
+        type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(in) :: qm
         real(ommp_real) :: evdw
 

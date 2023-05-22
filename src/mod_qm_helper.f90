@@ -205,10 +205,11 @@ module mod_qm_helper
         subroutine qm_helper_vdw_energy(qm, mm, V)
             use mod_nonbonded, only: vdw_potential_inter, vdw_potential_inter_restricted
             use mod_mmpol, only: ommp_system
+            use mod_link_atom, only: la_update_merged_topology
 
             implicit none
 
-            type(ommp_system), intent(in) :: mm
+            type(ommp_system), intent(inout) :: mm
             type(ommp_qm_helper), intent(in) :: qm
             real(rp), intent(inout) :: V
 
@@ -216,6 +217,7 @@ module mod_qm_helper
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
                 call vdw_potential_inter(mm%vdw, qm%qm_vdw, V)
                 if(mm%use_linkatoms) then
+                    call la_update_merged_topology(mm%la)
                     ! Screening due to the presence of link atom
                     call vdw_potential_inter_restricted(mm%vdw, qm%qm_vdw, &
                                                         mm%la%vdw_screening_pairs,&
