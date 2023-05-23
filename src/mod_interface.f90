@@ -948,13 +948,29 @@ module ommp_interface
 
         implicit none
 
-        type(ommp_system), intent(in) :: s
+        type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(in) :: qm
         real(ommp_real), intent(out) :: qmg(:,:), mmg(:,:)
 
         mmg = 0.0
         qmg = 0.0
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+    end subroutine
+    
+    subroutine ommp_qm_helper_linkatom_geomgrad(qm, s, qmg, mmg, old_qmg)
+        
+        use mod_qm_helper, only: qm_helper_linkatom_geomgrad
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real), intent(out) :: qmg(:,:), mmg(:,:)
+        real(ommp_real), intent(in) :: old_qmg(:,:)
+
+        mmg = 0.0
+        qmg = 0.0
+        call qm_helper_linkatom_geomgrad(qm, s, qmg, mmg, old_qmg)
     end subroutine
 
     function ommp_create_link_atom(qm, s, imm, iqm, ila, prmfile, &

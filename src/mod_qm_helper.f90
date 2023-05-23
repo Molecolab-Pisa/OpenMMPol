@@ -65,7 +65,8 @@ module mod_qm_helper
     public :: qm_helper_init, qm_helper_terminate
     public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, &
               qm_helper_vdw_energy, qm_helper_vdw_geomgrad, &
-              qm_helper_update_coord, qm_helper_set_attype
+              qm_helper_update_coord, qm_helper_set_attype, &
+              qm_helper_linkatom_geomgrad
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -229,18 +230,77 @@ module mod_qm_helper
         end subroutine
         
         subroutine qm_helper_vdw_geomgrad(qm, mm, qmg, mmg)
-            use mod_nonbonded, only: vdw_geomgrad_inter
+            use mod_nonbonded, only: vdw_geomgrad_inter, &
+                                     vdw_geomgrad_inter_restricted
             use mod_mmpol, only: ommp_system
+            use mod_link_atom, only: la_update_merged_topology
 
             implicit none
 
-            type(ommp_system), intent(in) :: mm
+            type(ommp_system), intent(inout) :: mm
             type(ommp_qm_helper), intent(in) :: qm
             real(rp), intent(inout) :: qmg(3,qm%qm_top%mm_atoms), &
                                        mmg(3,mm%top%mm_atoms)
         
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
                 call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, mmg, qmg)
+                if(mm%use_linkatoms) then
+                    call la_update_merged_topology(mm%la)
+                    ! Screening due to the presence of link atom
+                    call vdw_geomgrad_inter_restricted(mm%vdw, qm%qm_vdw, &
+                                                       mm%la%vdw_screening_pairs,&
+                                                       mm%la%vdw_screening_f, &
+                                                       mm%la%vdw_n_screening, &
+                                                       mmg, qmg)
+                end if
+            end if
+        end subroutine
+
+        subroutine qm_helper_linkatom_geomgrad(qm, mm, qmg, mmg, original_qmg)
+            !! Computes the missing gradients for QM/MM linkatoms
+            !! that is bonded terms on QM atoms, LA forces projection on QM and MM
+            !! atoms. To obtain the correct forces in output, qmg should already
+            !! contain the QM forces, so that LA forces could be projected on 
+            !! QM and MM force vectors
+
+            use mod_mmpol, only: ommp_system
+            use mod_link_atom, only: la_update_merged_topology, &
+                                     link_atom_bond_geomgrad, &
+                                     link_atom_angle_geomgrad, &
+                                     link_atom_torsion_geomgrad, &
+                                     link_atom_project_la_grd
+            use mod_memory, only: mallocate, mfree
+
+            implicit none
+
+            type(ommp_system), intent(inout) :: mm
+            type(ommp_qm_helper), intent(in) :: qm
+            real(rp), intent(inout) :: qmg(3,qm%qm_top%mm_atoms), &
+                                       mmg(3,mm%top%mm_atoms)
+            real(rp), intent(in) :: original_qmg(3,qm%qm_top%mm_atoms)
+            
+            real(rp), allocatable :: lagrad(:,:)
+            integer(ip) :: i
+#define _LA_ 3
+        
+            if(mm%use_linkatoms) then
+                call la_update_merged_topology(mm%la)
+                call link_atom_bond_geomgrad(mm%la, &
+                                                qmg, mmg, &
+                                                .true., .false.)
+                call link_atom_angle_geomgrad(mm%la, &
+                                                qmg, mmg, &
+                                                .true., .false.)
+                call link_atom_torsion_geomgrad(mm%la, &
+                                                qmg, mmg, &
+                                                .true., .false.)
+                call mallocate('qm_helper_linkatom_geomgrad [lagrad]', 3, mm%la%nla, lagrad)
+                do i=1, mm%la%nla
+                    lagrad(:,i) = original_qmg(:,mm%la%links(_LA_,i))
+                end do
+
+                call link_atom_project_la_grd(mm%la, qmg, mmg, lagrad)
+                call mfree('qm_helper_linkatom_geomgrad [lagrad]', lagrad)
             end if
         end subroutine
     

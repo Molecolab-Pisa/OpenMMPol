@@ -47,7 +47,7 @@ module mod_link_atom
     public :: ommp_link_atom_type, init_link_atom, add_link_atom
     public :: link_atom_position, init_vdw_for_link_atom, init_bonded_for_link_atom
     public :: default_la_dist, default_la_n_eel_remove, la_update_merged_topology
-    public :: link_atom_bond_geomgrad, link_atom_angle_geomgrad, link_atom_torsion_geomgrad
+    public :: link_atom_bond_geomgrad, link_atom_angle_geomgrad, link_atom_torsion_geomgrad, link_atom_project_la_grd
 
     contains
         subroutine init_link_atom(la, qmtop, mmtop)
@@ -564,5 +564,40 @@ module mod_link_atom
             end if
 
             call mfree('link_atom_bond_geomgrad [grd]', grd)
+        end subroutine
+        
+        subroutine link_atom_project_la_grd(la, laforces, qmg, mmg)
+            use mod_utils, only: versor_der
+
+            implicit none
+
+            type(ommp_link_atom_type), intent(in) :: la
+            real(rp), intent(in) :: laforces(3, la%nla)
+            real(rp), intent(inout) :: qmg(3,la%qmtop%mm_atoms), &
+                                       mmg(3,la%mmtop%mm_atoms)
+
+            integer(ip) :: i, iqm, imm, ila
+            real(rp) :: delta(3), rmm(3), rqm(3), dedqm(3,3), dedmm(3,3)
+
+            do i=1, la%nla
+                iqm = la%links(_QM_,i)
+                imm = la%links(_MM_,i)
+                ila = la%links(_LA_,i)
+
+                rmm = la%mmtop%cmm(:,imm)
+                rqm = la%qmtop%cmm(:,iqm)
+                delta = rmm-rqm
+
+                dedmm = versor_der(delta)
+                
+                dedqm(1,1) = 1.0
+                dedqm(2,2) = 1.0
+                dedqm(3,3) = 1.0
+                dedqm = dedqm - dedmm
+
+                qmg(:, iqm) = qmg(:, iqm) + matmul(dedqm, laforces(:,i))
+                qmg(:, ila) = -laforces(:,i)
+                mmg(:, imm) = mmg(:, imm) + matmul(dedmm, laforces(:,i))
+            end do
         end subroutine
 end module

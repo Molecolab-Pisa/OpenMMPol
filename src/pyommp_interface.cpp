@@ -35,6 +35,7 @@ class OMMPQmHelper{
                                 std::string eps_rule);
         double vdw_energy(OMMPSystem& s);
         std::map<std::string, py_cdarray> vdw_geomgrad(OMMPSystem& s);
+        std::map<std::string, py_cdarray> linkatom_geomgrad(OMMPSystem& s, py_cdarray old_qmg);
         void prepare_qm_ele_ene(OMMPSystem& s);
         void prepare_qm_ele_grd(OMMPSystem& s);
         int32_t get_qm_atoms(void);
@@ -918,10 +919,36 @@ std::map<std::string, py_cdarray> OMMPQmHelper::vdw_geomgrad(OMMPSystem& s){
     return res;
 }
 
+std::map<std::string, py_cdarray> OMMPQmHelper::linkatom_geomgrad(OMMPSystem& s, py_cdarray old_qmg){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
+
+    double *mmg = new double[s.get_mm_atoms()*3];
+    double *qmg = new double[get_qm_atoms()*3];
+    ommp_qm_helper_linkatom_geomgrad(handler, s_handler, qmg, mmg, old_qmg.data());
+    
+    py::buffer_info bufinfo_mm(mmg, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {s.get_mm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+    py::buffer_info bufinfo_qm(qmg, sizeof(double),
+                                py::format_descriptor<double>::format(),
+                                2,
+                                {get_qm_atoms(), 3},
+                                {3*sizeof(double), sizeof(double)});
+    std::map<std::string, py_cdarray> res{
+        {"MM", py_cdarray(bufinfo_mm)},
+        {"QM", py_cdarray(bufinfo_qm)}
+    };
+
+    return res;
+}
+
 void OMMPQmHelper::prepare_qm_ele_ene(OMMPSystem& s){
     OMMP_SYSTEM_PRT s_handler = s.get_handler();
     ommp_prepare_qm_ele_ene(s_handler, handler);
 }
+
 
 void OMMPQmHelper::prepare_qm_ele_grd(OMMPSystem& s){
     OMMP_SYSTEM_PRT s_handler = s.get_handler();
