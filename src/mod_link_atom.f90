@@ -470,14 +470,15 @@ module mod_link_atom
             call bonded_terminate(tmp_bnd)
         end subroutine
 
-        subroutine link_atom_bond_geomgrad(la, qmg, mmg) 
+        subroutine link_atom_bond_geomgrad(la, qmg, mmg, doqm, domm) 
             use mod_bonded, only: bond_geomgrad
 
             implicit none
 
             type(ommp_link_atom_type), intent(in) :: la
-            real(rp), intent(inout) :: qmg(3,la%qmtop%mm_atoms), &
-                                       mmg(3,la%mmtop%mm_atoms)
+            real(rp), intent(inout) :: qmg(:,:), &
+                                       mmg(:,:)
+            logical, intent(in) :: doqm, domm
 
             real(rp), allocatable :: grd(:,:)
             integer(ip) :: i
@@ -485,25 +486,31 @@ module mod_link_atom
             call mallocate('link_atom_bond_geomgrad [grd]', &
                            3, la%qmmmtop%mm_atoms, grd)
             call bond_geomgrad(la%bds, grd)
-            do i=1, la%qmtop%mm_atoms
-                qmg(:,i) = qmg(:,i) + grd(:,la%qm2full(i))
-            end do
+            
+            if(doqm) then
+                do i=1, la%qmtop%mm_atoms
+                    qmg(:,i) = qmg(:,i) + grd(:,la%qm2full(i))
+                end do
+            end if
 
-            do i=1, la%mmtop%mm_atoms
-                mmg(:,i) = mmg(:,i) + grd(:,la%mm2full(i))
-            end do
+            if(domm) then
+                do i=1, la%mmtop%mm_atoms
+                    mmg(:,i) = mmg(:,i) + grd(:,la%mm2full(i))
+                end do
+            end if
 
             call mfree('link_atom_bond_geomgrad [grd]', grd)
         end subroutine
         
-        subroutine link_atom_angle_geomgrad(la, qmg, mmg) 
+        subroutine link_atom_angle_geomgrad(la, qmg, mmg, doqm, domm) 
             use mod_bonded, only: angle_geomgrad
 
             implicit none
 
             type(ommp_link_atom_type), intent(in) :: la
-            real(rp), intent(inout) :: qmg(3,la%qmtop%mm_atoms), &
-                                       mmg(3,la%mmtop%mm_atoms)
+            real(rp), intent(inout) :: qmg(:,:), &
+                                       mmg(:,:)
+            logical, intent(in) :: doqm, domm
 
             real(rp), allocatable :: grd(:,:)
             integer(ip) :: i
@@ -511,25 +518,31 @@ module mod_link_atom
             call mallocate('link_atom_bond_geomgrad [grd]', &
                            3, la%qmmmtop%mm_atoms, grd)
             call angle_geomgrad(la%bds, grd)
-            do i=1, la%qmtop%mm_atoms
-                qmg(:,i) = qmg(:,i) + grd(:,la%qm2full(i))
-            end do
+            
+            if(doqm) then
+                do i=1, la%qmtop%mm_atoms
+                    qmg(:,i) = qmg(:,i) + grd(:,la%qm2full(i))
+                end do
+            end if
 
-            do i=1, la%mmtop%mm_atoms
-                mmg(:,i) = mmg(:,i) + grd(:,la%mm2full(i))
-            end do
+            if(domm) then
+                do i=1, la%mmtop%mm_atoms
+                    mmg(:,i) = mmg(:,i) + grd(:,la%mm2full(i))
+                end do
+            end if
 
             call mfree('link_atom_bond_geomgrad [grd]', grd)
         end subroutine
 
-        subroutine link_atom_torsion_geomgrad(la, qmg, mmg)
+        subroutine link_atom_torsion_geomgrad(la, qmg, mmg, doqm, domm)
             use mod_bonded, only: torsion_geomgrad
 
             implicit none
 
             type(ommp_link_atom_type), intent(in) :: la
-            real(rp), intent(inout) :: qmg(3,la%qmtop%mm_atoms), &
-                                       mmg(3,la%mmtop%mm_atoms)
+            real(rp), intent(inout) :: qmg(:,:), &
+                                       mmg(:,:)
+            logical, intent(in) :: doqm, domm
 
             real(rp), allocatable :: grd(:,:)
             integer(ip) :: i
@@ -537,13 +550,18 @@ module mod_link_atom
             call mallocate('link_atom_bond_geomgrad [grd]', &
                            3, la%qmmmtop%mm_atoms, grd)
             call torsion_geomgrad(la%bds, grd)
-            do i=1, la%qmtop%mm_atoms
-                qmg(:,i) = qmg(:,i) + grd(:,la%qm2full(i))
-            end do
+            
+            if(doqm) then
+                do i=1, la%qmtop%mm_atoms
+                    qmg(:,i) = qmg(:,i) + grd(:,la%qm2full(i))
+                end do
+            end if
 
-            do i=1, la%mmtop%mm_atoms
-                mmg(:,i) = mmg(:,i) + grd(:,la%mm2full(i))
-            end do
+            if(domm) then
+                do i=1, la%mmtop%mm_atoms
+                    mmg(:,i) = mmg(:,i) + grd(:,la%mm2full(i))
+                end do
+            end if
 
             call mfree('link_atom_bond_geomgrad [grd]', grd)
         end subroutine

@@ -339,11 +339,13 @@ module ommp_interface
             real(ommp_real) :: eb
 
             eb = 0.0
-            if(sys_obj%use_bonded) call bond_potential(sys_obj%bds, eb)
-            if(sys_obj%use_linkatoms) then
-                call la_update_merged_topology(sys_obj%la)
-                call bond_potential(sys_obj%la%bds, eb)
-            endif
+            if(sys_obj%use_bonded) then
+                call bond_potential(sys_obj%bds, eb)
+                if(sys_obj%use_linkatoms) then
+                    call la_update_merged_topology(sys_obj%la)
+                    call bond_potential(sys_obj%la%bds, eb)
+                endif
+            end if
         
         end function
         
@@ -357,10 +359,12 @@ module ommp_interface
             real(ommp_real) :: ea
 
             ea = 0.0
-            if(sys_obj%use_bonded) call angle_potential(sys_obj%bds, ea)
-            if(sys_obj%use_linkatoms) then
-                call la_update_merged_topology(sys_obj%la)
-                call angle_potential(sys_obj%la%bds, ea)
+            if(sys_obj%use_bonded) then
+                call angle_potential(sys_obj%bds, ea)
+                if(sys_obj%use_linkatoms) then
+                    call la_update_merged_topology(sys_obj%la)
+                    call angle_potential(sys_obj%la%bds, ea)
+                end if
             end if
         
         end function
@@ -427,10 +431,12 @@ module ommp_interface
             real(ommp_real) :: et
 
             et = 0.0
-            if(sys_obj%use_bonded) call torsion_potential(sys_obj%bds, et)
-            if(sys_obj%use_linkatoms) then
-                call la_update_merged_topology(sys_obj%la)
-                call torsion_potential(sys_obj%la%bds, et)
+            if(sys_obj%use_bonded) then
+                call torsion_potential(sys_obj%bds, et)
+                if(sys_obj%use_linkatoms) then
+                    call la_update_merged_topology(sys_obj%la)
+                    call torsion_potential(sys_obj%la%bds, et)
+                end if
             end if
         
         end function
@@ -586,27 +592,51 @@ module ommp_interface
         end subroutine
 
         subroutine ommp_bond_geomgrad(s, grd)
-            use mod_bonded, only: bond_geomgrad 
+            use mod_bonded, only: bond_geomgrad
+            use mod_link_atom, only: la_update_merged_topology, &
+                                     link_atom_bond_geomgrad
             
             implicit none 
         
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            real(ommp_real) :: fake_qmg(3,1)
+
             grd = 0.0
-            if(s%use_bonded) call bond_geomgrad(s%bds, grd)
+            if(s%use_bonded) then
+                call bond_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call la_update_merged_topology(s%la)
+                    call link_atom_bond_geomgrad(s%la, &
+                                                fake_qmg, grd, &
+                                                .false., .true.)
+                end if
+            end if
         end subroutine
         
         subroutine ommp_angle_geomgrad(s, grd)
             use mod_bonded, only: angle_geomgrad 
+            use mod_link_atom, only: la_update_merged_topology, &
+                                     link_atom_angle_geomgrad
             
             implicit none 
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            
+            real(ommp_real) :: fake_qmg(3,1)
 
             grd = 0.0
-            if(s%use_bonded) call angle_geomgrad(s%bds, grd)
+            if(s%use_bonded) then
+                call angle_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call la_update_merged_topology(s%la)
+                    call link_atom_angle_geomgrad(s%la, &
+                                                fake_qmg, grd, &
+                                                .false., .true.)
+                end if
+            end if
         end subroutine
         
         subroutine ommp_strbnd_geomgrad(s, grd)
@@ -635,14 +665,26 @@ module ommp_interface
         
         subroutine ommp_torsion_geomgrad(s, grd)
             use mod_bonded, only: torsion_geomgrad 
+            use mod_link_atom, only: la_update_merged_topology, &
+                                     link_atom_torsion_geomgrad
             
             implicit none 
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            
+            real(ommp_real) :: fake_qmg(3,1)
 
             grd = 0.0
-            if(s%use_bonded) call torsion_geomgrad(s%bds, grd)
+            if(s%use_bonded) then
+                call torsion_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call la_update_merged_topology(s%la)
+                    call link_atom_torsion_geomgrad(s%la, &
+                                                    fake_qmg, grd, &
+                                                    .false., .true.)
+                end if
+            end if
         end subroutine
         
         subroutine ommp_imptorsion_geomgrad(s, grd)
@@ -729,11 +771,17 @@ module ommp_interface
                                   strtor_geomgrad, &
                                   angtor_geomgrad, &
                                   tortor_geomgrad
+            use mod_link_atom, only: la_update_merged_topology, &
+                                     link_atom_bond_geomgrad, &
+                                     link_atom_angle_geomgrad, &
+                                     link_atom_torsion_geomgrad
             
             implicit none 
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            
+            real(ommp_real) :: fake_qmg(3,1)
 
             grd = 0.0
             if(s%use_bonded) then
@@ -748,6 +796,18 @@ module ommp_interface
                 call strtor_geomgrad(s%bds, grd)
                 call angtor_geomgrad(s%bds, grd)
                 call tortor_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call la_update_merged_topology(s%la)
+                    call link_atom_bond_geomgrad(s%la, &
+                                                 fake_qmg, grd, &
+                                                 .false., .true.)
+                    call link_atom_angle_geomgrad(s%la, &
+                                                  fake_qmg, grd, &
+                                                  .false., .true.)
+                    call link_atom_torsion_geomgrad(s%la, &
+                                                    fake_qmg, grd, &
+                                                    .false., .true.)
+                end if
             end if
         end subroutine
         
