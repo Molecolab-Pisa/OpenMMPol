@@ -46,6 +46,7 @@ module mod_link_atom
 
     public :: ommp_link_atom_type, init_link_atom, add_link_atom
     public :: link_atom_position, init_vdw_for_link_atom, init_bonded_for_link_atom
+    public :: init_eel_for_link_atom
     public :: default_la_dist, default_la_n_eel_remove, la_update_merged_topology
     public :: link_atom_bond_geomgrad, link_atom_angle_geomgrad, link_atom_torsion_geomgrad, link_atom_project_la_grd
 
@@ -147,6 +148,156 @@ module mod_link_atom
                   "] - (LA) [", ila, "] - QM [", iqm, "]"
             
             call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
+        end subroutine
+
+        subroutine init_eel_for_link_atom(la, iqm, imm, ila, eel, prmfile)
+            use mod_memory, only: mallocate, mfree
+            use mod_prm, only: assign_mpoles
+            use mod_electrostatics, only: ommp_electrostatics_type, &
+                                          electrostatics_init
+            use mod_io, only: fatal_error, ommp_message
+            use mod_constants, only: eps_rp, OMMP_VERBOSE_LOW, &
+                                     OMMP_STR_CHAR_MAX, &
+                                     OMMP_VERBOSE_DEBUG
+
+            implicit none
+
+            integer(ip), intent(in) :: imm
+            integer(ip), intent(in) :: iqm
+            integer(ip), intent(in) :: ila
+            type(ommp_link_atom_type), intent(in) :: la
+            type(ommp_electrostatics_type), intent(inout) :: eel
+            character(len=*), intent(in) :: prmfile
+
+            real(rp) :: removed_charge, qred, old_q
+            integer(ip) :: n_eel_remove = default_la_n_eel_remove
+            integer(ip) :: i, j, idx, ineigh, ii
+            type(ommp_electrostatics_type) :: tmp_eel
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+            integer(ip), allocatable :: attocheck(:)
+
+            ! Check if in the complete topology some of the atoms connected
+            ! to imm or imm itself do change their parameters. This is a 
+            ! problem that affects force-field in which parameters are 
+            ! assigned based on connectivity (AMOEBA). In particular we
+            ! check only 1,2 and 1,3 neighbours of QM atom that are the ones 
+            ! that could be influenced by the new bond. Moreover we only
+            ! take care of charges, as multipoles will be removed on those
+            ! atoms in a while.
+
+            call mallocate('init_eel_for_link_atom [attocheck]', &
+                           eel%top%conn(1)%ri(imm+1) - eel%top%conn(1)%ri(imm)+1, &
+                           attocheck)
+            attocheck(1) = imm
+            ii = 2
+            do i=eel%top%conn(1)%ri(imm), eel%top%conn(1)%ri(imm+1)-1
+                j = eel%top%conn(1)%ci(i)
+                attocheck(ii) = j
+                ii = ii + 1
+            end do
+            write(msg, "(A, I0, A)") "Assigning electrostatic parameter to merged&
+                                     & topology. Ignore all the warnings on &
+                                     &link atom (", la%qm2full(ila), ")." 
+            call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
+
+            call electrostatics_init(tmp_eel, eel%amoeba, la%qmmmtop%mm_atoms, &
+                                     la%qmmmtop)
+            call assign_mpoles(tmp_eel, prmfile)
+            old_q = sum(eel%q(1,:))
+
+            do i=1, size(attocheck)
+                j = attocheck(i)
+                    if(abs(tmp_eel%q(1,la%mm2full(j)) - eel%q(1,j)) > eps_rp) then
+                        write(msg, "(A, I0)") "Reassigning electrostatic parameter to&
+                                            & atom ", j
+                        call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
+                        write(msg, '("  Old parameters: q=", F6.2)') eel%q(1,j)
+                        call ommp_message(msg, OMMP_VERBOSE_DEBUG, 'linkatom')
+                        write(msg, '("  New parameters: q=", F6.2)') tmp_eel%q(1,la%mm2full(j))
+                        call ommp_message(msg, OMMP_VERBOSE_DEBUG, 'linkatom')
+                        if(eel%amoeba) then
+                            eel%q0(:,j) = tmp_eel%q(:,la%mm2full(j))
+                        else
+                            eel%q(:,j) = tmp_eel%q(:,la%mm2full(j))
+                        end if
+                    end if
+            end do
+            call mfree('init_eel_for_link_atom [attocheck]', attocheck)
+
+            ! Remove dipoles, multipoles, charges and polarizabilities
+            !    on all the atoms that have a distance from (QM) atom less or equal to
+            !    n_eel_remove. If n_eel_remove is 0, the MM electrostatic is not changed;
+            !    if n_eel_remove is 1, only the connected atom is removed and so on.
+            !    Removed charges is distributed to all the atoms 1 bond further away.
+
+            if(n_eel_remove > 0) then
+                if(n_eel_remove < 2) then
+                    call fatal_error("Electrostatic interaction should be removed at least on 1,2 and &
+                                    &1,3 neighbour of linked QM atom")
+                end if
+
+                removed_charge = 0.0
+                
+                if(n_eel_remove > size(la%mmtop%conn)) then
+                    call fatal_error("Connectivity rebuild is not implemented in link atom")
+                end if
+                
+                ! Remove charges, multipoles and polarizabilities
+                if(eel%amoeba) then
+                    removed_charge = removed_charge + eel%q0(1,imm)
+                    eel%q0(:,imm) = 0.0
+                    eel%pol(imm) = 0.0
+                else
+                    removed_charge = removed_charge + eel%q(1,imm)
+                    eel%q(:,imm) = 0.0
+                    eel%pol(imm) = 0.0
+                end if
+                
+                do i=1, n_eel_remove-1
+                    do j=eel%top%conn(i)%ri(imm), eel%top%conn(i)%ri(imm+1)-1
+                        idx = eel%top%conn(i)%ci(j)
+                        if(eel%amoeba) then
+                            removed_charge = removed_charge + eel%q0(1,idx)
+                            eel%q0(:,idx) = 0.0
+                            eel%pol(idx) = 0.0
+                        else
+                            removed_charge = removed_charge + eel%q(1,idx)
+                            eel%q(:,idx) = 0.0
+                            eel%pol(idx) = 0.0
+                        end if
+                        write(msg, '("Removed charge, multipoles and polarizabilities on atom ", I0)') idx
+                        call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
+                    end do
+                end do
+
+                ! Redistribute removed charge to preserve neutrality
+                qred = removed_charge / (eel%top%conn(n_eel_remove)%ri(imm+1) - eel%top%conn(i)%ri(imm))
+
+                do j=eel%top%conn(n_eel_remove)%ri(imm), &
+                    eel%top%conn(n_eel_remove)%ri(imm+1)-1
+                    idx = eel%top%conn(n_eel_remove)%ci(j)
+                    if(eel%amoeba) then
+                        eel%q0(1,idx) = eel%q0(1,idx) + qred
+                    else
+                        eel%q(1,idx) = eel%q(1,idx) + qred
+                    end if
+                    write(msg, '("Redistributing charge (", F6.3, " A.U.) on atom ", I0)') qred, idx
+                    call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
+                end do
+            end if
+            
+            eel%M2M_done = .false.
+            eel%M2Mgg_done = .false.
+            eel%M2D_done = .false.
+            eel%M2Dgg_done = .false.
+            eel%ipd_done = .false.
+            if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
+            if(eel%amoeba) call rotate_multipoles(eel)
+            write(msg, '("Charge of the systems passed from ", F6.3, " to ", F6.3, "A.U.")') &
+                old_q, sum(eel%q(1,:))
+            call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
+
+            
         end subroutine
 
         subroutine link_atom_position(la, idx, crd)

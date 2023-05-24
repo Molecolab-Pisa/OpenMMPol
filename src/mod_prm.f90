@@ -2115,7 +2115,6 @@ module mod_prm
                               OMMP_ANG_INPLANE_H0, &
                               OMMP_ANG_INPLANE_H1
         use mod_bonded, only: angle_init
-
         use mod_constants, only: kcalmol2au, rad2deg, deg2rad
         
         implicit none
@@ -2455,16 +2454,22 @@ module mod_prm
                             if(bds%top%conn(1)%ri(bds%angleat(2,iang)+1) - &
                                bds%top%conn(1)%ri(bds%angleat(2,iang)) /= 3) &
                             then
-                                call fatal_error("Angle IN-PLANE defined for a&
-                                                 & non-trigonal center")
-                            end if 
-                            do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
-                                bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1
-                                if(bds%top%conn(1)%ci(j) /= bds%angleat(1,iang) .and. &
-                           bds%top%conn(1)%ci(j) /= bds%angleat(3,iang)) then
-                            bds%angauxat(iang) = bds%top%conn(1)%ci(j)
-                                endif
-                            end do
+                                call ommp_message("Angle IN-PLANE defined for a &
+                                                  &non-trigonal center, this is only &
+                                                  &acceptable if link-atoms should be &
+                                                  &defined later.", OMMP_VERBOSE_LOW)
+                                !call fatal_error("Angle IN-PLANE defined for a&
+                                !                 & non-trigonal center")
+                                iang = iang - 1
+                            else
+                                do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
+                                    bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1
+                                    if(bds%top%conn(1)%ci(j) /= bds%angleat(1,iang) .and. &
+                            bds%top%conn(1)%ci(j) /= bds%angleat(3,iang)) then
+                                bds%angauxat(iang) = bds%top%conn(1)%ci(j)
+                                    endif
+                                end do
+                            end if
                         end if
                         
                         iang = iang + 1
@@ -3120,7 +3125,8 @@ module mod_prm
                                  AMOEBA_ROT_Z_ONLY, &
                                  AMOEBA_ROT_Z_BISECT, &
                                  AMOEBA_ROT_3_FOLD, &
-                                 eps_rp
+                                 eps_rp, &
+                                 OMMP_VERBOSE_DEBUG
         
         implicit none
         
@@ -3140,7 +3146,7 @@ module mod_prm
         ! Default conversion from A.U. to kcal/mol used in electrostatics of
         ! Tinker, only used to handle electric keyword
         integer(ip) :: nmult, nchg, imult, iax(3)
-        logical :: ax_found(3), found13, only12
+        logical :: ax_found(3), found13, only12, done
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
@@ -3407,9 +3413,14 @@ module mod_prm
             eel%ix = 0
             eel%iy = 0
             eel%iz = 0
+            eel%q0 = 0.0
         end if
+        eel%q = 0.0
 
         do i=1, size(top%attype)
+            ! Flag to check assignament
+            done = .false.
+
             ! Multipoles
             only12 = .false. ! Only search for params based on 12 connectivity
             do j=1, max(nmult, nchg)
@@ -3492,6 +3503,18 @@ module mod_prm
                         else
                             eel%q(1,i) = cmult(1,j) 
                         end if
+                        if(.not. done) then
+                            done = .true.
+                        else
+                            write(errstring, "(A, I0)") &
+                                "Reassigning multipoles for atom ", i
+                            call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
+                        end if
+
+                        write(errstring, "(A, I0, A, I0, A, I0, A, I0, A, I0, A)") &
+                            "Atom ", i, " is assigned multipole set ", j, &
+                            " axes [ ", iax(2), "-", iax(3), "-", iax(1), " ]"
+                        call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
 
                         
                         if(.not. found13) then
@@ -3502,6 +3525,14 @@ module mod_prm
                     end if
                 end if
             end do
+            if(.not. done) then
+                write(errstring, "(A, I0)") &
+                    "No multipoles parameter found for atom ", i
+                call ommp_message(errstring, OMMP_VERBOSE_LOW)
+                call ommp_message("Previous error is only acceptable &
+                                  &if link atom is used to fix those &
+                                  &parameter later on", OMMP_VERBOSE_LOW)
+            end if
         end do
 
         if(abs(eel_scale - 1.0) > eps_rp) then

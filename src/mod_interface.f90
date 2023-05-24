@@ -125,6 +125,7 @@ module ommp_interface
             logical :: do_mm_f
 
             eel => sys_obj%eel
+            write(*,*) "PORCODIO", ext_field
 
             if(present(add_mm_field)) then
                 do_mm_f = add_mm_field
@@ -141,6 +142,7 @@ module ommp_interface
                 do i=1, eel%n_ipd
                     ef(:,:,i) = eel%e_m2d(:,:,i) + ext_field
                 end do
+                write(*,*) "PORCODIO2", eel%e_m2d(:,:,i)
                 call polarization(sys_obj, ef, solver)
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             else
@@ -978,6 +980,7 @@ module ommp_interface
 
         use mod_link_atom, only: link_atom_position, init_link_atom, &
                                  default_la_dist, default_la_n_eel_remove, &
+                                 init_eel_for_link_atom, &
                                  init_vdw_for_link_atom, &
                                  init_bonded_for_link_atom
         use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
@@ -1027,7 +1030,7 @@ module ommp_interface
         end if
 
         ! Create the link atom inside OMMP main object
-        call create_link_atom(s, imm, iqm, ila, la_dist, n_eel_remove)
+        call create_link_atom(s, imm, iqm, ila, la_dist)
 
         ! Compute new QM coordinates (for link atom only actually) and update
         allocate(cnew(3,qm%qm_top%mm_atoms))
@@ -1041,6 +1044,10 @@ module ommp_interface
         call qm_helper_update_coord(qm, cnew, logical(.true., lp))
         deallocate(cnew)
         
+        call ommp_message("Preparing electrostatics for link atom", &
+                          OMMP_VERBOSE_LOW, 'linkatom')
+        call init_eel_for_link_atom(s%la, iqm, imm, ila, s%eel, prmfile)
+
         ! Remove non-bonded interactions from link atom inside QMHelper object
         write(message, '(A, I0, A)') "Removing VdW interactions from link atom (QM) [", ila, "]"
         call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
