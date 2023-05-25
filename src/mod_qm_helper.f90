@@ -281,26 +281,27 @@ module mod_qm_helper
             
             real(rp), allocatable :: lagrad(:,:)
             integer(ip) :: i
-#define _LA_ 3
         
             if(mm%use_linkatoms) then
                 call la_update_merged_topology(mm%la)
+                
+                call mallocate('qm_helper_linkatom_geomgrad [lagrad]', 3, mm%la%nla, lagrad)
+                do i=1, mm%la%nla
+                    lagrad(:,i) = original_qmg(:,mm%la%links(3,i))
+                end do
+                call link_atom_project_la_grd(mm%la, lagrad, qmg, mmg)
+                call mfree('qm_helper_linkatom_geomgrad [lagrad]', lagrad)
+                
                 call link_atom_bond_geomgrad(mm%la, &
-                                                qmg, mmg, &
-                                                .true., .false.)
+                                             qmg, mmg, &
+                                             .true., .false.)
                 call link_atom_angle_geomgrad(mm%la, &
-                                                qmg, mmg, &
-                                                .true., .false.)
+                                              qmg, mmg, &
+                                              .true., .false.)
                 call link_atom_torsion_geomgrad(mm%la, &
                                                 qmg, mmg, &
                                                 .true., .false.)
-                call mallocate('qm_helper_linkatom_geomgrad [lagrad]', 3, mm%la%nla, lagrad)
-                do i=1, mm%la%nla
-                    lagrad(:,i) = original_qmg(:,mm%la%links(_LA_,i))
-                end do
-
-                call link_atom_project_la_grd(mm%la, qmg, mmg, lagrad)
-                call mfree('qm_helper_linkatom_geomgrad [lagrad]', lagrad)
+                
             end if
         end subroutine
     

@@ -99,6 +99,8 @@ extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 extern bool ommp_use_frozen(OMMP_SYSTEM_PRT);
 extern bool *ommp_get_frozen(OMMP_SYSTEM_PRT);
 
+extern bool ommp_use_linkatoms(OMMP_SYSTEM_PRT);
+
 extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
 extern void ommp_full_geomgrad(OMMP_SYSTEM_PRT, double *);
@@ -158,6 +160,7 @@ extern int32_t ommp_create_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT,
                                      int32_t, int32_t, int32_t, const char *, 
                                      double, int32_t);
 extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
+extern void ommp_update_link_atoms_position(OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);
 #ifdef __cplusplus
 }
 #endif

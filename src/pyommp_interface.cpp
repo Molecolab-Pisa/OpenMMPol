@@ -27,6 +27,7 @@ class OMMPQmHelper{
         OMMP_QM_HELPER_PRT get_handler(void);
         void set_frozen_atoms(py_ciarray frozen);
         void update_coord(py_cdarray qmc);
+        void update_link_atoms_position(OMMPSystem& s);
         void init_vdw_prm(std::string prmfile);
         void set_attype(py_ciarray qm_attype);
         void init_vdw(py_cdarray eps, py_cdarray rad, py_cdarray fac,
@@ -127,6 +128,10 @@ class OMMPSystem{
         
         bool use_frozen(){
             return ommp_use_frozen(handler);
+        }
+
+        bool use_linkatoms(){
+            return ommp_use_linkatoms(handler);
         }
 
         py_cdarray get_ipd(){
@@ -852,6 +857,11 @@ void OMMPQmHelper::update_coord(py_cdarray qmc){
     ommp_qm_helper_update_coord(handler, qmc.data());
 }
 
+void OMMPQmHelper::update_link_atoms_position(OMMPSystem& s){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
+    ommp_prepare_qm_ele_grd(s_handler, handler);
+}
+
 void OMMPQmHelper::set_attype(py_ciarray qm_attype){
 
     if(qm_attype.ndim() != 1 || 
@@ -925,7 +935,6 @@ std::map<std::string, py_cdarray> OMMPQmHelper::linkatom_geomgrad(OMMPSystem& s,
     double *mmg = new double[s.get_mm_atoms()*3];
     double *qmg = new double[get_qm_atoms()*3];
     ommp_qm_helper_linkatom_geomgrad(handler, s_handler, qmg, mmg, old_qmg.data());
-    
     py::buffer_info bufinfo_mm(mmg, sizeof(double),
                                 py::format_descriptor<double>::format(),
                                 2,
@@ -1309,7 +1318,8 @@ PYBIND11_MODULE(pyopenmmpol, m){
         .def_property_readonly("static_quadrupoles", &OMMPSystem::get_static_quadrupoles, "Static dipoles (read only) if is_amoeba [mm_atoms, 6], else None")
         .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]")
         .def_property_readonly("use_frozen", &OMMPSystem::use_frozen, "Flag to check if frozen atoms are used")
-        .def_property_readonly("frozen", &OMMPSystem::get_frozen, "Logical array, for each atom True means frozen False means mobile.");
+        .def_property_readonly("frozen", &OMMPSystem::get_frozen, "Logical array, for each atom True means frozen False means mobile.")
+        .def_property_readonly("use_linkatoms", &OMMPSystem::use_linkatoms, "Flag to check if link atoms are used");
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
@@ -1350,6 +1360,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPQmHelper::vdw_energy,
              "Compute the VdW interaction energy between QM and MM parts of the system",
              py::arg("OMMP_system"))
+        .def("linkatom_geomgrad",
+             &OMMPQmHelper::linkatom_geomgrad,
+             "Compute the geometrical gradients of link atoms contribution to energy on QM and MM parts of the system",
+             py::arg("OMMP_system"), py::arg("old_qm_grad"))
         .def("prepare_qm_ele_ene",
              &OMMPQmHelper::prepare_qm_ele_ene, 
              "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",

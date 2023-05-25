@@ -639,6 +639,7 @@ module mod_link_atom
 
             call mallocate('link_atom_bond_geomgrad [grd]', &
                            3, la%qmmmtop%mm_atoms, grd)
+            grd = 0.0
             call bond_geomgrad(la%bds, grd)
             
             if(doqm) then
@@ -671,6 +672,7 @@ module mod_link_atom
 
             call mallocate('link_atom_bond_geomgrad [grd]', &
                            3, la%qmmmtop%mm_atoms, grd)
+            grd = 0.0
             call angle_geomgrad(la%bds, grd)
             
             if(doqm) then
@@ -703,6 +705,7 @@ module mod_link_atom
 
             call mallocate('link_atom_bond_geomgrad [grd]', &
                            3, la%qmmmtop%mm_atoms, grd)
+            grd = 0.0
             call torsion_geomgrad(la%bds, grd)
             
             if(doqm) then
@@ -742,8 +745,9 @@ module mod_link_atom
                 rqm = la%qmtop%cmm(:,iqm)
                 delta = rmm-rqm
 
-                dedmm = versor_der(delta)
-                
+                dedmm = la%la_distance(i) * versor_der(delta)
+               
+                dedqm = 0.0
                 dedqm(1,1) = 1.0
                 dedqm(2,2) = 1.0
                 dedqm(3,3) = 1.0

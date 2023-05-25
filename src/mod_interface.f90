@@ -22,7 +22,8 @@ module ommp_interface
                              OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
                              OMMP_AU2KCALMOL => au2kcalmol, &
-                             OMMP_ANG2AU => angstrom2au
+                             OMMP_ANG2AU => angstrom2au, &
+                             OMMP_STR_CHAR_MAX
     
     ! Internal types
     use mod_memory, only: ommp_integer => ip, &
@@ -985,7 +986,6 @@ module ommp_interface
         use mod_mmpol, only: mmpol_init_linkatom, create_link_atom
         use mod_nonbonded, only: vdw_remove_potential
         use mod_io, only: ommp_message, fatal_error
-        use mod_constants, only: OMMP_STR_CHAR_MAX
         use mod_memory, only: lp
 
         implicit none
@@ -1077,6 +1077,41 @@ module ommp_interface
 
         if(s%use_linkatoms) then
             call link_atom_position(s%la, la_idx, crd)
+        end if
+    end subroutine
+
+    subroutine ommp_update_link_atoms_position(s, qm)
+        use mod_link_atom, only : link_atom_position, la_update_merged_topology
+        use mod_qm_helper, only: qm_helper_update_coord
+        use mod_io, only: ommp_message
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(inout) :: qm
+
+        integer(ommp_integer) :: i, ila
+        real(ommp_real), dimension(3) :: crd
+        real(ommp_real), allocatable :: cnew(:,:)
+        character(len=OMMP_STR_CHAR_MAX) :: message
+
+        if(s%use_linkatoms) then
+            call la_update_merged_topology(s%la)
+            allocate(cnew(3,qm%qm_top%mm_atoms))
+            cnew = qm%qm_top%cmm
+
+            do i=1, s%la%nla
+                ila = s%la%links(3,i)
+                call link_atom_position(s%la, i, crd)
+                write(message, '(A, I0, A, 3F8.4, A, 3F8.4, A)') &
+                    "Link atom [", ila, "] will be moved from [", &
+                    cnew(:,ila), "] to [", crd, "]."
+                call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
+                cnew(:,ila) = crd
+            end do
+            
+            call qm_helper_update_coord(qm, cnew, logical(.true., ommp_logical))
+            deallocate(cnew)
         end if
     end subroutine
 

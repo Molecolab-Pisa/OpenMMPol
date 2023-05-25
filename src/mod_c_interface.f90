@@ -985,6 +985,19 @@ module mod_ommp_C_interface
             C_ommp_ff_is_amoeba = s%amoeba
         end function C_ommp_ff_is_amoeba
         
+        function C_ommp_use_linkatoms(s_ptr) &
+                result(u) bind(C, name='ommp_use_linkatoms')
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            !! C pointer to system object
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: u
+
+            call c_f_pointer(s_ptr, s)
+            u = s%use_linkatoms
+        end function
+        
         !??
         subroutine C_ommp_field_mmpol2ext(s_prt, n, cext, E) &
                 bind(c, name='ommp_field_mmpol2ext')
@@ -1576,5 +1589,19 @@ module mod_ommp_C_interface
             call ommp_get_link_atom_coordinates(s, la_idx, crd)
 
         end subroutine 
+        
+        subroutine C_ommp_update_link_atoms_position(qm_prt, s_prt) &
+                bind(c, name='ommp_update_link_atoms_position')
+            implicit none
+            
+            type(c_ptr), value :: s_prt, qm_prt
 
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+            
+            call ommp_update_link_atoms_position(s, qm)
+        end subroutine
 end module mod_ommp_C_interface
