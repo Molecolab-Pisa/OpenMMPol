@@ -150,7 +150,7 @@ module mod_solvers
         ! compute a guess, if required:
         rms_norm = dot_product(x,x)
         if(rms_norm < eps_rp) then
-            call ommp_message("Input guess have zero norm, generating a guess&
+            call ommp_message("Input guess has zero norm, generating a guess&
                               & from preconditioner.", OMMP_VERBOSE_HIGH)
             call precnd(eel, x, x)
         else
@@ -307,7 +307,7 @@ module mod_solvers
         ! if required, compute a guess
         rms_norm = dot_product(x, x)
         if(rms_norm < eps_rp) then
-            call ommp_message("Input guess have zero norm, generating a guess&
+            call ommp_message("Input guess has zero norm, generating a guess&
                               & from preconditioner.", OMMP_VERBOSE_HIGH)
             x = inv_diag * rhs
         else

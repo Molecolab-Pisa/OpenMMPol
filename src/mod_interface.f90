@@ -125,7 +125,6 @@ module ommp_interface
             logical :: do_mm_f
 
             eel => sys_obj%eel
-            write(*,*) "PORCODIO", ext_field
 
             if(present(add_mm_field)) then
                 do_mm_f = add_mm_field
@@ -142,7 +141,6 @@ module ommp_interface
                 do i=1, eel%n_ipd
                     ef(:,:,i) = eel%e_m2d(:,:,i) + ext_field
                 end do
-                write(*,*) "PORCODIO2", eel%e_m2d(:,:,i)
                 call polarization(sys_obj, ef, solver)
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             else

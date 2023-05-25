@@ -154,7 +154,8 @@ module mod_link_atom
             use mod_memory, only: mallocate, mfree
             use mod_prm, only: assign_mpoles
             use mod_electrostatics, only: ommp_electrostatics_type, &
-                                          electrostatics_init
+                                          electrostatics_init, &
+                                          remove_null_pol
             use mod_io, only: fatal_error, ommp_message
             use mod_constants, only: eps_rp, OMMP_VERBOSE_LOW, &
                                      OMMP_STR_CHAR_MAX, &
@@ -285,7 +286,9 @@ module mod_link_atom
                     call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
                 end do
             end if
-            
+
+            call remove_null_pol(eel)
+
             eel%M2M_done = .false.
             eel%M2Mgg_done = .false.
             eel%M2D_done = .false.

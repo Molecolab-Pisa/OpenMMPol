@@ -158,6 +158,9 @@ module mod_electrostatics
         
         logical :: ipd_done = .false.
         !! Flag to set when IPD have been computed.
+        logical :: ipd_use_guess = .false.
+        !! Flag to set when current value of IPD can be
+        !! used as guess for next solution of LS.
         real(rp), allocatable :: ipd(:,:,:)
         !! induced point dipoles (3:pol_atoms:ipd) 
     
@@ -406,6 +409,7 @@ module mod_electrostatics
                 call mallocate('electrostatics_init [idp]', 3_ip, eel%pol_atoms, &
                                eel%n_ipd, eel%ipd) 
                 eel%ipd_done = .false.
+                eel%ipd_use_guess = .false.
                 eel%ipd = 0.0_rp
                 
                 call ommp_message("Removing null polarizable sites done", OMMP_VERBOSE_LOW)
