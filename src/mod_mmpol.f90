@@ -384,6 +384,7 @@ module mod_mmpol
         eel%M2D_done = .false.
         eel%M2Dgg_done = .false.
         eel%ipd_done = .false.
+        eel%ipd_use_guess = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
         if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
