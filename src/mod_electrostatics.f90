@@ -2023,8 +2023,11 @@ module mod_electrostatics
         integer(ip) :: i, j, n_cpt
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
 
-        if(.not. eel%ipd_done) call fatal_error("IPD should be computed before&
-                                                & D2E potential.")
+        if(eel%pol_atoms < 1) return
+
+        if(.not. eel%ipd_done) &
+            call fatal_error("IPD should be computed before&
+                             & D2E potential.")
         n_cpt = size(cpt, 2)
 
         if(eel%amoeba) then
@@ -2142,6 +2145,8 @@ module mod_electrostatics
 
         integer(ip) :: i, j, n_cpt
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+
+        if(eel%pol_atoms < 1) return
 
         if(.not. eel%ipd_done) call fatal_error("IPD should be computed before&
                                                 & computing D2E field.")

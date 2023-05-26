@@ -15,7 +15,7 @@ module mod_link_atom
 
     integer(ip), parameter :: la_allocation_chunk = 20, &
                               default_la_n_eel_remove = 2
-    real(rp), parameter :: default_la_dist = 0.91 * angstrom2au 
+    real(rp), parameter :: default_la_dist = 1.1 * angstrom2au
 
     type ommp_link_atom_type
         type(ommp_topology_type), pointer :: mmtop
@@ -286,7 +286,8 @@ module mod_link_atom
                     call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
                 end do
             end if
-
+            
+            eel%pol = 0.0
             call remove_null_pol(eel)
 
             eel%M2M_done = .false.

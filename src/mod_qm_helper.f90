@@ -111,6 +111,8 @@ module mod_qm_helper
         subroutine qm_helper_update_coord(qm, cnew, reconnect_in)
             use mod_adjacency_mat, only: matfree
             use mod_topology, only: guess_connectivity
+            use mod_io, only: ommp_message
+            use mod_constants, only: OMMP_VERBOSE_LOW
 
             implicit none
             type(ommp_qm_helper), intent(inout) :: qm
@@ -137,6 +139,7 @@ module mod_qm_helper
             qm%V_m2n_done = .false.
             qm%E_m2n_done = .false.
             if(rc) then
+                call ommp_message("Rebuilding connectivity.", OMMP_VERBOSE_LOW, 'linkatom')
                 do i=1, size(qm%qm_top%conn)
                     call matfree(qm%qm_top%conn(i))
                 end do

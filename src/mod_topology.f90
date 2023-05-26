@@ -92,8 +92,9 @@ module mod_topology
             !!  the bonds of the molecule are not availble in any 
             !! other way; it is often used to assign connectivity to a QM part
             !! that does not have any.
-            use mod_constants, only: angstrom2au
-            use mod_io, only: fatal_error
+            use mod_constants, only: angstrom2au, &
+                                     OMMP_VERBOSE_DEBUG, OMMP_STR_CHAR_MAX
+            use mod_io, only: fatal_error, ommp_message
             use mod_memory, only: mallocate, mfree
             use mod_adjacency_mat, only: adj_mat_from_conn
             
@@ -123,6 +124,7 @@ module mod_topology
             !! Number of connected atoms already assigned to the i-th atom. 
             integer(ip) :: i, j
             real(rp) :: l, l0
+            character(len=OMMP_STR_CHAR_MAX) :: msg
             !! Actual and expected bond length
             
             atomic_radii(1)  = 0.23 * angstrom2au !! H
@@ -168,6 +170,10 @@ module mod_topology
                         i12(n12(j),j) = i
                         n12(i) = n12(i) + 1
                         n12(j) = n12(j) + 1
+                        write(msg, '(A, I0, A, I0)') &
+                            "Bond found between atoms ", j, &
+                            " and ", i
+                        call ommp_message(msg, OMMP_VERBOSE_DEBUG)
                     end if
                 end do
             end do

@@ -859,7 +859,7 @@ void OMMPQmHelper::update_coord(py_cdarray qmc){
 
 void OMMPQmHelper::update_link_atoms_position(OMMPSystem& s){
     OMMP_SYSTEM_PRT s_handler = s.get_handler();
-    ommp_prepare_qm_ele_grd(s_handler, handler);
+    ommp_update_link_atoms_position(handler, s_handler);
 }
 
 void OMMPQmHelper::set_attype(py_ciarray qm_attype){
@@ -1364,6 +1364,9 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPQmHelper::linkatom_geomgrad,
              "Compute the geometrical gradients of link atoms contribution to energy on QM and MM parts of the system",
              py::arg("OMMP_system"), py::arg("old_qm_grad"))
+        .def("update_link_atoms_position", 
+             &OMMPQmHelper::update_link_atoms_position,
+             "Update the positions of all link atoms")
         .def("prepare_qm_ele_ene",
              &OMMPQmHelper::prepare_qm_ele_ene, 
              "Prepeare the quantities available in helper for a single point SCF calculation (electric field of nuclei at polarizable sites, potential of MM system (polarizable and static) at nuclei) with the MM system passed as argument.",
