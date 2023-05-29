@@ -1248,7 +1248,7 @@ module mod_prm
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
 
-        maxt = top%conn(4)%ri(top%mm_atoms+1)-1 
+        maxt = top%conn(3)%ri(top%mm_atoms+1)-1
         call mallocate('assign_torsion [classa]', nt, classa)
         call mallocate('assign_torsion [classb]', nt, classb)
         call mallocate('assign_torsion [classc]', nt, classc)
