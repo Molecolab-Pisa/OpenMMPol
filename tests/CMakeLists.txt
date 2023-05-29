@@ -1,12 +1,12 @@
 ## Download of FF parameters from Tinker repository
 file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoebabio18.prm
-     amoebabio18.prm
+     ${CMAKE_BINARY_DIR}/amoebabio18.prm
      EXPECTED_HASH MD5=490ba93448bd71f14398d74f9cb8a523) 
 file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amoeba09.prm
-     amoeba09.prm
+     ${CMAKE_BINARY_DIR}/amoeba09.prm
      EXPECTED_HASH MD5=91eaeec4edd2c581863c6cd4e0b2d975) 
 file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/params/amber99sb.prm
-     amber99sb.prm
+     ${CMAKE_BINARY_DIR}/amber99sb.prm
      EXPECTED_HASH MD5=e9330e340a3f4045cc8025dc9ce42e33) 
 
 #==== MEMORY TEST ====#
