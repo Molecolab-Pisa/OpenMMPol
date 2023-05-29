@@ -106,6 +106,14 @@ class OMMPSystem{
             ommp_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
         }
 
+        void turn_pol_off(py_ciarray nopol){
+            if(nopol.ndim() != 1){
+                throw py::value_error("frozen should be shaped [:]");
+            }
+
+            ommp_turn_pol_off(handler, nopol.shape(0), nopol.data());
+        }
+
         int get_n_ipd(){
             return ommp_get_n_ipd(handler);
         }
@@ -1164,6 +1172,10 @@ PYBIND11_MODULE(pyopenmmpol, m){
              &OMMPSystem::set_frozen_atoms, 
              "Set the atoms of the system that should be frozen (1-based list) that is unable to move.", 
              py::arg("frozen_list"))
+        .def("turn_pol_off", 
+             &OMMPSystem::turn_pol_off, 
+             "Turn off polarizabilities of atoms in nopol list.", 
+             py::arg("npol_list"))
         .def("print_summary", 
              &OMMPSystem::print_summary, 
              "Output a summary of loaded quantites, if outfile is specified, it is printed on file.", 

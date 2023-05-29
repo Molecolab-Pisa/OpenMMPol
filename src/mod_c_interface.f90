@@ -172,6 +172,21 @@ module mod_ommp_C_interface
             f = f - 1
         end subroutine
         
+        subroutine C_ommp_turn_pol_off(s_prt, n, nopol) &
+                bind(c, name='ommp_turn_pol_off')
+            implicit none
+            type(c_ptr), value :: s_prt, nopol
+            integer(ommp_integer), value :: n
+            type(ommp_system), pointer :: s
+            integer(ommp_integer), pointer :: f(:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(nopol, f, [n])
+            f = f + 1
+            call ommp_turn_pol_off(s, n, f)
+            f = f - 1
+        end subroutine
+        
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
             !! Terminate a OMMP System Object
             implicit none

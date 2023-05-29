@@ -91,6 +91,41 @@ module ommp_interface
 
             call set_frozen(s%top, frozen)
         end subroutine
+
+        subroutine ommp_turn_pol_off(s, n, nopol)
+            use mod_electrostatics, only: remove_null_pol
+            use mod_io, only: ommp_message
+            use mod_constants, only: OMMP_STR_CHAR_MAX,
+                                     OMMP_VERBOSE_LOW
+            
+            implicit none
+
+            type(ommp_system), pointer, intent(inout) :: s
+            !! OpenMMPol system
+            integer(ommp_integer), intent(in) :: n, nopol(n)
+            !! Atoms to freeze in MM indexing
+
+            integer(ommp_integer) :: i, ipol
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+
+            do i=1, n
+                if(nopol(i) <= s%top%mm_atoms) then
+                    j = s%eel%mm_polar(i)
+                    if(j > 0) then
+                        s%eel%pol(j) = 0.0
+                    else
+                        write(msg, "('Atom ', I0, ' is not polarizable. Ignoring.')") i
+                        call ommp_message(msg, OMMP_VERBOSE_LOW)
+                    end if
+                else
+                    write(msg, "('Atom ', I0, ' is outside current MM topology. Ignoring.')") i
+                    call ommp_message(msg, OMMP_VERBOSE_LOW)
+                end if
+            end do
+
+            call remove_null_pol(s%eel)
+
+        end subroutine
         
         subroutine ommp_terminate(s)
             use mod_mmpol, only: mmpol_terminate
