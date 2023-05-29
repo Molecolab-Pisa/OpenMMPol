@@ -176,7 +176,7 @@ module mod_link_atom
             type(ommp_electrostatics_type) :: tmp_eel
             character(len=OMMP_STR_CHAR_MAX) :: msg
             integer(ip), allocatable :: attocheck(:)
-
+            
             ! Check if in the complete topology some of the atoms connected
             ! to imm or imm itself do change their parameters. This is a 
             ! problem that affects force-field in which parameters are 
@@ -247,11 +247,11 @@ module mod_link_atom
                 if(eel%amoeba) then
                     removed_charge = removed_charge + eel%q0(1,imm)
                     eel%q0(:,imm) = 0.0
-                    eel%pol(imm) = 0.0
+                    eel%pol(imm) = 0.00001
                 else
                     removed_charge = removed_charge + eel%q(1,imm)
                     eel%q(:,imm) = 0.0
-                    eel%pol(imm) = 0.0
+                    eel%pol(imm) = 0.00001
                 end if
                 
                 do i=1, n_eel_remove-1
@@ -287,7 +287,6 @@ module mod_link_atom
                 end do
             end if
             
-            eel%pol = 0.0
             call remove_null_pol(eel)
 
             eel%M2M_done = .false.

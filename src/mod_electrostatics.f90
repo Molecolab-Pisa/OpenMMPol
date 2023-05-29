@@ -373,13 +373,6 @@ module mod_electrostatics
                                           " polarizabilities out of ", eel%pol_atoms
                 call ommp_message(msg, OMMP_VERBOSE_LOW)
                 call mallocate('remove_null_pol [tmp]', eel%pol_atoms, tmp)
-                ! Thole factors
-                tmp = eel%thole
-                call mfree('remove_null_pol [eel%thole]', eel%thole)
-                call mallocate('remove_null_pol [eel%thole]', nidx, eel%thole)
-                do i=1, nidx
-                    eel%thole(i) = tmp(idx(i))
-                end do
                 ! Polarizabilities
                 tmp = eel%pol
                 call mfree('remove_null_pol [eel%pol]', eel%pol)
