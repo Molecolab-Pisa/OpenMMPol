@@ -95,7 +95,7 @@ module ommp_interface
         subroutine ommp_turn_pol_off(s, n, nopol)
             use mod_electrostatics, only: remove_null_pol
             use mod_io, only: ommp_message
-            use mod_constants, only: OMMP_STR_CHAR_MAX,
+            use mod_constants, only: OMMP_STR_CHAR_MAX, &
                                      OMMP_VERBOSE_LOW
             
             implicit none
@@ -105,7 +105,7 @@ module ommp_interface
             integer(ommp_integer), intent(in) :: n, nopol(n)
             !! Atoms to freeze in MM indexing
 
-            integer(ommp_integer) :: i, ipol
+            integer(ommp_integer) :: i, j, ipol
             character(len=OMMP_STR_CHAR_MAX) :: msg
 
             do i=1, n
