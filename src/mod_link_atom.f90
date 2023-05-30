@@ -13,9 +13,9 @@ module mod_link_atom
     implicit none
     private
 
-    integer(ip), parameter :: la_allocation_chunk = 20, &
-                              default_la_n_eel_remove = 2
-    real(rp), parameter :: default_la_dist = 1.1 * angstrom2au
+    integer(ip), parameter :: link_atom_allocation_chunk = 20, &
+                              default_link_atom_n_eel_remove = 2
+    real(rp), parameter :: default_link_atom_dist = 1.1 * angstrom2au
 
     type ommp_link_atom_type
         type(ommp_topology_type), pointer :: mmtop
@@ -47,8 +47,9 @@ module mod_link_atom
     public :: ommp_link_atom_type, init_link_atom, add_link_atom
     public :: link_atom_position, init_vdw_for_link_atom, init_bonded_for_link_atom
     public :: init_eel_for_link_atom
-    public :: default_la_dist, default_la_n_eel_remove, la_update_merged_topology
-    public :: link_atom_bond_geomgrad, link_atom_angle_geomgrad, link_atom_torsion_geomgrad, link_atom_project_la_grd
+    public :: default_link_atom_dist, default_link_atom_n_eel_remove, link_atom_update_merged_topology
+    public :: link_atom_bond_geomgrad, link_atom_angle_geomgrad, link_atom_torsion_geomgrad, &
+              link_atom_project_grd
 
     contains
         subroutine init_link_atom(la, qmtop, mmtop)
@@ -62,14 +63,14 @@ module mod_link_atom
             type(ommp_topology_type), intent(in), target :: qmtop, mmtop
 
             call mallocate('init_linkatoms [links]', &
-                           3, la_allocation_chunk, &
+                           3, link_atom_allocation_chunk, &
                            la%links)
             call mallocate('init_linkatoms [la_distance]', &
-                           la_allocation_chunk, la%la_distance)
+                           link_atom_allocation_chunk, la%la_distance)
             call mallocate('init_linkatoms [vdw_screening_f]', &
-                           la_allocation_chunk, la%vdw_screening_f)
+                           link_atom_allocation_chunk, la%vdw_screening_f)
             call mallocate('init_linkatoms [vdw_screening_pairs]', 2, &
-                           la_allocation_chunk, la%vdw_screening_pairs)
+                           link_atom_allocation_chunk, la%vdw_screening_pairs)
 
             la%nla = 0
             la%vdw_n_screening = 0
@@ -82,7 +83,7 @@ module mod_link_atom
             allocate(la%bds)
         end subroutine
 
-        subroutine la_update_merged_topology(la)
+        subroutine link_atom_update_merged_topology(la)
             !! Update merged topology in linkatom object so that its coordinates
             !! are the same of mmtop and qmtop.
             implicit none
@@ -126,9 +127,9 @@ module mod_link_atom
                 tmp = la%links
                 rtmp = la%la_distance
                 call mfree('create_link_atom [la%links]', la%links)
-                call mallocate('create_link_atom [la%links]', 3, nmax+la_allocation_chunk, la%links)
+                call mallocate('create_link_atom [la%links]', 3, nmax+link_atom_allocation_chunk, la%links)
                 call mfree('create_link_atom [la%la_distance]', la%la_distance)
-                call mallocate('create_link_atom [la%la_distance]', nmax+la_allocation_chunk, la%la_distance)
+                call mallocate('create_link_atom [la%la_distance]', nmax+link_atom_allocation_chunk, la%la_distance)
                 la%links = tmp(:,0:nmax)
                 la%la_distance = rtmp(0:nmax)
                 call mfree('create_link_atom [tmp]', tmp)
@@ -171,7 +172,7 @@ module mod_link_atom
             character(len=*), intent(in) :: prmfile
 
             real(rp) :: removed_charge, qred, old_q
-            integer(ip) :: n_eel_remove = default_la_n_eel_remove
+            integer(ip) :: n_eel_remove = default_link_atom_n_eel_remove
             integer(ip) :: i, j, idx, ineigh, ii
             type(ommp_electrostatics_type) :: tmp_eel
             character(len=OMMP_STR_CHAR_MAX) :: msg
@@ -723,7 +724,7 @@ module mod_link_atom
             call mfree('link_atom_bond_geomgrad [grd]', grd)
         end subroutine
         
-        subroutine link_atom_project_la_grd(la, laforces, qmg, mmg)
+        subroutine link_atom_project_grd(la, laforces, qmg, mmg)
             use mod_utils, only: versor_der
 
             implicit none

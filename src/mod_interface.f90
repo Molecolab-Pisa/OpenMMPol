@@ -368,7 +368,7 @@ module ommp_interface
         function ommp_get_bond_energy(sys_obj) result(eb)
             
             use mod_bonded, only: bond_potential
-            use mod_link_atom, only: la_update_merged_topology
+            use mod_link_atom, only: link_atom_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -378,7 +378,7 @@ module ommp_interface
             if(sys_obj%use_bonded) then
                 call bond_potential(sys_obj%bds, eb)
                 if(sys_obj%use_linkatoms) then
-                    call la_update_merged_topology(sys_obj%la)
+                    call link_atom_update_merged_topology(sys_obj%la)
                     call bond_potential(sys_obj%la%bds, eb)
                 endif
             end if
@@ -388,7 +388,7 @@ module ommp_interface
         function ommp_get_angle_energy(sys_obj) result(ea)
             
             use mod_bonded, only: angle_potential
-            use mod_link_atom, only: la_update_merged_topology
+            use mod_link_atom, only: link_atom_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -398,7 +398,7 @@ module ommp_interface
             if(sys_obj%use_bonded) then
                 call angle_potential(sys_obj%bds, ea)
                 if(sys_obj%use_linkatoms) then
-                    call la_update_merged_topology(sys_obj%la)
+                    call link_atom_update_merged_topology(sys_obj%la)
                     call angle_potential(sys_obj%la%bds, ea)
                 end if
             end if
@@ -460,7 +460,7 @@ module ommp_interface
         function ommp_get_torsion_energy(sys_obj) result(et)
             
             use mod_bonded, only: torsion_potential
-            use mod_link_atom, only: la_update_merged_topology
+            use mod_link_atom, only: link_atom_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
@@ -470,7 +470,7 @@ module ommp_interface
             if(sys_obj%use_bonded) then
                 call torsion_potential(sys_obj%bds, et)
                 if(sys_obj%use_linkatoms) then
-                    call la_update_merged_topology(sys_obj%la)
+                    call link_atom_update_merged_topology(sys_obj%la)
                     call torsion_potential(sys_obj%la%bds, et)
                 end if
             end if
@@ -531,7 +531,7 @@ module ommp_interface
         
         function ommp_get_full_bnd_energy(sys_obj) result(ene)
             
-            use mod_link_atom, only: la_update_merged_topology
+            use mod_link_atom, only: link_atom_update_merged_topology
             use mod_bonded, only: bond_potential, angtor_potential, &
                                   strbnd_potential, urey_potential, &
                                   opb_potential, pitors_potential, &
@@ -559,7 +559,7 @@ module ommp_interface
                 call tortor_potential(sys_obj%bds, ene)
 
                 if(sys_obj%use_linkatoms) then
-                    call la_update_merged_topology(sys_obj%la)
+                    call link_atom_update_merged_topology(sys_obj%la)
                     call bond_potential(sys_obj%la%bds, ene)
                     call angle_potential(sys_obj%la%bds, ene)
                     call torsion_potential(sys_obj%la%bds, ene)
@@ -629,7 +629,7 @@ module ommp_interface
 
         subroutine ommp_bond_geomgrad(s, grd)
             use mod_bonded, only: bond_geomgrad
-            use mod_link_atom, only: la_update_merged_topology, &
+            use mod_link_atom, only: link_atom_update_merged_topology, &
                                      link_atom_bond_geomgrad
             
             implicit none 
@@ -643,7 +643,7 @@ module ommp_interface
             if(s%use_bonded) then
                 call bond_geomgrad(s%bds, grd)
                 if(s%use_linkatoms) then
-                    call la_update_merged_topology(s%la)
+                    call link_atom_update_merged_topology(s%la)
                     call link_atom_bond_geomgrad(s%la, &
                                                 fake_qmg, grd, &
                                                 .false., .true.)
@@ -653,7 +653,7 @@ module ommp_interface
         
         subroutine ommp_angle_geomgrad(s, grd)
             use mod_bonded, only: angle_geomgrad 
-            use mod_link_atom, only: la_update_merged_topology, &
+            use mod_link_atom, only: link_atom_update_merged_topology, &
                                      link_atom_angle_geomgrad
             
             implicit none 
@@ -667,7 +667,7 @@ module ommp_interface
             if(s%use_bonded) then
                 call angle_geomgrad(s%bds, grd)
                 if(s%use_linkatoms) then
-                    call la_update_merged_topology(s%la)
+                    call link_atom_update_merged_topology(s%la)
                     call link_atom_angle_geomgrad(s%la, &
                                                 fake_qmg, grd, &
                                                 .false., .true.)
@@ -701,7 +701,7 @@ module ommp_interface
         
         subroutine ommp_torsion_geomgrad(s, grd)
             use mod_bonded, only: torsion_geomgrad 
-            use mod_link_atom, only: la_update_merged_topology, &
+            use mod_link_atom, only: link_atom_update_merged_topology, &
                                      link_atom_torsion_geomgrad
             
             implicit none 
@@ -715,7 +715,7 @@ module ommp_interface
             if(s%use_bonded) then
                 call torsion_geomgrad(s%bds, grd)
                 if(s%use_linkatoms) then
-                    call la_update_merged_topology(s%la)
+                    call link_atom_update_merged_topology(s%la)
                     call link_atom_torsion_geomgrad(s%la, &
                                                     fake_qmg, grd, &
                                                     .false., .true.)
@@ -807,7 +807,7 @@ module ommp_interface
                                   strtor_geomgrad, &
                                   angtor_geomgrad, &
                                   tortor_geomgrad
-            use mod_link_atom, only: la_update_merged_topology, &
+            use mod_link_atom, only: link_atom_update_merged_topology, &
                                      link_atom_bond_geomgrad, &
                                      link_atom_angle_geomgrad, &
                                      link_atom_torsion_geomgrad
@@ -833,7 +833,7 @@ module ommp_interface
                 call angtor_geomgrad(s%bds, grd)
                 call tortor_geomgrad(s%bds, grd)
                 if(s%use_linkatoms) then
-                    call la_update_merged_topology(s%la)
+                    call link_atom_update_merged_topology(s%la)
                     call link_atom_bond_geomgrad(s%la, &
                                                  fake_qmg, grd, &
                                                  .false., .true.)
@@ -993,9 +993,9 @@ module ommp_interface
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
     end subroutine
     
-    subroutine ommp_qm_helper_linkatom_geomgrad(qm, s, qmg, mmg, old_qmg)
+    subroutine ommp_qm_helper_link_atom_geomgrad(qm, s, qmg, mmg, old_qmg)
         
-        use mod_qm_helper, only: qm_helper_linkatom_geomgrad
+        use mod_qm_helper, only: qm_helper_link_atom_geomgrad
 
         implicit none
 
@@ -1006,19 +1006,20 @@ module ommp_interface
 
         mmg = 0.0
         qmg = 0.0
-        call qm_helper_linkatom_geomgrad(qm, s, qmg, mmg, old_qmg)
+        call qm_helper_link_atom_geomgrad(qm, s, qmg, mmg, old_qmg)
     end subroutine
 
     function ommp_create_link_atom(qm, s, imm, iqm, ila, prmfile, &
                                    la_dist_in, n_eel_remove_in) result(la_idx)
 
         use mod_link_atom, only: link_atom_position, init_link_atom, &
-                                 default_la_dist, default_la_n_eel_remove, &
+                                 default_link_atom_dist, default_link_atom_n_eel_remove, &
                                  init_eel_for_link_atom, &
                                  init_vdw_for_link_atom, &
-                                 init_bonded_for_link_atom
+                                 init_bonded_for_link_atom, &
+                                 add_link_atom
         use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
-        use mod_mmpol, only: mmpol_init_linkatom, create_link_atom
+        use mod_mmpol, only: mmpol_init_link_atom
         use mod_nonbonded, only: vdw_remove_potential
         use mod_io, only: ommp_message, fatal_error
         use mod_memory, only: lp
@@ -1039,8 +1040,8 @@ module ommp_interface
         character(len=OMMP_STR_CHAR_MAX) :: message
 
         ! Handle optional arguments
-        n_eel_remove = default_la_n_eel_remove
-        la_dist = default_la_dist
+        n_eel_remove = default_link_atom_n_eel_remove
+        la_dist = default_link_atom_dist
         if(present(n_eel_remove_in)) n_eel_remove = n_eel_remove_in
         if(present(la_dist_in)) la_dist = la_dist_in
 
@@ -1052,7 +1053,6 @@ module ommp_interface
 
         ! If it is still not initialized, initialize link atom structure
         if(.not. s%use_linkatoms) then
-            call mmpol_init_linkatom(s)
             call init_link_atom(s%la, qm%qm_top, s%top)
             ! TODO otherwise check if the qm system is the same...
         end if
@@ -1062,8 +1062,26 @@ module ommp_interface
             call qm_helper_init_vdw_prm(qm, prmfile)
         end if
 
+        ! Sanity check
+        if(iqm == ila) then
+            call fatal_error("QM atom and link atom should have different indices")
+        end if
+
+        if(iqm > s%la%qmtop%mm_atoms .or. iqm < 1) then
+            call fatal_error("QM atom index is not in the topology.")
+        end if
+        
+        if(ila > s%la%qmtop%mm_atoms .or. ila < 1) then
+            call fatal_error("LA atom index is not in the topology.")
+        end if
+        
+        if(imm > s%la%mmtop%mm_atoms .or. imm < 1) then
+            call fatal_error("MM atom index is not in the topology.")
+        end if
+        ! TODO check that link atom is a monovalent hydrogen
+        
         ! Create the link atom inside OMMP main object
-        call create_link_atom(s, imm, iqm, ila, la_dist)
+        call add_link_atom(s%la, imm, iqm, ila, la_dist)
 
         ! Compute new QM coordinates (for link atom only actually) and update
         allocate(cnew(3,qm%qm_top%mm_atoms))
@@ -1116,7 +1134,7 @@ module ommp_interface
     end subroutine
 
     subroutine ommp_update_link_atoms_position(s, qm)
-        use mod_link_atom, only : link_atom_position, la_update_merged_topology
+        use mod_link_atom, only : link_atom_position, link_atom_update_merged_topology
         use mod_qm_helper, only: qm_helper_update_coord
         use mod_io, only: ommp_message
 
@@ -1131,7 +1149,7 @@ module ommp_interface
         character(len=OMMP_STR_CHAR_MAX) :: message
 
         if(s%use_linkatoms) then
-            call la_update_merged_topology(s%la)
+            call link_atom_update_merged_topology(s%la)
             allocate(cnew(3,qm%qm_top%mm_atoms))
             cnew = qm%qm_top%cmm
 
