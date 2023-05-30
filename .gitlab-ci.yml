@@ -244,7 +244,8 @@ run_tests:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make test
+        - ctest
+        - ctest --rerun-failed -V
     only:
         - schedules
 
@@ -255,7 +256,8 @@ run_tests-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - make test
+        - ctest
+        - ctest --rerun-failed -V
     only:
         - schedules
 
@@ -267,6 +269,7 @@ run_tests-nvidia:
     script:
         - cd build_nvidia
         - ctest -E memcheck
+        - ctest --rerun-failed -V
     only:
         - schedules
 
