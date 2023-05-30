@@ -504,7 +504,7 @@ module mod_link_atom
             la%bds%top => la%qmmmtop
 
             ! Bonded terms
-            call assign_bond(tmp_bnd, prmfile)
+            call assign_bond(tmp_bnd, prmfile, la%qm2full, 2)
             if(tmp_bnd%use_bond) then
                 nterms = 0
                 do i=1, tmp_bnd%nbond
@@ -534,7 +534,7 @@ module mod_link_atom
                 call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
             end if
             
-            call assign_angle(tmp_bnd, prmfile)
+            call assign_angle(tmp_bnd, prmfile, la%qm2full, 2)
             if(tmp_bnd%use_angle) then
                 nterms = 0
                 do i=1, tmp_bnd%nangle

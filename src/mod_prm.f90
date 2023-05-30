@@ -7,7 +7,8 @@ module mod_prm
     use mod_topology, only: ommp_topology_type
     use mod_bonded, only: ommp_bonded_type
     use mod_electrostatics, only: ommp_electrostatics_type
-    use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+    use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, &
+                             OMMP_VERBOSE_HIGH
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower
 
@@ -213,7 +214,7 @@ module mod_prm
 
     end subroutine read_atom_cards
 
-    subroutine assign_bond(bds, prm_file)
+    subroutine assign_bond(bds, prm_file, exclude_list, nexc_in)
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         use mod_bonded, only: bond_init, ommp_bonded_type
@@ -225,10 +226,14 @@ module mod_prm
         !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
+        integer(ip), dimension(:), intent(in), optional :: exclude_list
+        !! List of atoms for which interactions should not be computed
+        integer(ip), intent(in), optional :: nexc_in
+        !! Number of atom in excluded list needed to skip a parameter
 
-        integer(ip), parameter :: iof_prminp = 201
+        integer(ip), parameter :: iof_prminp = 201, nexc_default = 2
         integer(ip) :: ist, i, j, l, jat, tokb, toke, ibnd, nbnd, &
-                       cla, clb
+                       cla, clb, nexc, iexc
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:)
         real(rp), allocatable :: kbnd(:), l0bnd(:)
@@ -236,6 +241,15 @@ module mod_prm
         type(ommp_topology_type), pointer :: top
 
         top => bds%top
+        
+        if(present(exclude_list)) then
+            nexc = nexc_default
+            if(present(nexc_in)) then
+                if(nexc_in > 0 .and. nexc_in < 4) then
+                    nexc = nexc_in
+                end if
+            end if
+        end if
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
@@ -370,6 +384,21 @@ module mod_prm
                     exit
                 end if
             end do
+
+            if(present(exclude_list) .and. .not. done) then
+                iexc = 0
+                if(any(exclude_list == bds%bondat(1,i))) iexc = iexc + 1
+                if(any(exclude_list == bds%bondat(2,i))) iexc = iexc + 1
+                if(iexc >= nexc) then
+                    done = .true.
+                    write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                        "Bond ", bds%bondat(1,i), '-', bds%bondat(2,i), &
+                        " not found and ignored because ", iexc, " atoms are &
+                        in excluded list."
+                    call ommp_message(errstring, OMMP_VERBOSE_HIGH)
+                end if
+            end if
+            
             if(.not. done) then
                 write(*, *) cla, clb, bds%bondat(1,i), bds%bondat(2,i)
                 call fatal_error("Bond parameter not found!")
@@ -631,13 +660,13 @@ module mod_prm
         end do
 
         maxsb = (top%conn(2)%ri(top%mm_atoms+1)-1) / 2
-        call mallocate('assign_angle [classa]', nstrbnd, classa)
-        call mallocate('assign_angle [classb]', nstrbnd, classb)
-        call mallocate('assign_angle [classc]', nstrbnd, classc)
-        call mallocate('assign_angle [eqang]', nstrbnd, k1)
-        call mallocate('assign_angle [kang]', nstrbnd, k2)
-        call mallocate('assign_angle [sbtmp]', maxsb, sbtmp)
-        call mallocate('assign_angle [sbattmp]', 3, maxsb, sbattmp)
+        call mallocate('assign_strbnd [classa]', nstrbnd, classa)
+        call mallocate('assign_strbnd [classb]', nstrbnd, classb)
+        call mallocate('assign_strbnd [classc]', nstrbnd, classc)
+        call mallocate('assign_strbnd [eqang]', nstrbnd, k1)
+        call mallocate('assign_strbnd [kang]', nstrbnd, k2)
+        call mallocate('assign_strbnd [sbtmp]', maxsb, sbtmp)
+        call mallocate('assign_strbnd [sbattmp]', 3, maxsb, sbattmp)
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -2105,7 +2134,7 @@ module mod_prm
        
     end subroutine assign_angtor
     
-    subroutine assign_angle(bds, prm_file)
+    subroutine assign_angle(bds, prm_file, exclude_list, nexc_in)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: OMMP_ANG_SIMPLE, &
                               OMMP_ANG_H0, &
@@ -2123,10 +2152,15 @@ module mod_prm
         !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
+        integer(ip), dimension(:), intent(in), optional :: exclude_list
+        !! List of atoms for which interactions should not be computed
+        integer(ip), intent(in), optional :: nexc_in
+        !! Number of atom in excluded list needed to skip a parameter
 
-        integer(ip), parameter :: iof_prminp = 201
+        integer(ip), parameter :: iof_prminp = 201, nexc_default = 3
         integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
-                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv
+                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv, &
+                       iexc, nexc
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
         real(rp), allocatable :: kang(:), th0ang(:)
@@ -2134,6 +2168,15 @@ module mod_prm
         type(ommp_topology_type), pointer :: top
 
         top => bds%top
+
+        if(present(exclude_list)) then
+            nexc = nexc_default
+            if(present(nexc_in)) then
+                if(nexc_in > 0 .and. nexc_in < 4) then
+                    nexc = nexc_in
+                end if
+            end if
+        end if
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
@@ -2438,6 +2481,21 @@ module mod_prm
                         end if
                     end do
 
+                    if(present(exclude_list) .and. .not. done) then
+                        iexc = 0
+                        if(any(exclude_list == a)) iexc = iexc + 1
+                        if(any(exclude_list == b)) iexc = iexc + 1
+                        if(any(exclude_list == c)) iexc = iexc + 1
+                        if(iexc >= nexc) then
+                            write(errstring, '(A,I0,A,I0,A,I0,A,I0,A)') &
+                                "Angle ", a, '-', b, '-', c, " not found &
+                                and ignored because ", iexc, " atoms are &
+                                in excluded list."
+                            call ommp_message(errstring, OMMP_VERBOSE_HIGH)
+                            done = .true.
+                        end if
+                    end if
+                    
                     if(done) then
                         bds%angleat(1,iang) = a
                         bds%angleat(2,iang) = c
