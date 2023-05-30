@@ -232,7 +232,7 @@ run_short_test:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - ctest -R 'NMA|1crn|2d94' -E memcheck
+        - ctest -R 'NMA|1crn|2d94' -E memcheck --output-on-failure
     only:
         - pushes
 
@@ -241,8 +241,7 @@ run_tests:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - ctest
-        - ctest --rerun-failed -V
+        - ctest --output-on-failure
     only:
         - schedules
 
@@ -253,8 +252,7 @@ run_tests-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - ctest
-        - ctest --rerun-failed -V
+        - ctest --output-on-failure
     only:
         - schedules
 
@@ -265,8 +263,7 @@ run_tests-nvidia:
         - export FORTRANOPT=no_minus_zero
     script:
         - cd build_nvidia
-        - ctest -E memcheck
-        - ctest --rerun-failed -V
+        - ctest -E memcheck --output-on-failure
     only:
         - schedules
 
