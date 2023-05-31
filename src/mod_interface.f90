@@ -1053,12 +1053,15 @@ module ommp_interface
 
         ! If it is still not initialized, initialize link atom structure
         if(.not. s%use_linkatoms) then
+            call ommp_message("Initializing link atom module", OMMP_VERBOSE_DEBUG, 'linkatom')
+            call mmpol_init_link_atom(s)
             call init_link_atom(s%la, qm%qm_top, s%top)
             ! TODO otherwise check if the qm system is the same...
         end if
 
         ! If VdW for QM part are not initialized, it's the right moment to do so
         if(.not. qm%use_nonbonded) then
+            call ommp_message("Initializing VdW in QM Helper", OMMP_VERBOSE_DEBUG, 'linkatom')
             call qm_helper_init_vdw_prm(qm, prmfile)
         end if
 
@@ -1081,6 +1084,11 @@ module ommp_interface
         ! TODO check that link atom is a monovalent hydrogen
         
         ! Create the link atom inside OMMP main object
+        write(message, "('Creating link [',I0,'] (MM) - [',I0,'] (LA) - [',&
+            I0,'] (QM) with a fixed distance LA-QM of ', F5.3, ' A.U.')") &
+            imm, ila, iqm, la_dist
+        call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
+
         call add_link_atom(s%la, imm, iqm, ila, la_dist)
 
         ! Compute new QM coordinates (for link atom only actually) and update
