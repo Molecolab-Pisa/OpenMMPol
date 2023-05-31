@@ -56,7 +56,7 @@ cmake-config-nvidia:
     before_script:
         - export NVARCH=`uname -s`_`uname -m`
         - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+        - export PATH=$NVCOMPILERS/$NVARCH/2023/compilers/bin:$PATH
     script:
         - mkdir build_nvidia
         - cd build_nvidia
