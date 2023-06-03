@@ -1018,6 +1018,7 @@ module ommp_interface
                                  init_vdw_for_link_atom, &
                                  init_bonded_for_link_atom, &
                                  add_link_atom
+        use mod_topology, only: create_new_bond
         use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
         use mod_mmpol, only: mmpol_init_link_atom
         use mod_nonbonded, only: vdw_remove_potential
@@ -1033,7 +1034,7 @@ module ommp_interface
         integer(ommp_integer), optional, intent(in) :: n_eel_remove_in
         real(ommp_real), optional, intent(in) :: la_dist_in
 
-        integer(ommp_integer) :: la_idx, n_eel_remove
+        integer(ommp_integer) :: la_idx, n_eel_remove, i
         real(ommp_real) :: la_dist
         real(ommp_real), allocatable :: cnew(:,:)
         real(ommp_real), dimension(3) :: cla
@@ -1100,7 +1101,10 @@ module ommp_interface
             cnew(:,ila), "] to [", cla, "]."
         call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         cnew(:,ila) = cla
-        call qm_helper_update_coord(qm, cnew, logical(.true., lp))
+        call qm_helper_update_coord(qm, cnew, logical(.true., lp), s%la%links(3,:))
+        do i=1, s%la%nla
+            call create_new_bond(qm%qm_top, s%la%links(2,i), s%la%links(3,i)) 
+        end do
         deallocate(cnew)
         
         call ommp_message("Preparing electrostatics for link atom", &

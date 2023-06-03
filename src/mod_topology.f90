@@ -84,7 +84,7 @@ module mod_topology
             top_obj%frozen = .false.
         end subroutine
 
-        subroutine guess_connectivity(top)
+        subroutine guess_connectivity(top, exclude_list)
             !! This subroutine guess the connectivity of the system from the 
             !! coordinates and the atomic number of its atoms. It is based
             !! on distances and atomic radii, so it can easily fail on 
@@ -101,6 +101,11 @@ module mod_topology
             implicit none
 
             type(ommp_topology_type), intent(inout) :: top
+            !! Topology for which connectivity should be guessed.
+            integer(ip), optional, intent(in) :: exclude_list(:)
+            !! List of atoms that should not be connected when guessing the 
+            !! topology, this is used for LA that could have an ambiguous or
+            !! not defined position.
 
             real(rp) :: atomic_radii(118) = 0.0
             !! Covalent atomic radii; 0.0 is used for every unknown element
@@ -161,7 +166,13 @@ module mod_topology
             n12 = 1
             
             do i=1, top%mm_atoms
+                if(present(exclude_list)) then
+                    if(any(exclude_list == i)) cycle
+                end if
                 do j=i+1, top%mm_atoms
+                    if(present(exclude_list)) then
+                        if(any(exclude_list == j)) cycle
+                    end if
                     l = norm2(top%cmm(:,i) - top%cmm(:,j))
                     l0 = atomic_radii(top%atz(i)) + atomic_radii(top%atz(j))
                     if(l < l0 + tolerance) then

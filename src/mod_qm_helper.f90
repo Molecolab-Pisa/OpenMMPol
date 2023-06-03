@@ -108,7 +108,7 @@ module mod_qm_helper
             qm%qm_top%attype_initialized = .true.
         end subroutine
 
-        subroutine qm_helper_update_coord(qm, cnew, reconnect_in)
+        subroutine qm_helper_update_coord(qm, cnew, reconnect_in, linkatoms)
             use mod_adjacency_mat, only: matfree
             use mod_topology, only: guess_connectivity
             use mod_io, only: ommp_message
@@ -120,6 +120,9 @@ module mod_qm_helper
             real(rp), intent(in) :: cnew(3,qm%qm_top%mm_atoms)
             !! Coordinates of QM atoms
             logical(lp), intent(in), optional :: reconnect_in
+            !! Flag to rebuil connectivity
+            integer(ip), intent(in), optional :: linkatoms(:)
+            !! Atoms that should be considered link atoms
 
             integer(ip) :: i
             logical(lp) :: rc
@@ -146,7 +149,7 @@ module mod_qm_helper
                 deallocate(qm%qm_top%conn)
                 allocate(qm%qm_top%conn(1))
 
-                call guess_connectivity(qm%qm_top)
+                call guess_connectivity(qm%qm_top, linkatoms)
             end if
         end subroutine
 
