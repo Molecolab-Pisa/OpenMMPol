@@ -50,14 +50,14 @@ void read_qm(char *fin, int32_t *nqm, double ***coord, int32_t **atype,
                                         &((*atype)[i]));
         (*z)[i] = symbol2z(element);
         (*q)[i] = (double)(*z)[i];
-        printf("%d\n", (*z)[i]);
     }
+    fclose(fp);
 }
 
 int main(int argc, char **argv){
     if(argc != 5){
         printf("Syntax expected\n");
-        printf("    $ test_geomgrad_xyz.exe <XYZ-MM FILE> <XYZ-QM FILE> <PRM FILE> <OUTPUT FILE>\n");
+        printf("    $ test_geomgrad_xyz.exe <XYZ-MM FILE> <XYZ-QM FILE> <PRM FILE> <LA-FILE> <OUTPUT FILE>\n");
         return 0;
     }
     
@@ -67,14 +67,20 @@ int main(int argc, char **argv){
     double **cqm, *qqm;
     int32_t *zqm, *qmatype, nqm;
     read_qm(argv[2], &nqm, &cqm, &qmatype, &zqm, &qqm);
-    for(int i=0; i <nqm; i++)
-        printf("%d [%d %3.1f] %12.6f %12.6f %12.6f\n", i, zqm[i], qqm[i], cqm[i][0], cqm[i][1], cqm[i][2]);
-    OMMP_QM_HELPER_PRT my_qmh = ommp_init_qm_helper(nqm, &(cqm[0]), qqm, zqm);
+    OMMP_QM_HELPER_PRT my_qmh = ommp_init_qm_helper(nqm, &(cqm[0][0]), qqm, zqm);
 
     ommp_qm_helper_set_attype(my_qmh, qmatype);
-    ommp_qm_helper_init_vdw_prm(my_qmh, "/home/mattia/LibEnv/pyscf-openmmpol/examples/qmmm/amoeba09.prm");
+    ommp_qm_helper_init_vdw_prm(my_qmh, argv[3]);
 
-    pol_atoms = ommp_get_pol_atoms(my_system);
+    
+    FILE *fp = fopen(argv[4], "r");
+    int32_t imm, ila, iqm;
+    fscanf(fp, "%d %d %d", &imm, &iqm, &ila);
+    fclose(fp);
+
+    ommp_create_link_atom(my_qmh, my_system, imm, iqm, ila, argv[3], OMMP_DEFAULT_LA_DIST, OMMP_DEFAULT_LA_N_EEL_REMOVE);  
+
+    /*pol_atoms = ommp_get_pol_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
@@ -93,7 +99,8 @@ int main(int argc, char **argv){
     fprintf(fp, "%20.12e\n", E_MMPOL);
     
     fclose(fp);
-    free(electric_field);
+    free(electric_field);*/
+    ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
     
     return 0;

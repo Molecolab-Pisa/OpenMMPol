@@ -282,9 +282,9 @@ module mod_topology
             if(i > top%mm_atoms .or. j > top%mm_atoms) then
                 call fatal_error("Requested creation of bond outside topology")
             end if
-            
-            if(any(top%conn(1)%ci(top%conn(1)%ri(i):top%conn(1)%ri(i+1)) == j) .or. &
-               any(top%conn(1)%ci(top%conn(1)%ri(j):top%conn(1)%ri(j+1)) == i)) then
+           
+            if(any(top%conn(1)%ci(top%conn(1)%ri(i):top%conn(1)%ri(i+1)-1) == j) .or. &
+               any(top%conn(1)%ci(top%conn(1)%ri(j):top%conn(1)%ri(j+1)-1) == i)) then
                call fatal_error("Requested bond to create is already present in topology")
             end if
 

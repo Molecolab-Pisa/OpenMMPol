@@ -596,9 +596,10 @@ module mod_link_atom
                 nterms = 0
                 do i=1, tmp_bnd%ntorsion
                     nqm = 0
-                    if(any(la%qm2full == tmp_bnd%angleat(1,i))) nqm = nqm+1
-                    if(any(la%qm2full == tmp_bnd%angleat(2,i))) nqm = nqm+1
-                    if(any(la%qm2full == tmp_bnd%angleat(3,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%torsionat(1,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%torsionat(2,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%torsionat(3,i))) nqm = nqm+1
+                    if(any(la%qm2full == tmp_bnd%torsionat(4,i))) nqm = nqm+1
 
                     if(nqm == 1 .or. nqm == 2) then
                         nterms = nterms + 1
