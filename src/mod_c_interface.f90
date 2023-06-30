@@ -867,6 +867,22 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             C_ommp_get_zmm = c_loc(s%top%atz)
         end function C_ommp_get_zmm
+        
+        function C_ommp_get_attypemm(s_prt) bind(c, name='ommp_get_attypemm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_attypemm
+
+            call c_f_pointer(s_prt, s)
+            if(s%top%attype_initialized) then
+                C_ommp_get_attypemm = c_loc(s%top%attype)
+            else
+                C_ommp_get_attypemm = c_null_ptr
+            end if
+        end function C_ommp_get_attypemm
+
 
         function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
             !! Return the c-pointer to the array containing the coordinates of

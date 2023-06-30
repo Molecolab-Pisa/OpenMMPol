@@ -258,6 +258,10 @@ module mod_prm
         ! We assume that all pair of bonded atoms have a bonded 
         ! parameter
         call bond_init(bds, (top%conn(1)%ri(top%mm_atoms+1)-1) / 2)
+        !! If there are no bonds in the system just return, there
+        !! is nothing to do.
+        if(.not. bds%use_bond) return
+
         bds%kbond = 0
         bds%l0bond = 0
 

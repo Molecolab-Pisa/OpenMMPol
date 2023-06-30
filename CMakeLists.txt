@@ -128,7 +128,8 @@ set(TEST_PROGRAMS
     test_geomgrad_num
     test_geomgrad_xyz
     test_geomgrad_xyz_num
-    test_link_atoms)
+    test_la_potential_xyz
+    test_la_geomgrad_xyz)
 
 set(UTILITY_PROGRAMS 
     ommp_xyz2mmp)
