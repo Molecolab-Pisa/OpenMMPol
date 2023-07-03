@@ -758,7 +758,7 @@ module mod_nonbonded
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
+        !$omp private(i,j,ci,cj,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
         do i=1, top1%mm_atoms
             if(abs(vdw1%vdw_f(i) - 1.0_rp) < eps_rp) then
                 ci = top1%cmm(:,i)
@@ -816,7 +816,7 @@ module mod_nonbonded
         type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
         !! Nonbonded data structure
         real(rp), intent(inout) :: grad1(3,vdw1%top%mm_atoms), &
-                                   grad2(3,vdw1%top%mm_atoms)
+                                   grad2(3,vdw2%top%mm_atoms)
         !! Potential, result will be added
 
         integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j
@@ -977,7 +977,7 @@ module mod_nonbonded
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,j,ip,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
+        !$omp private(i,j,ip,ci,cj,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
         do ip=1, n
             i = pairs(1,ip)
             j = pairs(2,ip)
@@ -1043,7 +1043,7 @@ module mod_nonbonded
         real(rp), intent(in) :: s(:)
         !! scaling factors for each interaction
         real(rp), intent(inout) :: grad1(3,vdw1%top%mm_atoms), &
-                                   grad2(3,vdw1%top%mm_atoms)
+                                   grad2(3,vdw2%top%mm_atoms)
         !! Potential, result will be added
 
         integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j, ip

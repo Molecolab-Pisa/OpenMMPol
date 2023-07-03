@@ -9,7 +9,7 @@ double full_qmmm_energy(OMMP_SYSTEM_PRT qm_sys, OMMP_QM_HELPER_PRT qmh, OMMP_SYS
 
     ene += ommp_get_full_energy(mm_sys);
     ene += ommp_get_full_energy(qm_sys);
-    //ene += ommp_qm_helper_vdw_energy(qmh, mm_sys);
+    ene += ommp_qm_helper_vdw_energy(qmh, mm_sys);
 
     return ene;
 }
@@ -46,16 +46,10 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT qm_sys, OMMP_QM_HELPER_PRT qmh, OMMP_SYS
         for(int j=0; j < 3; j++){
             new_c_mm[i*3+j] += dd;
             update_qmmm_coordinates(qm_sys, qmh, mm_sys, new_c_mm, new_c_qm);
-            
-            printf("E1 = %+20.10g\n", full_qmmm_energy(qm_sys, qmh, mm_sys));
-
             tmp = full_qmmm_energy(qm_sys, qmh, mm_sys);
 
             new_c_mm[i*3+j] -= 2*dd;
             update_qmmm_coordinates(qm_sys, qmh, mm_sys, new_c_mm, new_c_qm);
-            
-            printf("E2 = %+20.10g\n", full_qmmm_energy(qm_sys, qmh, mm_sys));
-            
             tmp -= full_qmmm_energy(qm_sys, qmh, mm_sys);
             gmm[i*3+j] = tmp / (2*dd);
             
@@ -70,21 +64,15 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT qm_sys, OMMP_QM_HELPER_PRT qmh, OMMP_SYS
         for(int j=0; j < 3; j++){
             new_c_qm[i*3+j] += dd;
             update_qmmm_coordinates(qm_sys, qmh, mm_sys, new_c_mm, new_c_qm);
-            printf("[[%d]] %+20.10g %+20.10g %+20.10g\n", i, prov[ila*3],
-                    prov[ila*3+1], prov[ila*3+2]);
             tmp = full_qmmm_energy(qm_sys, qmh, mm_sys);
 
             new_c_qm[i*3+j] -= 2*dd;
             update_qmmm_coordinates(qm_sys, qmh, mm_sys, new_c_mm, new_c_qm);
-            printf("[[%d]] %+20.10g %+20.10g %+20.10g\n", i, prov[ila*3],
-                    prov[ila*3+1], prov[ila*3+2]);
             tmp -= full_qmmm_energy(qm_sys, qmh, mm_sys);
             gqm[i*3+j] = tmp / (2*dd);
             
             new_c_qm[i*3+j] += dd;
             update_qmmm_coordinates(qm_sys, qmh, mm_sys, new_c_mm, new_c_qm);
-            printf("[[%d]] %+20.10g %+20.10g %+20.10g\n", i, prov[ila*3],
-                    prov[ila*3+1], prov[ila*3+2]);
         }
     }
 }
@@ -158,12 +146,12 @@ int main(int argc, char **argv){
     double *tmpmm = malloc(sizeof(double) * 3 * nmm);
     double *tmpqm = malloc(sizeof(double) * 3 * nqm);
 
-    //ommp_qm_helper_vdw_geomgrad(my_qmh, my_system, tmpqm, tmpmm);
-    //for(int i = 1; i < 3 * nmm; i++)
-    //    gradmm[i] += tmpmm[i];
-    //for(int i = 1; i < 3 * nqm; i++)
-    //    gradqm[i] += tmpqm[i];
-    //
+    ommp_qm_helper_vdw_geomgrad(my_qmh, my_system, tmpqm, tmpmm);
+    for(int i = 0; i < 3 * nmm; i++)
+        gradmm[i] += tmpmm[i];
+    for(int i = 0; i < 3 * nqm; i++)
+        gradqm[i] += tmpqm[i];
+    
     ommp_qm_helper_link_atom_geomgrad(my_qmh, my_system, tmpqm, tmpmm, gradqm);
     for(int i = 0; i < 3 * nmm; i++)
         gradmm[i] += tmpmm[i];
@@ -175,11 +163,11 @@ int main(int argc, char **argv){
     double *gradmm_num = malloc(sizeof(double) * 3 * nmm);
     numerical_geomgrad(qm_sys, my_qmh, my_system, gradqm_num, gradmm_num);
 
-    double delta;
+    double Mdelta = 0.0, delta, del = 1e-7;
 
     fp = fopen(argv[5], "w+");
 
-    fprintf(fp, "== MM GRAD == \n");
+    fprintf(fp, "DELTA ANA - NUM (MM) \n");
     for(int i = 0; i < nmm; i++){
         fprintf(fp, "[%5d] (A) ", i+1);
         for(int j=0; j < 3; j++){
@@ -194,12 +182,13 @@ int main(int argc, char **argv){
         fprintf(fp, "        (D) ");
         for(int j=0; j < 3; j++){
             delta = gradmm_num[i*3+j] - gradmm[i*3+j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
             fprintf(fp, "%+12.8g ", delta);
         }
         fprintf(fp, "\n\n");
     }
     
-    fprintf(fp, "== QM GRAD == \n");
+    fprintf(fp, "DELTA ANA - NUM (QM) \n");
     for(int i = 0; i < nqm; i++){
         fprintf(fp, "[%5d] (A) ", i+1);
         for(int j=0; j < 3; j++){
@@ -214,6 +203,7 @@ int main(int argc, char **argv){
         fprintf(fp, "        (D) ");
         for(int j=0; j < 3; j++){
             delta = gradqm_num[i*3+j] - gradqm[i*3+j];
+            if(fabs(delta) > Mdelta) Mdelta = fabs(delta);
             fprintf(fp, "%+12.8g ", delta);
         }
         fprintf(fp, "\n\n");
@@ -233,5 +223,9 @@ int main(int argc, char **argv){
     ommp_terminate(qm_sys);
     ommp_terminate(my_system);
     
-    return 0;
+    if(Mdelta > del){
+        fprintf(fp, "WARNING delta (%.3g) > max_delta (%.3g)\n", Mdelta, del);
+        return 1;
+    }else
+        return 0;
 }
