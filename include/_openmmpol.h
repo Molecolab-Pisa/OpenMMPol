@@ -151,9 +151,9 @@ extern void ommp_qm_helper_init_vdw(OMMP_QM_HELPER_PRT, const double *, const do
                                     const double *, const char *, const char *, 
                                     const char *, const char *, const char *);
 extern double ommp_qm_helper_vdw_energy(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);  
-extern double ommp_qm_helper_vdw_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
+extern void ommp_qm_helper_vdw_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
                                           double *, double *);
-extern double ommp_qm_helper_link_atom_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
+extern void  ommp_qm_helper_link_atom_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
                                                double *, double *, const double *);
 extern bool ommp_qm_helper_use_nonbonded(OMMP_QM_HELPER_PRT);
 
@@ -162,7 +162,7 @@ extern int32_t ommp_create_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT,
                                      int32_t, int32_t, int32_t, const char *, 
                                      double, int32_t);
 extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
-extern void ommp_update_link_atoms_position(OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);
+extern void ommp_update_link_atoms_position(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 #ifdef __cplusplus
 }
 #endif

@@ -478,7 +478,7 @@ module mod_link_atom
 
         end subroutine
 
-        subroutine init_bonded_for_link_atom(la, iqm, imm, prmfile)
+        subroutine init_bonded_for_link_atom(la, prmfile)
             !! Insert in the bonded parameter required for the link atom between iqm and imm
             use mod_prm, only: assign_bond, assign_angle, assign_torsion
             use mod_bonded, only: bonded_terminate, bond_init, angle_init, torsion_init
@@ -492,12 +492,11 @@ module mod_link_atom
             implicit none
 
             type(ommp_link_atom_type), intent(inout), target :: la
-            integer(ip), intent(in) :: iqm, imm
             character(len=*), intent(in) :: prmfile
             
             type(ommp_bonded_type) :: tmp_bnd
             integer(ip), parameter :: maxt = 1024
-            integer(ip) :: i, nqm, nterms, iterms(maxt)
+            integer(ip) :: i, j, nqm, nterms, iterms(maxt)
             character(len=OMMP_STR_CHAR_MAX) :: message
 
             call check_conn_matrix(la%qmmmtop, 4)
@@ -600,6 +599,10 @@ module mod_link_atom
                     if(any(la%qm2full == tmp_bnd%torsionat(2,i))) nqm = nqm+1
                     if(any(la%qm2full == tmp_bnd%torsionat(3,i))) nqm = nqm+1
                     if(any(la%qm2full == tmp_bnd%torsionat(4,i))) nqm = nqm+1
+                    !! Link atoms should never appear in bonded interactions!
+                    do j=1, 4
+                        if(any(la%qm2full(la%links(_LA_,1:la%nla)) == tmp_bnd%torsionat(j,i))) nqm = -1
+                    end do
 
                     if(nqm == 1 .or. nqm == 2) then
                         nterms = nterms + 1

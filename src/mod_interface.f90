@@ -574,7 +574,8 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
-            ene = ommp_get_vdw_energy(sys_obj)
+            ene = 0.0
+            ene = ene + ommp_get_vdw_energy(sys_obj)
             ene = ene + ommp_get_full_ele_energy(sys_obj)
             ene = ene + ommp_get_full_bnd_energy(sys_obj)
         end function
@@ -1124,7 +1125,7 @@ module ommp_interface
         end if
 
         if(s%use_bonded) then
-            call init_bonded_for_link_atom(s%la, iqm, imm, prmfile)
+            call init_bonded_for_link_atom(s%la, prmfile)
         end if
 
         ! Return link atom index
@@ -1145,7 +1146,7 @@ module ommp_interface
         end if
     end subroutine
 
-    subroutine ommp_update_link_atoms_position(s, qm)
+    subroutine ommp_update_link_atoms_position(qm, s)
         use mod_link_atom, only : link_atom_position, link_atom_update_merged_topology
         use mod_qm_helper, only: qm_helper_update_coord
         use mod_io, only: ommp_message

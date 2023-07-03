@@ -1246,7 +1246,7 @@ module mod_ommp_C_interface
 
             call ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
         end subroutine
-
+        
         subroutine C_ommp_qm_helper_link_atom_geomgrad(qm_prt, s_prt, qmg_prt, mmg_prt, old_qmg_ptr) &
                 bind(c, name='ommp_qm_helper_link_atom_geomgrad')
             implicit none
@@ -1633,6 +1633,6 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call c_f_pointer(qm_prt, qm)
             
-            call ommp_update_link_atoms_position(s, qm)
+            call ommp_update_link_atoms_position(qm, s)
         end subroutine
 end module mod_ommp_C_interface

@@ -261,7 +261,7 @@ module mod_qm_helper
                 end if
             end if
         end subroutine
-
+        
         subroutine qm_helper_link_atom_geomgrad(qm, mm, qmg, mmg, original_qmg)
             !! Computes the missing gradients for QM/MM linkatoms
             !! that is bonded terms on QM atoms, LA forces projection on QM and MM
