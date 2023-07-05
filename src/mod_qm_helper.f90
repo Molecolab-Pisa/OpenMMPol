@@ -48,6 +48,13 @@ module mod_qm_helper
         !! Flag for [[V_p2n]]
         real(rp), allocatable :: V_p2n(:)
         !! Electrostatic potential of MMPol atoms (polarizable) at QM nuclei
+        logical :: V_pp2n_done = .false.
+        !! Flag for [[V_pp2n]]
+        logical :: V_pp2n_req = .false.
+        !! Flag to enable the computation of V_pp2n, this is only needed in some
+        !! wired cases like when using qm_helper as driver for DFTB
+        real(rp), allocatable :: V_pp2n(:)
+        !! Electrostatic potential of MMPol atoms (polarizable, AMOEBA P dipoles) at QM nuclei
         logical :: E_p2n_done = .false.
         !! Flag for [[E_p2n]]
         real(rp), allocatable :: E_p2n(:,:)
@@ -282,6 +289,17 @@ module mod_qm_helper
                 qm%V_p2n = 0.0
                 call potential_D2E(system%eel, qm%qm_top%cmm, qm%V_p2n)
                 qm%V_p2n_done = .true.
+            endif
+            
+            if(.not. qm%V_pp2n_done .and. system%eel%ipd_done .and. qm%V_pp2n_req) then
+                if(.not. allocated(qm%V_pp2n)) then
+                    call mallocate('electrostatic_for_ene [V_pp2n]', &
+                                   qm%qm_top%mm_atoms, qm%V_pp2n)
+                end if
+
+                qm%V_pp2n = 0.0
+                call potential_D2E(system%eel, qm%qm_top%cmm, qm%V_pp2n, .true.)
+                qm%V_pp2n_done = .true.
             endif
 
         end subroutine
