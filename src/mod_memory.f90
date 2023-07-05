@@ -227,10 +227,10 @@ module mod_memory
 
         if(istat /= 0) then
             write(iof_memory, 9000) string, istat
-            stop
+            stop 1
         else if(do_chk_limit .and. usedmem+lall > maxmem) then
             write(iof_memory, 9010) string, lall, maxmem-usedmem
-            stop
+            stop 1
         else
             usedmem = usedmem + lall
         end if
@@ -361,7 +361,7 @@ module mod_memory
 
         if(istat /= 0)then
             write(iof_memory, 9000) string, istat
-            stop
+            stop 1
         else
             usedmem = usedmem - lfree
         end if

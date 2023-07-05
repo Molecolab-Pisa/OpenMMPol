@@ -42,10 +42,7 @@ cmake-config-intel:
     script:
         - mkdir build_intel
         - cd build_intel
-        - CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
-          CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc 
-          FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort 
-          cmake -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/intel/hdf5-1.12.2 ..
+        - cmake -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/intel/hdf5-1.12.2 ..
     artifacts:
         paths:
             - build_intel
@@ -59,14 +56,11 @@ cmake-config-nvidia:
     before_script:
         - export NVARCH=`uname -s`_`uname -m`
         - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+        - export PATH=$NVCOMPILERS/$NVARCH/2023/compilers/bin:$PATH
     script:
         - mkdir build_nvidia
         - cd build_nvidia
-        - CC=`which nvc` 
-          CXX=`which nvcc`
-          FC=`which nvfortran`
-          cmake -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/nvidia/hdf5-1.12.2 ..
+        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/nvidia/hdf5-1.12.2 ..
     artifacts:
         paths:
             - build_nvidia
@@ -235,7 +229,7 @@ run_short_test:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - ctest -R 'NMA|1crn|2d94' -E memcheck
+        - ctest -R 'NMA|1crn|2d94' -E memcheck --output-on-failure
     only:
         - pushes
 
@@ -244,7 +238,7 @@ run_tests:
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - cd build
-        - make test
+        - ctest --output-on-failure
     only:
         - schedules
 
@@ -255,7 +249,7 @@ run_tests-intel:
         - source /opt/intel/oneapi/setvars.sh
     script:
         - cd build_intel
-        - make test
+        - ctest --output-on-failure
     only:
         - schedules
 
@@ -266,7 +260,7 @@ run_tests-nvidia:
         - export FORTRANOPT=no_minus_zero
     script:
         - cd build_nvidia
-        - ctest -E memcheck
+        - ctest -E memcheck --output-on-failure
     only:
         - schedules
 
