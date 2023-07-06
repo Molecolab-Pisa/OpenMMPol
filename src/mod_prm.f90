@@ -404,7 +404,6 @@ module mod_prm
             end if
             
             if(.not. done) then
-                write(*, *) cla, clb, bds%bondat(1,i), bds%bondat(2,i)
                 call fatal_error("Bond parameter not found!")
             end if
         end do
@@ -2345,7 +2344,6 @@ module mod_prm
                         kang(iang) = kang(iang-1)
                         angtype(iang) = OMMP_ANG_H2
                         if(.not. isreal(line(tokb:toke))) then
-                            write(*,*) line(tokb:toke)
                             write(errstring, *) "Wrong ANGLE card "
                             call fatal_error(errstring)
                         end if
@@ -2520,9 +2518,7 @@ module mod_prm
                                                   &non-trigonal center, this is only &
                                                   &acceptable if link-atoms should be &
                                                   &defined later.", OMMP_VERBOSE_LOW)
-                                !call fatal_error("Angle IN-PLANE defined for a&
-                                !                 & non-trigonal center")
-                                iang = iang - 1
+                                bds%kangle(iang) = 0.0
                             else
                                 do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
                                     bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1

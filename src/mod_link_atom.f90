@@ -248,11 +248,14 @@ module mod_link_atom
                 if(eel%amoeba) then
                     removed_charge = removed_charge + eel%q0(1,imm)
                     eel%q0(:,imm) = 0.0
-                    eel%pol(imm) = 0.00001
+                    if(eel%mm_polar(imm) > 0) &
+                        eel%pol(eel%mm_polar(imm)) = 0.0
                 else
                     removed_charge = removed_charge + eel%q(1,imm)
                     eel%q(:,imm) = 0.0
-                    eel%pol(imm) = 0.00001
+
+                    if(eel%mm_polar(imm) > 0) &
+                        eel%pol(eel%mm_polar(imm)) = 0.0
                 end if
                 
                 do i=1, n_eel_remove-1
@@ -261,11 +264,13 @@ module mod_link_atom
                         if(eel%amoeba) then
                             removed_charge = removed_charge + eel%q0(1,idx)
                             eel%q0(:,idx) = 0.0
-                            eel%pol(idx) = 0.0
+                            if(eel%mm_polar(idx) > 0) &
+                                eel%pol(eel%mm_polar(idx)) = 0.0
                         else
                             removed_charge = removed_charge + eel%q(1,idx)
                             eel%q(:,idx) = 0.0
-                            eel%pol(idx) = 0.0
+                            if(eel%mm_polar(idx) > 0) &
+                                eel%pol(eel%mm_polar(idx)) = 0.0
                         end if
                         write(msg, '("Removed charge, multipoles and polarizabilities on atom ", I0)') idx
                         call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
@@ -481,7 +486,9 @@ module mod_link_atom
         subroutine init_bonded_for_link_atom(la, prmfile)
             !! Insert in the bonded parameter required for the link atom between iqm and imm
             use mod_prm, only: assign_bond, assign_angle, assign_torsion
-            use mod_bonded, only: bonded_terminate, bond_init, angle_init, torsion_init
+            use mod_bonded, only: bonded_terminate, &
+                                  bond_init, angle_init, torsion_init, &
+                                  bond_terminate, angle_terminate, torsion_terminate
             use mod_bonded, only: OMMP_ANG_SIMPLE, OMMP_ANG_H0, OMMP_ANG_H1, &
                                   OMMP_ANG_H2, OMMP_ANG_INPLANE, &
                                   OMMP_ANG_INPLANE_H0, OMMP_ANG_INPLANE_H1
@@ -520,8 +527,15 @@ module mod_link_atom
                         iterms(nterms) = i
                     end if
                 end do
+                
+                if(la%bds%use_bond) then
+                    ! Bond terms are already initializad by a previous
+                    ! link atom
+                    call bond_terminate(la%bds) 
+                end if
 
                 call bond_init(la%bds, nterms)
+
                 do i=1, nterms
                     la%bds%bondat(:,i) = tmp_bnd%bondat(:,iterms(i))
                     la%bds%kbond(i) = tmp_bnd%kbond(iterms(i))
@@ -572,8 +586,12 @@ module mod_link_atom
                         end if
                     end if
                 end do
-
+                
+                if(la%bds%use_angle) then
+                    call angle_terminate(la%bds)
+                end if
                 call angle_init(la%bds, nterms)
+
                 do i=1, nterms
                     la%bds%angleat(:,i) = tmp_bnd%angleat(:,iterms(i))
                     la%bds%anglety(i) = tmp_bnd%anglety(iterms(i))
@@ -614,7 +632,11 @@ module mod_link_atom
                     end if
                 end do
 
+                if(la%bds%use_torsion) then
+                    call torsion_terminate(la%bds)
+                end if
                 call torsion_init(la%bds, nterms)
+                
                 do i=1, nterms
                     la%bds%torsionat(:,i) = tmp_bnd%torsionat(:,iterms(i))
                     la%bds%torsn(:,i) = tmp_bnd%torsn(:,iterms(i))

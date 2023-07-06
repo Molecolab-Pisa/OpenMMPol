@@ -4,6 +4,24 @@
 
 #include "openmmpol.h"
 
+int countLines(char *fin){
+    FILE *fp = fopen(fin, "r");
+    
+    char c;
+    int lines = 1;
+
+    if(fp == NULL) return 0;
+
+    do{
+        c = fgetc(fp);
+        if(c == '\n') lines++;
+    }while(c != EOF);
+
+    fclose(fp);
+  
+    return lines - 1;
+}
+
 double full_qmmm_energy(OMMP_SYSTEM_PRT qm_sys, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT mm_sys){
     double ene = 0.0;
 
@@ -57,9 +75,7 @@ void numerical_geomgrad(OMMP_SYSTEM_PRT qm_sys, OMMP_QM_HELPER_PRT qmh, OMMP_SYS
             update_qmmm_coordinates(qm_sys, qmh, mm_sys, new_c_mm, new_c_qm);
         }
     }
-    double *prov = ommp_qm_helper_get_cqm(qmh);
-    //double *prov = ommp_get_cmm(qm_sys);
-    int ila = 4;
+ 
     for(int i=0; i < nqm; i++){
         for(int j=0; j < 3; j++){
             new_c_qm[i*3+j] += dd;
@@ -113,15 +129,18 @@ int main(int argc, char **argv){
     ommp_qm_helper_set_attype(my_qmh, qmatype);
     ommp_qm_helper_init_vdw_prm(my_qmh, argv[3]);
     
+    int nla = countLines(argv[4]);
     FILE *fp = fopen(argv[4], "r");
     int32_t imm, ila, iqm;
-    fscanf(fp, "%d %d %d", &imm, &iqm, &ila);
+    for(int i = 0; i < nla; i++){
+        fscanf(fp, "%d %d %d", &imm, &iqm, &ila);
+
+        ommp_create_link_atom(my_qmh, my_system, imm, iqm, ila, 
+                            argv[3], OMMP_DEFAULT_LA_DIST, 
+                            OMMP_DEFAULT_LA_N_EEL_REMOVE);
+    }
+
     fclose(fp);
-
-    ommp_create_link_atom(my_qmh, my_system, imm, iqm, ila, 
-                          argv[3], OMMP_DEFAULT_LA_DIST, 
-                          OMMP_DEFAULT_LA_N_EEL_REMOVE);
-
     ommp_update_coordinates(qm_sys, ommp_qm_helper_get_cqm(my_qmh));
 
     pol_atoms = ommp_get_pol_atoms(my_system);
