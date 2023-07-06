@@ -44,7 +44,7 @@ module mod_topology
 
     public :: ommp_topology_type
     public :: topology_init, topology_terminate, guess_connectivity
-    public :: set_frozen
+    public :: set_frozen, check_conn_matrix, merge_top, create_new_bond
 
     contains
 
@@ -64,6 +64,7 @@ module mod_topology
             ! size when all the connectivity matricies are built, now
             ! it should only contain adjacency matrix.
             allocate(top_obj%conn(1))
+            top_obj%conn(1)%n = mm_atoms
             
             call mallocate('topology_init [atz]', top_obj%mm_atoms, top_obj%atz)
             top_obj%atz = 0
@@ -83,7 +84,7 @@ module mod_topology
             top_obj%frozen = .false.
         end subroutine
 
-        subroutine guess_connectivity(top)
+        subroutine guess_connectivity(top, exclude_list)
             !! This subroutine guess the connectivity of the system from the 
             !! coordinates and the atomic number of its atoms. It is based
             !! on distances and atomic radii, so it can easily fail on 
@@ -91,14 +92,20 @@ module mod_topology
             !!  the bonds of the molecule are not availble in any 
             !! other way; it is often used to assign connectivity to a QM part
             !! that does not have any.
-            use mod_constants, only: angstrom2au
-            use mod_io, only: fatal_error
+            use mod_constants, only: angstrom2au, &
+                                     OMMP_VERBOSE_DEBUG, OMMP_STR_CHAR_MAX
+            use mod_io, only: fatal_error, ommp_message
             use mod_memory, only: mallocate, mfree
             use mod_adjacency_mat, only: adj_mat_from_conn
             
             implicit none
 
             type(ommp_topology_type), intent(inout) :: top
+            !! Topology for which connectivity should be guessed.
+            integer(ip), optional, intent(in) :: exclude_list(:)
+            !! List of atoms that should not be connected when guessing the 
+            !! topology, this is used for LA that could have an ambiguous or
+            !! not defined position.
 
             real(rp) :: atomic_radii(118) = 0.0
             !! Covalent atomic radii; 0.0 is used for every unknown element
@@ -122,6 +129,7 @@ module mod_topology
             !! Number of connected atoms already assigned to the i-th atom. 
             integer(ip) :: i, j
             real(rp) :: l, l0
+            character(len=OMMP_STR_CHAR_MAX) :: msg
             !! Actual and expected bond length
             
             atomic_radii(1)  = 0.23 * angstrom2au !! H
@@ -158,7 +166,13 @@ module mod_topology
             n12 = 1
             
             do i=1, top%mm_atoms
+                if(present(exclude_list)) then
+                    if(any(exclude_list == i)) cycle
+                end if
                 do j=i+1, top%mm_atoms
+                    if(present(exclude_list)) then
+                        if(any(exclude_list == j)) cycle
+                    end if
                     l = norm2(top%cmm(:,i) - top%cmm(:,j))
                     l0 = atomic_radii(top%atz(i)) + atomic_radii(top%atz(j))
                     if(l < l0 + tolerance) then
@@ -167,6 +181,10 @@ module mod_topology
                         i12(n12(j),j) = i
                         n12(i) = n12(i) + 1
                         n12(j) = n12(j) + 1
+                        write(msg, '(A, I0, A, I0)') &
+                            "Bond found between atoms ", j, &
+                            " and ", i
+                        call ommp_message(msg, OMMP_VERBOSE_DEBUG)
                     end if
                 end do
             end do
@@ -202,6 +220,35 @@ module mod_topology
                 top_obj%frozen(frozen_atoms(i)) = .true.
             end do
         end subroutine
+
+        subroutine check_conn_matrix(top_obj, n)
+            !! Check if adjacency matrix up to nth order is present in
+            !! topology object. If it is not present, update the topology
+            !! accordingly.
+            use mod_adjacency_mat, only: matfree, matcpy, build_conn_upto_n
+            use mod_io, only: fatal_error
+
+            implicit none
+            type(ommp_topology_type), intent(inout) :: top_obj
+            integer(ip), intent(in) :: n
+
+            type(yale_sparse) :: adj
+            integer(ip) :: i
+            
+            if(.not. allocated(top_obj%conn) .or. size(top_obj%conn) < 1) then
+                call fatal_error("The topology does not contain a connectivity.")
+            end if 
+
+            if(size(top_obj%conn) < n) then
+                call matcpy(top_obj%conn(1), adj)
+                do i=1, size(top_obj%conn)
+                    call matfree(top_obj%conn(i))
+                end do
+
+                call build_conn_upto_n(adj, n, top_obj%conn, .false.)
+
+            end if
+        end subroutine
         
         subroutine topology_terminate(top_obj)
             use mod_memory, only: mfree
@@ -227,6 +274,110 @@ module mod_topology
                 deallocate(top_obj%conn)
             endif
 
+        end subroutine
+
+        subroutine create_new_bond(top, i, j)
+            !! Create a new bond between atoms i and j in the 
+            !! topology.
+            use mod_adjacency_mat, only: reallocate_mat
+            use mod_io, only: fatal_error
+            
+            implicit none
+            
+            type(ommp_topology_type), intent(inout) :: top
+            integer(ip), intent(in) :: i, j
+
+            integer(ip) :: l, h, n
+            ! Sanity check i and j should be in the topology
+            ! and not bonded
+            if(i > top%mm_atoms .or. j > top%mm_atoms) then
+                call fatal_error("Requested creation of bond outside topology")
+            end if
+           
+            if(any(top%conn(1)%ci(top%conn(1)%ri(i):top%conn(1)%ri(i+1)-1) == j) .or. &
+               any(top%conn(1)%ci(top%conn(1)%ri(j):top%conn(1)%ri(j+1)-1) == i)) then
+               call fatal_error("Requested bond to create is already present in topology")
+            end if
+
+            l = min(i,j)
+            h = max(i,j)
+            n = size(top%conn(1)%ci) + 2
+            call reallocate_mat(top%conn(1), n)
+            top%conn(1)%ci(top%conn(1)%ri(l+1)+1:n-1) = &
+                top%conn(1)%ci(top%conn(1)%ri(l+1):n-2)
+            top%conn(1)%ci(top%conn(1)%ri(l+1)) = h
+            top%conn(1)%ri(l+1:) = top%conn(1)%ri(l+1:) + 1
+            
+            top%conn(1)%ci(top%conn(1)%ri(h+1)+1:n) = &
+                top%conn(1)%ci(top%conn(1)%ri(h+1):n-1)
+            top%conn(1)%ci(top%conn(1)%ri(h+1)) = l
+            top%conn(1)%ri(h+1:) = top%conn(1)%ri(h+1:) + 1
+
+        end subroutine
+
+        subroutine merge_top(top1, top2, top3, map13, map23)
+            !! Merge topologies top1 and top2 to create top3
+            !! no link between the two topologies are created.
+            !! map13 and map23 are arrays mapping the atoms of
+            !! top1 to top3 and the ones of top2 to top3 
+            !! respectively
+
+            implicit none
+
+            type(ommp_topology_type), intent(in) :: top1, top2
+            type(ommp_topology_type), intent(out) :: top3
+            integer(ip), allocatable, intent(out) :: map13(:), map23(:)
+
+            integer(ip) :: n, i
+
+            ! Create the new topology
+            n = top1%mm_atoms + top2%mm_atoms
+            call topology_init(top3, n)
+            
+            ! Merge coordinates
+            top3%cmm(:,1:top1%mm_atoms) = top1%cmm
+            top3%cmm(:,top1%mm_atoms+1:n) = top2%cmm
+
+            ! Merge connectivities
+            ! TODO check that they are present !
+            allocate(top3%conn(1)%ri(n+1))
+            allocate(top3%conn(1)%ci(size(top1%conn(1)%ci) + size(top2%conn(1)%ci)))
+            allocate(map13(top1%mm_atoms))
+            allocate(map23(top2%mm_atoms))
+
+            top3%conn(1)%ri(1) = top1%conn(1)%ri(1)
+            do i=1, top1%mm_atoms
+                map13(i) = i
+                top3%conn(1)%ri(i+1) = top1%conn(1)%ri(i+1)
+                top3%conn(1)%ci(top3%conn(1)%ri(i):top3%conn(1)%ri(i+1)-1) = &
+                    top1%conn(1)%ci(top1%conn(1)%ri(i):top1%conn(1)%ri(i+1)-1)
+            end do
+            
+            do i=1, top2%mm_atoms
+                map23(i) = top1%mm_atoms+i
+                top3%conn(1)%ri(top1%mm_atoms+i+1) = &
+                    top2%conn(1)%ri(i+1) + top1%conn(1)%ri(top1%mm_atoms+1)-1
+                top3%conn(1)%ci(top3%conn(1)%ri(top1%mm_atoms+i):top3%conn(1)%ri(top1%mm_atoms+i+1)-1) = &
+                    top2%conn(1)%ci(top2%conn(1)%ri(i):top2%conn(1)%ri(i+1)-1) + top1%mm_atoms
+            end do
+
+            ! Merge other properties
+            top3%use_frozen = top1%use_frozen .or. top2%use_frozen
+            if(top3%use_frozen) top3%frozen = .false.
+            if(top1%use_frozen) top3%frozen(1:top1%mm_atoms) = top1%frozen
+            if(top2%use_frozen) top3%frozen(top1%mm_atoms+1:n) = top2%frozen
+            
+            top3%atz_initialized = top1%atz_initialized .and. top2%atz_initialized
+            if(top1%atz_initialized) top3%atz(1:top1%mm_atoms) = top1%atz
+            if(top2%atz_initialized) top3%atz(top1%mm_atoms+1:n) = top2%atz
+            
+            top3%attype_initialized = top1%attype_initialized .and. top2%attype_initialized
+            if(top1%attype_initialized) top3%attype(1:top1%mm_atoms) = top1%attype
+            if(top2%attype_initialized) top3%attype(top1%mm_atoms+1:n) = top2%attype
+
+            top3%atclass_initialized = top1%atclass_initialized .and. top2%atclass_initialized
+            if(top1%atclass_initialized) top3%atclass(1:top1%mm_atoms) = top1%atclass
+            if(top2%atclass_initialized) top3%atclass(top1%mm_atoms+1:n) = top2%atclass
         end subroutine
 
 end module mod_topology

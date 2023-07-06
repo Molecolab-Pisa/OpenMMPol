@@ -186,10 +186,9 @@ module mod_polarization
         
         ! Initialization of dipoles
         ipd0 = 0.0_rp
-        
         if(solver /= OMMP_SOLVER_INVERSION) then
             ! Create a guess for dipoles
-            if(eel%ipd_done) then
+            if(eel%ipd_use_guess) then
                 if(amoeba) then
                     if(ipd_mask(_amoeba_D_)) then
                         ipd0(:,_amoeba_D_) = &
@@ -233,6 +232,12 @@ module mod_polarization
                                                        e_vec(:,_amoeba_D_), &
                                                        ipd0(:,_amoeba_D_), &
                                                        eel, matvec, precond)
+                    ! If both sets have to be computed and there is no input
+                    ! guess, just use D as guess for P, not a big gain but still
+                    ! something
+                    if(ipd_mask(_amoeba_D_) .and. ipd_mask(_amoeba_P_) &
+                       .and. .not. eel%ipd_use_guess) &
+                        ipd0(:,_amoeba_P_) = ipd0(:,_amoeba_D_)
                     if(ipd_mask(_amoeba_P_)) &
                         call conjugate_gradient_solver(n, &
                                                        e_vec(:,_amoeba_P_), &
@@ -258,6 +263,12 @@ module mod_polarization
                                                 e_vec(:,_amoeba_D_), &
                                                 ipd0(:,_amoeba_D_), &
                                                 eel, matvec, inv_diag)
+                    ! If both sets have to be computed and there is no input
+                    ! guess, just use D as guess for P, not a big gain but still
+                    ! something
+                    if(ipd_mask(_amoeba_D_) .and. ipd_mask(_amoeba_P_) &
+                       .and. .not. eel%ipd_use_guess) &
+                        ipd0(:,_amoeba_P_) = ipd0(:,_amoeba_D_)
                     if(ipd_mask(_amoeba_P_)) &
                         call jacobi_diis_solver(n, &
                                                 e_vec(:,_amoeba_P_), &
@@ -290,6 +301,7 @@ module mod_polarization
         ! Reshape dipole vector into the matrix 
         eel%ipd = reshape(ipd0, (/3_ip, eel%pol_atoms, eel%n_ipd/)) 
         eel%ipd_done = .true. !! TODO Maybe check convergence...
+        eel%ipd_use_guess = .true.
         
         call mfree('polarization [ipd0]', ipd0)
         call mfree('polarization [e_vec]', e_vec)

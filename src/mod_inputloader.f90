@@ -16,8 +16,8 @@ module mod_inputloader
         !! and initialize all the quantities need to describe the environment
         !! within this library.
 
-        use mod_mmpol, only: mmpol_prepare, mmpol_init, &
-                             set_screening_parameters
+        use mod_mmpol, only: mmpol_prepare, mmpol_init
+        use mod_electrostatics, only: set_screening_parameters
         
         use mod_memory, only: ip, rp, mfree, mallocate, memory_init
         use mod_io, only: iof_mmpinp
@@ -299,7 +299,7 @@ module mod_inputloader
         !! within this library.
         use mod_mmpol, only: mmpol_prepare, mmpol_init, mmpol_init_nonbonded, &
                              mmpol_init_bonded
-        use mod_topology, only: ommp_topology_type
+        use mod_topology, only: ommp_topology_type, check_conn_matrix
         use mod_electrostatics, only: ommp_electrostatics_type
         
         use mod_memory, only: ip, mfree, mallocate, memory_init
@@ -454,6 +454,7 @@ module mod_inputloader
         
         call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_bonded(sys_obj)
+        call check_conn_matrix(sys_obj%top, 4)
         call assign_bond(sys_obj%bds, prm_file)
         call assign_angle(sys_obj%bds, prm_file)
         call assign_urey(sys_obj%bds, prm_file)

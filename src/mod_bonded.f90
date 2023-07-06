@@ -43,9 +43,9 @@ module mod_bonded
         real(rp) :: bond_cubic, bond_quartic
         !! 3rd and 4th order terms coefficients, corresponding to 
         !! \(k^{(2)}\) and \(k^{(3)}\) 
-        real(rp), allocatable :: kbond(:)    
+        real(rp), allocatable :: kbond(:)
         !! Force constants for bond terms
-        real(rp), allocatable :: l0bond(:)   
+        real(rp), allocatable :: l0bond(:)
         !! Equilibrium lengths for bonds
         logical :: use_bond = .false.
         !! Flag to enable the calculation of bond terms in potential 
@@ -370,7 +370,7 @@ module mod_bonded
         !! other three atoms, and the angle is the one defined by the projection
         !! (which is the vertex, and the other two atoms -- the auxiliary is
         !! excluded). Then the same formula used for simple angle terms is used.
-
+        use mod_constants, only: eps_rp
         implicit none
 
         type(ommp_bonded_type), intent(in) :: bds
@@ -385,6 +385,7 @@ module mod_bonded
         if(.not. bds%use_angle) return
         
         do i=1, bds%nangle
+            if(abs(bds%kangle(i)) < eps_rp) cycle
             if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
                bds%anglety(i) == OMMP_ANG_H0 .or. &
                bds%anglety(i) == OMMP_ANG_H1 .or. &
@@ -441,6 +442,7 @@ module mod_bonded
     subroutine angle_geomgrad(bds, grad)
         use mod_jacobian_mat, only: simple_angle_jacobian, &
                                     inplane_angle_jacobian
+        use mod_constants, only: eps_rp
 
         implicit none
 
@@ -457,6 +459,7 @@ module mod_bonded
         if(.not. bds%use_angle) return
         
         do i=1, bds%nangle
+            if(abs(bds%kangle(i)) < eps_rp) cycle
             if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
                bds%anglety(i) == OMMP_ANG_H0 .or. &
                bds%anglety(i) == OMMP_ANG_H1 .or. &

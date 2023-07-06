@@ -75,8 +75,10 @@ module mod_nonbonded
     end interface
    
     public :: ommp_nonbonded_type
-    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_potential, vdw_geomgrad
+    public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_remove_potential
+    public :: vdw_potential, vdw_geomgrad
     public :: vdw_potential_inter, vdw_geomgrad_inter
+    public :: vdw_potential_inter_restricted, vdw_geomgrad_inter_restricted
 
     contains
 
@@ -194,6 +196,19 @@ module mod_nonbonded
         call mfree('vdw_terminate [vdw_pair_r]', vdw%vdw_pair_r)
         call mfree('vdw_terminate [vdw_pair_e]', vdw%vdw_pair_e)
 
+    end subroutine
+
+    subroutine vdw_remove_potential(vdw, i)
+        !! Remove the VdW interaction from the specified atom
+        !! the atom will not interact anymore with any other atom
+        implicit none
+
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        integer(ip), intent(in) :: i
+
+        vdw%vdw_e(i) = 0.0
+        
+        ! TODO do it also for pair interactions
     end subroutine
 
     subroutine vdw_set_pair(vdw, ia, ib, r, e)
@@ -743,7 +758,7 @@ module mod_nonbonded
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,ci,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
+        !$omp private(i,j,ci,cj,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
         do i=1, top1%mm_atoms
             if(abs(vdw1%vdw_f(i) - 1.0_rp) < eps_rp) then
                 ci = top1%cmm(:,i)
@@ -753,7 +768,7 @@ module mod_nonbonded
                 ! the atom to its neighbour
                 if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
                     call fatal_error("Scale factors are only expected for &
-                                     &monovalent atoms")
+                                     &monovalent atoms (top1)")
                 end if
                 ineigh = top1%conn(1)%ci(top1%conn(1)%ri(i))
 
@@ -773,7 +788,7 @@ module mod_nonbonded
                     ! the atom to its neighbour
                     if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
                         call fatal_error("Scale factors are only expected &
-                                         & for monovalent atoms")
+                                         & for monovalent atoms (top2) atom")
                     end if
                     ineigh = top2%conn(1)%ci(top2%conn(1)%ri(j))
 
@@ -801,7 +816,7 @@ module mod_nonbonded
         type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
         !! Nonbonded data structure
         real(rp), intent(inout) :: grad1(3,vdw1%top%mm_atoms), &
-                                   grad2(3,vdw1%top%mm_atoms)
+                                   grad2(3,vdw2%top%mm_atoms)
         !! Potential, result will be added
 
         integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j
@@ -916,5 +931,229 @@ module mod_nonbonded
             end do
         end do
     end subroutine
+    
+    subroutine vdw_potential_inter_restricted(vdw1, vdw2, pairs, s, n, V)
+        !! Compute the dispersion repulsion energy between two systems vdw1
+        !! and vdw2 accounting only for the pairs pairs(1,i)--pairs(2,i) and scaling 
+        !! each interaction by s(i).
 
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: n
+        !! number of pairs for which the interaction should be computed
+        integer(ip), intent(in) :: pairs(2,n)
+        !! pairs of atoms for which the interaction should be computed
+        real(rp), intent(in) :: s(:)
+        !! scaling factors for each interaction
+        real(rp), intent(inout) :: V
+        !! Potential, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh, ip
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), vtmp
+        type(ommp_topology_type), pointer :: top1, top2
+        procedure(vdw_term), pointer :: vdw_func
+
+        top1 => vdw1%top
+        top2 => vdw2%top
+
+        if(vdw1%vdwtype /= vdw2%vdwtype .or. &
+           vdw1%radrule /= vdw2%radrule .or. &
+           vdw1%epsrule /= vdw2%epsrule) then
+            call fatal_error("Requested VdW potential between two incompatible &
+                             &VdW groups.")
+       end if
+
+        select case(vdw1%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_func => vdw_lennard_jones
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_func => vdw_buffered_7_14
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,ip,ci,cj,ineigh,Rij,Rij0,Eij,vtmp) reduction(+:v) 
+        do ip=1, n
+            i = pairs(1,ip)
+            j = pairs(2,ip)
+
+            if(abs(vdw1%vdw_f(i) - 1.0_rp) < eps_rp) then
+                ci = top1%cmm(:,i)
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh = top1%conn(1)%ci(top1%conn(1)%ri(i))
+
+                ci = top1%cmm(:,ineigh) + (top1%cmm(:,i) - top1%cmm(:,ineigh)) &
+                     * vdw1%vdw_f(i)
+            endif
+                
+            Rij0 = get_Rij0_inter(vdw1, vdw2, i, j)
+            eij = get_eij_inter(vdw1, vdw2, i, j)
+        
+            if(abs(vdw2%vdw_f(j) - 1.0_rp) < eps_rp) then
+                cj = top2%cmm(:,j)
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
+                    call fatal_error("Scale factors are only expected &
+                                        & for monovalent atoms")
+                end if
+                ineigh = top2%conn(1)%ci(top2%conn(1)%ri(j))
+
+                cj = top2%cmm(:,ineigh) + &
+                        (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
+            endif
+            Rij = norm2(ci-cj)
+            
+            vtmp = 0.0_rp
+            call vdw_func(Rij, Rij0, Eij, vtmp)
+            v = v + vtmp * s(ip)
+        end do
+    end subroutine vdw_potential_inter_restricted
+    
+    subroutine vdw_geomgrad_inter_restricted(vdw1, vdw2, pairs, s, n, &
+                                             grad1, grad2)
+        !! Compute the dispersion repulsion energy for the whole system
+        !! using a double loop algorithm
+
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        use mod_jacobian_mat, only: Rij_jacobian
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw1, vdw2
+        !! Nonbonded data structure
+        integer(ip), intent(in) :: n
+        !! number of pairs for which the interaction should be computed
+        integer(ip), intent(in) :: pairs(2,n)
+        !! pairs of atoms for which the interaction should be computed
+        real(rp), intent(in) :: s(:)
+        !! scaling factors for each interaction
+        real(rp), intent(inout) :: grad1(3,vdw1%top%mm_atoms), &
+                                   grad2(3,vdw2%top%mm_atoms)
+        !! Potential, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j, ip
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), vtmp, Rijg, f_i, f_j, &
+                    J_i(3), J_j(3)
+        logical :: skip
+        type(ommp_topology_type), pointer :: top1, top2
+        procedure(vdw_gterm), pointer :: vdw_grad
+
+        top1 => vdw1%top
+        top2 => vdw2%top
+        
+        if(vdw1%vdwtype /= vdw2%vdwtype .or. &
+           vdw1%radrule /= vdw2%radrule .or. &
+           vdw1%epsrule /= vdw2%epsrule) then
+            call fatal_error("Requested VdW potential between two incompatible &
+                             &VdW groups.")
+       end if
+
+        select case(vdw1%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_grad => vdw_lennard_jones_Rijgrad
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_grad => vdw_buffered_7_14_Rijgrad
+            case default
+                call fatal_error("Unexpected error in vdw_potential")
+        end select
+        
+        do ip=1, n
+            i = pairs(1,ip)
+            j = pairs(2,ip)
+
+            if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
+                ci = top1%cmm(:,i)
+                ineigh_i = 0
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top1%conn(1)%ri(i+1) - top1%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh_i = top1%conn(1)%ci(top1%conn(1)%ri(i))
+                f_i = vdw1%vdw_f(i)
+                ci = top1%cmm(:,ineigh_i) + (top1%cmm(:,i) - top1%cmm(:,ineigh_i)) &
+                     * f_i
+            endif
+                
+            if(abs(vdw2%vdw_f(j) - 1.0) < eps_rp) then
+                cj = top2%cmm(:,j)
+                ineigh_j = 0
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top2%conn(1)%ri(j+1) - top2%conn(1)%ri(j) /= 1) then
+                    call fatal_error("Scale factors are only expected &
+                                        & for monovalent atoms")
+                end if
+                ineigh_j = top2%conn(1)%ci(top2%conn(1)%ri(j))
+                f_j = vdw2%vdw_f(j)
+
+                cj = top2%cmm(:,ineigh_j) + &
+                        (top2%cmm(:,j) - top2%cmm(:,ineigh_j)) * f_j
+            endif
+                
+            skip = top1%use_frozen .and. top2%use_frozen
+            if(skip .and. top1%use_frozen) then
+                skip = skip .and. top1%frozen(i)
+                if(ineigh_i > 0) skip = skip .and. top1%frozen(ineigh_i)
+            end if
+            if(skip .and. top2%use_frozen) then
+                skip = skip .and. top2%frozen(j)
+                if(ineigh_j > 0) skip = skip .and. top2%frozen(ineigh_j)
+            end if
+            if(skip) cycle
+                
+            Rij0 = get_Rij0_inter(vdw1, vdw2, i, j)
+            eij = get_eij_inter(vdw1, vdw2, i, j) * s(ip)
+            
+            call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+            call vdw_grad(Rij, Rij0, Eij, Rijg)
+
+            if(ineigh_i == 0) then
+                if(.not. (top1%use_frozen .and. top1%frozen(i))) &
+                    grad1(:,i) =  grad1(:,i) + J_i * Rijg
+            else
+                ! If the center is displaced, the forces should be 
+                ! projected onto the two atoms that determine the
+                ! position of the center
+                if(.not. (top1%use_frozen .and. top1%frozen(i))) &
+                    grad1(:,i) = grad1(:,i) + J_i * Rijg * f_i
+                if(.not. (top1%use_frozen .and. top1%frozen(ineigh_i))) &
+                    grad1(:,ineigh_i) = grad1(:,ineigh_i) + J_i * Rijg * (1-f_i)
+            end if
+
+            if(ineigh_j == 0) then
+                if(.not. (top2%use_frozen .and. top2%frozen(j))) &
+                    grad2(:,j) =  grad2(:,j) + J_j * Rijg
+            else
+                ! If the center is displaced, the forces should be 
+                ! projected onto the two atoms that determine the
+                ! position of the center
+                if(.not. (top2%use_frozen .and. top2%frozen(j))) &
+                    grad2(:,j) = grad2(:,j) + J_j * Rijg * f_j
+                if(.not. (top2%use_frozen .and. top2%frozen(ineigh_j))) &
+                    grad2(:,ineigh_j) = grad2(:,ineigh_j) + J_j * Rijg * (1-f_j)
+            endif
+        end do
+    end subroutine
+    
 end module mod_nonbonded

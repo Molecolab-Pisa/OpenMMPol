@@ -11,6 +11,7 @@ module mod_mmpol
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_nonbonded, only: ommp_nonbonded_type
     use mod_bonded, only: ommp_bonded_type
+    use mod_link_atom, only: ommp_link_atom_type
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -37,6 +38,10 @@ module mod_mmpol
         type(ommp_nonbonded_type), allocatable :: vdw
         !! Data structure containing all the information needed to run the
         !! non-bonded terms calculations
+        logical :: use_linkatoms = .false.
+        type(ommp_link_atom_type), allocatable :: la
+        !! Data structure containing all the information needed to handle 
+        !! link atoms with a certain QM part described by a QM Helper object
     end type ommp_system
     
     contains
@@ -114,6 +119,20 @@ module mod_mmpol
 
     end subroutine mmpol_init_bonded
 
+    subroutine mmpol_init_link_atom(sys_obj)
+        !! Enable link atom
+        implicit none
+
+        type(ommp_system), intent(inout), target :: sys_obj
+        !! The object to be initialized
+        
+        if(sys_obj%use_linkatoms .and. allocated(sys_obj%la)) return
+        if(allocated(sys_obj%la)) deallocate(sys_obj%la)
+
+        allocate(sys_obj%la)
+        sys_obj%use_linkatoms = .true.
+    end subroutine
+        
     subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 
         !! are used during the calculation. The upstream code have
@@ -327,36 +346,6 @@ module mod_mmpol
 
     end subroutine build_pg_adjacency_matrix
     
-    ! TODO move to eel
-    subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
-        !! Subroutine to initialize the screening parameters
-       
-        implicit none
-
-        type(ommp_electrostatics_type), intent(inout) :: eel_obj
-        real(rp), intent(in) :: m(4), p(4), d(4), u(4)
-        real(rp), optional, intent(in) :: i(4)
-        
-        eel_obj%mscale = m
-        eel_obj%pscale = p
-        eel_obj%dscale = d
-        eel_obj%uscale = u
-        
-        if(present(i)) then
-            if(eel_obj%amoeba) then
-                eel_obj%pscale_intra = i
-            else
-                call fatal_error("Scale factors for atoms of the same group &
-                                 &cannot be set outside AMOEBA FF")
-            end if
-        else
-            if(eel_obj%amoeba) &
-                call fatal_error("Scale factors for atoms of the same group &
-                                 &should be defined in AMOEBA FF")
-        end if
-        
-    end subroutine set_screening_parameters
-
     subroutine update_coordinates(sys_obj, new_c) 
         !! Interface to change the coordinates of the system (eg. during a 
         !! MD or a geometry optimization). This function clears all the 
@@ -366,6 +355,7 @@ module mod_mmpol
         !! this interface.
        
         use mod_memory, only: mfree
+        use mod_link_atom, only: link_atom_update_merged_topology
         implicit none
 
         type(ommp_system), intent(inout), target :: sys_obj
@@ -394,10 +384,14 @@ module mod_mmpol
         eel%M2D_done = .false.
         eel%M2Dgg_done = .false.
         eel%ipd_done = .false.
+        eel%ipd_use_guess = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
         if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
+        ! 2.3 Update coordinates inside link atom object
+        if(sys_obj%use_linkatoms) call link_atom_update_merged_topology(sys_obj%la)
     end subroutine
+        
     
     subroutine mmpol_ommp_print_summary(sys_obj, of_name)
         !! Prints a complete summary of all the quantities stored 

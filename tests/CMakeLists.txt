@@ -1809,3 +1809,26 @@ add_test(NAME 2d94_geomgrad_full_AMOEBA_comp_etot
          Testing/output 
          ETOT
          ${RTOL} ${ATOL})
+
+# Test for Link Atoms
+add_test(NAME alacapLA_geomgradn_full_AMOEBA
+         COMMAND bin/${TESTLANG}_test_la_geomgrad_xyz 
+         ${CMAKE_SOURCE_DIR}/tests/alanine_cap/input_LA_MM_AMOEBA.xyz 
+         ${CMAKE_SOURCE_DIR}/alanine/alanine_cap/input_LA_QM_AMOEBA.xyz 
+         amoebabio18.prm 
+         ${CMAKE_SOURCE_DIR}/tests/alanine_cap/LA_file
+         Testing/output)
+add_test(NAME tyrcapLA_geomgradn_full_AMOEBA
+         COMMAND bin/${TESTLANG}_test_la_geomgrad_xyz 
+         ${CMAKE_SOURCE_DIR}/tests/tyrosine_cap/input_LA_MM_AMOEBA.xyz 
+         ${CMAKE_SOURCE_DIR}/alanine/tyrosine_cap/input_LA_QM_AMOEBA.xyz 
+         amoebabio18.prm 
+         ${CMAKE_SOURCE_DIR}/tests/tyrosine_cap/LA_file
+         Testing/output)
+add_test(NAME tyrcap2LA_geomgradn_full_AMOEBA
+         COMMAND bin/${TESTLANG}_test_la_geomgrad_xyz 
+         ${CMAKE_SOURCE_DIR}/tests/tyrosine_cap2/input_LA_MM_AMOEBA.xyz 
+         ${CMAKE_SOURCE_DIR}/alanine/tyrosine_cap2/input_LA_QM_AMOEBA.xyz 
+         amoebabio18.prm 
+         ${CMAKE_SOURCE_DIR}/tests/tyrosine2_cap/LA_file
+         Testing/output)

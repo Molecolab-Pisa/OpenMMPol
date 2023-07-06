@@ -961,8 +961,9 @@ module mod_iohdf5
         use mod_adjacency_mat, only: build_conn_upto_n, yale_sparse
         use mod_io, only: ommp_message
         use mod_memory, only: mfree
-        use mod_mmpol, only: mmpol_init, set_screening_parameters, &
+        use mod_mmpol, only: mmpol_init, &
                              mmpol_prepare, mmpol_init_nonbonded, mmpol_init_bonded
+        use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: OMMP_VERBOSE_LOW
         use mod_bonded, only: bond_init, angle_init, urey_init, strbnd_init, &
                               opb_init, pitors_init, torsion_init, tortor_init, &

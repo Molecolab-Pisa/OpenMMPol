@@ -30,6 +30,9 @@
 
 #define OMMP_VERSION_STRING "${OMMP_VERSION}"
 
+#define OMMP_DEFAULT_LA_DIST 1.1*ANG2AU
+#define OMMP_DEFAULT_LA_N_EEL_REMOVE 2
+
 typedef void* OMMP_SYSTEM_PRT;
 typedef void* OMMP_QM_HELPER_PRT;
 
@@ -41,6 +44,7 @@ extern OMMP_SYSTEM_PRT ommp_init_mmp(const char *);
 extern OMMP_SYSTEM_PRT ommp_init_xyz(const char *, const char *);
 extern void ommp_save_mmp(OMMP_SYSTEM_PRT, const char *, int32_t);
 extern void ommp_set_frozen_atoms(OMMP_SYSTEM_PRT, int32_t, const int32_t *);
+extern void ommp_turn_pol_off(OMMP_SYSTEM_PRT, int32_t, const int32_t *);
 extern void ommp_terminate(OMMP_SYSTEM_PRT);
 #ifdef USE_HDF5
 extern void ommp_save_as_hdf5(OMMP_SYSTEM_PRT, const char *, const char *);
@@ -88,6 +92,7 @@ extern int32_t ommp_get_pol_atoms(OMMP_SYSTEM_PRT);
 
 extern double *ommp_get_cmm(OMMP_SYSTEM_PRT);
 extern int32_t *ommp_get_zmm(OMMP_SYSTEM_PRT);
+extern int32_t *ommp_get_attypemm(OMMP_SYSTEM_PRT);
 extern double *ommp_get_cpol(OMMP_SYSTEM_PRT);
 extern double *ommp_get_q(OMMP_SYSTEM_PRT);
 extern double *ommp_get_ipd(OMMP_SYSTEM_PRT);
@@ -95,6 +100,8 @@ extern int32_t *ommp_get_polar_mm(OMMP_SYSTEM_PRT);
 
 extern bool ommp_use_frozen(OMMP_SYSTEM_PRT);
 extern bool *ommp_get_frozen(OMMP_SYSTEM_PRT);
+
+extern bool ommp_use_linkatoms(OMMP_SYSTEM_PRT);
 
 extern void ommp_update_coordinates(OMMP_SYSTEM_PRT, const double *);
 
@@ -138,14 +145,24 @@ extern int32_t ommp_qm_helper_get_nmm(OMMP_QM_HELPER_PRT);
 extern int32_t ommp_qm_helper_get_qm_atoms(OMMP_QM_HELPER_PRT);
 extern bool *ommp_qm_helper_get_frozen(OMMP_QM_HELPER_PRT);
 extern bool ommp_qm_helper_use_frozen(OMMP_QM_HELPER_PRT);
-extern void ommp_qm_helper_init_vdw_prm(OMMP_QM_HELPER_PRT, const int32_t *, const char *);
+extern void ommp_qm_helper_init_vdw_prm(OMMP_QM_HELPER_PRT, const char *);
+extern void ommp_qm_helper_set_attype(OMMP_QM_HELPER_PRT, const int32_t *);
 extern void ommp_qm_helper_init_vdw(OMMP_QM_HELPER_PRT, const double *, const double *,
                                     const double *, const char *, const char *, 
                                     const char *, const char *, const char *);
 extern double ommp_qm_helper_vdw_energy(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);  
-extern double ommp_qm_helper_vdw_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
+extern void ommp_qm_helper_vdw_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
                                           double *, double *);
+extern void  ommp_qm_helper_link_atom_geomgrad(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, 
+                                               double *, double *, const double *);
 extern bool ommp_qm_helper_use_nonbonded(OMMP_QM_HELPER_PRT);
+
+extern void ommp_qm_helper_init_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
+extern int32_t ommp_create_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT,
+                                     int32_t, int32_t, int32_t, const char *, 
+                                     double, int32_t);
+extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
+extern void ommp_update_link_atoms_position(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 #ifdef __cplusplus
 }
 #endif

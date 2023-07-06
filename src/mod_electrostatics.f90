@@ -158,6 +158,9 @@ module mod_electrostatics
         
         logical :: ipd_done = .false.
         !! Flag to set when IPD have been computed.
+        logical :: ipd_use_guess = .false.
+        !! Flag to set when current value of IPD can be
+        !! used as guess for next solution of LS.
         real(rp), allocatable :: ipd(:,:,:)
         !! induced point dipoles (3:pol_atoms:ipd) 
     
@@ -182,7 +185,7 @@ module mod_electrostatics
 
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
-    public :: thole_init, remove_null_pol
+    public :: thole_init, remove_null_pol, set_screening_parameters
     public :: screening_rules, make_screening_lists
     public :: damped_coulomb_kernel, field_extD2D
     public :: energy_MM_MM, energy_MM_pol
@@ -311,6 +314,35 @@ module mod_electrostatics
         end if
 
     end subroutine electrostatics_terminate
+    
+    subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
+        !! Subroutine to initialize the screening parameters
+       
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+        real(rp), intent(in) :: m(4), p(4), d(4), u(4)
+        real(rp), optional, intent(in) :: i(4)
+        
+        eel_obj%mscale = m
+        eel_obj%pscale = p
+        eel_obj%dscale = d
+        eel_obj%uscale = u
+        
+        if(present(i)) then
+            if(eel_obj%amoeba) then
+                eel_obj%pscale_intra = i
+            else
+                call fatal_error("Scale factors for atoms of the same group &
+                                 &cannot be set outside AMOEBA FF")
+            end if
+        else
+            if(eel_obj%amoeba) &
+                call fatal_error("Scale factors for atoms of the same group &
+                                 &should be defined in AMOEBA FF")
+        end if
+        
+    end subroutine set_screening_parameters
 
     subroutine remove_null_pol(eel)
         !! Check which polarizabilities are close enough to 0 to be 
@@ -341,13 +373,6 @@ module mod_electrostatics
                                           " polarizabilities out of ", eel%pol_atoms
                 call ommp_message(msg, OMMP_VERBOSE_LOW)
                 call mallocate('remove_null_pol [tmp]', eel%pol_atoms, tmp)
-                ! Thole factors
-                tmp = eel%thole
-                call mfree('remove_null_pol [eel%thole]', eel%thole)
-                call mallocate('remove_null_pol [eel%thole]', nidx, eel%thole)
-                do i=1, nidx
-                    eel%thole(i) = tmp(idx(i))
-                end do
                 ! Polarizabilities
                 tmp = eel%pol
                 call mfree('remove_null_pol [eel%pol]', eel%pol)
@@ -377,6 +402,7 @@ module mod_electrostatics
                 call mallocate('electrostatics_init [idp]', 3_ip, eel%pol_atoms, &
                                eel%n_ipd, eel%ipd) 
                 eel%ipd_done = .false.
+                eel%ipd_use_guess = .false.
                 eel%ipd = 0.0_rp
                 
                 call ommp_message("Removing null polarizable sites done", OMMP_VERBOSE_LOW)
@@ -1994,6 +2020,8 @@ module mod_electrostatics
         logical :: amoeba_P_insted_of_D
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
 
+        if(eel%pol_atoms < 1) return
+
         if(present(amoeba_P_insted_of_D_)) then
             amoeba_P_insted_of_D = amoeba_P_insted_of_D_
         else
@@ -2138,6 +2166,8 @@ module mod_electrostatics
 
         integer(ip) :: i, j, n_cpt
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+
+        if(eel%pol_atoms < 1) return
 
         if(.not. eel%ipd_done) call fatal_error("IPD should be computed before&
                                                 & computing D2E field.")

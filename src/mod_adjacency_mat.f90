@@ -123,19 +123,25 @@ module mod_adjacency_mat
             
             integer(ip), allocatable :: tmp(:)
 
-            allocate(tmp(nnz))
-            if(size(m%ci) > nnz) then
-                ! We are shrinking the matrix
-                tmp = m%ci(1:nnz)
+            if(nnz == 0) then
+                ! The matrix is empty, just allocate empty ci
+                deallocate(m%ci) 
+                allocate(m%ci(0))
             else
-                ! We are enlarging the matrix
-                tmp(1:size(m%ci)) = m%ci
-            end if
+                allocate(tmp(nnz))
+                if(size(m%ci) > nnz) then
+                    ! We are shrinking the matrix
+                    tmp = m%ci(1:nnz)
+                else
+                    ! We are enlarging the matrix
+                    tmp(1:size(m%ci)) = m%ci
+                end if
 
-            deallocate(m%ci)
-            allocate(m%ci(nnz))
-            m%ci = tmp
-            deallocate(tmp)
+                deallocate(m%ci)
+                allocate(m%ci(nnz))
+                m%ci = tmp
+                deallocate(tmp)
+            end if
         end subroutine reallocate_mat
 
         subroutine mat_mult2(sp1, sp2, res)
@@ -325,29 +331,38 @@ module mod_adjacency_mat
 
             if(start_id) then
                 allocate(res(n+1))
+                call sparse_identity(adj%n, res(1))
                 adj_idx = 2
             else
                 allocate(res(n))
                 adj_idx = 1
             end if
-            
             call matcpy(adj, res(adj_idx))
             
             do i=adj_idx+1, adj_idx+n-1
-                call mat_mult(res(i-1), res(adj_idx), res(i))
-                !call matcpy(res(i-1), res(i))
-                call mat_andnot(res(i), res(i-1), tmp)
-                if(i == adj_idx+1) then
-                    call sparse_identity(adj%n, id)
-                    call mat_andnot(tmp, id, res(i))
-                    if(start_id) then
-                        call matcpy(id, res(1))
-                    end if
-                    call matfree(id)
+                if(size(res(i-1)%ci) == 0) then
+                    ! Create a null matrix
+                    res(i)%n = res(i-1)%n
+                    allocate(res(i)%ri(res(i)%n+1))
+                    res(i)%ri = 1
+                    allocate(res(i)%ci(0))
                 else
-                    call mat_andnot(tmp, res(i-2), res(i))
+                    call mat_mult(res(i-1), res(adj_idx), res(i))
+                    !call matcpy(res(i-1), res(i))
+                    call mat_andnot(res(i), res(i-1), tmp)
+                    if(i == adj_idx+1) then
+                        call sparse_identity(adj%n, id)
+                        call mat_andnot(tmp, id, res(i))
+                        if(start_id) then
+                            call matcpy(id, res(1))
+                        end if
+                        call matfree(id)
+                    else
+                        call mat_andnot(tmp, res(i-2), res(i))
+                    end if
                 end if
             end do
             call matfree(tmp)
         end subroutine build_conn_upto_n
+
 end module mod_adjacency_mat

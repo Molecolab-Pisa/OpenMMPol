@@ -7,7 +7,8 @@ module mod_prm
     use mod_topology, only: ommp_topology_type
     use mod_bonded, only: ommp_bonded_type
     use mod_electrostatics, only: ommp_electrostatics_type
-    use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+    use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, &
+                             OMMP_VERBOSE_HIGH
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower, str_uncomment
 
@@ -216,7 +217,7 @@ module mod_prm
 
     end subroutine read_atom_cards
 
-    subroutine assign_bond(bds, prm_file)
+    subroutine assign_bond(bds, prm_file, exclude_list, nexc_in)
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         use mod_bonded, only: bond_init, ommp_bonded_type
@@ -228,10 +229,14 @@ module mod_prm
         !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
+        integer(ip), dimension(:), intent(in), optional :: exclude_list
+        !! List of atoms for which interactions should not be computed
+        integer(ip), intent(in), optional :: nexc_in
+        !! Number of atom in excluded list needed to skip a parameter
 
-        integer(ip), parameter :: iof_prminp = 201
+        integer(ip), parameter :: iof_prminp = 201, nexc_default = 2
         integer(ip) :: ist, i, j, l, jat, tokb, toke, ibnd, nbnd, &
-                       cla, clb
+                       cla, clb, nexc, iexc
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:)
         real(rp), allocatable :: kbnd(:), l0bnd(:)
@@ -239,6 +244,15 @@ module mod_prm
         type(ommp_topology_type), pointer :: top
 
         top => bds%top
+        
+        if(present(exclude_list)) then
+            nexc = nexc_default
+            if(present(nexc_in)) then
+                if(nexc_in > 0 .and. nexc_in < 4) then
+                    nexc = nexc_in
+                end if
+            end if
+        end if
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
@@ -247,6 +261,10 @@ module mod_prm
         ! We assume that all pair of bonded atoms have a bonded 
         ! parameter
         call bond_init(bds, (top%conn(1)%ri(top%mm_atoms+1)-1) / 2)
+        !! If there are no bonds in the system just return, there
+        !! is nothing to do.
+        if(.not. bds%use_bond) return
+
         bds%kbond = 0
         bds%l0bond = 0
 
@@ -375,8 +393,22 @@ module mod_prm
                     exit
                 end if
             end do
+
+            if(present(exclude_list) .and. .not. done) then
+                iexc = 0
+                if(any(exclude_list == bds%bondat(1,i))) iexc = iexc + 1
+                if(any(exclude_list == bds%bondat(2,i))) iexc = iexc + 1
+                if(iexc >= nexc) then
+                    done = .true.
+                    write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                        "Bond ", bds%bondat(1,i), '-', bds%bondat(2,i), &
+                        " not found and ignored because ", iexc, " atoms are &
+                        in excluded list."
+                    call ommp_message(errstring, OMMP_VERBOSE_HIGH)
+                end if
+            end if
+            
             if(.not. done) then
-                write(*, *) cla, clb, bds%bondat(1,i), bds%bondat(2,i)
                 call fatal_error("Bond parameter not found!")
             end if
         end do
@@ -639,13 +671,13 @@ module mod_prm
         end do
 
         maxsb = (top%conn(2)%ri(top%mm_atoms+1)-1) / 2
-        call mallocate('assign_angle [classa]', nstrbnd, classa)
-        call mallocate('assign_angle [classb]', nstrbnd, classb)
-        call mallocate('assign_angle [classc]', nstrbnd, classc)
-        call mallocate('assign_angle [eqang]', nstrbnd, k1)
-        call mallocate('assign_angle [kang]', nstrbnd, k2)
-        call mallocate('assign_angle [sbtmp]', maxsb, sbtmp)
-        call mallocate('assign_angle [sbattmp]', 3, maxsb, sbattmp)
+        call mallocate('assign_strbnd [classa]', nstrbnd, classa)
+        call mallocate('assign_strbnd [classb]', nstrbnd, classb)
+        call mallocate('assign_strbnd [classc]', nstrbnd, classc)
+        call mallocate('assign_strbnd [eqang]', nstrbnd, k1)
+        call mallocate('assign_strbnd [kang]', nstrbnd, k2)
+        call mallocate('assign_strbnd [sbtmp]', maxsb, sbtmp)
+        call mallocate('assign_strbnd [sbattmp]', 3, maxsb, sbattmp)
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -2126,7 +2158,7 @@ module mod_prm
        
     end subroutine assign_angtor
     
-    subroutine assign_angle(bds, prm_file)
+    subroutine assign_angle(bds, prm_file, exclude_list, nexc_in)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: OMMP_ANG_SIMPLE, &
                               OMMP_ANG_H0, &
@@ -2136,7 +2168,6 @@ module mod_prm
                               OMMP_ANG_INPLANE_H0, &
                               OMMP_ANG_INPLANE_H1
         use mod_bonded, only: angle_init
-
         use mod_constants, only: kcalmol2au, rad2deg, deg2rad
         
         implicit none
@@ -2145,10 +2176,15 @@ module mod_prm
         !! Bonded potential data structure
         character(len=*), intent(in) :: prm_file
         !! name of the input PRM file
+        integer(ip), dimension(:), intent(in), optional :: exclude_list
+        !! List of atoms for which interactions should not be computed
+        integer(ip), intent(in), optional :: nexc_in
+        !! Number of atom in excluded list needed to skip a parameter
 
-        integer(ip), parameter :: iof_prminp = 201
+        integer(ip), parameter :: iof_prminp = 201, nexc_default = 3
         integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
-                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv
+                       cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv, &
+                       iexc, nexc
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
         real(rp), allocatable :: kang(:), th0ang(:)
@@ -2156,6 +2192,15 @@ module mod_prm
         type(ommp_topology_type), pointer :: top
 
         top => bds%top
+
+        if(present(exclude_list)) then
+            nexc = nexc_default
+            if(present(nexc_in)) then
+                if(nexc_in > 0 .and. nexc_in < 4) then
+                    nexc = nexc_in
+                end if
+            end if
+        end if
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
@@ -2210,7 +2255,7 @@ module mod_prm
                 tokb = 13
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-CUBIC card"
+                    write(errstring, *) "Wrong ANGLE-CUBIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_cubic
@@ -2220,7 +2265,7 @@ module mod_prm
                 tokb = 15
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-QUARTIC card"
+                    write(errstring, *) "Wrong ANGLE-QUARTIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_quartic
@@ -2230,7 +2275,7 @@ module mod_prm
                 tokb = 13
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-PENTIC card"
+                    write(errstring, *) "Wrong ANGLE-PENTIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_pentic
@@ -2240,7 +2285,7 @@ module mod_prm
                 tokb = 14
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE-SEXTIC card"
+                    write(errstring, *) "Wrong ANGLE-SEXTIC card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) bds%angle_sextic
@@ -2250,7 +2295,7 @@ module mod_prm
                 tokb = 7
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) classa(iang)
@@ -2258,7 +2303,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) classb(iang)
@@ -2266,7 +2311,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isint(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) classc(iang)
@@ -2274,7 +2319,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) kang(iang)
@@ -2282,7 +2327,7 @@ module mod_prm
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
-                    write(errstring, *) "Wrong ANGLE card"
+                    write(errstring, *) "Wrong ANGLE card "
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) th0ang(iang)
@@ -2305,26 +2350,28 @@ module mod_prm
                     classc(iang) = classc(iang-1)
                     kang(iang) = kang(iang-1)
                     if(.not. isreal(line(tokb:toke))) then
-                        write(errstring, *) "Wrong ANGLE card"
+                        write(errstring, *) "Wrong ANGLE card "
                         call fatal_error(errstring)
                     end if
                     read(line(tokb:toke), *) th0ang(iang)
                     angtype(iang) = OMMP_ANG_H1
                     
-                    iang = iang + 1
-                    
-                    classa(iang) = classa(iang-1)
-                    classb(iang) = classb(iang-1)
-                    classc(iang) = classc(iang-1)
-                    kang(iang) = kang(iang-1)
-                    angtype(iang) = OMMP_ANG_H2
                     tokb = toke + 1
                     toke = tokenize(line, tokb)
-                    if(.not. isreal(line(tokb:toke))) then
-                        write(errstring, *) "Wrong ANGLE card"
-                        call fatal_error(errstring)
+                    if(toke > 0) then
+                        iang = iang + 1
+                        
+                        classa(iang) = classa(iang-1)
+                        classb(iang) = classb(iang-1)
+                        classc(iang) = classc(iang-1)
+                        kang(iang) = kang(iang-1)
+                        angtype(iang) = OMMP_ANG_H2
+                        if(.not. isreal(line(tokb:toke))) then
+                            write(errstring, *) "Wrong ANGLE card "
+                            call fatal_error(errstring)
+                        end if
+                        read(line(tokb:toke), *) th0ang(iang)
                     end if
-                    read(line(tokb:toke), *) th0ang(iang)
                     iang = iang + 1
                 end if
             
@@ -2459,6 +2506,21 @@ module mod_prm
                         end if
                     end do
 
+                    if(present(exclude_list) .and. .not. done) then
+                        iexc = 0
+                        if(any(exclude_list == a)) iexc = iexc + 1
+                        if(any(exclude_list == b)) iexc = iexc + 1
+                        if(any(exclude_list == c)) iexc = iexc + 1
+                        if(iexc >= nexc) then
+                            write(errstring, '(A,I0,A,I0,A,I0,A,I0,A)') &
+                                "Angle ", a, '-', b, '-', c, " not found &
+                                and ignored because ", iexc, " atoms are &
+                                in excluded list."
+                            call ommp_message(errstring, OMMP_VERBOSE_HIGH)
+                            done = .true.
+                        end if
+                    end if
+                    
                     if(done) then
                         bds%angleat(1,iang) = a
                         bds%angleat(2,iang) = c
@@ -2475,16 +2537,20 @@ module mod_prm
                             if(bds%top%conn(1)%ri(bds%angleat(2,iang)+1) - &
                                bds%top%conn(1)%ri(bds%angleat(2,iang)) /= 3) &
                             then
-                                call fatal_error("Angle IN-PLANE defined for a&
-                                                 & non-trigonal center")
-                            end if 
-                            do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
-                                bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1
-                                if(bds%top%conn(1)%ci(j) /= bds%angleat(1,iang) .and. &
-                           bds%top%conn(1)%ci(j) /= bds%angleat(3,iang)) then
-                            bds%angauxat(iang) = bds%top%conn(1)%ci(j)
-                                endif
-                            end do
+                                call ommp_message("Angle IN-PLANE defined for a &
+                                                  &non-trigonal center, this is only &
+                                                  &acceptable if link-atoms should be &
+                                                  &defined later.", OMMP_VERBOSE_LOW)
+                                bds%kangle(iang) = 0.0
+                            else
+                                do j=bds%top%conn(1)%ri(bds%angleat(2,iang)), &
+                                    bds%top%conn(1)%ri(bds%angleat(2,iang)+1)-1
+                                    if(bds%top%conn(1)%ci(j) /= bds%angleat(1,iang) .and. &
+                            bds%top%conn(1)%ci(j) /= bds%angleat(3,iang)) then
+                                bds%angauxat(iang) = bds%top%conn(1)%ci(j)
+                                    endif
+                                end do
+                            end if
                         end if
                         
                         iang = iang + 1
@@ -2796,7 +2862,7 @@ module mod_prm
     
     subroutine assign_pol(eel, prm_file)
         use mod_memory, only: mallocate, mfree, ip, rp
-        use mod_mmpol, only: set_screening_parameters
+        use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: angstrom2au
         
         implicit none
@@ -3137,14 +3203,15 @@ module mod_prm
     
     subroutine assign_mpoles(eel, prm_file)
         use mod_memory, only: mallocate, mfree
-        use mod_mmpol, only: set_screening_parameters
+        use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
                                  AMOEBA_ROT_Z_THEN_X, &
                                  AMOEBA_ROT_BISECTOR, &
                                  AMOEBA_ROT_Z_ONLY, &
                                  AMOEBA_ROT_Z_BISECT, &
                                  AMOEBA_ROT_3_FOLD, &
-                                 eps_rp
+                                 eps_rp, &
+                                 OMMP_VERBOSE_DEBUG
         
         implicit none
         
@@ -3164,7 +3231,7 @@ module mod_prm
         ! Default conversion from A.U. to kcal/mol used in electrostatics of
         ! Tinker, only used to handle electric keyword
         integer(ip) :: nmult, nchg, imult, iax(3)
-        logical :: ax_found(3), found13, only12
+        logical :: ax_found(3), found13, only12, done
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
@@ -3433,9 +3500,14 @@ module mod_prm
             eel%ix = 0
             eel%iy = 0
             eel%iz = 0
+            eel%q0 = 0.0
         end if
+        eel%q = 0.0
 
         do i=1, size(top%attype)
+            ! Flag to check assignament
+            done = .false.
+
             ! Multipoles
             only12 = .false. ! Only search for params based on 12 connectivity
             do j=1, max(nmult, nchg)
@@ -3518,6 +3590,18 @@ module mod_prm
                         else
                             eel%q(1,i) = cmult(1,j) 
                         end if
+                        if(.not. done) then
+                            done = .true.
+                        else
+                            write(errstring, "(A, I0)") &
+                                "Reassigning multipoles for atom ", i
+                            call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
+                        end if
+
+                        write(errstring, "(A, I0, A, I0, A, I0, A, I0, A, I0, A)") &
+                            "Atom ", i, " is assigned multipole set ", j, &
+                            " axes [ ", iax(2), "-", iax(3), "-", iax(1), " ]"
+                        call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
 
                         
                         if(.not. found13) then
@@ -3528,6 +3612,14 @@ module mod_prm
                     end if
                 end if
             end do
+            if(.not. done) then
+                write(errstring, "(A, I0)") &
+                    "No multipoles parameter found for atom ", i
+                call ommp_message(errstring, OMMP_VERBOSE_LOW)
+                call ommp_message("Previous error is only acceptable &
+                                  &if link atom is used to fix those &
+                                  &parameter later on", OMMP_VERBOSE_LOW)
+            end if
         end do
 
         if(abs(eel_scale - 1.0) > eps_rp) then

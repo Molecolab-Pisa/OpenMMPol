@@ -172,6 +172,21 @@ module mod_ommp_C_interface
             f = f - 1
         end subroutine
         
+        subroutine C_ommp_turn_pol_off(s_prt, n, nopol) &
+                bind(c, name='ommp_turn_pol_off')
+            implicit none
+            type(c_ptr), value :: s_prt, nopol
+            integer(ommp_integer), value :: n
+            type(ommp_system), pointer :: s
+            integer(ommp_integer), pointer :: f(:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(nopol, f, [n])
+            f = f + 1
+            call ommp_turn_pol_off(s, n, f)
+            f = f - 1
+        end subroutine
+        
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
             !! Terminate a OMMP System Object
             implicit none
@@ -852,6 +867,22 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             C_ommp_get_zmm = c_loc(s%top%atz)
         end function C_ommp_get_zmm
+        
+        function C_ommp_get_attypemm(s_prt) bind(c, name='ommp_get_attypemm')
+            !! Return the c-pointer to the array containing the coordinates of
+            !! MM atoms.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_attypemm
+
+            call c_f_pointer(s_prt, s)
+            if(s%top%attype_initialized) then
+                C_ommp_get_attypemm = c_loc(s%top%attype)
+            else
+                C_ommp_get_attypemm = c_null_ptr
+            end if
+        end function C_ommp_get_attypemm
+
 
         function C_ommp_get_cpol(s_prt) bind(c, name='ommp_get_cpol')
             !! Return the c-pointer to the array containing the coordinates of
@@ -985,6 +1016,19 @@ module mod_ommp_C_interface
             C_ommp_ff_is_amoeba = s%amoeba
         end function C_ommp_ff_is_amoeba
         
+        function C_ommp_use_linkatoms(s_ptr) &
+                result(u) bind(C, name='ommp_use_linkatoms')
+            implicit none
+
+            type(c_ptr), value :: s_ptr
+            !! C pointer to system object
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: u
+
+            call c_f_pointer(s_ptr, s)
+            u = s%use_linkatoms
+        end function
+        
         !??
         subroutine C_ommp_field_mmpol2ext(s_prt, n, cext, E) &
                 bind(c, name='ommp_field_mmpol2ext')
@@ -1106,22 +1150,35 @@ module mod_ommp_C_interface
             call ommp_qm_helper_update_coord(s, fcqm)
         end subroutine
 
-        subroutine C_ommp_qm_helper_init_vdw_prm(pqm, pattype, cprmfile) &
-                 bind(c, name='ommp_qm_helper_init_vdw_prm')
+        subroutine C_ommp_qm_helper_set_attype(pqm, pattype) &
+                 bind(c, name='ommp_qm_helper_set_attype')
             implicit none
 
             type(c_ptr), value, intent(in) :: pqm, pattype
-            character(kind=c_char), intent(in) :: cprmfile(OMMP_STR_CHAR_MAX)
             
             type(ommp_qm_helper), pointer :: qm
-            character(len=OMMP_STR_CHAR_MAX) :: prmfile
             integer(ommp_integer), pointer :: attype(:)
 
             call c_f_pointer(pqm, qm)
             call c_f_pointer(pattype, attype, [qm%qm_top%mm_atoms])
+
+            call ommp_qm_helper_set_attype(qm, attype)
+        end subroutine
+        
+        subroutine C_ommp_qm_helper_init_vdw_prm(pqm, cprmfile) &
+                 bind(c, name='ommp_qm_helper_init_vdw_prm')
+            implicit none
+
+            type(c_ptr), value, intent(in) :: pqm
+            character(kind=c_char), intent(in) :: cprmfile(OMMP_STR_CHAR_MAX)
+            
+            type(ommp_qm_helper), pointer :: qm
+            character(len=OMMP_STR_CHAR_MAX) :: prmfile
+
+            call c_f_pointer(pqm, qm)
             call c2f_string(cprmfile, prmfile)
 
-            call ommp_qm_helper_init_vdw_prm(qm, attype, prmfile)
+            call ommp_qm_helper_init_vdw_prm(qm, prmfile)
         end subroutine
         
         subroutine C_ommp_qm_helper_init_vdw(pqm, peps, prad, pfac, &
@@ -1188,6 +1245,24 @@ module mod_ommp_C_interface
             call c_f_pointer(mmg_prt, mmg, [3,s%top%mm_atoms])
 
             call ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+        end subroutine
+        
+        subroutine C_ommp_qm_helper_link_atom_geomgrad(qm_prt, s_prt, qmg_prt, mmg_prt, old_qmg_ptr) &
+                bind(c, name='ommp_qm_helper_link_atom_geomgrad')
+            implicit none
+
+            type(c_ptr), value :: qm_prt, s_prt, qmg_prt, mmg_prt, old_qmg_ptr
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+            real(ommp_real), pointer :: qmg(:,:), mmg(:,:), old_qmg(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+            call c_f_pointer(qmg_prt, qmg, [3,qm%qm_top%mm_atoms])
+            call c_f_pointer(old_qmg_ptr, old_qmg, [3,qm%qm_top%mm_atoms])
+            call c_f_pointer(mmg_prt, mmg, [3,s%top%mm_atoms])
+
+            call ommp_qm_helper_link_atom_geomgrad(qm, s, qmg, mmg, old_qmg)
         end subroutine
 
         subroutine C_ommp_prepare_qm_ele_ene(s_ptr, qm_ptr) &
@@ -1274,7 +1349,7 @@ module mod_ommp_C_interface
 
             type(ommp_qm_helper), pointer :: qm_help
             type(c_ptr) :: ptr
-            
+           
             call c_f_pointer(qm_ptr, qm_help)
             ptr = c_loc(qm_help%qm_top%cmm)
         end function
@@ -1503,4 +1578,61 @@ module mod_ommp_C_interface
             C_ommp_qm_helper_get_frozen = c_loc(s%qm_top%frozen)
         end function C_ommp_qm_helper_get_frozen
 
+        function C_ommp_create_link_atom(qm_prt, s_prt, imm, iqm, ila, prmfile, &
+                                         ladist, neel_remove) &
+                result(la_idx) &
+                bind(c, name='ommp_create_link_atom')
+            implicit none
+            
+            type(c_ptr), value :: s_prt, qm_prt
+            integer(ommp_integer), value :: iqm, imm, ila, neel_remove
+            real(ommp_real), value :: ladist
+            character(kind=c_char), intent(in) :: prmfile(OMMP_STR_CHAR_MAX)
+            
+
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+
+            integer(ommp_integer) :: la_idx
+            character(len=OMMP_STR_CHAR_MAX) :: prm_file
+            
+            call c2f_string(prmfile, prm_file)
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+
+            la_idx = ommp_create_link_atom(qm, s, imm, iqm, ila, prm_file, &
+                                           ladist, neel_remove)
+        end function
+
+        subroutine C_ommp_get_link_atom_coordinates(s_p, la_idx, crd_p) &
+                bind(c, name="ommp_get_link_atom_coordinates")
+            implicit none
+
+            type(c_ptr), value :: s_p, crd_p
+            integer(ommp_integer), value :: la_idx
+
+            type(ommp_system), pointer :: s
+            real(ommp_real), dimension(:), pointer :: crd
+
+            call c_f_pointer(s_p, s)
+            call c_f_pointer(crd_p, crd, [3])
+
+            call ommp_get_link_atom_coordinates(s, la_idx, crd)
+
+        end subroutine 
+        
+        subroutine C_ommp_update_link_atoms_position(qm_prt, s_prt) &
+                bind(c, name='ommp_update_link_atoms_position')
+            implicit none
+            
+            type(c_ptr), value :: s_prt, qm_prt
+
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qm_prt, qm)
+            
+            call ommp_update_link_atoms_position(qm, s)
+        end subroutine
 end module mod_ommp_C_interface

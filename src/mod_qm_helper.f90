@@ -3,7 +3,7 @@ module mod_qm_helper
 !! but can be initialized and used by a QM program interfaced with openMMPol
 !! to simplify certain steps of the interface using already well tested code.
     
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_mmpol, only: ommp_system
     use mod_topology, only: ommp_topology_type
     use mod_nonbonded, only: ommp_nonbonded_type
@@ -14,6 +14,9 @@ module mod_qm_helper
     type ommp_qm_helper
         type(ommp_topology_type), allocatable :: qm_top
         !! Topology of the QM system
+        logical(lp) :: reconnect = .false.
+        !! Flag to decide if the topology should be rebuily
+        !! at each change of geometry.
         real(rp), allocatable :: qqm(:)
         !! Charges of QM nuclei
         logical :: E_n2p_done = .false.
@@ -60,6 +63,7 @@ module mod_qm_helper
         real(rp), allocatable :: E_p2n(:,:)
         !! Electrostatic potential of MMPol atoms (polarizable) at QM nuclei
         logical :: use_nonbonded = .false.
+        !! Flag for using QM nonbonded terms
         type(ommp_nonbonded_type), allocatable :: qm_vdw
         !! Structure to store VdW parameter for QM atoms
     end type ommp_qm_helper
@@ -68,7 +72,8 @@ module mod_qm_helper
     public :: qm_helper_init, qm_helper_terminate
     public :: qm_helper_init_vdw, qm_helper_init_vdw_prm, &
               qm_helper_vdw_energy, qm_helper_vdw_geomgrad, &
-              qm_helper_update_coord
+              qm_helper_update_coord, qm_helper_set_attype, &
+              qm_helper_link_atom_geomgrad
     public :: electrostatic_for_ene, electrostatic_for_grad
 
     contains
@@ -98,15 +103,42 @@ module mod_qm_helper
             qm%qqm = qqm
 
             call guess_connectivity(qm%qm_top)
-
         end subroutine
         
-        subroutine qm_helper_update_coord(qm, cnew)
+        subroutine qm_helper_set_attype(qm, attype) 
+            implicit none
+
+            type(ommp_qm_helper), intent(inout) :: qm
+            integer(ip), intent(in) :: attype(qm%qm_top%mm_atoms)
+            
+            qm%qm_top%attype = attype
+            qm%qm_top%attype_initialized = .true.
+        end subroutine
+
+        subroutine qm_helper_update_coord(qm, cnew, reconnect_in, linkatoms)
+            use mod_adjacency_mat, only: matfree
+            use mod_topology, only: guess_connectivity
+            use mod_io, only: ommp_message
+            use mod_constants, only: OMMP_VERBOSE_LOW
+
             implicit none
             type(ommp_qm_helper), intent(inout) :: qm
             !! [[ommp_qm_helper]] object to be initialized
             real(rp), intent(in) :: cnew(3,qm%qm_top%mm_atoms)
             !! Coordinates of QM atoms
+            logical(lp), intent(in), optional :: reconnect_in
+            !! Flag to rebuil connectivity
+            integer(ip), intent(in), optional :: linkatoms(:)
+            !! Atoms that should be considered link atoms
+
+            integer(ip) :: i
+            logical(lp) :: rc
+
+            if(present(reconnect_in)) then
+                rc = reconnect_in
+            else
+                rc = qm%reconnect
+            end if
 
             qm%qm_top%cmm = cnew
             qm%E_n2p_done = .false.
@@ -116,7 +148,16 @@ module mod_qm_helper
             qm%H_n2m_done = .false.
             qm%V_m2n_done = .false.
             qm%E_m2n_done = .false.
-            !call guess_connectivity(qm%qm_top) !TODO
+            if(rc) then
+                call ommp_message("Rebuilding connectivity.", OMMP_VERBOSE_LOW, 'linkatom')
+                do i=1, size(qm%qm_top%conn)
+                    call matfree(qm%qm_top%conn(i))
+                end do
+                deallocate(qm%qm_top%conn)
+                allocate(qm%qm_top%conn(1))
+
+                call guess_connectivity(qm%qm_top, linkatoms)
+            end if
         end subroutine
 
         subroutine qm_helper_init_vdw(qm, eps, rad, fac, &
@@ -151,7 +192,7 @@ module mod_qm_helper
 
         end subroutine
        
-        subroutine qm_helper_init_vdw_prm(qm, attype, prmfile)
+        subroutine qm_helper_init_vdw_prm(qm, prmfile)
             !! Assign vdw parameters of the QM part from attype and prm file
             use mod_prm, only: assign_vdw
             use mod_io, only: fatal_error
@@ -159,52 +200,124 @@ module mod_qm_helper
             implicit none
 
             type(ommp_qm_helper), intent(inout) :: qm
-            integer(ip), intent(in) :: attype(qm%qm_top%mm_atoms)
             character(len=*) :: prmfile
             
             if(qm%use_nonbonded) then
                 call fatal_error("VdW is already initialized!")
             end if
+
+            if(.not. qm%qm_top%attype_initialized) then
+                call fatal_error("Set the types for QM helper atoms before &
+                                 &requesting creation of VdW.")
+            end if
             
             allocate(qm%qm_vdw)
-            qm%qm_top%attype = attype
-            qm%qm_top%attype_initialized = .true.
             call assign_vdw(qm%qm_vdw, qm%qm_top, prmfile)
             qm%use_nonbonded = .true.
         end subroutine
 
         subroutine qm_helper_vdw_energy(qm, mm, V)
-            use mod_nonbonded, only: vdw_potential_inter
+            use mod_nonbonded, only: vdw_potential_inter, vdw_potential_inter_restricted
             use mod_mmpol, only: ommp_system
+            use mod_link_atom, only: link_atom_update_merged_topology
 
             implicit none
 
-            type(ommp_system), intent(in) :: mm
+            type(ommp_system), intent(inout) :: mm
             type(ommp_qm_helper), intent(in) :: qm
             real(rp), intent(inout) :: V
+
         
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
                 call vdw_potential_inter(mm%vdw, qm%qm_vdw, V)
+                if(mm%use_linkatoms) then
+                    call link_atom_update_merged_topology(mm%la)
+                    ! Screening due to the presence of link atom
+                    call vdw_potential_inter_restricted(mm%vdw, qm%qm_vdw, &
+                                                        mm%la%vdw_screening_pairs,&
+                                                        mm%la%vdw_screening_f, &
+                                                        mm%la%vdw_n_screening, V)
+                end if
             end if
 
         end subroutine
         
         subroutine qm_helper_vdw_geomgrad(qm, mm, qmg, mmg)
-            use mod_nonbonded, only: vdw_geomgrad_inter
+            use mod_nonbonded, only: vdw_geomgrad_inter, &
+                                     vdw_geomgrad_inter_restricted
             use mod_mmpol, only: ommp_system
+            use mod_link_atom, only: link_atom_update_merged_topology
 
             implicit none
 
-            type(ommp_system), intent(in) :: mm
+            type(ommp_system), intent(inout) :: mm
             type(ommp_qm_helper), intent(in) :: qm
             real(rp), intent(inout) :: qmg(3,qm%qm_top%mm_atoms), &
                                        mmg(3,mm%top%mm_atoms)
         
             if(mm%use_nonbonded .and. qm%use_nonbonded) then
                 call vdw_geomgrad_inter(mm%vdw, qm%qm_vdw, mmg, qmg)
+                if(mm%use_linkatoms) then
+                    call link_atom_update_merged_topology(mm%la)
+                    ! Screening due to the presence of link atom
+                    call vdw_geomgrad_inter_restricted(mm%vdw, qm%qm_vdw, &
+                                                       mm%la%vdw_screening_pairs,&
+                                                       mm%la%vdw_screening_f, &
+                                                       mm%la%vdw_n_screening, &
+                                                       mmg, qmg)
+                end if
             end if
         end subroutine
+        
+        subroutine qm_helper_link_atom_geomgrad(qm, mm, qmg, mmg, original_qmg)
+            !! Computes the missing gradients for QM/MM linkatoms
+            !! that is bonded terms on QM atoms, LA forces projection on QM and MM
+            !! atoms. To obtain the correct forces in output, qmg should already
+            !! contain the QM forces, so that LA forces could be projected on 
+            !! QM and MM force vectors
 
+            use mod_mmpol, only: ommp_system
+            use mod_link_atom, only: link_atom_update_merged_topology, &
+                                     link_atom_bond_geomgrad, &
+                                     link_atom_angle_geomgrad, &
+                                     link_atom_torsion_geomgrad, &
+                                     link_atom_project_grd
+            use mod_memory, only: mallocate, mfree
+
+            implicit none
+
+            type(ommp_system), intent(inout) :: mm
+            type(ommp_qm_helper), intent(in) :: qm
+            real(rp), intent(inout) :: qmg(3,qm%qm_top%mm_atoms), &
+                                       mmg(3,mm%top%mm_atoms)
+            real(rp), intent(in) :: original_qmg(3,qm%qm_top%mm_atoms)
+            
+            real(rp), allocatable :: lagrad(:,:)
+            integer(ip) :: i
+        
+            if(mm%use_linkatoms) then
+                call link_atom_update_merged_topology(mm%la)
+                
+                call mallocate('qm_helper_linkatom_geomgrad [lagrad]', 3, mm%la%nla, lagrad)
+                do i=1, mm%la%nla
+                    lagrad(:,i) = original_qmg(:,mm%la%links(3,i))
+                end do
+                call link_atom_project_grd(mm%la, lagrad, qmg, mmg)
+                call mfree('qm_helper_linkatom_geomgrad [lagrad]', lagrad)
+                
+                call link_atom_bond_geomgrad(mm%la, &
+                                             qmg, mmg, &
+                                             .true., .false.)
+                call link_atom_angle_geomgrad(mm%la, &
+                                              qmg, mmg, &
+                                              .true., .false.)
+                call link_atom_torsion_geomgrad(mm%la, &
+                                                qmg, mmg, &
+                                                .true., .false.)
+                
+            end if
+        end subroutine
+    
         subroutine qm_helper_terminate(qm)
             use mod_memory, only: mfree
             use mod_topology, only: topology_terminate

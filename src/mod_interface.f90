@@ -22,11 +22,13 @@ module ommp_interface
                              OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
                              OMMP_AU2KCALMOL => au2kcalmol, &
-                             OMMP_ANG2AU => angstrom2au
+                             OMMP_ANG2AU => angstrom2au, &
+                             OMMP_STR_CHAR_MAX
     
     ! Internal types
     use mod_memory, only: ommp_integer => ip, &
-                          ommp_real => rp
+                          ommp_real => rp, &
+                          ommp_logical => lp
     use mod_mmpol, only: ommp_system
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_topology, only: ommp_topology_type
@@ -39,7 +41,8 @@ module ommp_interface
 
     use mod_io, only: ommp_set_verbose => set_verbosity, ommp_version
     
-    use mod_qm_helper, only: ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
+    use mod_qm_helper, only: ommp_qm_helper_set_attype => qm_helper_set_attype, &
+                             ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
                              ommp_prepare_qm_ele_grd => electrostatic_for_grad
@@ -87,6 +90,41 @@ module ommp_interface
             !! Atoms to freeze
 
             call set_frozen(s%top, frozen)
+        end subroutine
+
+        subroutine ommp_turn_pol_off(s, n, nopol)
+            use mod_electrostatics, only: remove_null_pol
+            use mod_io, only: ommp_message
+            use mod_constants, only: OMMP_STR_CHAR_MAX, &
+                                     OMMP_VERBOSE_LOW
+            
+            implicit none
+
+            type(ommp_system), pointer, intent(inout) :: s
+            !! OpenMMPol system
+            integer(ommp_integer), intent(in) :: n, nopol(n)
+            !! Atoms to freeze in MM indexing
+
+            integer(ommp_integer) :: i, j, ipol
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+
+            do i=1, n
+                if(nopol(i) <= s%top%mm_atoms) then
+                    j = s%eel%mm_polar(i)
+                    if(j > 0) then
+                        s%eel%pol(j) = 0.0
+                    else
+                        write(msg, "('Atom ', I0, ' is not polarizable. Ignoring.')") i
+                        call ommp_message(msg, OMMP_VERBOSE_LOW)
+                    end if
+                else
+                    write(msg, "('Atom ', I0, ' is outside current MM topology. Ignoring.')") i
+                    call ommp_message(msg, OMMP_VERBOSE_LOW)
+                end if
+            end do
+
+            call remove_null_pol(s%eel)
+
         end subroutine
         
         subroutine ommp_terminate(s)
@@ -330,26 +368,40 @@ module ommp_interface
         function ommp_get_bond_energy(sys_obj) result(eb)
             
             use mod_bonded, only: bond_potential
+            use mod_link_atom, only: link_atom_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eb
 
             eb = 0.0
-            if(sys_obj%use_bonded) call bond_potential(sys_obj%bds, eb)
+            if(sys_obj%use_bonded) then
+                call bond_potential(sys_obj%bds, eb)
+                if(sys_obj%use_linkatoms) then
+                    call link_atom_update_merged_topology(sys_obj%la)
+                    call bond_potential(sys_obj%la%bds, eb)
+                endif
+            end if
         
         end function
         
         function ommp_get_angle_energy(sys_obj) result(ea)
             
             use mod_bonded, only: angle_potential
+            use mod_link_atom, only: link_atom_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ea
 
             ea = 0.0
-            if(sys_obj%use_bonded) call angle_potential(sys_obj%bds, ea)
+            if(sys_obj%use_bonded) then
+                call angle_potential(sys_obj%bds, ea)
+                if(sys_obj%use_linkatoms) then
+                    call link_atom_update_merged_topology(sys_obj%la)
+                    call angle_potential(sys_obj%la%bds, ea)
+                end if
+            end if
         
         end function
         
@@ -408,13 +460,20 @@ module ommp_interface
         function ommp_get_torsion_energy(sys_obj) result(et)
             
             use mod_bonded, only: torsion_potential
+            use mod_link_atom, only: link_atom_update_merged_topology
             
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: et
 
             et = 0.0
-            if(sys_obj%use_bonded) call torsion_potential(sys_obj%bds, et)
+            if(sys_obj%use_bonded) then
+                call torsion_potential(sys_obj%bds, et)
+                if(sys_obj%use_linkatoms) then
+                    call link_atom_update_merged_topology(sys_obj%la)
+                    call torsion_potential(sys_obj%la%bds, et)
+                end if
+            end if
         
         end function
         
@@ -472,6 +531,7 @@ module ommp_interface
         
         function ommp_get_full_bnd_energy(sys_obj) result(ene)
             
+            use mod_link_atom, only: link_atom_update_merged_topology
             use mod_bonded, only: bond_potential, angtor_potential, &
                                   strbnd_potential, urey_potential, &
                                   opb_potential, pitors_potential, &
@@ -497,6 +557,14 @@ module ommp_interface
                 call strtor_potential(sys_obj%bds, ene)
                 call angtor_potential(sys_obj%bds, ene)
                 call tortor_potential(sys_obj%bds, ene)
+
+                if(sys_obj%use_linkatoms) then
+                    call link_atom_update_merged_topology(sys_obj%la)
+                    call bond_potential(sys_obj%la%bds, ene)
+                    call angle_potential(sys_obj%la%bds, ene)
+                    call torsion_potential(sys_obj%la%bds, ene)
+                end if
+
             end if
         end function
         
@@ -506,7 +574,8 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
-            ene = ommp_get_vdw_energy(sys_obj)
+            ene = 0.0
+            ene = ene + ommp_get_vdw_energy(sys_obj)
             ene = ene + ommp_get_full_ele_energy(sys_obj)
             ene = ene + ommp_get_full_bnd_energy(sys_obj)
         end function
@@ -560,27 +629,51 @@ module ommp_interface
         end subroutine
 
         subroutine ommp_bond_geomgrad(s, grd)
-            use mod_bonded, only: bond_geomgrad 
+            use mod_bonded, only: bond_geomgrad
+            use mod_link_atom, only: link_atom_update_merged_topology, &
+                                     link_atom_bond_geomgrad
             
             implicit none 
         
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            real(ommp_real) :: fake_qmg(3,1)
+
             grd = 0.0
-            if(s%use_bonded) call bond_geomgrad(s%bds, grd)
+            if(s%use_bonded) then
+                call bond_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call link_atom_update_merged_topology(s%la)
+                    call link_atom_bond_geomgrad(s%la, &
+                                                fake_qmg, grd, &
+                                                .false., .true.)
+                end if
+            end if
         end subroutine
         
         subroutine ommp_angle_geomgrad(s, grd)
             use mod_bonded, only: angle_geomgrad 
+            use mod_link_atom, only: link_atom_update_merged_topology, &
+                                     link_atom_angle_geomgrad
             
             implicit none 
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            
+            real(ommp_real) :: fake_qmg(3,1)
 
             grd = 0.0
-            if(s%use_bonded) call angle_geomgrad(s%bds, grd)
+            if(s%use_bonded) then
+                call angle_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call link_atom_update_merged_topology(s%la)
+                    call link_atom_angle_geomgrad(s%la, &
+                                                fake_qmg, grd, &
+                                                .false., .true.)
+                end if
+            end if
         end subroutine
         
         subroutine ommp_strbnd_geomgrad(s, grd)
@@ -609,14 +702,26 @@ module ommp_interface
         
         subroutine ommp_torsion_geomgrad(s, grd)
             use mod_bonded, only: torsion_geomgrad 
+            use mod_link_atom, only: link_atom_update_merged_topology, &
+                                     link_atom_torsion_geomgrad
             
             implicit none 
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            
+            real(ommp_real) :: fake_qmg(3,1)
 
             grd = 0.0
-            if(s%use_bonded) call torsion_geomgrad(s%bds, grd)
+            if(s%use_bonded) then
+                call torsion_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call link_atom_update_merged_topology(s%la)
+                    call link_atom_torsion_geomgrad(s%la, &
+                                                    fake_qmg, grd, &
+                                                    .false., .true.)
+                end if
+            end if
         end subroutine
         
         subroutine ommp_imptorsion_geomgrad(s, grd)
@@ -703,11 +808,17 @@ module ommp_interface
                                   strtor_geomgrad, &
                                   angtor_geomgrad, &
                                   tortor_geomgrad
+            use mod_link_atom, only: link_atom_update_merged_topology, &
+                                     link_atom_bond_geomgrad, &
+                                     link_atom_angle_geomgrad, &
+                                     link_atom_torsion_geomgrad
             
             implicit none 
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
+            
+            real(ommp_real) :: fake_qmg(3,1)
 
             grd = 0.0
             if(s%use_bonded) then
@@ -722,6 +833,18 @@ module ommp_interface
                 call strtor_geomgrad(s%bds, grd)
                 call angtor_geomgrad(s%bds, grd)
                 call tortor_geomgrad(s%bds, grd)
+                if(s%use_linkatoms) then
+                    call link_atom_update_merged_topology(s%la)
+                    call link_atom_bond_geomgrad(s%la, &
+                                                 fake_qmg, grd, &
+                                                 .false., .true.)
+                    call link_atom_angle_geomgrad(s%la, &
+                                                  fake_qmg, grd, &
+                                                  .false., .true.)
+                    call link_atom_torsion_geomgrad(s%la, &
+                                                    fake_qmg, grd, &
+                                                    .false., .true.)
+                end if
             end if
         end subroutine
         
@@ -848,7 +971,7 @@ module ommp_interface
 
         implicit none
 
-        type(ommp_system), intent(in) :: s
+        type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(in) :: qm
         real(ommp_real) :: evdw
 
@@ -862,13 +985,200 @@ module ommp_interface
 
         implicit none
 
-        type(ommp_system), intent(in) :: s
+        type(ommp_system), intent(inout) :: s
         type(ommp_qm_helper), intent(in) :: qm
         real(ommp_real), intent(out) :: qmg(:,:), mmg(:,:)
 
         mmg = 0.0
         qmg = 0.0
         call qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
+    end subroutine
+    
+    subroutine ommp_qm_helper_link_atom_geomgrad(qm, s, qmg, mmg, old_qmg)
+        
+        use mod_qm_helper, only: qm_helper_link_atom_geomgrad
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real), intent(out) :: qmg(:,:), mmg(:,:)
+        real(ommp_real), intent(in) :: old_qmg(:,:)
+
+        mmg = 0.0
+        qmg = 0.0
+        call qm_helper_link_atom_geomgrad(qm, s, qmg, mmg, old_qmg)
+    end subroutine
+
+    function ommp_create_link_atom(qm, s, imm, iqm, ila, prmfile, &
+                                   la_dist_in, n_eel_remove_in) result(la_idx)
+
+        use mod_link_atom, only: link_atom_position, init_link_atom, &
+                                 default_link_atom_dist, default_link_atom_n_eel_remove, &
+                                 init_eel_for_link_atom, &
+                                 init_vdw_for_link_atom, &
+                                 init_bonded_for_link_atom, &
+                                 add_link_atom
+        use mod_topology, only: create_new_bond
+        use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
+        use mod_mmpol, only: mmpol_init_link_atom
+        use mod_nonbonded, only: vdw_remove_potential
+        use mod_io, only: ommp_message, fatal_error
+        use mod_memory, only: lp
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(inout) :: qm
+        integer(ommp_integer), intent(in) :: iqm, imm, ila
+        character(len=*), intent(in) :: prmfile
+        integer(ommp_integer), optional, intent(in) :: n_eel_remove_in
+        real(ommp_real), optional, intent(in) :: la_dist_in
+
+        integer(ommp_integer) :: la_idx, n_eel_remove, i
+        real(ommp_real) :: la_dist
+        real(ommp_real), allocatable :: cnew(:,:)
+        real(ommp_real), dimension(3) :: cla
+        character(len=OMMP_STR_CHAR_MAX) :: message
+
+        ! Handle optional arguments
+        n_eel_remove = default_link_atom_n_eel_remove
+        la_dist = default_link_atom_dist
+        if(present(n_eel_remove_in)) n_eel_remove = n_eel_remove_in
+        if(present(la_dist_in)) la_dist = la_dist_in
+
+        ! Sanity checks
+        if(.not. qm%qm_top%attype_initialized) then
+            call fatal_error("For a correct handling of link atoms you should &
+                             &initialize atom types for QM atoms before.")
+        end if
+
+        ! If it is still not initialized, initialize link atom structure
+        if(.not. s%use_linkatoms) then
+            call ommp_message("Initializing link atom module", OMMP_VERBOSE_DEBUG, 'linkatom')
+            call mmpol_init_link_atom(s)
+            call init_link_atom(s%la, qm%qm_top, s%top)
+            ! TODO otherwise check if the qm system is the same...
+        end if
+
+        ! If VdW for QM part are not initialized, it's the right moment to do so
+        if(.not. qm%use_nonbonded) then
+            call ommp_message("Initializing VdW in QM Helper", OMMP_VERBOSE_DEBUG, 'linkatom')
+            call qm_helper_init_vdw_prm(qm, prmfile)
+        end if
+
+        ! Sanity check
+        if(iqm == ila) then
+            call fatal_error("QM atom and link atom should have different indices")
+        end if
+
+        if(iqm > s%la%qmtop%mm_atoms .or. iqm < 1) then
+            call fatal_error("QM atom index is not in the topology.")
+        end if
+        
+        if(ila > s%la%qmtop%mm_atoms .or. ila < 1) then
+            call fatal_error("LA atom index is not in the topology.")
+        end if
+        
+        if(imm > s%la%mmtop%mm_atoms .or. imm < 1) then
+            call fatal_error("MM atom index is not in the topology.")
+        end if
+        ! TODO check that link atom is a monovalent hydrogen
+        
+        ! Create the link atom inside OMMP main object
+        write(message, "('Creating link [',I0,'] (MM) - [',I0,'] (LA) - [',&
+            I0,'] (QM) with a fixed distance LA-QM of ', F5.3, ' A.U.')") &
+            imm, ila, iqm, la_dist
+        call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
+
+        call add_link_atom(s%la, imm, iqm, ila, la_dist)
+
+        ! Compute new QM coordinates (for link atom only actually) and update
+        allocate(cnew(3,qm%qm_top%mm_atoms))
+        cnew = qm%qm_top%cmm
+        call link_atom_position(s%la, s%la%nla, cla)
+        write(message, '(A, I0, A, 3F8.4, A, 3F8.4, A)') &
+            "Link atom [", ila, "] will be moved from [", &
+            cnew(:,ila), "] to [", cla, "]."
+        call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
+        cnew(:,ila) = cla
+        call qm_helper_update_coord(qm, cnew, logical(.true., lp), s%la%links(3,:))
+        do i=1, s%la%nla
+            call create_new_bond(qm%qm_top, s%la%links(2,i), s%la%links(3,i)) 
+        end do
+        deallocate(cnew)
+        
+        call ommp_message("Preparing electrostatics for link atom", &
+                          OMMP_VERBOSE_LOW, 'linkatom')
+        call init_eel_for_link_atom(s%la, iqm, imm, ila, s%eel, prmfile)
+
+        ! Remove non-bonded interactions from link atom inside QMHelper object
+        write(message, '(A, I0, A)') "Removing VdW interactions from link atom (QM) [", ila, "]"
+        call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
+        call vdw_remove_potential(qm%qm_vdw, ila)
+
+        ! Screen vdw interactions between QM and MM atoms
+        if(qm%use_nonbonded .and. s%use_nonbonded) then
+            call init_vdw_for_link_atom(s%la, &
+                                        iqm, imm, &
+                                        s%vdw%vdw_screening)
+        end if
+
+        if(s%use_bonded) then
+            call init_bonded_for_link_atom(s%la, prmfile)
+        end if
+
+        ! Return link atom index
+        la_idx = s%la%nla
+    end function
+
+    subroutine ommp_get_link_atom_coordinates(s, la_idx, crd)
+        use mod_link_atom, only : link_atom_position
+
+        implicit none
+
+        type(ommp_system), intent(in) :: s
+        integer(ommp_integer), intent(in) :: la_idx
+        real(ommp_real), dimension(3), intent(out) :: crd
+
+        if(s%use_linkatoms) then
+            call link_atom_position(s%la, la_idx, crd)
+        end if
+    end subroutine
+
+    subroutine ommp_update_link_atoms_position(qm, s)
+        use mod_link_atom, only : link_atom_position, link_atom_update_merged_topology
+        use mod_qm_helper, only: qm_helper_update_coord
+        use mod_io, only: ommp_message
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(inout) :: qm
+
+        integer(ommp_integer) :: i, ila
+        real(ommp_real), dimension(3) :: crd
+        real(ommp_real), allocatable :: cnew(:,:)
+        character(len=OMMP_STR_CHAR_MAX) :: message
+
+        if(s%use_linkatoms) then
+            call link_atom_update_merged_topology(s%la)
+            allocate(cnew(3,qm%qm_top%mm_atoms))
+            cnew = qm%qm_top%cmm
+
+            do i=1, s%la%nla
+                ila = s%la%links(3,i)
+                call link_atom_position(s%la, i, crd)
+                write(message, '(A, I0, A, 3F8.4, A, 3F8.4, A)') &
+                    "Link atom [", ila, "] will be moved from [", &
+                    cnew(:,ila), "] to [", crd, "]."
+                call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
+                cnew(:,ila) = crd
+            end do
+            
+            call qm_helper_update_coord(qm, cnew, logical(.true., ommp_logical))
+            deallocate(cnew)
+        end if
     end subroutine
 
 end module ommp_interface
