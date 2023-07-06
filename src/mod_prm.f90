@@ -10,7 +10,7 @@ module mod_prm
     use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, &
                              OMMP_VERBOSE_HIGH
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
-                         str_to_lower
+                         str_to_lower, str_uncomment
 
     implicit none
     private
@@ -72,6 +72,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:7) == 'charge ') ncharge = ncharge + 1
             if(line(:10) == 'multipole ') nmultipole = nmultipole + 1
             if(line(:13) == 'polarization ') then
@@ -137,6 +138,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:5) == 'atom ') then
                 tokb = 6
                 toke = tokenize(line, tokb)
@@ -160,6 +162,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:5) == 'atom ') then
                 tokb = 6
@@ -296,6 +299,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:5) == 'bond ') nbnd = nbnd + 1
         end do
 
@@ -312,6 +316,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:11) == 'bond-cubic ') then
                 tokb = 12
@@ -462,6 +467,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:9) == 'ureybrad ') nub = nub + 1
         end do
 
@@ -482,6 +488,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:11) == 'urey-cubic ') then
                 tokb = 12
@@ -659,6 +666,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:7) == 'strbnd ') nstrbnd = nstrbnd + 1
         end do
 
@@ -679,6 +687,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:7) == 'strbnd ') then
                 tokb = 8
@@ -874,6 +883,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
@@ -899,6 +909,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:11) == 'opbendtype ') then
                 tokb = 12
@@ -1104,6 +1115,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:7) == 'pitors ') npitors = npitors + 1
         end do
 
@@ -1123,6 +1135,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:7) == 'pitors ') then
                 tokb = 8
@@ -1277,6 +1290,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
 
@@ -1301,6 +1315,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:12) == 'torsionunit ') then
                 tokb = 13
@@ -1496,6 +1511,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:8) == 'imptors ') nt = nt + 1
         end do
 
@@ -1520,6 +1536,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
                               
             if(line(:12) == 'imptorsunit ') then
                 tokb = 13
@@ -1768,6 +1785,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:8) == 'strtors ') nt = nt + 1
         end do
 
@@ -1788,6 +1806,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:8) == 'strtors ') then
                 tokb = 9
@@ -1979,6 +1998,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:8) == 'angtors ') nt = nt + 1
         end do
 
@@ -1999,6 +2019,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:8) == 'angtors ') then
                 tokb = 9
@@ -2204,6 +2225,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:6) == 'angle ') nang = nang + 3 
             ! One angle keyourd could stand for 3 parameters for different H-env
             if(line(:7) == 'anglep ') nang = nang + 2
@@ -2227,6 +2249,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:12) == 'angle-cubic ') then
                 tokb = 13
@@ -2598,6 +2621,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:4) == 'vdw ') nvdw = nvdw + 1
             if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') &
                 nvdwpr = nvdwpr + 1
@@ -2632,6 +2656,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:13) == 'vdw-12-scale ') then
                 tokb = 14
@@ -2885,6 +2910,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:9) == 'polarize ') npolarize = npolarize + 1
         end do
         
@@ -2902,6 +2928,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
           
             if(line(:13) == 'polarization ') then
                 tokb = 14
@@ -3234,6 +3261,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:11) == 'multipole ') nmult = nmult + 1
             if(line(:7) == 'charge ') nchg = nchg + 1
         end do
@@ -3257,6 +3285,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             
             if(line(:13) == 'chg-12-scale ') then
                 tokb = 14
@@ -3651,6 +3680,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
             if(line(:8) == 'tortors ') ntt = ntt + 1
         end do
 
@@ -3669,6 +3699,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:8) == 'tortors ') then
                 tokb = 9
@@ -3744,6 +3775,7 @@ module mod_prm
         do while(ist == 0) 
             read(iof_prminp, '(A)', iostat=ist) line
             line = str_to_lower(line)
+            line = str_uncomment(line, '!')
            
             if(line(:8) == 'tortors ') then
                 ndata = map_dimension(1,itt)*map_dimension(2,itt)

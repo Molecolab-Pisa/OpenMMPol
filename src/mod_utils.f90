@@ -10,7 +10,8 @@ module mod_utils
 
     public :: sort_ivec, sort_ivec_inplace, skip_lines
     public :: starts_with_alpha, isreal, isint, tokenize, &
-              count_substr_occurence, str_to_lower
+              count_substr_occurence, str_to_lower, &
+              str_uncomment
     public :: cyclic_spline, compute_bicubic_interp
     public :: cross_product, vec_skw, versor_der
 
@@ -41,6 +42,32 @@ module mod_utils
         return
 
     end function str_to_lower
+    
+    function str_uncomment(s, comment_char)
+        !! Remove inline comments from a srting s, comments should
+        !! begin with the string or character contained in comment_char
+
+        implicit none
+
+        character(len=*), intent(in) :: s
+        !! String in input
+        character(len=*), intent(in) :: comment_char
+        !! Char that begin the comment
+        character(len(s)) :: str_uncomment
+        !! String converted to lowercase
+
+        integer(ip) :: idx
+
+        str_uncomment = ' '
+
+        idx = index(s, comment_char)
+        if(idx > 0) then
+            str_uncomment(1:idx-1) = s(1:idx-1)
+        else
+            str_uncomment = s
+        end if
+
+    end function str_uncomment
    
     function count_substr_occurence(s, c)
         !! Count the number of occurence of substring c in string s, and return

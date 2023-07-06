@@ -219,7 +219,10 @@ module mod_jacobian_mat
         costhet = dot_product(hu,ht)
         if(costhet + 1.0 <= eps_rp) then
             thet = pi
-            dacost = -1 / sin(costhet)
+            dacost = -1.0 / sin(costhet)
+        else if(abs(costhet - 1.0) <= eps_rp) then
+            thet = 0.0
+            dacost = -1.0 / sin(costhet)
         else
             thet = acos(costhet)
             dacost = - 1.0/sqrt(1.0-costhet**2)
@@ -238,6 +241,7 @@ module mod_jacobian_mat
         
         dhtda = matmul(dtda, dhtdt)
         J_a = -dacost * matmul(dhtda,hu) 
+
 
         dudb = vec_skw(c_d)
         dtdb = vec_skw(ca-cc)
