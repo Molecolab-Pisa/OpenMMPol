@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "openmmpol.h"
 
@@ -102,9 +103,6 @@ int main(int argc, char **argv){
     
     double *qqm, *electric_field;
     int32_t *zqm, *qmatype, nqm, nmm, pol_atoms;
-    double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot,
-           ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex,
-           evqmmm;
 
     // Create OMMP System for MM subsystem
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);

@@ -416,9 +416,9 @@ module mod_link_atom
             qmneigh(1) = 1
             mmneigh(1) = 1
             do i=2, size(vdw_screening)
-                qmneigh(i) = la%qmtop%conn(i-1)%ri(iqm+1) - \
+                qmneigh(i) = la%qmtop%conn(i-1)%ri(iqm+1) - &
                              la%qmtop%conn(i-1)%ri(iqm)
-                mmneigh(i) = la%mmtop%conn(i-1)%ri(imm+1) - \
+                mmneigh(i) = la%mmtop%conn(i-1)%ri(imm+1) - &
                              la%mmtop%conn(i-1)%ri(imm)
             end do
 
