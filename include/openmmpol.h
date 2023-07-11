@@ -3,35 +3,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
-#define OMMP_VERBOSE_DEBUG 3
-#define OMMP_VERBOSE_HIGH 2 
-#define OMMP_VERBOSE_LOW 1 
-#define OMMP_VERBOSE_NONE 0
-
-#define OMMP_FF_AMOEBA 1
-#define OMMP_FF_WANG_AL 0 
-#define OMMP_FF_WANG_DL 0 
-
-#define OMMP_SOLVER_CG 1
-#define OMMP_SOLVER_DIIS 2
-#define OMMP_SOLVER_INVERSION 3
-#define OMMP_SOLVER_DEFAULT OMMP_SOLVER_CG
-
-#define OMMP_MATV_INCORE 1
-#define OMMP_MATV_DIRECT 2
-#define OMMP_MATV_DEFAULT OMMP_MATV_DIRECT
-
-#define OMMP_AMOEBA_D 1
-#define OMMP_AMOEBA_P 2
-
-#define AU2KCALMOL 627.5096080306
-#define ANG2AU 1.8897261245650
-
-#define OMMP_VERSION_STRING "${OMMP_VERSION}"
-
-#define OMMP_DEFAULT_LA_DIST 1.1*ANG2AU
-#define OMMP_DEFAULT_LA_N_EEL_REMOVE 2
+//#include <math.h>
+#include <openmmpol_const.h>
 
 typedef void* OMMP_SYSTEM_PRT;
 typedef void* OMMP_QM_HELPER_PRT;

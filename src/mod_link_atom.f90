@@ -6,16 +6,15 @@ module mod_link_atom
 
     use mod_memory, only: rp, ip, lp, mallocate, mfree
     use mod_topology, only: ommp_topology_type
-    use mod_constants, only: angstrom2au
+    use mod_constants, only: angstrom2au, default_link_atom_dist, &
+                             default_link_atom_n_eel_remove
     use mod_nonbonded, only: vdw_geomgrad_inter
     use mod_bonded, only: ommp_bonded_type
 
     implicit none
     private
-
-    integer(ip), parameter :: link_atom_allocation_chunk = 20, &
-                              default_link_atom_n_eel_remove = 2
-    real(rp), parameter :: default_link_atom_dist = 1.1 * angstrom2au
+    
+    integer(ip), parameter :: link_atom_allocation_chunk = 20
 
     type ommp_link_atom_type
         type(ommp_topology_type), pointer :: mmtop

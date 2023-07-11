@@ -1,3 +1,5 @@
+#include <openmmpol_const.h>
+
 module mod_constants
     !! Contains several constants that are usefoul around the code. There are 
     !! physical constants (there should be no duplicate around!), default 
@@ -8,11 +10,11 @@ module mod_constants
     implicit none
   
     ! Physical constants
-    real(rp), parameter :: angstrom2au = 1.8897261245650_rp
+    real(rp), parameter :: angstrom2au = OMMP_FORT_ANG2AU
     !! Conversion factor from \(\AA\) to A.U.
-    real(rp), parameter :: kcalmol2au = 1.59360109742136e-3_rp
+    real(rp), parameter :: kcalmol2au = OMMP_FORT_KCALMOL2AU
     !! Conversion factor from kcal mol\(^{-1}\) to A.U.
-    real(rp), parameter :: au2kcalmol = 627.5096080306_rp
+    real(rp), parameter :: au2kcalmol = OMMP_FORT_AU2KCALMOL
     !! Conversion factor from A.U. to kcal mol\(^{-1}\)
     real(rp), parameter :: pi = 4.0 * atan(1.0)
     !! Value of \(\pi\)
@@ -51,42 +53,42 @@ module mod_constants
     integer(ip), parameter :: OMMP_STR_CHAR_MAX = 1024
 
     ! Flag handler
-    integer(ip), parameter :: OMMP_FF_AMOEBA = 1_ip
+    integer(ip), parameter :: ommp_ff_amoeba = OMMP_FF_AMOEBA
     !! Amoeba force field id
-    integer(ip), parameter :: OMMP_FF_WANG_AL = 0_ip
+    integer(ip), parameter :: ommp_ff_wang_al = OMMP_FF_WANG_AL
     !! Wang AL force field id
-    integer(ip), parameter :: OMMP_FF_WANG_DL = 0_ip
+    integer(ip), parameter :: ommp_ff_wang_dl = OMMP_FF_WANG_DL
     !! Wang DL force field id
-    integer(ip), parameter :: OMMP_FF_AMBER = 0_ip
+    integer(ip), parameter :: ommp_ff_amber = OMMP_FF_AMBER
     !! Amber-like force field
-    integer(ip), parameter :: OMMP_FF_UNKNOWN = -1_ip
+    integer(ip), parameter :: ommp_ff_unknown = OMMP_FF_UNKNOWN
     !! Unknown force field
 
-    integer(ip), parameter :: OMMP_SOLVER_CG = 1_ip 
+    integer(ip), parameter :: ommp_solver_cg = OMMP_SOLVER_CG 
     !! Conjugate gradients solver id
-    integer(ip), parameter :: OMMP_SOLVER_DIIS = 2_ip 
+    integer(ip), parameter :: ommp_solver_diis = OMMP_SOLVER_DIIS
     !! DIIS solver id
-    integer(ip), parameter :: OMMP_SOLVER_INVERSION = 3_ip
+    integer(ip), parameter :: ommp_solver_inversion = OMMP_SOLVER_INVERSION
     !! Matrix inversion solver id
-    integer(ip), parameter :: OMMP_SOLVER_DEFAULT = OMMP_SOLVER_CG
+    integer(ip), parameter :: ommp_solver_default = OMMP_SOLVER_DEFAULT
     !! Default value for solver
 
-    integer(ip), parameter :: OMMP_MATV_INCORE = 1_ip
+    integer(ip), parameter :: ommp_matv_incore = OMMP_MATV_INCORE
     !! Build matrix in memory to perform vector matrix multiplication
     !! in iterative solvers (uses dgemv with [[\mathcal O(2)]] memory usage
-    integer(ip), parameter :: OMMP_MATV_DIRECT = 2_ip
+    integer(ip), parameter :: ommp_matv_direct = OMMP_MATV_DIRECT
     !! Vector matrix multiplication in iterative solvers are done in a direct
     !! fashion
-    integer(ip), parameter :: OMMP_MATV_DEFAULT = OMMP_MATV_DIRECT
+    integer(ip), parameter :: ommp_matv_default = OMMP_MATV_DEFAULT
     !! Default value for matrix vector multiplication
 
-    integer(ip), parameter :: OMMP_VERBOSE_DEBUG = 3_ip
+    integer(ip), parameter :: ommp_verbose_debug = OMMP_VERBOSE_DEBUG
     !! Maximum verbosity level allowed
-    integer(ip), parameter :: OMMP_VERBOSE_HIGH = 2_ip
+    integer(ip), parameter :: ommp_verbose_high = OMMP_VERBOSE_HIGH
     !! High level of verbosity
-    integer(ip), parameter :: OMMP_VERBOSE_LOW = 1_ip
+    integer(ip), parameter :: ommp_verbose_low = OMMP_VERBOSE_LOW
     !! Normal verbosity level
-    integer(ip), parameter :: OMMP_VERBOSE_NONE = 0_ip
+    integer(ip), parameter :: ommp_verbose_none = OMMP_VERBOSE_NONE
     !! All output should be suppressed at this level
 
     integer(ip), parameter :: AMOEBA_ROT_NONE = 0_ip 
@@ -103,5 +105,9 @@ module mod_constants
     integer(ip), parameter :: OMMP_RADTYPE_RMIN = 1 
     integer(ip), parameter :: OMMP_EPSRULE_GEOMETRIC = 0 
     integer(ip), parameter :: OMMP_EPSRULE_HHG = 1
+
+    
+    integer(ip), parameter :: default_link_atom_n_eel_remove = OMMP_DEFAULT_LA_N_EEL_REMOVE
+    real(rp), parameter :: default_link_atom_dist = OMMP_DEFAULT_LA_DIST
 
 end module mod_constants

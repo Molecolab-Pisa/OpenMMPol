@@ -45,7 +45,8 @@ else()
 endif()
 
 file(WRITE ${CMAKE_BINARY_DIR}/include/version.h "#define _OMMP_VERSION \"${OMMP_VERSION}\"")
-configure_file(${CMAKE_SOURCE_DIR}/include/_openmmpol.h ${CMAKE_BINARY_DIR}/include/openmmpol.h)
+configure_file(${CMAKE_SOURCE_DIR}/include/_openmmpol_const.h ${CMAKE_BINARY_DIR}/include/openmmpol_const.h)
+file(COPY ${CMAKE_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_BINARY_DIR}/include/)
 include_directories(${CMAKE_BINARY_DIR}/include) # Directory for .h files
 message(NOTICE "Version string ${OMMP_VERSION}")
 

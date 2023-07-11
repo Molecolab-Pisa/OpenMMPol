@@ -48,9 +48,9 @@ void read_qm(char *fin, int32_t *nqm, double ***coord, int32_t **atype,
         fscanf(fp, "%s %lf %lf %lf %d", element, &((*coord)[i][0]), 
                                         &((*coord)[i][1]),&((*coord)[i][2]),
                                         &((*atype)[i]));
-        (*coord)[i][0] *= ANG2AU;
-        (*coord)[i][1] *= ANG2AU;
-        (*coord)[i][2] *= ANG2AU;
+        (*coord)[i][0] *= OMMP_ANG2AU;
+        (*coord)[i][1] *= OMMP_ANG2AU;
+        (*coord)[i][2] *= OMMP_ANG2AU;
         (*z)[i] = symbol2z(element);
         (*q)[i] = (double)(*z)[i];
     }
@@ -144,21 +144,21 @@ int main(int argc, char **argv){
     eg = 0.0;
     ex = 0.0;
     
-    em *= AU2KCALMOL;
-    ep *= AU2KCALMOL;
-    ev *= AU2KCALMOL;
-    eb *= AU2KCALMOL;
-    ea *= AU2KCALMOL;
-    eba *= AU2KCALMOL;
-    eub *= AU2KCALMOL;
-    eopb *= AU2KCALMOL;
-    ept *= AU2KCALMOL;
-    et *= AU2KCALMOL;
-    ett *= AU2KCALMOL;
-    eat *= AU2KCALMOL;
-    ebt *= AU2KCALMOL;
-    eit *= AU2KCALMOL;
-    etot *= AU2KCALMOL;
+    em *= OMMP_AU2KCALMOL;
+    ep *= OMMP_AU2KCALMOL;
+    ev *= OMMP_AU2KCALMOL;
+    eb *= OMMP_AU2KCALMOL;
+    ea *= OMMP_AU2KCALMOL;
+    eba *= OMMP_AU2KCALMOL;
+    eub *= OMMP_AU2KCALMOL;
+    eopb *= OMMP_AU2KCALMOL;
+    ept *= OMMP_AU2KCALMOL;
+    et *= OMMP_AU2KCALMOL;
+    ett *= OMMP_AU2KCALMOL;
+    eat *= OMMP_AU2KCALMOL;
+    ebt *= OMMP_AU2KCALMOL;
+    eit *= OMMP_AU2KCALMOL;
+    etot *= OMMP_AU2KCALMOL;
 
     fp = fopen(argv[5], "w+");
     

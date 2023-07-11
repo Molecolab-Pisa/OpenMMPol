@@ -26,7 +26,7 @@ void ana_grd_print(OMMP_SYSTEM_PRT sys,
     
     for(int i = 0; i < mm_atoms; i++){
         for(int j=0; j < 3; j++){
-            fprintf(fp, "%+20.8g ", grad_ana[i][j]*AU2KCALMOL*ANG2AU);
+            fprintf(fp, "%+20.8g ", grad_ana[i][j]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
         }
         fprintf(fp, "\n");
     }
