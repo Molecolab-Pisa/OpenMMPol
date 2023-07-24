@@ -129,7 +129,7 @@ module mod_utils
         logical :: isreal
 
         isreal = (verify(s, '+-1234567890.') == 0)
-        isreal = isreal .and. (scan(s, '.') /= 0)
+        !isreal = isreal .and. (scan(s, '.') /= 0)
         return
     end function
 
