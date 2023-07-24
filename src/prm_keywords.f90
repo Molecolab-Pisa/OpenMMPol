@@ -117,7 +117,7 @@ end function
 function keyword_is_recognized(kw)
     implicit none
 
-    character(len=*), parameter :: rec_kwd(171) = ["a-expterm           ", &
+    character(len=*), parameter :: rec_kwd(172) = ["a-expterm           ", &
                                               "angang              ", &
                                               "angangunit          ", &
                                               "angcflux            ", &
@@ -233,6 +233,7 @@ function keyword_is_recognized(kw)
                                               "opdist-quartic      ", &
                                               "opdist-sextic       ", &
                                               "opdistunit          ", &
+                                              "parameters          ", &
                                               "penetration         ", &
                                               "piatom              ", &
                                               "pibond              ", &
