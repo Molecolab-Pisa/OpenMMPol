@@ -3429,9 +3429,22 @@ module mod_prm
                 
                 ! Rotation axis information
                 tokb = toke+1
-                toke = tokenize(line, tokb, 2)
-                read(line(tokb:toke), *) multax(1:2,imult)
-                ! TODO maybe some check here is not bad.
+                toke = tokenize(line, tokb, 1)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MULTIPOLE card at least two &
+                                        &integers for axys specification expected."
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) multax(1,imult)
+                
+                tokb = toke+1
+                toke = tokenize(line, tokb, 1)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MULTIPOLE card at least two &
+                                        &integers for axys specification expected."
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) multax(2,imult)
 
                 ! For some centers also y axis is specified (integer) otherwise
                 ! this is the zeroth-order multipole (charge)
