@@ -1150,6 +1150,8 @@ module mod_bonded
             
             if(costhet + 1.0 <= eps_rp) then
                 thet = pi
+            else if(abs(costhet - 1.0) <= eps_rp) then
+                thet = 0.0
             else
                 thet = acos(costhet)
             end if
