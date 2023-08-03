@@ -39,7 +39,10 @@ module ommp_interface
                          ommp_update_coordinates => update_coordinates, &
                          ommp_print_summary_to_file => mmpol_ommp_print_summary
 
-    use mod_io, only: ommp_set_verbose => set_verbosity, ommp_version
+    use mod_io, only: ommp_set_verbose => set_verbosity, &
+                      ommp_message, &
+                      ommp_fatal => fatal_error, &
+                      ommp_version
     
     use mod_qm_helper, only: ommp_qm_helper_set_attype => qm_helper_set_attype, &
                              ommp_qm_helper_init_vdw_prm => qm_helper_init_vdw_prm, &

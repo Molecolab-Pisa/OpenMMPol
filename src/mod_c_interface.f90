@@ -56,6 +56,34 @@ module mod_ommp_C_interface
             call ommp_set_verbose(verb)
         end subroutine C_ommp_set_verbose
 
+        subroutine C_ommp_fatal(c_msg) &
+                bind(c, name='ommp_fatal')
+            implicit none
+            
+            character(kind=c_char), intent(in) :: c_msg(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+            
+            call c2f_string(c_msg, msg)
+            call ommp_fatal(msg)
+
+        end subroutine C_ommp_fatal
+        
+        subroutine C_ommp_message(c_msg, level, c_pre) &
+                bind(c, name='ommp_message')
+            implicit none
+            
+            character(kind=c_char), intent(in) :: c_msg(OMMP_STR_CHAR_MAX)
+            integer(kind=ommp_integer), value :: level
+            character(kind=c_char), intent(in) :: c_pre(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+            character(len=OMMP_STR_CHAR_MAX) :: pre
+            
+            call c2f_string(c_msg, msg)
+            call c2f_string(c_pre, pre)
+            call ommp_message(msg, level, pre)
+
+        end subroutine C_ommp_message
+        
         subroutine C_ommp_print_summary(s_prt) bind(c, name='ommp_print_summary')
             !! Print a summary of the system input on standard output.
             implicit none
