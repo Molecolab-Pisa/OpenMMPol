@@ -112,6 +112,13 @@ if(cJSON_FOUND)
     target_link_libraries(openmmpol ${CJSON_LIBRARIES})
 endif()
 
+# openssl
+find_package(OpenSSL REQUIRED)
+if(OpenSSL_FOUND)
+    include_directories( SYSTEM ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(openmmpol ${OPENSSL_LIBRARIES})
+endif()
+
 # Enable preprocessor for Fortran
 target_compile_options(openmmpol PRIVATE -cpp)
 # cmake 3.18 is needed for this
