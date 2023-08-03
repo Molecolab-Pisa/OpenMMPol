@@ -72,7 +72,8 @@ set(LIBRARY_SRC
     src/mod_solvers.f90
     src/mod_topology.f90
     src/mod_utils.f90
-    src/rotate_multipoles.f90)
+    src/rotate_multipoles.f90
+    src/smartinput.c)
 
 
 add_library(openmmpol SHARED ${LIBRARY_SRC}) 
@@ -104,6 +105,12 @@ if (HDF5_FOUND)
     endif() 
 endif()
 
+# cJSON
+find_package(cJSON REQUIRED)
+if(cJSON_FOUND)
+    include_directories( SYSTEM ${CJSON_INCLUDE_DIR})
+    target_link_libraries(openmmpol ${CJSON_LIBRARIES})
+endif()
 
 # Enable preprocessor for Fortran
 target_compile_options(openmmpol PRIVATE -cpp)
@@ -111,14 +118,19 @@ target_compile_options(openmmpol PRIVATE -cpp)
 #set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
 
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs) # Very strict check on code
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2008ts -fno-realloc-lhs -fall-intrinsics")
+    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
     #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
-    target_compile_options(openmmpol PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
-    target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan>)
+    target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
+    if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
+    endif()
+    target_link_libraries(openmmpol stdc++)
 endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 
 set(TEST_PROGRAMS
+    test_SI_init
     test_init_xyz
     test_init
     test_reinit

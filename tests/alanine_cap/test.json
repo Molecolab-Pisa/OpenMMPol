@@ -1,0 +1,38 @@
+{
+    "name": "Test 01",
+    "description": "A simple test of smart input",
+    "version_required": "0.4.0",
+    "xyz_file": {
+        "path": "/path/to/file",
+        "md5sum": "...."
+    },
+    "prm_file": {
+        "path": "/path/to/file",
+        "md5sum": "..."
+    },
+    "link_atoms": [
+        {
+            "MM_id": 10,
+            "QM_id": 5,
+            "LA_id": 12,
+            "bond_length": 3.5
+        },
+        {
+            "MM_id": 10,
+            "QM_id": 5,
+            "LA_id": 12,
+            "bond_length": 3.5
+        }
+    ],
+    "qm_atom_types": {
+        "at_type": [10, 20, 30, 10, 40, 20],
+        "prm_file": {
+            "path": "/path/to/prm",
+            "md5sum": "..."
+        }
+    },
+    "solver": "cg",
+    "matrix_vector": "direct",
+    "output_file": "/path/to/file",
+    "verbosity": "none"
+}

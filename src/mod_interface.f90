@@ -1181,5 +1181,39 @@ module ommp_interface
         end if
     end subroutine
 
+    subroutine ommp_smartinput(json_filename, system, qmhelp)
+        use iso_c_binding, only: c_char, c_ptr, c_loc
+        !! External interface for smartinput function
+        character(len=*), intent(in) :: json_filename
+        type(ommp_system), intent(in), target :: system
+        type(ommp_qm_helper), intent(in), target :: qmhelp
+
+        interface
+            subroutine c_smartinput(json_fname, s, q) bind(c)
+                use iso_c_binding, only: c_ptr
+                implicit none
+
+                type(c_ptr) :: json_fname, s, q
+            end subroutine
+        end interface
+
+        character(kind=c_char), allocatable, target :: c_json_filename(:)
+        type(c_ptr) :: c_system, c_qmhelp, c_json_fname_p
+        integer :: i
+
+        c_system = c_loc(system)
+        c_qmhelp = c_loc(qmhelp)
+
+        allocate(c_json_filename(len(json_filename) + 1))
+        do i=1, len(json_filename)
+            c_json_filename(i) = json_filename(i:i)
+        end do
+        c_json_fname_p = c_loc(c_json_filename)
+
+        call c_smartinput(c_json_fname_p, c_system, c_qmhelp)
+
+        deallocate(c_json_filename)
+    end subroutine
+
 end module ommp_interface
 
