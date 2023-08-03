@@ -2,7 +2,7 @@ FROM opensuse/leap:15.4
 LABEL version="1.6.5"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive install \
-                                cjson-devel \
+                                cJSON-devel \
                                 cmake \
                                 curl \
                                 gcc \
