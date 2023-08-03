@@ -50,7 +50,7 @@ module mod_constants
     ! Code constants
     real(rp), parameter :: eps_rp = epsilon(0.0_rp) * 100
     !! Threshold used to compare REALS for queality
-    integer(ip), parameter :: OMMP_STR_CHAR_MAX = 1024
+    integer(ip), parameter :: ommp_str_char_max = OMMP_STR_CHAR_MAX
 
     ! Flag handler
     integer(ip), parameter :: ommp_ff_amoeba = OMMP_FF_AMOEBA

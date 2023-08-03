@@ -80,7 +80,7 @@ module mod_io
         end if
 
         if(present(logpre)) then
-            write(pre, '(A12)') "["//logpre//"]"
+            write(pre, '(A12)') "["//trim(logpre)//"]"
         else
             select case(level)
                 case(OMMP_VERBOSE_LOW)
