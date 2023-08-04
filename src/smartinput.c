@@ -44,7 +44,7 @@ bool md5_file_check(const char* my_file, const char *md5_sum){
     return true;
 }
 
-bool check_file(cJSON *file_json, char *path){
+bool check_file(cJSON *file_json, char **path){
     // It should be a structure
     if(!cJSON_IsObject(file_json)){
         return false;
@@ -53,13 +53,13 @@ bool check_file(cJSON *file_json, char *path){
     cJSON *file_data = file_json->child;
     char *md5sum = NULL;
     char errstring[OMMP_STR_CHAR_MAX];
-    path = NULL;
+    *path = NULL;
 
 
     while(file_data != NULL){
         if(strcmp(file_data->string, "path") == 0){
             if(cJSON_IsString(file_data))
-                path = file_data->valuestring;
+                *path = file_data->valuestring;
             else{
                 ommp_message("File's path should be a string.", OMMP_VERBOSE_LOW, "SI file");
                 return false;
@@ -80,15 +80,15 @@ bool check_file(cJSON *file_json, char *path){
         file_data = file_data->next;
     }
     // It should contain a path
-    if(path == NULL){
+    if(*path == NULL){
         ommp_message("File entry does not contain a path.", OMMP_VERBOSE_LOW, "SI file");
         return false;
     }
 
     // The path should exist
-    FILE *fp = fopen(path, "r");
+    FILE *fp = fopen(*path, "r");
     if(fp == NULL){
-        sprintf(errstring, "File %s does not exist.", path);
+        sprintf(errstring, "File %s does not exist.", *path);
         ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
         return false;
     }
@@ -96,9 +96,9 @@ bool check_file(cJSON *file_json, char *path){
     // It could contain an md5sum
     if(md5sum != NULL){
         // The md5 sum should be correct
-        bool md5chk = md5_file_check(path, md5sum);
+        bool md5chk = md5_file_check(*path, md5sum);
         if(!md5chk){
-            sprintf(errstring, "File %s does not correspond to md5sum %s.", path, md5sum);
+            sprintf(errstring, "File %s does not correspond to md5sum %s.", *path, md5sum);
             ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
             return false;
         }
@@ -106,7 +106,7 @@ bool check_file(cJSON *file_json, char *path){
     return true;
 }
 
-void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPER_PRT ommp_qmh){
+void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     char msg[OMMP_STR_CHAR_MAX];
     
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);
@@ -142,7 +142,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPE
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
         ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
         if(str_ends_with(cur->string, "_file")){
-            if(! check_file(cur, path)){
+            if(! check_file(cur, &path)){
                 sprintf(msg, "File check on \"%s\" has failed.", cur->string);
                 ommp_fatal(msg);
             };
@@ -172,7 +172,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPE
         if(mmpol_file != NULL)
             ommp_fatal("xyz_file set but also mmpol_file is set, this is ambiguous.");
 
-        ommp_sys = ommp_init_xyz(xyz_path, prm_path);
+        *ommp_sys = ommp_init_xyz(xyz_path, prm_path);
     }
     
     return;
