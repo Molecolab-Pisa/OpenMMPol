@@ -6,6 +6,15 @@
 
 #include <openmmpol.h>
 
+typedef struct _semversion{
+    int major;
+    int minor;
+    int patch;
+    int ncommit;
+    char commit[8];
+    bool clean;
+} semversion;
+
 bool str_ends_with(const char *s, const char *e){
     size_t slen = strlen(s);
     size_t elen = strlen(e);
@@ -13,6 +22,137 @@ bool str_ends_with(const char *s, const char *e){
 
     if(strcmp(&(s[slen-elen]), e) != 0) return false;
     return true;
+}
+
+semversion str_to_semversion(char *strin){
+    semversion v;
+    v.major = -1;
+    v.minor = -1;
+    v.patch = -1;
+    v.ncommit = -1;
+    strcpy(v.commit, "        ");
+    v.clean = true;
+
+    semversion v_err = v;
+
+    char msg[OMMP_STR_CHAR_MAX];
+    char str[256];
+    strcpy(str, strin);
+
+    char *major = strtok(str, ".");
+    bool major_ok = (major != NULL);
+    int i;
+
+    sprintf(msg, "Major \"%s\".", major);
+    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+
+    for(i = 0; major[i] != '\0' && major_ok; i++)
+        major_ok &= isdigit(major[i]);
+    major_ok &= (i>0);
+
+    if(!major_ok){
+        sprintf(msg, "Malformed major version in \"%s\".", strin);
+        ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+        return v_err;
+    }
+
+    v.major = atoi(major);
+    
+    char *minor = strtok(NULL, ".");
+    bool minor_ok = (minor != NULL);
+    
+    sprintf(msg, "Minor \"%s\".", minor);
+    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+
+    for(i = 0; minor[i] != '\0' && minor_ok; i++)
+        minor_ok &= isdigit(minor[i]);
+    minor_ok &= (i>0);
+
+    if(!minor_ok){
+        sprintf(msg, "Malformed minor version in \"%s\".", strin);
+        ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+        return v_err;
+    }
+
+    v.minor = atoi(minor);
+
+    char *patchplus = strtok(NULL, "");
+    char *patch = strtok(patchplus, "+");
+    char *plus = strtok(NULL, "+");
+
+    bool patch_ok = (patch != NULL);
+
+    sprintf(msg, "Patch \"%s\".", patch);
+    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+
+    for(i = 0; patch[i] != '\0' && patch_ok; i++)
+        patch_ok &= isdigit(patch[i]);
+    patch_ok &= (i>0);
+
+    if(!patch_ok){
+        sprintf(msg, "Malformed patch version in \"%s\".", strin);
+        ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+        return v_err;
+    }
+
+    v.patch = atoi(patch);
+
+    if(plus != NULL){
+        if(strtok(NULL, "+") != NULL){
+            sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
+            ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+            return v_err;
+        }
+
+        sprintf(msg, "Pre-Release \"%s\".", plus);
+        ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+
+        char *ncommits = strtok(plus, ".");
+        bool ncommits_ok = (ncommits != NULL);
+
+        if(ncommits[0] != 'r') ncommits_ok = false;
+
+        for(i = 1; ncommits[i] != '\0' && ncommits_ok; i++)
+            ncommits_ok &= isdigit(ncommits[i]);
+        ncommits_ok &= (i>0);
+    
+        if(!ncommits_ok){
+            sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
+            ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+            return v_err;
+        }
+
+        v.ncommit = atoi(&(ncommits[1]));
+        
+        char *commithash = strtok(NULL, ".");
+        bool commithash_ok = (commithash != NULL);
+
+        for(i = 0; commithash[i] != '\0' && commithash_ok; i++);
+        commithash_ok &= (i == 8);
+    
+        if(!commithash_ok){
+            sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
+            ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+            return v_err;
+        }
+
+        strcpy(v.commit, commithash);
+
+        char *clean = strtok(NULL, ".");
+        if(clean != NULL){
+            if(strcmp(clean, "dirty") == 0) 
+                v.clean = false;
+            else{
+                sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
+                ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+                return v_err;
+            }
+        }
+    }
+    else{
+        v.ncommit = 0;
+    }
+    return v;
 }
 
 bool md5_file_check(const char* my_file, const char *md5_sum){
@@ -106,6 +246,33 @@ bool check_file(cJSON *file_json, char **path){
     return true;
 }
 
+bool check_version(char *verstr){
+    semversion vreq = str_to_semversion(verstr);
+    
+    char *ommp_vstr[256];
+    sprintf(ommp_vstr, "%s", OMMP_VERSION_STRING);
+    semversion vommp = str_to_semversion(ommp_vstr);
+    
+    if(vreq.major < vommp.major) return true;
+    if(vreq.major > vommp.major) return false;
+    
+    if(vreq.minor < vommp.minor) return true;
+    if(vreq.minor > vommp.minor) return false;
+    
+    if(vreq.patch < vommp.patch) return true;
+    if(vreq.patch > vommp.patch) return false;
+    if(vreq.ncommit == 0 && vommp.ncommit > 0) return true;
+    if(vreq.ncommit > 0 && vommp.ncommit > 0){
+        if(vreq.ncommit == vommp.ncommit && 
+           strcmp(vreq.commit, vommp.commit) == 0)
+            return true;
+        else
+            return false;
+    }
+
+    return true;
+}
+
 void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     char msg[OMMP_STR_CHAR_MAX];
     
@@ -154,10 +321,18 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         else if(strcmp(cur->string, "prm_file") == 0){
             prm_path = path;
         }
+        else if(strcmp(cur->string, "version") == 0){
+            if(!check_version(cur->valuestring)){
+                sprintf(msg, "Required version (%s) is not compatible with OMMP version (%s).", cur->valuestring, OMMP_VERSION_STRING);
+                ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+                ommp_fatal("Cannot complete Smart Input initialization.");
+            }
+                sprintf(msg, "Required version (%s) is compatible with OMMP version (%s).", cur->valuestring, OMMP_VERSION_STRING);
+                ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
-            
         }
 
         cur = cur->next;
