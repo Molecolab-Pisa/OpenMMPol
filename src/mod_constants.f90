@@ -90,6 +90,8 @@ module mod_constants
     !! Normal verbosity level
     integer(ip), parameter :: ommp_verbose_none = OMMP_VERBOSE_NONE
     !! All output should be suppressed at this level
+    integer(ip), parameter :: ommp_verbose_default = OMMP_VERBOSE_DEFAULT
+    !! All output should be suppressed at this level
 
     integer(ip), parameter :: AMOEBA_ROT_NONE = 0_ip 
     integer(ip), parameter :: AMOEBA_ROT_Z_THEN_X = 1_ip 

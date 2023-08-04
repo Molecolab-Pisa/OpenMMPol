@@ -276,7 +276,9 @@ bool check_version(char *verstr){
 void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     char msg[OMMP_STR_CHAR_MAX];
     
+    // TODO Just for debugging
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);
+
     // Read the whole file content
     FILE *fp = fopen(json_file, "r");
     if(fp == NULL){
@@ -305,6 +307,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     
     cJSON *cur = input_json->child;
     char *path, *xyz_path = NULL, *prm_path = NULL, *hdf5_file = NULL, *mmpol_file = NULL;
+    int32_t req_verbosity = OMMP_VERBOSE_DEFAULT;
+
     while(cur != NULL){
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
         ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
@@ -330,6 +334,16 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 sprintf(msg, "Required version (%s) is compatible with OMMP version (%s).", cur->valuestring, OMMP_VERSION_STRING);
                 ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
         }
+        else if(strcmp(cur->string, "verbosity") == 0){
+            if(strcmp(cur->valuestring, "none") == 0)
+                req_verbosity = OMMP_VERBOSE_NONE;
+            else if(strcmp(cur->valuestring, "low") == 0)
+                req_verbosity = OMMP_VERBOSE_LOW;
+            else if(strcmp(cur->valuestring, "high") == 0)
+                req_verbosity = OMMP_VERBOSE_HIGH;
+            else if(strcmp(cur->valuestring, "debug") == 0)
+                req_verbosity = OMMP_VERBOSE_DEBUG;
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
@@ -338,6 +352,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         cur = cur->next;
     }
 
+    ommp_set_verbose(req_verbosity);
     if(xyz_path != NULL){
         ommp_message("Trying initialization from Tinker .xyz file.", OMMP_VERBOSE_LOW, "SI");
         if(prm_path == NULL)

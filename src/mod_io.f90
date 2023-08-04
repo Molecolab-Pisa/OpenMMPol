@@ -7,7 +7,8 @@ module mod_io
     use mod_constants, only: OMMP_VERBOSE_DEBUG, &
                              OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, &
-                             OMMP_VERBOSE_NONE
+                             OMMP_VERBOSE_NONE, &
+                             OMMP_VERBOSE_DEFAULT
 
     implicit none
     private
@@ -16,7 +17,7 @@ module mod_io
     integer, parameter :: iof_mmpol = 6
     integer, parameter :: iof_mmpinp = 100
     
-    integer(ip), protected :: verbose = OMMP_VERBOSE_LOW
+    integer(ip), protected :: verbose = OMMP_VERBOSE_DEFAULT
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
     
