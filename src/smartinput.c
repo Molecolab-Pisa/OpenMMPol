@@ -44,7 +44,7 @@ semversion str_to_semversion(char *strin){
     int i;
 
     sprintf(msg, "Major \"%s\".", major);
-    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
     for(i = 0; major[i] != '\0' && major_ok; i++)
         major_ok &= isdigit(major[i]);
@@ -62,7 +62,7 @@ semversion str_to_semversion(char *strin){
     bool minor_ok = (minor != NULL);
     
     sprintf(msg, "Minor \"%s\".", minor);
-    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
     for(i = 0; minor[i] != '\0' && minor_ok; i++)
         minor_ok &= isdigit(minor[i]);
@@ -83,7 +83,7 @@ semversion str_to_semversion(char *strin){
     bool patch_ok = (patch != NULL);
 
     sprintf(msg, "Patch \"%s\".", patch);
-    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+    ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
     for(i = 0; patch[i] != '\0' && patch_ok; i++)
         patch_ok &= isdigit(patch[i]);
@@ -105,7 +105,7 @@ semversion str_to_semversion(char *strin){
         }
 
         sprintf(msg, "Pre-Release \"%s\".", plus);
-        ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVers");
+        ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
         char *ncommits = strtok(plus, ".");
         bool ncommits_ok = (ncommits != NULL);
@@ -280,6 +280,9 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     ommp_set_verbose(OMMP_VERBOSE_DEBUG);
 
     // Read the whole file content
+    sprintf(msg, "Parsing JSON file \"%s\".", json_file);
+    ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+
     FILE *fp = fopen(json_file, "r");
     if(fp == NULL){
         sprintf(msg, "Unable to open %s", json_file);
@@ -307,11 +310,12 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     
     cJSON *cur = input_json->child;
     char *path, *xyz_path = NULL, *prm_path = NULL, *hdf5_file = NULL, *mmpol_file = NULL;
+    char *json_name, *json_description;
     int32_t req_verbosity = OMMP_VERBOSE_DEFAULT;
 
     while(cur != NULL){
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
-        ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
+        ommp_message(msg, OMMP_VERBOSE_DEBUG, "SIDB");
         if(str_ends_with(cur->string, "_file")){
             if(! check_file(cur, &path)){
                 sprintf(msg, "File check on \"%s\" has failed.", cur->string);
@@ -344,6 +348,12 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             else if(strcmp(cur->valuestring, "debug") == 0)
                 req_verbosity = OMMP_VERBOSE_DEBUG;
         }
+        else if(strcmp(cur->string, "name") == 0){
+            json_name = cur->valuestring;
+        }
+        else if(strcmp(cur->string, "description") == 0){
+            json_description = cur->valuestring;
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
@@ -353,6 +363,13 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     }
 
     ommp_set_verbose(req_verbosity);
+    
+    sprintf(msg, "Smart Input Name: %s", json_name);
+    ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+    
+    sprintf(msg, "Smart Input Description: %s", json_description);
+    ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+    
     if(xyz_path != NULL){
         ommp_message("Trying initialization from Tinker .xyz file.", OMMP_VERBOSE_LOW, "SI");
         if(prm_path == NULL)
