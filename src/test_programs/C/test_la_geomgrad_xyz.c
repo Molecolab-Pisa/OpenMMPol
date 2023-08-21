@@ -149,7 +149,7 @@ int main(int argc, char **argv){
         for(int k = 0; k < 3; k++)
             electric_field[j*3+k] = 0.0;
     
-    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_DEFAULT);
+    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE);
     
     // Fake QM gradients, they are actually the gradients of QM subsystem
     // trated at MM level, but in this context we do not actually care

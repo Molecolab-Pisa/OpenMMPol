@@ -17,6 +17,11 @@ module mod_electrostatics
     private
 
     type ommp_electrostatics_type
+        integer(ip) :: def_solver
+        !! Solver to be used by default for this eel object.
+        integer(ip) :: def_matv
+        !! Matrix-vector method to be used by default for this eel object.
+
         type(ommp_topology_type), pointer :: top
         !! Data structure containing all the topological informations
         integer(ip) :: pol_atoms 
@@ -185,6 +190,7 @@ module mod_electrostatics
 
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
+    public :: set_def_solver, set_def_matv
     public :: thole_init, remove_null_pol, set_screening_parameters
     public :: screening_rules, make_screening_lists
     public :: damped_coulomb_kernel, field_extD2D
@@ -198,6 +204,7 @@ module mod_electrostatics
 
     subroutine electrostatics_init(eel_obj, amoeba, pol_atoms, top_obj)
         use mod_memory, only: mallocate
+        use mod_constants, only: OMMP_MATV_DEFAULT, OMMP_SOLVER_DEFAULT
 
         implicit none 
 
@@ -212,6 +219,8 @@ module mod_electrostatics
         eel_obj%amoeba = amoeba
         eel_obj%pol_atoms = pol_atoms
         eel_obj%top => top_obj
+        eel_obj%def_solver = OMMP_SOLVER_DEFAULT
+        eel_obj%def_matv = OMMP_MATV_DEFAULT
 
         if(amoeba) then
             eel_obj%ld_cart = 10_ip
@@ -314,6 +323,33 @@ module mod_electrostatics
         end if
 
     end subroutine electrostatics_terminate
+
+    subroutine set_def_solver(eel_obj, solver)
+        use mod_constants, only: OMMP_SOLVER_CG, OMMP_SOLVER_INVERSION, OMMP_SOLVER_DIIS
+        implicit none
+        
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+        integer(ip), intent(in) :: solver
+
+        if(solver /= OMMP_SOLVER_CG .and. &
+           solver /= OMMP_SOLVER_INVERSION .and. &
+           solver /= OMMP_SOLVER_DIIS) &
+            call fatal_error("Unrecognized setting for default solver method")
+        eel_obj%def_solver = solver
+    end subroutine
+
+    subroutine set_def_matv(eel_obj, matv)
+        use mod_constants, only: OMMP_MATV_INCORE, OMMP_MATV_DIRECT
+        implicit none
+        
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+        integer(ip), intent(in) :: matv
+
+        if(matv /= OMMP_MATV_INCORE .and. &
+           matv /= OMMP_MATV_DIRECT) &
+            call fatal_error("Unrecognized setting for default matrix-vector method")
+        eel_obj%def_matv = matv
+    end subroutine
     
     subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
         !! Subroutine to initialize the screening parameters

@@ -15,6 +15,8 @@ extern "C" {
 
 extern OMMP_SYSTEM_PRT ommp_init_mmp(const char *);
 extern OMMP_SYSTEM_PRT ommp_init_xyz(const char *, const char *);
+extern void ommp_set_default_solver(OMMP_SYSTEM_PRT, int32_t);
+extern void ommp_set_default_matv(OMMP_SYSTEM_PRT, int32_t);
 extern void ommp_save_mmp(OMMP_SYSTEM_PRT, const char *, int32_t);
 extern void ommp_set_frozen_atoms(OMMP_SYSTEM_PRT, int32_t, const int32_t *);
 extern void ommp_turn_pol_off(OMMP_SYSTEM_PRT, int32_t, const int32_t *);

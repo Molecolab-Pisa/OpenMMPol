@@ -55,6 +55,30 @@ module mod_ommp_C_interface
             !! Requested verbosityi of library
             call ommp_set_verbose(verb)
         end subroutine C_ommp_set_verbose
+        
+        subroutine C_ommp_set_default_solver(s_prt, solver) bind(c, name='ommp_set_default_solver')
+            implicit none 
+
+            integer(ommp_integer), intent(in), value :: solver
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+           
+            call c_f_pointer(s_prt, s)
+            
+            call ommp_set_default_solver(s, solver)
+        end subroutine C_ommp_set_default_solver
+        
+        subroutine C_ommp_set_default_matv(s_prt, matv) bind(c, name='ommp_set_default_matv')
+            implicit none 
+
+            integer(ommp_integer), intent(in), value :: matv
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+           
+            call c_f_pointer(s_prt, s)
+            
+            call ommp_set_default_matv(s, matv)
+        end subroutine C_ommp_set_default_matv
 
         subroutine C_ommp_fatal(c_msg) &
                 bind(c, name='ommp_fatal')

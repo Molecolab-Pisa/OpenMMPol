@@ -72,6 +72,8 @@ module mod_constants
     !! Matrix inversion solver id
     integer(ip), parameter :: ommp_solver_default = OMMP_SOLVER_DEFAULT
     !! Default value for solver
+    integer(ip), parameter :: ommp_solver_none = OMMP_SOLVER_NONE
+    !! Placeholder equivalent to not passing the argument, mainly for C interfaces
 
     integer(ip), parameter :: ommp_matv_incore = OMMP_MATV_INCORE
     !! Build matrix in memory to perform vector matrix multiplication
@@ -81,6 +83,8 @@ module mod_constants
     !! fashion
     integer(ip), parameter :: ommp_matv_default = OMMP_MATV_DEFAULT
     !! Default value for matrix vector multiplication
+    integer(ip), parameter :: ommp_matv_none = OMMP_MATV_NONE
+    !! Placeholder equivalent to not passing the argument, mainly for C interfaces
 
     integer(ip), parameter :: ommp_verbose_debug = OMMP_VERBOSE_DEBUG
     !! Maximum verbosity level allowed

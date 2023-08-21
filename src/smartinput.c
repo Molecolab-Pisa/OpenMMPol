@@ -309,9 +309,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     }
     
     cJSON *cur = input_json->child;
-    char *path, *xyz_path = NULL, *prm_path = NULL, *hdf5_file = NULL, *mmpol_file = NULL;
+    char *path, *xyz_path = NULL, *prm_path = NULL, *hdf5_path = NULL, *mmpol_path = NULL;
     char *json_name, *json_description;
-    int32_t req_verbosity = OMMP_VERBOSE_DEFAULT;
+    int32_t req_verbosity = OMMP_VERBOSE_DEFAULT, 
+            req_solver = OMMP_SOLVER_DEFAULT,
+            req_matv = OMMP_MATV_DEFAULT;
 
     while(cur != NULL){
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
@@ -328,6 +330,9 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         }
         else if(strcmp(cur->string, "prm_file") == 0){
             prm_path = path;
+        }
+        else if(strcmp(cur->string, "mmpol_file") == 0){
+            mmpol_path = path;
         }
         else if(strcmp(cur->string, "version") == 0){
             if(!check_version(cur->valuestring)){
@@ -354,6 +359,20 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         else if(strcmp(cur->string, "description") == 0){
             json_description = cur->valuestring;
         }
+        else if(strcmp(cur->string, "solver") == 0){
+            if(strcmp(cur->valuestring, "default") == 0)
+                req_solver = OMMP_SOLVER_DEFAULT;
+            else if(strcmp(cur->valuestring, "conjugate gradient") == 0 || strcmp(cur->valuestring, "cg") == 0)
+                req_solver = OMMP_SOLVER_CG;
+            else if(strcmp(cur->valuestring, "inversion") == 0)
+                req_solver = OMMP_SOLVER_INVERSION;
+            else if(strcmp(cur->valuestring, "diis") == 0)
+                req_solver = OMMP_SOLVER_DIIS;
+            else{
+                sprintf(msg, "Unrecognized option \"%s\" for solver; Available solvers are default, conjugate gradient, cg, inversion, diis.", cur->valuestring);
+                ommp_fatal(msg);
+            }
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
@@ -374,23 +393,23 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_message("Trying initialization from Tinker .xyz file.", OMMP_VERBOSE_LOW, "SI");
         if(prm_path == NULL)
             ommp_fatal("xyz_file set but prm_file is missing.");
-        if(hdf5_file != NULL)
+        if(hdf5_path != NULL)
             ommp_fatal("xyz_file set but also hdf5_file is set, this is ambiguous.");
-        if(mmpol_file != NULL)
+        if(mmpol_path != NULL)
             ommp_fatal("xyz_file set but also mmpol_file is set, this is ambiguous.");
 
         *ommp_sys = ommp_init_xyz(xyz_path, prm_path);
     }
-    else if(mmpol_file != NULL){
-        if(prm_path == NULL)
+    else if(mmpol_path != NULL){
+        if(prm_path != NULL)
             ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
-        if(hdf5_file != NULL)
+        if(hdf5_path != NULL)
             ommp_fatal("mmpol_file set but also hdf5_file is set, this is ambiguous.");
 
-        *ommp_sys = ommp_init_mmp(mmpol_file);
+        *ommp_sys = ommp_init_mmp(mmpol_path);
     }
-    else if(hdf5_file != NULL){
-        if(prm_path == NULL)
+    else if(hdf5_path != NULL){
+        if(prm_path != NULL)
             ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
 
         ommp_fatal("input from hdf5_file is still not implemented.");
@@ -399,6 +418,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_fatal("No input for MM system found in Smart Input file, set one of xyz_file+prm_file, mmpol_file, hdf5_file");
     }
     
+    // Set solver in ommp_sys
+    ommp_set_default_solver(*ommp_sys, req_solver);
+    // Set matv in ommp_sys
+    ommp_set_default_matv(*ommp_sys, req_matv);
+
     return;
 }
 

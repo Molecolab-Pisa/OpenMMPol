@@ -7,6 +7,7 @@
 namespace py = pybind11;
 
 std::map<std::string, int32_t> solvers{
+    {"none", OMMP_SOLVER_NONE},
     {"default", OMMP_SOLVER_DEFAULT},
     {"conjugate gradient", OMMP_SOLVER_CG},
     {"cg", OMMP_SOLVER_CG},

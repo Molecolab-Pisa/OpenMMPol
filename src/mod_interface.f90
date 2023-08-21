@@ -56,6 +56,28 @@ module ommp_interface
 
     contains
         
+        subroutine ommp_set_default_solver(s, solver)
+            use mod_electrostatics, only: set_def_solver
+            implicit none 
+
+            integer(ommp_integer), intent(in), value :: solver
+            type(ommp_system), pointer :: s
+           
+            
+            call set_def_solver(s%eel, solver)
+        end subroutine ommp_set_default_solver
+        
+        subroutine ommp_set_default_matv(s, matv)
+            use mod_electrostatics, only: set_def_matv
+            implicit none 
+
+            integer(ommp_integer), intent(in), value :: matv
+            type(ommp_system), pointer :: s
+           
+            
+            call set_def_matv(s%eel, matv)
+        end subroutine ommp_set_default_matv
+        
         subroutine ommp_init_mmp(s, filename)
             use mod_inputloader, only : mmpol_init_from_mmp
             
@@ -150,6 +172,7 @@ module ommp_interface
             use mod_polarization, only: polarization
             use mod_electrostatics, only: prepare_polelec
             use mod_memory, only: mallocate, mfree
+            use mod_constants, only: OMMP_MATV_NONE
 
             implicit none
             
@@ -188,7 +211,7 @@ module ommp_interface
                 
                 ef(:,:,1) = ext_field
                 call polarization(sys_obj, ef, solver, &
-                                  OMMP_MATV_DEFAULT, [.true., .false.] )
+                                  OMMP_MATV_NONE, [.true., .false.] )
                 
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             end if

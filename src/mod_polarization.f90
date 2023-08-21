@@ -66,10 +66,12 @@ module mod_polarization
         use mod_constants, only: OMMP_MATV_DEFAULT, &
                                  OMMP_MATV_DIRECT, &
                                  OMMP_MATV_INCORE, &
+                                 OMMP_MATV_NONE, &
                                  OMMP_SOLVER_DEFAULT, &
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
                                  OMMP_SOLVER_INVERSION, &
+                                 OMMP_SOLVER_NONE, &
                                  OMMP_VERBOSE_DEBUG, &
                                  OMMP_VERBOSE_HIGH, &
                                  eps_rp
@@ -138,16 +140,16 @@ module mod_polarization
         end if
 
         ! Handling of optional arguments
-        if(present(arg_solver)) then
+        if(present(arg_solver) .and. arg_solver /= OMMP_SOLVER_NONE) then
             solver = arg_solver
         else
-            solver = OMMP_SOLVER_DEFAULT
+            solver = eel%def_solver
         end if
 
-        if(present(arg_mvmethod)) then
+        if(present(arg_mvmethod) .and. arg_mvmethod /= OMMP_MATV_NONE) then
             mvmethod = arg_mvmethod
         else
-            mvmethod = OMMP_MATV_DEFAULT
+            mvmethod = eel%def_matv
         end if
 
         if(present(arg_ipd_mask) .and. eel%n_ipd > 1) then
