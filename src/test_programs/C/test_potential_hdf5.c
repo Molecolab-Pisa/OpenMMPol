@@ -63,7 +63,7 @@ int main(int argc, char **argv){
             electric_field[j*3+k] = 0.0;
 
     em = ommp_get_fixedelec_energy(my_system);
-    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE);
+    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
     ep = ommp_get_polelec_energy(my_system);
     
     ev =   ommp_get_vdw_energy(my_system);

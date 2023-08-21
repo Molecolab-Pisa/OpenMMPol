@@ -1,14 +1,14 @@
 {
     "name": "Test 01",
     "description": "A simple test of smart input",
-    "version_required": "0.4.0",
+    "version": "0.4.0",
     "xyz_file": {
-        "path": "/path/to/file",
-        "md5sum": "...."
+        "path": "/home/mattia/LibEnv/open-mmpol-gg/tests/alanine_cap/input_LA_MM_AMOEBA.xyz",
+        "md5sum": "7331b5a6f149ceeec95c806104d3f016"
     },
     "prm_file": {
-        "path": "/path/to/file",
-        "md5sum": "..."
+        "path": "/home/mattia/LibEnv/open-mmpol-gg/build/amoebabio18.prm",
+        "md5sum": "490ba93448bd71f14398d74f9cb8a523"
     },
     "link_atoms": [
         {
@@ -33,6 +33,8 @@
     },
     "solver": "cg",
     "matrix_vector": "direct",
-    "output_file": "/path/to/file",
-    "verbosity": "none"
+    "output_file": {
+        "path": "/dev/stdout"
+    },
+    "verbosity": "low"
 }

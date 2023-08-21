@@ -373,6 +373,18 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal(msg);
             }
         }
+        else if(strcmp(cur->string, "matrix_vector") == 0){
+            if(strcmp(cur->valuestring, "default") == 0)
+                req_matv = OMMP_MATV_DEFAULT;
+            else if(strcmp(cur->valuestring, "direct") == 0)
+                req_matv = OMMP_MATV_DIRECT;
+            else if(strcmp(cur->valuestring, "incore") == 0)
+                req_matv = OMMP_MATV_INCORE;
+            else{
+                sprintf(msg, "Unrecognized option \"%s\" for matrix_vector; Available solvers are default, direct, incore.", cur->valuestring);
+                ommp_fatal(msg);
+            }
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SI");

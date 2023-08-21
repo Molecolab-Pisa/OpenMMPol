@@ -519,7 +519,6 @@ module mod_polarization
 
         n = 3*eel%pol_atoms
        
-        write(*, *) allocated(eel%tmat)
         ! Compute the matrix vector product
         call dgemm('N', 'N', n, 1, n, 1.0_rp, eel%tmat, n, x, n, 0.0_rp, y, n)
         ! Subtract the product of diagonal 

@@ -15,6 +15,13 @@ std::map<std::string, int32_t> solvers{
     {"diis", OMMP_SOLVER_DIIS}
 };
 
+std::map<std::string, int32_t> matvs{
+    {"none", OMMP_MATV_NONE},
+    {"default", OMMP_MATV_DEFAULT},
+    {"incore", OMMP_MATV_INCORE},
+    {"direct", OMMP_MATV_DIRECT}
+};
+
 typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_ciarray;
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
@@ -369,7 +376,8 @@ class OMMPSystem{
 
         void set_external_field(py_cdarray ext_field, 
                                 bool nomm = false, 
-                                std::string solver = "default"){
+                                std::string solver = "none",
+                                std::string matv = "none"){
             if(ext_field.ndim() != 2 || 
                ext_field.shape(0) != get_pol_atoms() ||
                ext_field.shape(1) != 3){
@@ -379,11 +387,15 @@ class OMMPSystem{
             if(solvers.find(solver) == solvers.end()){
                 throw py::value_error("Selected solver is not available!");
             }
+            
+            if(matvs.find(matv) == matvs.end()){
+                throw py::value_error("Selected matrix-vector method is not available!");
+            }
 
             if(! nomm)
-                ommp_set_external_field(handler, ext_field.data(), solvers[solver]);
+                ommp_set_external_field(handler, ext_field.data(), solvers[solver], matvs[matv]);
             else
-                ommp_set_external_field_nomm(handler, ext_field.data(), solvers[solver]);
+                ommp_set_external_field_nomm(handler, ext_field.data(), solvers[solver], matvs[matv]);
             return ;
         }
         
@@ -1160,6 +1172,7 @@ void set_verbose(int32_t v){
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
     m.attr("available_solvers") = solvers;
+    m.attr("available_matrix_vector") = matvs;
     m.attr("__version__") = OMMP_VERSION_STRING;
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
@@ -1216,7 +1229,8 @@ PYBIND11_MODULE(pyopenmmpol, m){
              "Set the external electric field and solves the linear system.",
              py::arg("external_field"),
              py::arg("nomm") = false,
-             py::arg("solver") = "default")
+             py::arg("solver") = "none",
+             py::arg("matv") = "none")
         
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")

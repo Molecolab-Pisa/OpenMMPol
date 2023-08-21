@@ -7,7 +7,7 @@
         "md5sum": "4dc515fa23665fe7b247b62d3f5f5321"
     },
     "solver": "default",
-    "matrix_vector": "default",
+    "matrix_vector": "incore",
     "output_file": {
         "path": "/dev/stdout"
     },

@@ -17,8 +17,9 @@ module ommp_interface
     use mod_constants, only: OMMP_FF_AMOEBA, OMMP_FF_WANG_AL, OMMP_FF_WANG_DL, &
                              OMMP_SOLVER_CG, OMMP_SOLVER_DIIS, &
                              OMMP_SOLVER_INVERSION, OMMP_SOLVER_DEFAULT, &
+                             OMMP_SOLVER_NONE, &
                              OMMP_MATV_INCORE, OMMP_MATV_DIRECT, &
-                             OMMP_MATV_DEFAULT, &
+                             OMMP_MATV_DEFAULT, OMMP_MATV_NONE, &
                              OMMP_VERBOSE_DEBUG, OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, OMMP_VERBOSE_NONE, &
                              OMMP_AU2KCALMOL => au2kcalmol, &
@@ -165,20 +166,20 @@ module ommp_interface
 
         end subroutine
 
-        subroutine ommp_set_external_field(sys_obj, ext_field, solver, &
+        subroutine ommp_set_external_field(sys_obj, ext_field, solver, matv, &
                                            add_mm_field)
             !! This function get an external field and solve the polarization
             !! system in the presence of the provided external field.
             use mod_polarization, only: polarization
             use mod_electrostatics, only: prepare_polelec
             use mod_memory, only: mallocate, mfree
-            use mod_constants, only: OMMP_MATV_NONE
 
             implicit none
             
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real), intent(in) :: ext_field(3,sys_obj%eel%pol_atoms)
             integer(ommp_integer), intent(in), value :: solver
+            integer(ommp_integer), intent(in), value :: matv
             logical, intent(in), value, optional :: add_mm_field
             
             type(ommp_electrostatics_type), pointer :: eel
@@ -210,14 +211,13 @@ module ommp_interface
                                3, eel%pol_atoms, eel%n_ipd, ef)
                 
                 ef(:,:,1) = ext_field
-                call polarization(sys_obj, ef, solver, &
-                                  OMMP_MATV_NONE, [.true., .false.] )
+                call polarization(sys_obj, ef, solver, matv, [.true., .false.] )
                 
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             end if
         end subroutine ommp_set_external_field
 
-        subroutine ommp_set_external_field_nomm(sys_obj, ext_field, solver)
+        subroutine ommp_set_external_field_nomm(sys_obj, ext_field, solver, matv)
             !! This is just the same as [[ommp_set_external_field]] but 
             !! implicitly assuming [[ommp_set_external_field:add_mm_field]] as 
             !! false, mainly here for interface consistency with C
@@ -227,8 +227,9 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real), intent(in) :: ext_field(3,sys_obj%eel%pol_atoms)
             integer(ommp_integer), intent(in), value :: solver
+            integer(ommp_integer), intent(in), value :: matv
 
-            call ommp_set_external_field(sys_obj, ext_field, solver, .false.)
+            call ommp_set_external_field(sys_obj, ext_field, solver, matv, .false.)
         end subroutine
         
         subroutine ommp_potential_mmpol2ext(s, n, cext, v)
@@ -344,7 +345,7 @@ module ommp_interface
                 if(.not. sys_obj%eel%ipd_done) then
                     !! Solve the polarization system without external field
                     call prepare_polelec(sys_obj%eel)
-                    call polarization(sys_obj, sys_obj%eel%e_m2d, OMMP_SOLVER_DEFAULT)
+                    call polarization(sys_obj, sys_obj%eel%e_m2d)
                 end if
 
                 ene = 0.0

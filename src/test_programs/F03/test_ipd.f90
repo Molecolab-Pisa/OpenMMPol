@@ -53,7 +53,7 @@ program test_ipd
     end do
     
     deallocate(ef)
-    call ommp_set_external_field(my_system, ef_pol, solver)
+    call ommp_set_external_field(my_system, ef_pol, solver, OMMP_MATV_NONE)
 
     ! Write ipd
     open(unit=101, file=argv(2))

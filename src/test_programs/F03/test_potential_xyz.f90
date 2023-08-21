@@ -25,7 +25,7 @@ program test_potential_xyz
         allocate(ef(3, my_system%eel%pol_atoms))
         ef = 0.0
         
-        call ommp_set_external_field(my_system, ef, OMMP_SOLVER_DEFAULT)
+        call ommp_set_external_field(my_system, ef, OMMP_SOLVER_NONE, OMMP_MATV_NONE)
         
         em   = ommp_get_fixedelec_energy(my_system)
         ep   = ommp_get_polelec_energy(my_system)

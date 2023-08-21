@@ -87,7 +87,7 @@ int main(int argc, char **argv){
             else
                 electric_field[j*3+k] = 0.0;
 
-    ommp_set_external_field(my_system, electric_field, solver);
+    ommp_set_external_field(my_system, electric_field, solver, OMMP_MATV_NONE);
 
     // Get induced point dipoles
     _ipd = (double *) ommp_get_ipd(my_system);

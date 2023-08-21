@@ -43,7 +43,7 @@ program test_energy
     deallocate(ef)
     
     E_MMMM = ommp_get_fixedelec_energy(my_system)
-    call ommp_set_external_field(my_system, ef_pol, OMMP_SOLVER_DEFAULT)
+    call ommp_set_external_field(my_system, ef_pol, OMMP_SOLVER_NONE, OMMP_MATV_NONE)
     E_MMPOL = ommp_get_polelec_energy(my_system)
 
     ! Write ipd
