@@ -381,6 +381,23 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
 
         *ommp_sys = ommp_init_xyz(xyz_path, prm_path);
     }
+    else if(mmpol_file != NULL){
+        if(prm_path == NULL)
+            ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
+        if(hdf5_file != NULL)
+            ommp_fatal("mmpol_file set but also hdf5_file is set, this is ambiguous.");
+
+        *ommp_sys = ommp_init_mmp(mmpol_file);
+    }
+    else if(hdf5_file != NULL){
+        if(prm_path == NULL)
+            ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
+
+        ommp_fatal("input from hdf5_file is still not implemented.");
+    }
+    else{
+        ommp_fatal("No input for MM system found in Smart Input file, set one of xyz_file+prm_file, mmpol_file, hdf5_file");
+    }
     
     return;
 }
