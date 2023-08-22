@@ -184,7 +184,7 @@ bool md5_file_check(const char* my_file, const char *md5_sum){
     return true;
 }
 
-bool check_file(cJSON *file_json, char **path){
+bool check_file(cJSON *file_json, char **path, char *outmode){
     // It should be a structure
     if(!cJSON_IsObject(file_json)){
         return false;
@@ -193,9 +193,8 @@ bool check_file(cJSON *file_json, char **path){
     cJSON *file_data = file_json->child;
     char *md5sum = NULL;
     char errstring[OMMP_STR_CHAR_MAX];
-    char accessmode[3] = "r";
+    char accessmode = 'r';
     *path = NULL;
-
 
     while(file_data != NULL){
         if(strcmp(file_data->string, "path") == 0){
@@ -217,16 +216,10 @@ bool check_file(cJSON *file_json, char **path){
         else if(strcmp(file_data->string, "mode") == 0){
             // Default mode is read, for output either append or write or overwrite should be specified.
             if(strcmp(file_data->valuestring, "read") == 0){
-                strcpy(accessmode, "r");
-            }
-            else if(strcmp(file_data->valuestring, "append") == 0){
-                strcpy(accessmode, "a");
+                accessmode = 'r';
             }
             else if(strcmp(file_data->valuestring, "write") == 0){
-                strcpy(accessmode, "w");
-            }
-            else if(strcmp(file_data->valuestring, "overwrite") == 0){
-                strcpy(accessmode, "w+");
+                accessmode = 'w';
             }
             else{
                 sprintf(errstring, "Unrecognized file access mode %s; assuming read.", file_data->valuestring);
@@ -245,23 +238,35 @@ bool check_file(cJSON *file_json, char **path){
         return false;
     }
 
-    // The path should exist
-    FILE *fp = fopen(*path, accessmode);
-    if(fp == NULL){
-        sprintf(errstring, "File %s does not exist.", *path);
+    FILE *fp = fopen(*path, "r");
+    if(fp == NULL && accessmode == 'r'){
+        sprintf(errstring, "File %s in read mode does not exist.", *path);
         ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
         return false;
     }
-    fclose(fp);
+    
+    if(fp != NULL && accessmode == 'w'){
+        sprintf(errstring, "File %s in write mode already exists, cannot overwrite.", *path);
+        ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
+        return false;
+    }
+    if(fp != NULL) fclose(fp);
+    *outmode = accessmode;
 
     // It could contain an md5sum
     if(md5sum != NULL){
-        // The md5 sum should be correct
-        bool md5chk = md5_file_check(*path, md5sum);
-        if(!md5chk){
-            sprintf(errstring, "File %s does not correspond to md5sum %s.", *path, md5sum);
+        if(accessmode == 'w'){
+            sprintf(errstring, "md5sum check does not make any sense for output files; skipping.");
             ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
-            return false;
+        }
+        else{
+            // The md5 sum should be correct
+            bool md5chk = md5_file_check(*path, md5sum);
+            if(!md5chk){
+                sprintf(errstring, "File %s does not correspond to md5sum %s.", *path, md5sum);
+                ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
+                return false;
+            }
         }
     }
     return true;
@@ -332,7 +337,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     cJSON *cur = input_json->child;
     char *path, *xyz_path = NULL, *prm_path = NULL,
          *hdf5_path = NULL, *mmpol_path = NULL,
-         *output_path = NULL;
+         *output_path = NULL, mode;
     char *json_name, *json_description;
     int32_t req_verbosity = OMMP_VERBOSE_DEFAULT,
             req_solver = OMMP_SOLVER_DEFAULT,
@@ -342,22 +347,43 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
         ommp_message(msg, OMMP_VERBOSE_DEBUG, "SIDB");
         if(str_ends_with(cur->string, "_file")){
-            if(! check_file(cur, &path)){
+            if(! check_file(cur, &path, &mode)){
                 sprintf(msg, "File check on \"%s\" has failed.", cur->string);
                 ommp_fatal(msg);
             };
+            
+            if(mode != 'r' && mode != 'w'){
+                sprintf(msg, "Unrecognized file access mode (unexpected error) '%c'.", mode);
+                ommp_fatal(msg);
+            }
         }
 
         if(strcmp(cur->string, "xyz_file") == 0){
+            if(mode != 'r'){
+                sprintf(msg, "xyz_file should be in read mode.");
+                ommp_fatal(msg);
+            }
             xyz_path = path;
         }
         else if(strcmp(cur->string, "prm_file") == 0){
+            if(mode != 'r'){
+                sprintf(msg, "prm_file should be in read mode.");
+                ommp_fatal(msg);
+            }
             prm_path = path;
         }
         else if(strcmp(cur->string, "mmpol_file") == 0){
+            if(mode != 'r'){
+                sprintf(msg, "mmpol_file should be in read mode.");
+                ommp_fatal(msg);
+            }
             mmpol_path = path;
         }
         else if(strcmp(cur->string, "output_file") == 0){
+            if(mode != 'w'){
+                sprintf(msg, "output_file should be in write mode.");
+                ommp_fatal(msg);
+            }
             output_path = path;
         }
         else if(strcmp(cur->string, "version") == 0){
