@@ -7,34 +7,37 @@
         "md5sum": "7331b5a6f149ceeec95c806104d3f016"
     },
     "prm_file": {
-        "path": "/home/mattia/LibEnv/open-mmpol-gg/build/amoebabio18.prm",
+        "path": "amoebabio18.prm",
         "md5sum": "490ba93448bd71f14398d74f9cb8a523"
     },
     "link_atoms": [
         {
-            "MM_id": 10,
-            "QM_id": 5,
-            "LA_id": 12,
-            "bond_length": 3.5
-        },
-        {
-            "MM_id": 10,
-            "QM_id": 5,
-            "LA_id": 12,
-            "bond_length": 3.5
+            "MM_id": 2,
+            "QM_id": 1,
+            "LA_id": 5,
+            "bond_length": 1.1
         }
     ],
-    "qm_atom_types": {
-        "at_type": [10, 20, 30, 10, 40, 20],
-        "prm_file": {
-            "path": "/path/to/prm",
-            "md5sum": "..."
+    "qm": {
+        "qm_atoms": ["C", "H", "H", "H", "H"],
+        "qm_coords": [[22.101000,    22.261000,    16.597000],
+                      [22.757000,    21.965000,    17.438000],
+                      [22.760000,    22.501000,    15.741000],
+                      [21.605000,    23.202000,    16.899000],
+                      [21.371887,    21.475394,    16.350445]],
+        "qm_atom_types": {
+            "at_type": [13, 14, 14, 14],
+            "prm_file": {
+                "path": "amoebabio18.prm",
+                "md5sum": "490ba93448bd71f14398d74f9cb8a523"
+            }
         }
     },
     "solver": "cg",
     "matrix_vector": "direct",
     "output_file": {
-        "path": "/dev/stdout"
+        "path": "test.out",
+        "mode": "write"
     },
     "verbosity": "low"
 }

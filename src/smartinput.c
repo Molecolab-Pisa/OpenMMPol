@@ -6,6 +6,17 @@
 
 #include <openmmpol.h>
 
+#define NELEM 11
+char ELEMENTS[NELEM][2] = {"X", 
+                           "H", "He", 
+                           "Li", "Be", "B", "C", "N", "O", "F", "Ne"};
+
+int element_to_Z(char *elem){
+    for(int i=0; i<NELEM; i++)
+        if(strcmp(elem, ELEMENTS[i]) == 0) return i;
+    return -1;
+}
+
 typedef struct _semversion{
     int major;
     int minor;
@@ -187,6 +198,7 @@ bool md5_file_check(const char* my_file, const char *md5_sum){
 bool check_file(cJSON *file_json, char **path, char *outmode){
     // It should be a structure
     if(!cJSON_IsObject(file_json)){
+        ommp_message("Unexpected errror: qm_json is not a cJSON object.", OMMP_VERBOSE_LOW, "SI file");
         return false;
     }
     
@@ -299,6 +311,150 @@ bool check_version(char *verstr){
     return true;
 }
 
+bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
+    // It should be a structure
+    if(!cJSON_IsObject(qm_json)){
+        ommp_message("Unexpected errror: qm_json is not a cJSON object.", OMMP_VERBOSE_LOW, "SI QMH");
+        return false;
+    }
+    
+    cJSON *qm_data = qm_json->child;
+    char errstring[OMMP_STR_CHAR_MAX];
+    int32_t natoms = 0;
+    int32_t *qmz = NULL;
+    double *coords = NULL, *nucq = NULL;
+    char *xyz_path = NULL;
+
+    while(qm_data != NULL){
+        if(strcmp(qm_data->string, "qm_atoms") == 0){
+            if(cJSON_IsArray(qm_data)){
+                cJSON *qmat_array = qm_data->child;
+                int nat;
+
+                // Check number of elements in array
+                for(nat = 0; qmat_array != NULL; qmat_array = qmat_array->next) nat++;
+                if(natoms == 0){
+                    if(nat == 0){
+                        ommp_message("qm_atoms length is zero, that is wired!", OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    natoms = nat;
+                }
+                else{
+                    ommp_message("qm_atoms length does not match the length of other arrays in qm",  
+                                 OMMP_VERBOSE_LOW, "SI QMH");
+                    return false;
+                }
+                qmz = (int32_t *) malloc(sizeof(int32_t) * natoms);
+                nucq = (double *) malloc(sizeof(double) * natoms);
+
+                qmat_array = qm_data->child;
+                for(int i=0; qmat_array != NULL; i++){
+                    if(!cJSON_IsString(qmat_array)){
+                        ommp_message("qm_atoms should be an array of strings.", OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    qmz[i] = element_to_Z(qmat_array->valuestring);
+                    if(qmz[i] <= 0){
+                        sprintf(errstring, "%s is not a recognized element.", qmat_array->valuestring);
+                        ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    nucq[i] = (double) qmz[i];
+                    qmat_array = qmat_array->next;
+                }
+
+            }
+            else{
+                ommp_message("qm_atoms should be an array of strings.", OMMP_VERBOSE_LOW, "SI QMH");
+                return false;
+            }
+        }
+        else if(strcmp(qm_data->string, "qm_coords") == 0){
+            if(cJSON_IsArray(qm_data)){
+                cJSON *qc_array = qm_data->child;
+                int nat;
+
+                // Check number of elements in array
+                for(nat = 0; qc_array != NULL; qc_array = qc_array->next) nat++;
+                if(natoms == 0){
+                    if(nat == 0){
+                        ommp_message("qm_coords length is zero, that is wired!", OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    natoms = nat;
+                }
+                else if(natoms != nat){
+                    ommp_message("qm_coords length does not match the length of other arrays in qm",  
+                                 OMMP_VERBOSE_LOW, "SI QMH");
+                    return false;
+                }
+                coords = (double *) malloc(sizeof(double) * natoms * 3);
+
+                qc_array = qm_data->child;
+                for(int i=0; qc_array != NULL; i++){
+                    if(!cJSON_IsArray(qc_array)){
+                        ommp_message("qm_coords should be a 3 x natoms matrix of double.", 
+                                     OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    cJSON *rowel = qc_array->child;
+                    for(int j=0; j < 3; j++){
+                        if(!cJSON_IsNumber(rowel) || (j==2 && rowel->next != NULL)){
+                            ommp_message("qm_coords should be a 3 x natoms matrix of double.", 
+                                        OMMP_VERBOSE_LOW, "SI QMH");
+                            return false;
+                        }
+                        coords[3*i+j] = rowel->valuedouble;
+                        rowel = rowel->next;
+                    }
+                    qc_array = qc_array->next;
+                }
+            }
+            else{
+                ommp_message("qm_coords should be a 3 x natoms matrix of double.", 
+                                OMMP_VERBOSE_LOW, "SI QMH");
+                return false;
+            }
+        }
+        else{
+            sprintf(errstring, "Unrecognized qm attribute %s", qm_data->string);
+            ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
+        }
+        qm_data = qm_data->next;
+    }
+    
+    if(qmz != NULL && nucq != NULL){
+        if(xyz_path != NULL){
+            ommp_message("Both qm_atoms, qm_coords and xyz_file are set, this is ambiguous.", 
+                         OMMP_VERBOSE_LOW, "SI QMH");
+            return false;
+        }
+        if(coords == NULL){
+            ommp_message("Both qm_atoms and qm_coords should be set in a correct input.",
+                         OMMP_VERBOSE_LOW, "SI QMH");
+            return false;
+        }
+
+        *qmh = ommp_init_qm_helper(natoms, coords, nucq, qmz);
+    }
+    else if(coords != NULL){
+        ommp_message("Both qm_atoms and qm_coords should be set in a correct input.",
+                     OMMP_VERBOSE_LOW, "SI QMH");
+        return false;
+    }
+
+    // If qm_atom_types is set configure qm_atom_types with something like
+    // ommp_qm_helper_set_attype(OMMP_QM_HELPER_PRT, const int32_t *);
+    // ommp_qm_helper_init_vdw_prm(OMMP_QM_HELPER_PRT, const char *);
+
+    if(qmz != NULL) free(qmz);
+    if(nucq != NULL) free(nucq);
+    if(coords != NULL) free(coords); 
+
+    return true;
+}
+
 void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     char msg[OMMP_STR_CHAR_MAX];
     
@@ -342,6 +498,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     int32_t req_verbosity = OMMP_VERBOSE_DEFAULT,
             req_solver = OMMP_SOLVER_DEFAULT,
             req_matv = OMMP_MATV_DEFAULT;
+    
+    *ommp_qmh = NULL;
 
     while(cur != NULL){
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
@@ -385,6 +543,14 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal(msg);
             }
             output_path = path;
+        }
+        else if(strcmp(cur->string, "qm") == 0){
+            if(*ommp_qmh == NULL){
+                if(!smartinput_qm(cur, ommp_qmh))
+                    ommp_fatal("Error during creation of QM Helper object");
+            }
+            else
+                ommp_fatal("Only a single qm section can be present in smart input");
         }
         else if(strcmp(cur->string, "version") == 0){
             if(!check_version(cur->valuestring)){
@@ -492,6 +658,10 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     ommp_set_default_solver(*ommp_sys, req_solver);
     // Set matv in ommp_sys
     ommp_set_default_matv(*ommp_sys, req_matv);
+
+    // Handle QM part of the system
+    
+    // Handle link atoms
 
     return;
 }
