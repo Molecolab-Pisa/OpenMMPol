@@ -6,9 +6,19 @@ module mod_constants
     !! force-field parameters that are used when no other input is specified, 
     !! and internal constants that are used as easy-to-remember names of code
     !! constants.
-    use mod_memory, only: ip, rp
+    use iso_c_binding
+    
     implicit none
-  
+
+#ifdef USE_I8
+    integer(kind=c_int64_t), parameter :: ip = c_int64_t
+#else
+    integer(kind=c_int32_t), parameter :: ip = c_int32_t
+#endif
+    !! Required precision for integer type
+    integer(ip), parameter :: rp = c_double !! Required precision for real type
+    integer(ip), parameter :: lp = c_bool
+
     ! Physical constants
     real(rp), parameter :: angstrom2au = OMMP_FORT_ANG2AU
     !! Conversion factor from \(\AA\) to A.U.

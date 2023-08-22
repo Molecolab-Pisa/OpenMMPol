@@ -4,18 +4,11 @@ module mod_memory
     !! memory limit of the openMMPol library.
 
     use iso_c_binding
-    
+    use mod_constants, only: ip, rp, lp, OMMP_STR_CHAR_MAX
+    use mod_io, only: fatal_error, ommp_message
+
     implicit none
     private 
-
-#ifdef USE_I8
-    integer(kind=c_int64_t), parameter :: ip = c_int64_t
-#else
-    integer(kind=c_int32_t), parameter :: ip = c_int32_t
-#endif
-    !! Required precision for integer type
-    integer(ip), parameter :: rp = c_double !! Required precision for real type
-    integer(ip), parameter :: lp = c_bool
 
     integer(ip), parameter :: iof_memory = 6
     !! Unit file for memory errors, warning and debug
@@ -26,8 +19,7 @@ module mod_memory
     logical :: do_chk_limit !! Decide if the soft memory limit is on
 
     public :: rp, ip, lp
-    public :: mallocate, mfree, print_memory_info, & 
-              memory_init
+    public :: mallocate, mfree, memory_init
     public :: use_8bytes_int 
     
     interface mallocate
@@ -67,19 +59,6 @@ module mod_memory
         use_8bytes_int = .false.
 #endif
     end function use_8bytes_int
-
-    subroutine print_memory_info()
-        !! deprecated: true
-        !! Routine to print information on the current status
-        !! of memory module
-        ! TODO MB22 Improve or remove this function
-        implicit none 
-        write(6, *) "Precision for integer numbers: ", ip
-        write(6, *) "An integer occupies ", size_of_int, " bytes."
-        write(6, *) "Precision for real numbers: ", rp
-        write(6, *) "An integer occupies ", size_of_real, " bytes."
-        write(6, *) "The total memory available is ", maxmem, " bytes."
-    end subroutine print_memory_info
 
     subroutine memory_init(do_chk, max_bytes)
         !! Routine used to initialize the memory module. It should
@@ -220,17 +199,15 @@ module mod_memory
         !! Human-readable description string of the allocation
         !! operation, just for output purpose.
 
-   9000 format(t3,'allocation error in subroutine ',a,'. stat= ',i5)
-   9010 format(t3,'allocation error in subroutine ',a,'.',/,    &
-               t3,'not enough memory. ',i8,' words required',/, &
-               t3,'                   ',i8,' words available.')
-
+        character(len=OMMP_STR_CHAR_MAX) :: msg
+        !! Message string for errors
+        
         if(istat /= 0) then
-            write(iof_memory, 9000) string, istat
-            stop 1
+            write(msg, "('Allocation error in subroutine ', a ,'. stat= ', i5)") string, istat
+            call fatal_error(msg)
         else if(do_chk_limit .and. usedmem+lall > maxmem) then
-            write(iof_memory, 9010) string, lall, maxmem-usedmem
-            stop 1
+            write(msg, "('Allocation error in subroutine ', a ,'. Not enough memory (internal limit ', i8, ' W).')") string, maxmem
+            call fatal_error(msg)
         else
             usedmem = usedmem + lall
         end if
@@ -356,12 +333,13 @@ module mod_memory
         !! amount of memory (in bytes) to free
         integer(ip), intent(in) :: istat
         !! return flag of deallocate
-   
-   9000 format(t3,'deallocation error in subroutine ',a,'. stat= ',i5)
+        
+        character(len=OMMP_STR_CHAR_MAX) :: msg
+        !! Message string for errors
 
         if(istat /= 0)then
-            write(iof_memory, 9000) string, istat
-            stop 1
+            write(msg, "('Deallocation error in subroutine ', a ,'. stat= ', i5)") string, istat
+            call fatal_error(msg)
         else
             usedmem = usedmem - lfree
         end if

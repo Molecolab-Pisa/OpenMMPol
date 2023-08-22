@@ -232,7 +232,7 @@ module mod_utils
         !! version of the code.   
         !! @warning This function should not be used in efficiency-critical
         !! part of the code!
-        use mod_memory, only: mallocate
+        use mod_memory, only: mallocate, mfree
 
         implicit none
 
@@ -244,6 +244,7 @@ module mod_utils
         integer(ip) :: i, imin(1)
         logical, allocatable :: mask(:)
 
+        if(allocated(ov)) call mfree('sort_ivec', ov)
         call mallocate('sort_ivec', size(iv), ov)
         allocate(mask(size(iv)))
         mask = .true.

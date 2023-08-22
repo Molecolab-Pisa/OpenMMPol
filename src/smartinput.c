@@ -193,6 +193,7 @@ bool check_file(cJSON *file_json, char **path){
     cJSON *file_data = file_json->child;
     char *md5sum = NULL;
     char errstring[OMMP_STR_CHAR_MAX];
+    char accessmode[3] = "r";
     *path = NULL;
 
 
@@ -213,6 +214,25 @@ bool check_file(cJSON *file_json, char **path){
                 return false;
             }
         }
+        else if(strcmp(file_data->string, "mode") == 0){
+            // Default mode is read, for output either append or write or overwrite should be specified.
+            if(strcmp(file_data->valuestring, "read") == 0){
+                strcpy(accessmode, "r");
+            }
+            else if(strcmp(file_data->valuestring, "append") == 0){
+                strcpy(accessmode, "a");
+            }
+            else if(strcmp(file_data->valuestring, "write") == 0){
+                strcpy(accessmode, "w");
+            }
+            else if(strcmp(file_data->valuestring, "overwrite") == 0){
+                strcpy(accessmode, "w+");
+            }
+            else{
+                sprintf(errstring, "Unrecognized file access mode %s; assuming read.", file_data->valuestring);
+                ommp_message(errstring, OMMP_VERBOSE_LOW, "SIfile");
+            }
+        }
         else{
             sprintf(errstring, "Unrecognized file attribute %s", file_data->string);
             ommp_message(errstring, OMMP_VERBOSE_LOW, "SIfile");
@@ -226,12 +246,13 @@ bool check_file(cJSON *file_json, char **path){
     }
 
     // The path should exist
-    FILE *fp = fopen(*path, "r");
+    FILE *fp = fopen(*path, accessmode);
     if(fp == NULL){
         sprintf(errstring, "File %s does not exist.", *path);
         ommp_message(errstring, OMMP_VERBOSE_LOW, "SI file");
         return false;
     }
+    fclose(fp);
 
     // It could contain an md5sum
     if(md5sum != NULL){
@@ -309,9 +330,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     }
     
     cJSON *cur = input_json->child;
-    char *path, *xyz_path = NULL, *prm_path = NULL, *hdf5_path = NULL, *mmpol_path = NULL;
+    char *path, *xyz_path = NULL, *prm_path = NULL,
+         *hdf5_path = NULL, *mmpol_path = NULL,
+         *output_path = NULL;
     char *json_name, *json_description;
-    int32_t req_verbosity = OMMP_VERBOSE_DEFAULT, 
+    int32_t req_verbosity = OMMP_VERBOSE_DEFAULT,
             req_solver = OMMP_SOLVER_DEFAULT,
             req_matv = OMMP_MATV_DEFAULT;
 
@@ -333,6 +356,9 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         }
         else if(strcmp(cur->string, "mmpol_file") == 0){
             mmpol_path = path;
+        }
+        else if(strcmp(cur->string, "output_file") == 0){
+            output_path = path;
         }
         else if(strcmp(cur->string, "version") == 0){
             if(!check_version(cur->valuestring)){
@@ -393,14 +419,20 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         cur = cur->next;
     }
 
+    // Set verbosity
     ommp_set_verbose(req_verbosity);
-    
+    // Set output file
+    if(output_path != NULL)
+        ommp_set_outputfile(output_path);
+
+    // Print information from JSON
     sprintf(msg, "Smart Input Name: %s", json_name);
     ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
     
     sprintf(msg, "Smart Input Description: %s", json_description);
     ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
     
+    // Input for MM
     if(xyz_path != NULL){
         ommp_message("Trying initialization from Tinker .xyz file.", OMMP_VERBOSE_LOW, "SI");
         if(prm_path == NULL)

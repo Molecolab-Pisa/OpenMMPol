@@ -108,6 +108,26 @@ module mod_ommp_C_interface
 
         end subroutine C_ommp_message
         
+        subroutine C_ommp_set_outputfile(fname) &
+                bind(c, name='ommp_set_outputfile')
+            implicit none
+            
+            character(kind=c_char), intent(in) :: fname(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: ffname
+            
+            call c2f_string(fname, ffname)
+            call ommp_set_outputfile(ffname)
+
+        end subroutine C_ommp_set_outputfile
+        
+        subroutine C_ommp_close_outputfile() &
+                bind(c, name='ommp_close_outputfile')
+            implicit none
+            
+            call ommp_close_outputfile()
+
+        end subroutine C_ommp_close_outputfile
+        
         subroutine C_ommp_print_summary(s_prt) bind(c, name='ommp_print_summary')
             !! Print a summary of the system input on standard output.
             implicit none

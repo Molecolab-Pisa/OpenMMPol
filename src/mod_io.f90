@@ -3,25 +3,25 @@
 module mod_io
     !! Unified Input/Output handling across the code.
     
-    use mod_memory, only: ip, rp
     use mod_constants, only: OMMP_VERBOSE_DEBUG, &
                              OMMP_VERBOSE_HIGH, &
                              OMMP_VERBOSE_LOW, &
                              OMMP_VERBOSE_NONE, &
-                             OMMP_VERBOSE_DEFAULT
+                             OMMP_VERBOSE_DEFAULT, &
+                             ip, rp
 
     implicit none
     private
 
-    integer, parameter :: iof_memory = 6
-    integer, parameter :: iof_mmpol = 6
+    integer :: iof_mmpol = 6
     integer, parameter :: iof_mmpinp = 100
     
     integer(ip), protected :: verbose = OMMP_VERBOSE_DEFAULT
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
     
-    public :: iof_memory, iof_mmpol, iof_mmpinp
+    public :: iof_mmpol, iof_mmpinp
+    public :: set_iof_mmpol, close_output
     public :: set_verbosity, ommp_message, fatal_error, ommp_version
     public :: print_matrix, print_int_vec
 
@@ -33,6 +33,61 @@ module mod_io
 
     contains
     
+    subroutine set_iof_mmpol(filename)
+        !! This subroutine changes the output file for mmpol to a file defined by filename.
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+
+        implicit none
+
+        character(len=*), intent(in) :: filename
+        !! File name for the new output stream
+        character(len=OMMP_STR_CHAR_MAX) :: msg, oldfname
+        integer(ip) :: ist
+
+
+        if(iof_mmpol /= 6) then
+            !! A file has already been set, close it before proceed.
+            inquire(unit=iof_mmpol, name=oldfname)
+            write(msg, '("Switching output from ", a, " to ", a,".")') trim(oldfname), trim(filename)
+            call ommp_message(msg, OMMP_VERBOSE_LOW)
+            close(iof_mmpol)
+        else
+            write(msg, '("Switching output from stdout to ", a,".")') trim(filename)
+            call ommp_message(msg, OMMP_VERBOSE_LOW)
+        end if
+        
+        open(unit=110, &
+             file=filename, &
+             form='formatted', &
+             iostat=ist, &
+             action='write')
+
+        if(ist /= 0) then
+            call fatal_error('Error while opening output input file')
+        end if
+
+        iof_mmpol = 110
+    end subroutine
+    
+    subroutine close_output()
+        !! This subroutine changes the output file for mmpol to a file defined by filename.
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+
+        implicit none
+
+        character(len=OMMP_STR_CHAR_MAX) :: msg, oldfname
+
+
+        if(iof_mmpol /= 6) then
+            !! A file has already been set, close it before proceed.
+            inquire(unit=iof_mmpol, name=oldfname)
+            write(msg, '("Closing output file ", a,".")') trim(oldfname)
+            call ommp_message(msg, OMMP_VERBOSE_LOW)
+            close(iof_mmpol)
+        end if
+
+    end subroutine
+
     subroutine set_verbosity(v)
         !! Set the verbosity level for the output, this is a library-level
         !! function, that changes the behaviour of several I/O functions. It
@@ -67,7 +122,7 @@ module mod_io
         integer(ip), intent(in) :: level
         !! Requested verbosity level
         integer(ip), intent(in), optional :: u
-        !! Output unit for the message, if missing, unit 6/stdout is used.
+        !! Output unit for the message, if missing, [[iof_mmpol]] is used.
 
         integer(ip) :: outunit
         character(len=12) :: pre
@@ -77,7 +132,7 @@ module mod_io
         if(present(u)) then
             outunit = u
         else
-            outunit = 6
+            outunit = iof_mmpol
         end if
 
         if(present(logpre)) then
@@ -105,12 +160,13 @@ module mod_io
       
         character (len=*), intent(in) :: message
         !! Message to print before the program termination
-
-        !write(6, '(t3,a)') message
         call ommp_message(message, OMMP_VERBOSE_LOW, 'stop')
         call ommp_message("Unrecoverable error in openMMPol &
                           &library. Exiting.", OMMP_VERBOSE_LOW, &
                           'stop')
+        !! Close output file
+        call close_output()
+
         !TODO call mmpol_terminate()
 
         stop
@@ -231,9 +287,8 @@ module mod_io
       end if
     end subroutine d2_print_matrix
 
-    subroutine print_int_vec(label, vec, dosort, ofunit, ibeg, iend)
+    subroutine print_int_vec(label, vec, ofunit, ibeg, iend)
         !! Print an array of integers in a well formatted way.
-        use mod_utils, only: sort_ivec
         
         implicit none
         
@@ -241,23 +296,16 @@ module mod_io
         !! Label to print before the array
         integer(ip), dimension(:), intent(in) :: vec
         !! Integer vector to be printed
-        logical, optional :: dosort
-        !! If present and .true., print the sorted array
-        !! otherwise [[iof_mmpol]] is used.
         integer(ip), intent(in), optional :: ofunit
         !! If present specify the unit where the array should be printed, 
+        !! otherwise [[iof_mmpol]] is used.
         integer(ip), intent(in), optional :: ibeg
         !! Index of the first element to be printed, if 0 or absent the first 
         !! element is used
         integer(ip), intent(in), optional :: iend
         !! Index of the last element to be printed, if 0 or absent the last 
-        !! element of the array is used
-        logical :: sort
-
         
         integer(ip) :: ib, ie, out_unit
-
-        integer(ip), allocatable, dimension(:) :: sorted_vec
 
         if(present(ibeg)) then
             ib = ibeg
@@ -272,12 +320,6 @@ module mod_io
         if(ib == 0) ib = 1
         if(ie == 0) ie = size(vec)
         
-        if(.not. present(dosort)) then
-            sort = .false.
-        else
-            sort =  dosort
-        end if
-        
         if(present(ofunit)) then
             out_unit = ofunit
         else
@@ -291,15 +333,7 @@ module mod_io
             return
         end if 
 
-        !! TODO extend the scope of this function...
-        if(sort) then
-            call sort_ivec(vec(ib:ie), sorted_vec)
-            write(out_unit,'(t5, 10i8)') sorted_vec
-        else
-            write(out_unit,'(t5, 10i8)') vec(ib:ie)
-        end if
-
-        return
+        write(out_unit,'(t5, 10i8)') vec(ib:ie)
 
     end subroutine print_int_vec
 

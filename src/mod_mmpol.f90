@@ -398,6 +398,7 @@ module mod_mmpol
         !! in the MMPol module
         use mod_memory, only: mallocate, mfree
         use mod_io, only: iof_mmpol, print_matrix, print_int_vec
+        use mod_utils, only: sort_ivec
         
         implicit none
 
@@ -408,6 +409,7 @@ module mod_mmpol
 
         integer(ip) :: i, j, grp, igrp, lst(1000), ilst
         real(rp), allocatable :: polar(:) ! Polarizabilities of all atoms
+        integer(ip), allocatable :: tmp(:)
         character(len=OMMP_STR_CHAR_MAX) :: str
 
         if(present(of_name)) then
@@ -445,9 +447,9 @@ module mod_mmpol
                           sys_obj%eel%cpol, of_unit)
         call print_matrix(.false., 'polarizabilities:', polar, of_unit)
         call print_matrix(.false., 'thole factors:', sys_obj%eel%thole, of_unit)
-        call print_int_vec('mm_polar list:', sys_obj%eel%mm_polar, .false., &
+        call print_int_vec('mm_polar list:', sys_obj%eel%mm_polar, &
                            of_unit)
-        call print_int_vec('polar_mm list:', sys_obj%eel%polar_mm, .false., &
+        call print_int_vec('polar_mm list:', sys_obj%eel%polar_mm, &
                            of_unit)
 
         ! write the connectivity information for each atom:
@@ -460,11 +462,10 @@ module mod_mmpol
                 if(j == 4 .and. .not. sys_obj%amoeba) cycle
                 
                 write(str, "('1-', I1, ' neighors:')") j+1
-                call print_int_vec(trim(str), &
-                                   sys_obj%top%conn(j)%ci, &
-                                   .true., of_unit, &
-                                   sys_obj%top%conn(j)%ri(i), &
-                                   sys_obj%top%conn(j)%ri(i+1)-1) 
+                call sort_ivec(sys_obj%top%conn(j)%ci(&
+                                sys_obj%top%conn(j)%ri(i):&
+                                sys_obj%top%conn(j)%ri(i+1)-1), tmp)
+                call print_int_vec(trim(str), tmp, of_unit) 
             end do
             
             if(sys_obj%amoeba) then 
@@ -488,17 +489,17 @@ module mod_mmpol
                    
                     write(str, "('1-', I1, ' polarization neighors:')") j
                     if(ilst == 1) ilst = 0
+                    call sort_ivec(lst(1:ilst-1), tmp)
                     ! needed to addres the empty array case
-                    call print_int_vec(trim(str), &
-                                       lst, &
-                                       .true., of_unit, &
-                                       1, ilst-1)
+                    call print_int_vec(trim(str), tmp, of_unit)
                 end do
             end if
         end do
         
         if(present(of_name)) close(of_unit)
         
+        if(allocated(tmp)) &
+            call mfree('mmpol_ommp_print_summary [tmp]', tmp)
         call mfree('mmpol_ommp_print_summary [polar]', polar)
 
     end subroutine mmpol_ommp_print_summary

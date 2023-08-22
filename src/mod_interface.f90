@@ -42,6 +42,8 @@ module ommp_interface
 
     use mod_io, only: ommp_set_verbose => set_verbosity, &
                       ommp_message, &
+                      ommp_set_outputfile => set_iof_mmpol, &
+                      ommp_close_outputfile => close_output, &
                       ommp_fatal => fatal_error, &
                       ommp_version
     
