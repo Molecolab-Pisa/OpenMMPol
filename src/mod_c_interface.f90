@@ -1204,9 +1204,11 @@ module mod_ommp_C_interface
             type(c_ptr), value :: s_ptr
             type(ommp_qm_helper), pointer :: s
             
-            call c_f_pointer(s_ptr, s)
-            call qm_helper_terminate(s)
-            deallocate(s)
+            if(c_associated(s_ptr)) then
+                call c_f_pointer(s_ptr, s)
+                call qm_helper_terminate(s)
+                deallocate(s)
+            end if
         end subroutine
         
         subroutine C_ommp_qm_helper_update_coord(s_ptr, cqm) &

@@ -5,9 +5,9 @@
 #include "openmmpol.h"
 
 int main(int argc, char **argv){
-    if(argc != 3){
+    if(argc != 2){
         printf("Syntax expected\n");
-        printf("    $ test_init_xyz.exe <JSON FILE> <OUTPUT FILE>\n");
+        printf("    $ test_init_xyz.exe <JSON FILE>\n");
         return 0;
     }
     
@@ -17,9 +17,10 @@ int main(int argc, char **argv){
     
     int pol_atoms;
     double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot,
-           ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex;
+           ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex, evqmmm;
     
     double *electric_field;
+    char msg[OMMP_STR_CHAR_MAX];
 
     pol_atoms = ommp_get_pol_atoms(my_system);
     
@@ -32,7 +33,14 @@ int main(int argc, char **argv){
     em = ommp_get_fixedelec_energy(my_system);
     ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
     ep = ommp_get_polelec_energy(my_system);
+    
     ev = ommp_get_vdw_energy(my_system);
+    
+    if(my_qmh != NULL)
+        evqmmm = ommp_qm_helper_vdw_energy(my_qmh, my_system);
+    else
+        evqmmm = 0.0;
+    
     eb = ommp_get_bond_energy(my_system);
     ea = ommp_get_angle_energy(my_system);
     eba = ommp_get_strbnd_energy(my_system);
@@ -45,7 +53,6 @@ int main(int argc, char **argv){
     ebt = ommp_get_strtor_energy(my_system);
     eit = ommp_get_imptorsion_energy(my_system);
     etot = ommp_get_full_energy(my_system);
-    FILE *fp = fopen(argv[2], "w+");
 
     eaa = 0.0;
     eopd = 0.0;
@@ -78,39 +85,69 @@ int main(int argc, char **argv){
     eit *= OMMP_AU2KCALMOL;
     etot *= OMMP_AU2KCALMOL;
 
-    fprintf(fp, "EM      %20.12e\n", em);
-    fprintf(fp, "EP      %20.12e\n", ep);
-    fprintf(fp, "EV      %20.12e\n", ev);
-    fprintf(fp, "EB      %20.12e\n", eb);
-    fprintf(fp, "EA      %20.12e\n", ea);
-    fprintf(fp, "EBA     %20.12e\n", eba);
-    fprintf(fp, "EUB     %20.12e\n", eub);
-    fprintf(fp, "EOPB    %20.12e\n", eopb);
-    fprintf(fp, "EPT     %20.12e\n", ept);
-    fprintf(fp, "ET      %20.12e\n", et);
-    fprintf(fp, "ETT     %20.12e\n", ett);
-
-    fprintf(fp, "EAA     %20.12e\n", eaa); 
-    fprintf(fp, "EOPD    %20.12e\n", eopd);
-    fprintf(fp, "EID     %20.12e\n", eid); 
-    fprintf(fp, "EIT     %20.12e\n", eit); 
-    fprintf(fp, "EBT     %20.12e\n", ebt); 
-    fprintf(fp, "EAT     %20.12e\n", eat); 
-    fprintf(fp, "ER      %20.12e\n", er);
-    fprintf(fp, "EDSP    %20.12e\n", edsp);
-    fprintf(fp, "EC      %20.12e\n", ec);
-    fprintf(fp, "ECD     %20.12e\n", ecd);
-    fprintf(fp, "ED      %20.12e\n", ed);
-    fprintf(fp, "ECT     %20.12e\n", ect);
-    fprintf(fp, "ERXF    %20.12e\n", erxf);
-    fprintf(fp, "ES      %20.12e\n", es);
-    fprintf(fp, "ELF     %20.12e\n", elf);
-    fprintf(fp, "EG      %20.12e\n", eg);
-    fprintf(fp, "EX      %20.12e\n", ex);
-    fprintf(fp, "ETOT      %20.12e\n", etot);
+    sprintf(msg, "EM      %20.12e", em);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EP      %20.12e", ep);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EV      %20.12e", ev);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EVQMMM  %20.12e", evqmmm);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EB      %20.12e", eb);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EA      %20.12e", ea);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EBA     %20.12e", eba);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EUB     %20.12e", eub);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EOPB    %20.12e", eopb);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EPT     %20.12e", ept);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ET      %20.12e", et);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ETT     %20.12e", ett);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EAA     %20.12e", eaa); 
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EOPD    %20.12e", eopd);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EID     %20.12e", eid); 
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EIT     %20.12e", eit); 
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EBT     %20.12e", ebt); 
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EAT     %20.12e", eat); 
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ER      %20.12e", er);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EDSP    %20.12e", edsp);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EC      %20.12e", ec);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ECD     %20.12e", ecd);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ED      %20.12e", ed);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ECT     %20.12e", ect);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ERXF    %20.12e", erxf);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ES      %20.12e", es);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ELF     %20.12e", elf);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EG      %20.12e", eg);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EX      %20.12e", ex);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ETOT      %20.12e", etot);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
     
-    fclose(fp);
-    //free(electric_field);
+    free(electric_field);
+    if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
     
     return 0;

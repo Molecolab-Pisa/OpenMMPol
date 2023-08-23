@@ -432,7 +432,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                                         OMMP_VERBOSE_LOW, "SI QMH");
                             return false;
                         }
-                        coords[3*i+j] = rowel->valuedouble;
+                        coords[3*i+j] = rowel->valuedouble * OMMP_ANG2AU;
                         rowel = rowel->next;
                     }
                     qc_array = qc_array->next;
@@ -589,6 +589,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             req_solver = OMMP_SOLVER_DEFAULT,
             req_matv = OMMP_MATV_DEFAULT;
     
+    int32_t nla = 0, *la_mm, *la_qm, *la_la, *la_ner;
+    double *la_bl;
     *ommp_qmh = NULL;
 
     while(cur != NULL){
@@ -693,6 +695,64 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal(msg);
             }
         }
+        else if(strcmp(cur->string, "link_atoms") == 0){
+            if(!cJSON_IsArray(cur))
+                ommp_fatal("link_atoms should be an array of structures!");
+            if(nla > 0)
+                ommp_fatal("Only a single link_atoms section should be present");
+            cJSON *linkatom_arr = cur->child;
+            for(nla = 0; linkatom_arr != NULL; linkatom_arr = linkatom_arr -> next){
+                if(!cJSON_IsObject(linkatom_arr))
+                    ommp_fatal("link_atoms should be an array of structures!");
+                nla++;
+            }
+
+            if(nla < 0)
+                ommp_fatal("Wired error when parsing link_atoms");
+            la_mm = (int32_t *) malloc(sizeof(int32_t) * nla);
+            la_qm = (int32_t *) malloc(sizeof(int32_t) * nla);
+            la_la = (int32_t *) malloc(sizeof(int32_t) * nla);
+            la_ner = (int32_t *) malloc(sizeof(int32_t) * nla);
+            la_bl = (double *) malloc(sizeof(double) * nla);
+
+            linkatom_arr = cur->child;
+            for(int i=0; linkatom_arr != NULL; i++){
+                la_mm[i] = la_qm[i] = la_la[i] = 0;
+                la_bl[i] = -1.0;
+                la_ner[i] = 0;
+                cJSON *tmp;
+                for(tmp = linkatom_arr->child; tmp != NULL; tmp = tmp->next){
+                    if(strcmp(tmp->string, "MM_id") == 0 && cJSON_IsNumber(tmp))
+                        la_mm[i] = tmp->valueint;
+                    else if(strcmp(tmp->string, "QM_id") == 0 && cJSON_IsNumber(tmp))
+                        la_qm[i] = tmp->valueint;
+                    else if(strcmp(tmp->string, "LA_id") == 0 && cJSON_IsNumber(tmp))
+                        la_la[i] = tmp->valueint;
+                    else if(strcmp(tmp->string, "bond_length") == 0 && cJSON_IsNumber(tmp))
+                        la_bl[i] = tmp->valuedouble * OMMP_ANG2AU;
+                    else if(strcmp(tmp->string, "eel_remove") == 0 && cJSON_IsNumber(tmp))
+                        la_ner[i] = tmp->valueint;
+                    else{
+                        sprintf(msg, "Unrecognized field %s in link atom %d.", tmp->string, i);
+                        ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+                    }
+                }
+                if(la_mm[i] == 0){
+                    sprintf(msg, "MM_id missing in link atom %d.", i);
+                    ommp_fatal(msg);
+                }
+                if(la_qm[i] == 0){
+                    sprintf(msg, "QM_id missing in link atom %d.", i);
+                    ommp_fatal(msg);
+                }
+                if(la_la[i] == 0){
+                    sprintf(msg, "LA_id missing in link atom %d.", i);
+                    ommp_fatal(msg);
+                }
+
+                linkatom_arr = linkatom_arr -> next;
+            }
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
@@ -756,6 +816,25 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     }
 
     // Handle link atoms
+    if(nla > 0){
+        if(*ommp_qmh == NULL)
+            ommp_fatal("Link atoms requested but no qm section is defined!");
+        for(int i=0; i<nla; i++){
+            if(la_bl[i] < 0) la_bl[i] = OMMP_DEFAULT_LA_DIST;
+            if(la_ner[i] == 0) la_ner[i] = OMMP_DEFAULT_LA_N_EEL_REMOVE;
+
+            ommp_create_link_atom(*ommp_qmh,  *ommp_sys, 
+                                  la_mm[i], la_qm[i], la_la[i], 
+                                  prm_path, 
+                                  la_bl[i], la_ner[i]);
+        }
+
+        free(la_mm);
+        free(la_qm);
+        free(la_la);
+        free(la_bl);
+        free(la_ner);
+    }
 
     return;
 }
