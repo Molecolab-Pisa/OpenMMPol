@@ -321,12 +321,39 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
     cJSON *qm_data = qm_json->child;
     char errstring[OMMP_STR_CHAR_MAX];
     int32_t natoms = 0;
-    int32_t *qmz = NULL;
+    int32_t *qmz = NULL, *qmt = NULL;
     double *coords = NULL, *nucq = NULL;
-    char *xyz_path = NULL;
+    char *xyz_path = NULL, *prm_path = NULL;
+    char mode, *path;
 
     while(qm_data != NULL){
-        if(strcmp(qm_data->string, "qm_atoms") == 0){
+        if(str_ends_with(qm_data->string, "_file")){
+            if(! check_file(qm_data, &path, &mode)){
+                sprintf(errstring, "File check on \"%s\" has failed.", qm_data->string);
+                ommp_fatal(errstring);
+            };
+            
+            if(mode != 'r' && mode != 'w'){
+                sprintf(errstring, "Unrecognized file access mode (unexpected error) '%c'.", mode);
+                ommp_fatal(errstring);
+            }
+        }
+
+        if(strcmp(qm_data->string, "xyz_file") == 0){
+            if(mode != 'r'){
+                sprintf(errstring, "xyz_file should be in read mode.");
+                ommp_fatal(errstring);
+            }
+            xyz_path = path;
+        }
+        else if(strcmp(qm_data->string, "prm_file") == 0){
+            if(mode != 'r'){
+                sprintf(errstring, "prm_file should be in read mode.");
+                ommp_fatal(errstring);
+            }
+            prm_path = path;
+        }
+        else if(strcmp(qm_data->string, "qm_atoms") == 0){
             if(cJSON_IsArray(qm_data)){
                 cJSON *qmat_array = qm_data->child;
                 int nat;
@@ -340,7 +367,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                     }
                     natoms = nat;
                 }
-                else{
+                else if(natoms != nat){
                     ommp_message("qm_atoms length does not match the length of other arrays in qm",  
                                  OMMP_VERBOSE_LOW, "SI QMH");
                     return false;
@@ -417,6 +444,48 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                 return false;
             }
         }
+        else if(strcmp(qm_data->string, "qm_atom_types") == 0){
+            if(cJSON_IsArray(qm_data)){
+                cJSON *qmat_array = qm_data->child;
+                int nat;
+
+                // Check number of elements in array
+                for(nat = 0; qmat_array != NULL; qmat_array = qmat_array->next) nat++;
+                if(natoms == 0){
+                    if(nat == 0){
+                        ommp_message("qm_atom_types length is zero, that is wired!", OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    natoms = nat;
+                }
+                else if(natoms != nat){
+                    ommp_message("qm_atom_types length does not match the length of other arrays in qm",  
+                                 OMMP_VERBOSE_LOW, "SI QMH");
+                    return false;
+                }
+                qmt = (int32_t *) malloc(sizeof(int32_t) * natoms);
+
+                qmat_array = qm_data->child;
+                for(int i=0; qmat_array != NULL; i++){
+                    if(!cJSON_IsNumber(qmat_array)){
+                        ommp_message("qm_atom_types should be an array of integers.", OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    qmt[i] = qmat_array->valueint;
+                    if(qmt[i] <= 0){
+                        sprintf(errstring, "Atom types should be positive (found %d).", qmat_array->valueint);
+                        ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
+                        return false;
+                    }
+                    qmat_array = qmat_array->next;
+                }
+
+            }
+            else{
+                ommp_message("qm_atom_types should be an array of integers.", OMMP_VERBOSE_LOW, "SI QMH");
+                return false;
+            }
+        }
         else{
             sprintf(errstring, "Unrecognized qm attribute %s", qm_data->string);
             ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
@@ -443,10 +512,31 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                      OMMP_VERBOSE_LOW, "SI QMH");
         return false;
     }
+    else if(xyz_path != NULL){
+        ommp_message("QM input from xyz is currently unsupported!",
+                     OMMP_VERBOSE_LOW, "SI QMH");
+        return false;
 
-    // If qm_atom_types is set configure qm_atom_types with something like
-    // ommp_qm_helper_set_attype(OMMP_QM_HELPER_PRT, const int32_t *);
-    // ommp_qm_helper_init_vdw_prm(OMMP_QM_HELPER_PRT, const char *);
+    }
+    else{
+        ommp_message("Either qm_atoms and qm_coords or xyz_file should be set in qm section!",
+                     OMMP_VERBOSE_LOW, "SI QMH");
+        return false;
+    }
+
+    if(qmt != NULL){
+        ommp_qm_helper_set_attype(*qmh, qmt);
+        if(prm_path != NULL){
+            ommp_qm_helper_init_vdw_prm(*qmh, prm_path);
+        }
+        else{
+            ommp_message("Since qm_atom_types is present but prm_file is not, atom types are set, while VdW are not.", OMMP_VERBOSE_LOW, "SI QMH");
+        }
+    }
+    else if(prm_path != NULL){
+        ommp_message("prm_file is only needed when qm_atom_types is set, your config does not make any sense.", OMMP_VERBOSE_LOW, "SI QMH");
+        return false;
+    }
 
     if(qmz != NULL) free(qmz);
     if(nucq != NULL) free(nucq);
@@ -660,7 +750,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     ommp_set_default_matv(*ommp_sys, req_matv);
 
     // Handle QM part of the system
-    
+    if(*ommp_qmh == NULL){
+        ommp_message("qm section not present in smart input JSON: QMHelper object is not set.",
+                     OMMP_VERBOSE_LOW, "SI");
+    }
+
     // Handle link atoms
 
     return;

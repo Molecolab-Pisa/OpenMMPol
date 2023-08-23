@@ -9,7 +9,8 @@
     "solver": "default",
     "matrix_vector": "incore",
     "output_file": {
-        "path": "/dev/stdout"
+        "path": "provolotto.test",
+        "mode": "write"
     },
     "verbosity": "high"
 }
