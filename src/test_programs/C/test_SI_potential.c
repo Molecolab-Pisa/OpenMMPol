@@ -4,10 +4,45 @@
 
 #include "openmmpol.h"
 
+int countLines(char *fin){
+    FILE *fp = fopen(fin, "r");
+    
+    char c;
+    int lines = 1;
+
+    if(fp == NULL) return 0;
+
+    do{
+        c = fgetc(fp);
+        if(c == '\n') lines++;
+    }while(c != EOF);
+
+    fclose(fp);
+  
+    return lines - 1;
+}
+
+double **read_ef(char *fin){
+    double **ef;
+    
+    int pol_atoms = countLines(fin);
+
+    ef = (double **) malloc(sizeof(double *) * 3 * pol_atoms);
+
+    FILE *fp = fopen(fin, "r");
+    for(int i =0; i < pol_atoms; i++){
+        ef[i] = (double *) malloc(sizeof(double) * 3);
+        fscanf(fp, "%lf %lf %lf", &(ef[i][0]), &(ef[i][1]),  &(ef[i][2]));
+    }
+    fclose(fp);
+
+    return ef;
+}
+
 int main(int argc, char **argv){
-    if(argc != 2){
+    if(argc != 2 && argc != 3){
         printf("Syntax expected\n");
-        printf("    $ test_init_xyz.exe <JSON FILE>\n");
+        printf("    $ test_init_xyz.exe <JSON FILE> [<EF_FILE>]\n");
         return 0;
     }
     
@@ -19,16 +54,23 @@ int main(int argc, char **argv){
     double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot,
            ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex, evqmmm;
     
-    double *electric_field;
+    double *electric_field, **external_ef;
     char msg[OMMP_STR_CHAR_MAX];
 
+    int32_t *polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
     pol_atoms = ommp_get_pol_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
     
+    if(argc == 3)
+        external_ef = read_ef(argv[2]);
+    
     for(int j = 0; j < pol_atoms; j++)
         for(int k = 0; k < 3; k++)
-            electric_field[j*3+k] = 0.0;
+            if(argc == 3)
+                electric_field[j*3+k] = external_ef[polar_mm[j]][k];
+            else
+                electric_field[j*3+k] = 0.0;
     
     em = ommp_get_fixedelec_energy(my_system);
     ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
@@ -146,6 +188,30 @@ int main(int argc, char **argv){
     sprintf(msg, "ETOT      %20.12e", etot);
     ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
     
+    // Print also induced point dipoles
+    int n_ipd = ommp_get_n_ipd(my_system);
+    double *_ipd = (double *) ommp_get_ipd(my_system);
+    double ***ipd = (double ***) malloc(sizeof(double **) * n_ipd );
+
+    for(int i = 0; i < n_ipd; i++){
+        ipd[i] = (double **) malloc(sizeof(double *) * pol_atoms);
+
+        for(int j = 0; j < pol_atoms; j++){
+            ipd[i][j] = &(_ipd[i*pol_atoms*3 + j*3]);
+        }
+    }
+
+    for(int k = 0; k < n_ipd; k++){
+        for(int i = 0; i < pol_atoms; i++){
+            sprintf(msg, "%20.12e %20.12e %20.12e",
+                    ipd[k][i][0], ipd[k][i][1], ipd[k][i][2]);
+            ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-IPD");
+        }
+    }
+    
+    for(int i = 0; i < n_ipd; i++)
+        free(ipd[i]);
+    free(ipd);
     free(electric_field);
     if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
