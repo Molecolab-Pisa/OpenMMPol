@@ -139,6 +139,7 @@ target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent 
 set(TEST_PROGRAMS
     test_SI_init
     test_SI_potential
+    test_SI_geomgrad
     test_init_xyz
     test_init
     test_reinit
