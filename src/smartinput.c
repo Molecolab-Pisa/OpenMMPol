@@ -836,6 +836,130 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     return;
 }
 
+void *c_json_cherrypick(const char *json_file, char *path, char type){
+    if(type != 'd' && type != 's' && type != 'i')
+        return NULL;
+    
+    char msg[OMMP_STR_CHAR_MAX];
+    FILE *fp = fopen(json_file, "r");
+    if(fp == NULL){
+        sprintf(msg, "Unable to open %s", json_file);
+        ommp_fatal(msg);
+    }
+    // Get file size ...
+    size_t fsize;
+    for(fsize = 0; getc(fp) != EOF; fsize++);
+    rewind(fp);
+
+    char *file_content = malloc(fsize * sizeof(char));
+    fread(file_content, sizeof(char), fsize, fp);
+    
+    // Parse the input json
+    cJSON *input_json = cJSON_Parse(file_content);
+    free(file_content);
+    if(input_json == NULL){
+        const char *err = cJSON_GetErrorPtr();
+        if(err != NULL)
+            sprintf(msg, "Error before %s.", err);
+        else
+            sprintf(msg, "Unexpected error during JSON parsing.");
+        ommp_fatal(msg);
+    }
+    
+    cJSON *cur = input_json->child;
+    
+    int32_t *outi = NULL;
+    char *outs = NULL;
+    double *outd = NULL;
+
+    char *field = strtok(path, "/");
+    
+    while(field != NULL){
+        while(cur != NULL){
+            if(strcmp(cur->string, field) == 0)
+                break;
+            cur = cur->next;
+        }
+        field = strtok(NULL, "/");
+        
+        if(cur == NULL){
+            ommp_message("Path not found!",
+                            OMMP_VERBOSE_LOW, "SI");
+            return NULL;
+        }
+        
+        if(cJSON_IsObject(cur)){
+            // This is not a leaf
+            if(field == NULL){
+                ommp_message("Incomplete path provided for SI cherry picking.",
+                             OMMP_VERBOSE_LOW, "SI");
+                return NULL;
+            }
+            cur = cur->child;
+        }
+        else{
+            // This is a leaf
+            if(field == NULL){
+                // Here we are, we found it finally!
+                switch(type){
+                    case 'i':
+                        if(cJSON_IsNumber(cur)){
+                            outi = (int32_t *) malloc(sizeof(int32_t));
+                            *outi = cur->valueint;
+                            return (void *) outi;
+                        }
+                        break;
+                    case 'd':
+                        if(cJSON_IsNumber(cur)){
+                            outd = (double *) malloc(sizeof(double));
+                            *outd = cur->valuedouble;
+                            return (void *) outd;
+                        }
+                        break;
+                    case 's':
+                        if(cJSON_IsString(cur)){
+                            outs = (char *) malloc(sizeof(char) * strlen(cur->valuestring));
+                            strcpy(outs, cur->valuestring);
+                            return (void *) outs;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                return NULL;
+            }
+            else{
+                ommp_message("Path not found!",
+                             OMMP_VERBOSE_LOW, "SI");
+                return NULL;
+            }
+        }
+    }
+}
+
+void ommp_smartimput_cpstr(const char *json_file, char *path, char **s){
+    *s = c_json_cherrypick(json_file, path, 's');
+    if(*s == NULL){
+        ommp_fatal("JSON cherry picking failed.");
+    }
+}
+
+void ommp_smartimput_cpint(const char *json_file, char *path, int32_t *i){
+    int32_t *iprt = c_json_cherrypick(json_file, path, 's');
+    if(*iprt == NULL){
+        ommp_fatal("JSON cherry picking failed.");
+    }
+    *i = *iprt;
+}
+
+void ommp_smartimput_cpdouble(const char *json_file, char *path, double *d){
+    double *dprt = c_json_cherrypick(json_file, path, 's');
+    if(*dprt == NULL){
+        ommp_fatal("JSON cherry picking failed.");
+    }
+    *d = *dprt;
+}
+
 void ommp_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPER_PRT ommp_qmh){
     // Just an interface function to expose same names and functionalities in C and Fortran
     c_smartinput(json_file, ommp_sys, ommp_qmh);
