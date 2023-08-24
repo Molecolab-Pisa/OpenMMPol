@@ -548,9 +548,6 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
 void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     char msg[OMMP_STR_CHAR_MAX];
     
-    // TODO Just for debugging
-    ommp_set_verbose(OMMP_VERBOSE_DEBUG);
-
     // Read the whole file content
     sprintf(msg, "Parsing JSON file \"%s\".", json_file);
     ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
