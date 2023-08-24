@@ -1244,5 +1244,80 @@ module ommp_interface
         deallocate(c_json_filename)
     end subroutine
 
-end module ommp_interface
+    subroutine ommp_system_from_qm_helper(qmh, prm_file, sys)
+        !! Takes in input a QM Helper object, with initialized
+        !! atom types, and using a parameter file, it generates a 
+        !! OMMP System object that corresponds to the QM system.
+        !! It is used for internal testing pourpose but other 
+        !! creative things are always possible.
+        
+        use mod_mmpol, only: mmpol_prepare, mmpol_init, mmpol_init_nonbonded, &
+                             mmpol_init_bonded
+        use mod_topology, only: check_conn_matrix
+        use mod_adjacency_mat, only: build_conn_upto_n
+        use mod_prm, only: check_keyword, assign_pol, assign_mpoles, &
+                           assign_vdw, assign_bond, assign_angle, assign_urey, &
+                           assign_strbnd, assign_opb, assign_pitors, &
+                           assign_torsion, assign_tortors, assign_angtor, &
+                           assign_strtor, assign_imptorsion, get_prm_ff_type
+        
+        implicit none
 
+        type(ommp_system), intent(out) :: sys
+        type(ommp_qm_helper), intent(in) :: qmh
+        character(len=*), intent(in) :: prm_file
+
+        if(.not. (qmh%qm_top%attype_initialized .and. &
+                  qmh%qm_top%atz_initialized)) &
+              call ommp_fatal("In order to convert QM Helper to &
+                              &OMMP System atom types and atomic &
+                              &number should be set.")
+
+        call mmpol_init(sys, get_prm_ff_type(prm_file), &
+                        qmh%qm_top%mm_atoms, qmh%qm_top%mm_atoms)
+
+        ! Copy the topology from QM system!
+        sys%top%cmm = qmh%qm_top%cmm
+        
+        sys%top%use_frozen = qmh%qm_top%use_frozen
+        sys%top%frozen = qmh%qm_top%frozen
+        
+        sys%top%atz_initialized = qmh%qm_top%atz_initialized
+        sys%top%atz = qmh%qm_top%atz
+        
+        sys%top%attype_initialized = qmh%qm_top%attype_initialized
+        sys%top%attype = qmh%qm_top%attype
+        ! Create connectivities from adjacency matrix
+        call build_conn_upto_n(qmh%qm_top%conn(1), 4, sys%top%conn, .false.)
+        ! Now assign parameters
+        if( .not. check_keyword(prm_file)) then
+            call ommp_fatal("PRM file cannot be completely understood")
+        end if
+    
+        call ommp_message("QMH->SYS Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
+        call assign_pol(sys%eel, prm_file)
+        call assign_mpoles(sys%eel, prm_file)
+        
+        call ommp_message("QMH->SYS Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
+        call mmpol_init_nonbonded(sys)
+        call assign_vdw(sys%vdw, sys%top, prm_file)
+        
+        call ommp_message("QMH->SYS Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
+        call mmpol_init_bonded(sys)
+        call check_conn_matrix(sys%top, 4)
+        call assign_bond(sys%bds, prm_file)
+        call assign_angle(sys%bds, prm_file)
+        call assign_urey(sys%bds, prm_file)
+        call assign_strbnd(sys%bds, prm_file)
+        call assign_opb(sys%bds, prm_file)
+        call assign_pitors(sys%bds, prm_file)
+        call assign_torsion(sys%bds, prm_file)
+        call assign_imptorsion(sys%bds, prm_file)
+        call assign_tortors(sys%bds, prm_file)
+        call assign_angtor(sys%bds, prm_file)
+        call assign_strtor(sys%bds, prm_file)
+
+        call mmpol_prepare(sys)
+    end subroutine ommp_system_from_qm_helper
+
+end module ommp_interface
