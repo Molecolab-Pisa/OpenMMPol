@@ -46,43 +46,86 @@ int main(int argc, char **argv){
         return 0;
     }
     
-    OMMP_SYSTEM_PRT my_system;
+    double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot,
+           ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex, 
+           evqmmm, etotmm, eqm;
+
+    char msg[OMMP_STR_CHAR_MAX];
+    
+    OMMP_SYSTEM_PRT my_system, fake_qm;
     OMMP_QM_HELPER_PRT my_qmh;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
     
-    int pol_atoms;
-    double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot,
-           ett, ev, er, edsp, ec, ecd, ed, em, ep, ect, erxf, es, elf, eg, ex, evqmmm;
+    bool use_qm, use_fake_qm, use_external_ef;
+    use_external_ef = (argc == 3);
     
-    double *electric_field, **external_ef;
-    char msg[OMMP_STR_CHAR_MAX];
+    if(my_qmh != NULL){
+        // A QM part is present!
+        use_qm = true;
+
+        if(ommp_use_linkatoms(my_system)){
+            // Since LA are used, I have to create a 
+            // fake system for QM in order to have the
+            // complete energy; parameters should be set 
+            // anyway.
+            use_fake_qm = true;
+        }
+    }
+
+    if(use_fake_qm){
+        // Cherrypick the parameter file use for QM from
+        // the smart input
+        char *prm_file, addr[] = "qm/prm_file/path";
+        ommp_smartimput_cpstr(argv[1], addr, &prm_file);
+        //Create the fake qm system
+        fake_qm = ommp_system_from_qm_helper(my_qmh, prm_file);
+        // In order to make a safe interaction, remove all the polarizabilities
+        // on the fake qm system
+        int natm = ommp_get_pol_atoms(fake_qm);
+        int32_t *nopol = malloc(sizeof(int32_t) * natm);
+        for(int j=0; j < natm; j++)
+            nopol[j] = j;
+        ommp_turn_pol_off(fake_qm, natm, nopol);
+        free(nopol);
+    }
+    
+    // If an external field is present (this is mutally exclusive with a QM part)
+    int pol_atoms;
+    double *electric_field, *qm_ef, **external_ef;
 
     int32_t *polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
     pol_atoms = ommp_get_pol_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
-    
-    if(argc == 3)
+    if(use_fake_qm){
+        qm_ef = (double *) malloc(sizeof(double) * 3 * pol_atoms);
+        for(int j=0; j < 3 * pol_atoms; j++)
+            qm_ef[j] = 0.0;
+        ommp_field_mm2ext(fake_qm, pol_atoms, ommp_get_cpol(my_system), qm_ef);
+    }
+
+    if(use_external_ef)
         external_ef = read_ef(argv[2]);
     
     for(int j = 0; j < pol_atoms; j++)
-        for(int k = 0; k < 3; k++)
-            if(argc == 3)
-                electric_field[j*3+k] = external_ef[polar_mm[j]][k];
-            else
-                electric_field[j*3+k] = 0.0;
+        for(int k = 0; k < 3; k++){
+            electric_field[j*3+k] = 0.0;
+            if(use_external_ef)
+                electric_field[j*3+k] += external_ef[polar_mm[j]][k];
+            if(use_fake_qm)
+                electric_field[j*3+k] += qm_ef[j*3+k];
+        }
     
     em = ommp_get_fixedelec_energy(my_system);
     ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
     ep = ommp_get_polelec_energy(my_system);
     
     ev = ommp_get_vdw_energy(my_system);
-    
-    if(my_qmh != NULL)
+    if(use_qm)
         evqmmm = ommp_qm_helper_vdw_energy(my_qmh, my_system);
     else
         evqmmm = 0.0;
-    
+   
     eb = ommp_get_bond_energy(my_system);
     ea = ommp_get_angle_energy(my_system);
     eba = ommp_get_strbnd_energy(my_system);
@@ -94,7 +137,12 @@ int main(int argc, char **argv){
     eat = ommp_get_angtor_energy(my_system);
     ebt = ommp_get_strtor_energy(my_system);
     eit = ommp_get_imptorsion_energy(my_system);
-    etot = ommp_get_full_energy(my_system);
+    etotmm = ommp_get_full_energy(my_system);
+    if(use_fake_qm)
+        eqm = ommp_get_full_energy(fake_qm);
+    else
+        eqm = 0.0;
+    etot = etotmm + eqm + evqmmm;
 
     eaa = 0.0;
     eopd = 0.0;
@@ -125,6 +173,9 @@ int main(int argc, char **argv){
     eat *= OMMP_AU2KCALMOL;
     ebt *= OMMP_AU2KCALMOL;
     eit *= OMMP_AU2KCALMOL;
+    etotmm *= OMMP_AU2KCALMOL;
+    eqm *= OMMP_AU2KCALMOL;
+    evqmmm *= OMMP_AU2KCALMOL;
     etot *= OMMP_AU2KCALMOL;
 
     sprintf(msg, "EM      %20.12e", em);
@@ -184,6 +235,10 @@ int main(int argc, char **argv){
     sprintf(msg, "EG      %20.12e", eg);
     ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
     sprintf(msg, "EX      %20.12e", ex);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "ETOTMM    %20.12e", etotmm);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    sprintf(msg, "EQM       %20.12e", eqm);
     ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
     sprintf(msg, "ETOT      %20.12e", etot);
     ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");

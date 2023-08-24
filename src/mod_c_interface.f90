@@ -1712,23 +1712,26 @@ module mod_ommp_C_interface
             call ommp_update_link_atoms_position(qm, s)
         end subroutine
 
-        subroutine C_ommp_system_from_qm_helper(cqmh, cprm_file, csys) &
-                bind(c, name='ommp_system_from_qm_helper')
+        function C_ommp_system_from_qm_helper(cqmh, cprm_file) &
+                result(csys) bind(c, name='ommp_system_from_qm_helper')
             implicit none
             
-            type(c_ptr), value :: cqmh, csys
+            type(c_ptr), value, intent(in) :: cqmh
 
             type(ommp_system), pointer :: s
             type(ommp_qm_helper), pointer :: qm
+            type(c_ptr) :: csys
 
             character(kind=c_char), intent(in) :: cprm_file(OMMP_STR_CHAR_MAX)
             character(len=OMMP_STR_CHAR_MAX) :: prm_file
             
             call c2f_string(cprm_file, prm_file)
-            call c_f_pointer(csys, s)
             call c_f_pointer(cqmh, qm)
             
+            allocate(s)
+
             call ommp_system_from_qm_helper(qm, prm_file, s)
-        end subroutine
+            csys = c_loc(s)
+        end function
 
 end module mod_ommp_C_interface

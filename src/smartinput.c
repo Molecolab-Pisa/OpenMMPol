@@ -946,7 +946,7 @@ void ommp_smartimput_cpstr(const char *json_file, char *path, char **s){
 
 void ommp_smartimput_cpint(const char *json_file, char *path, int32_t *i){
     int32_t *iprt = c_json_cherrypick(json_file, path, 's');
-    if(*iprt == NULL){
+    if(iprt == NULL){
         ommp_fatal("JSON cherry picking failed.");
     }
     *i = *iprt;
@@ -954,7 +954,7 @@ void ommp_smartimput_cpint(const char *json_file, char *path, int32_t *i){
 
 void ommp_smartimput_cpdouble(const char *json_file, char *path, double *d){
     double *dprt = c_json_cherrypick(json_file, path, 's');
-    if(*dprt == NULL){
+    if(dprt == NULL){
         ommp_fatal("JSON cherry picking failed.");
     }
     *d = *dprt;
