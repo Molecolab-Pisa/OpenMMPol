@@ -1267,6 +1267,8 @@ module ommp_interface
         type(ommp_qm_helper), intent(in) :: qmh
         character(len=*), intent(in) :: prm_file
 
+        integer(ommp_integer) :: i
+
         if(.not. (qmh%qm_top%attype_initialized .and. &
                   qmh%qm_top%atz_initialized)) &
               call ommp_fatal("In order to convert QM Helper to &
@@ -1275,6 +1277,10 @@ module ommp_interface
 
         call mmpol_init(sys, get_prm_ff_type(prm_file), &
                         qmh%qm_top%mm_atoms, qmh%qm_top%mm_atoms)
+        
+        do i=1, sys%top%mm_atoms
+           sys%eel%polar_mm(i) = i 
+        end do
 
         ! Copy the topology from QM system!
         sys%top%cmm = qmh%qm_top%cmm
