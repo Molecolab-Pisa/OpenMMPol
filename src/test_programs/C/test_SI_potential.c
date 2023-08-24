@@ -42,7 +42,7 @@ double **read_ef(char *fin){
 int main(int argc, char **argv){
     if(argc != 2 && argc != 3){
         printf("Syntax expected\n");
-        printf("    $ test_init_xyz.exe <JSON FILE> [<EF_FILE>]\n");
+        printf("    $ test_geomgrad_num.exe <JSON FILE> [<EF_FILE>]\n");
         return 0;
     }
     
