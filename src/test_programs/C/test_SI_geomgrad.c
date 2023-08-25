@@ -4,6 +4,32 @@
 
 #include "openmmpol.h"
 
+void print_qmmm_grad(char *name, int32_t mm_atoms, int32_t qm_atoms, 
+                     double *grad_mm, double *grad_qm){
+    char msg[OMMP_STR_CHAR_MAX];
+    
+    sprintf(msg, "Grad %s", name);
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    
+    for(int i = 0; i < mm_atoms; i++){
+        sprintf(msg, "MM:%-8d %+20.8g %+20.8g %+20.8g", i,
+                grad_mm[i*3+0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
+                grad_mm[i*3+1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
+                grad_mm[i*3+2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
+        ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    }
+    if(grad_qm != NULL && qm_atoms > 0){
+        for(int i = 0; i < qm_atoms; i++){
+            sprintf(msg, "QM:%-8d %+20.8g %+20.8g %+20.8g", i,
+                    grad_qm[i*3+0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
+                    grad_qm[i*3+1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
+                    grad_qm[i*3+2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
+            ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+        }
+    }
+    ommp_message("", OMMP_VERBOSE_NONE, "TEST-OUT");
+}
+
 void ana_grd_print(OMMP_SYSTEM_PRT sys,
                   void (*grad_f)(OMMP_SYSTEM_PRT, double *),
                   const char *name){
@@ -22,17 +48,7 @@ void ana_grd_print(OMMP_SYSTEM_PRT sys,
 
     grad_f(sys, _grad_ana);
    
-    sprintf(msg, "Grad %s", name);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
-    
-    for(int i = 0; i < mm_atoms; i++){
-        sprintf(msg, "MM:%-8d %+20.8g %+20.8g %+20.8g", i,
-                grad_ana[i][0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
-                grad_ana[i][1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
-                grad_ana[i][2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
-        ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
-    }
-    ommp_message("", OMMP_VERBOSE_NONE, "TEST-OUT");
+    print_qmmm_grad(name, mm_atoms, 0, _grad_ana, NULL);
 }
 
 void ana_grd_print_qmmm(OMMP_SYSTEM_PRT sys,
@@ -65,24 +81,7 @@ void ana_grd_print_qmmm(OMMP_SYSTEM_PRT sys,
 
     grad_f(sys, qmh, qm_fake, _grad_ana_mm, _grad_ana_qm);
    
-    sprintf(msg, "Grad %s", name);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
-    
-    for(int i = 0; i < mm_atoms; i++){
-        sprintf(msg, "MM:%-8d %+20.8g %+20.8g %+20.8g", i,
-                grad_ana_mm[i][0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
-                grad_ana_mm[i][1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
-                grad_ana_mm[i][2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
-        ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
-    }
-    for(int i = 0; i < qm_atoms; i++){
-        sprintf(msg, "QM:%-8d %+20.8g %+20.8g %+20.8g", i,
-                grad_ana_qm[i][0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
-                grad_ana_qm[i][1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
-                grad_ana_qm[i][2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
-        ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
-    }
-    ommp_message("", OMMP_VERBOSE_NONE, "TEST-OUT");
+    print_qmmm_grad(name, mm_atoms, qm_atoms, _grad_ana_mm, _grad_ana_qm);
 }
 
 void ommptest_qm_helper_vdw_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT qmh,
@@ -136,13 +135,20 @@ void ommptest_totalqmmm_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT qmh,
 
 int main(int argc, char **argv){
     if(argc != 2){
+        printf("Given a JSON SmartInput file, it computes the geoemtrical derivatives \n");
+        printf("with respect to the MM atoms coordinates using analytical derivatives.\n");
+        printf("If a QM system is defined in the JSON file and atom types are provided, \n");
+        printf("it is converted in a non-pol MM system interacting with the main one only \n");
+        printf("generating an electric field that is used for induced dipole calculation \n");
+        printf("(but not in electrostatic interaction!), with VdW interaction and, if \n");
+        printf("defined, by link-atoms.\n\n");
         printf("Syntax expected\n");
         printf("    $ test_SI_geomgrad.exe <JSON FILE>\n");
         return 0;
     }
     
-    OMMP_SYSTEM_PRT my_system, fake_qm;
-    OMMP_QM_HELPER_PRT my_qmh;
+    OMMP_SYSTEM_PRT my_system, fake_qm = NULL;
+    OMMP_QM_HELPER_PRT my_qmh = NULL;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
     
     bool use_qm, use_fake_qm;
