@@ -151,7 +151,7 @@ int main(int argc, char **argv){
     OMMP_QM_HELPER_PRT my_qmh = NULL;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
     
-    bool use_qm, use_fake_qm;
+    bool use_qm = false, use_fake_qm = false;
     
     if(my_qmh != NULL){
         // A QM part is present!

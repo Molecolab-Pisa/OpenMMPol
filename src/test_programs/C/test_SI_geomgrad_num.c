@@ -140,7 +140,7 @@ void num_grd_print(OMMP_SYSTEM_PRT qm_sys,
     print_qmmm_grad(name, nmm, nqm, gmm, gqm);
 }
 
-double ommptest_full_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+double ommptest_etotqmmm_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
     double ene = 0.0;
 
     ene += ommp_get_full_energy(sys);
@@ -158,6 +158,81 @@ double ommptest_em_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYST
 double ommptest_ep_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
     // Just for signature consistency!
     return ommp_get_polelec_energy(sys);
+}
+
+double ommptest_ev_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_vdw_energy(sys);
+}
+
+double ommptest_evqmmm_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_qm_helper_vdw_energy(qmh, sys);
+}
+
+double ommptest_ea_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_angle_energy(sys);
+}
+
+double ommptest_eb_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_bond_energy(sys);
+}
+
+double ommptest_eba_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_strbnd_energy(sys);
+}
+
+double ommptest_eub_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_urey_energy(sys);
+}
+
+double ommptest_eopb_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_opb_energy(sys);
+}
+
+double ommptest_ept_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_pitors_energy(sys);
+}
+
+double ommptest_et_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_torsion_energy(sys);
+}
+
+double ommptest_ett_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_tortor_energy(sys);
+}
+
+double ommptest_eat_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_angtor_energy(sys);
+}
+
+double ommptest_ebt_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_strtor_energy(sys);
+}
+
+double ommptest_eit_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_imptorsion_energy(sys);
+}
+
+double ommptest_etotmm_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_full_energy(sys);
+}
+
+double ommptest_eqm_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
+    // Just for signature consistency!
+    return ommp_get_full_energy(fakeqm);
 }
 
 int main(int argc, char **argv){
@@ -178,7 +253,7 @@ int main(int argc, char **argv){
     OMMP_QM_HELPER_PRT my_qmh = NULL;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
     
-    bool use_qm, use_fake_qm;
+    bool use_qm = false, use_fake_qm = false;
     
     if(my_qmh != NULL){
         // A QM part is present!
@@ -210,8 +285,30 @@ int main(int argc, char **argv){
         free(nopol);
     }
 
-    num_grd_print(fake_qm, my_qmh, my_system , ommptest_em_ene, "EM");
-    num_grd_print(fake_qm, my_qmh, my_system , ommptest_ep_ene, "EP");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_em_ene, "EM");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_ep_ene, "EP");
+
+    num_grd_print(fake_qm, NULL, my_system, ommptest_ev_ene, "EV");
+
+
+    num_grd_print(fake_qm, NULL, my_system, ommptest_eb_ene, "EB");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_ea_ene, "EA");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_eba_ene, "EBA");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_eub_ene, "EUB");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_eopb_ene, "EOPB");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_ept_ene, "EPT");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_et_ene, "ET");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_ett_ene, "ETT");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_eat_ene, "EAT");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_ebt_ene, "EBT");
+    num_grd_print(fake_qm, NULL, my_system, ommptest_eit_ene, "EIT");
+    if(use_qm){
+        num_grd_print(fake_qm, my_qmh, my_system, ommptest_evqmmm_ene, "EVQMMM");
+        num_grd_print(fake_qm, my_qmh, my_system, ommptest_etotqmmm_ene, "ETOT");
+    }
+    else{
+        num_grd_print(fake_qm, my_qmh, my_system, ommptest_etotmm_ene, "ETOT");
+    }
     
     if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
