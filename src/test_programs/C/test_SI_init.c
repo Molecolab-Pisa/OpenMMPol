@@ -15,7 +15,7 @@ int main(int argc, char **argv){
     OMMP_QM_HELPER_PRT my_qmh;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
     
-    if(argc == 4)
+    if(argc == 3)
         ommp_print_summary_to_file(my_system, argv[2]);
     else
         ommp_print_summary(my_system);

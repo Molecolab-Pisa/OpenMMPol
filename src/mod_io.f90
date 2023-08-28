@@ -169,7 +169,8 @@ module mod_io
 
         !TODO call mmpol_terminate()
 
-        stop
+        !stop 1
+        call exit(1)
     end subroutine fatal_error
 
     subroutine ommp_version(v)
