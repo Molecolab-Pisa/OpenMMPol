@@ -1,0 +1,141 @@
+add_test(NAME NMA_AMOEBA_MMP_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json 
+                          Testing/NMA_AMOEBA_MMP_init.out)
+add_test(NAME NMA_AMOEBA_MMP_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/NMA_AMOEBA_MMP_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
+add_test(NAME NMA_AMOEBA_XYZ_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json 
+                          Testing/NMA_AMOEBA_XYZ_init.out)
+add_test(NAME NMA_AMOEBA_XYZ_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/NMA_AMOEBA_XYZ_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
+add_test(NAME NMA_AMBER_MMP_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json 
+                          Testing/NMA_AMBER_MMP_init.out)
+add_test(NAME NMA_AMBER_MMP_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/NMA_AMBER_MMP_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_WANG_AL.ref)
+add_test(NAME NMA_AMOEBA_MMP_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
+                          Testing/NMA_AMOEBA_MMP_energy.out )
+add_test(NAME NMA_AMOEBA_MMP_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMOEBA_MMP_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_AMOEBA.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMOEBA_MMP_energy_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
+                          Testing/NMA_AMOEBA_MMP_energy_EF_1.out tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMA_AMOEBA_MMP_energy_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMOEBA_MMP_energy_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_AMOEBA.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMBER_MMP_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
+                          Testing/NMA_AMBER_MMP_energy.out )
+add_test(NAME NMA_AMBER_MMP_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMBER_MMP_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_WANG_AL.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMBER_MMP_energy_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
+                          Testing/NMA_AMBER_MMP_energy_EF_1.out tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMA_AMBER_MMP_energy_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMBER_MMP_energy_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_WANG_AL.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMOEBA_XYZ_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json
+                          Testing/NMA_AMOEBA_XYZ_energy.out )
+add_test(NAME NMA_AMOEBA_XYZ_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMOEBA_XYZ_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMOEBA_MMP_ipd 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
+                          Testing/NMA_AMOEBA_MMP_ipd.out )
+add_test(NAME NMA_AMOEBA_MMP_ipd_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMA_AMOEBA_MMP_ipd.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMOEBA_MMP_ipd_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
+                          Testing/NMA_AMOEBA_MMP_ipd_EF_1.out tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMA_AMOEBA_MMP_ipd_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMA_AMOEBA_MMP_ipd_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA.ref 
+                           1e-05  1e-06)
+add_test(NAME NMACUT_AMOEBA_MMP_ipd 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amoeba_mmp.json
+                          Testing/NMACUT_AMOEBA_MMP_ipd.out )
+add_test(NAME NMACUT_AMOEBA_MMP_ipd_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMACUT_AMOEBA_MMP_ipd.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_AMOEBA_CUT.ref 
+                           1e-05  1e-06)
+add_test(NAME NMACUT_AMOEBA_MMP_ipd_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amoeba_mmp.json
+                          Testing/NMACUT_AMOEBA_MMP_ipd_EF_1.out tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMACUT_AMOEBA_MMP_ipd_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMACUT_AMOEBA_MMP_ipd_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_AMOEBA_CUT.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMBER_MMP_ipd 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
+                          Testing/NMA_AMBER_MMP_ipd.out )
+add_test(NAME NMA_AMBER_MMP_ipd_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMA_AMBER_MMP_ipd.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL.ref 
+                           1e-05  1e-06)
+add_test(NAME NMA_AMBER_MMP_ipd_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
+                          Testing/NMA_AMBER_MMP_ipd_EF_1.out tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMA_AMBER_MMP_ipd_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMA_AMBER_MMP_ipd_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL.ref 
+                           1e-05  1e-06)
+add_test(NAME NMACUT_AMBER_MMP_ipd 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amber_mmp.json
+                          Testing/NMACUT_AMBER_MMP_ipd.out )
+add_test(NAME NMACUT_AMBER_MMP_ipd_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMACUT_AMBER_MMP_ipd.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_0_WANG_AL_CUT.ref 
+                           1e-05  1e-06)
+add_test(NAME NMACUT_AMBER_MMP_ipd_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amber_mmp.json
+                          Testing/NMACUT_AMBER_MMP_ipd_EF_1.out tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMACUT_AMBER_MMP_ipd_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/NMACUT_AMBER_MMP_ipd_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/IPD_1_WANG_AL_CUT.ref 
+                           1e-05  1e-06)

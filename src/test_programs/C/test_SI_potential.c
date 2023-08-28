@@ -30,6 +30,10 @@ double **read_ef(char *fin){
     ef = (double **) malloc(sizeof(double *) * 3 * pol_atoms);
 
     FILE *fp = fopen(fin, "r");
+    if(fp == NULL){
+        free(ef);
+        return NULL;
+    }
     for(int i =0; i < pol_atoms; i++){
         ef[i] = (double *) malloc(sizeof(double) * 3);
         fscanf(fp, "%lf %lf %lf", &(ef[i][0]), &(ef[i][1]),  &(ef[i][2]));
@@ -40,9 +44,9 @@ double **read_ef(char *fin){
 }
 
 int main(int argc, char **argv){
-    if(argc != 2 && argc != 3){
+    if(argc != 3 && argc != 4){
         printf("Syntax expected\n");
-        printf("    $ test_geomgrad_num.exe <JSON FILE> [<EF_FILE>]\n");
+        printf("    $ test_geomgrad_num.exe <JSON FILE> <OUTPUT FILE> [<EF_FILE>]\n");
         return 0;
     }
     
@@ -55,9 +59,11 @@ int main(int argc, char **argv){
     OMMP_SYSTEM_PRT my_system, fake_qm;
     OMMP_QM_HELPER_PRT my_qmh;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
+    // override output file set in JSON file
+    ommp_set_outputfile(argv[2]);
     
-    bool use_qm, use_fake_qm, use_external_ef;
-    use_external_ef = (argc == 3);
+    bool use_qm = false, use_fake_qm = false, use_external_ef;
+    use_external_ef = (argc == 4);
     
     if(my_qmh != NULL){
         // A QM part is present!
@@ -104,8 +110,10 @@ int main(int argc, char **argv){
         ommp_field_mm2ext(fake_qm, pol_atoms, ommp_get_cpol(my_system), qm_ef);
     }
 
-    if(use_external_ef)
-        external_ef = read_ef(argv[2]);
+    if(use_external_ef){
+        external_ef = read_ef(argv[3]);
+        if(external_ef == NULL) return 1;
+    }
     
     for(int j = 0; j < pol_atoms; j++)
         for(int k = 0; k < 3; k++){
@@ -159,89 +167,70 @@ int main(int argc, char **argv){
     eg = 0.0;
     ex = 0.0;
     
-    em *= OMMP_AU2KCALMOL;
-    ep *= OMMP_AU2KCALMOL;
-    ev *= OMMP_AU2KCALMOL;
-    eb *= OMMP_AU2KCALMOL;
-    ea *= OMMP_AU2KCALMOL;
-    eba *= OMMP_AU2KCALMOL;
-    eub *= OMMP_AU2KCALMOL;
-    eopb *= OMMP_AU2KCALMOL;
-    ept *= OMMP_AU2KCALMOL;
-    et *= OMMP_AU2KCALMOL;
-    ett *= OMMP_AU2KCALMOL;
-    eat *= OMMP_AU2KCALMOL;
-    ebt *= OMMP_AU2KCALMOL;
-    eit *= OMMP_AU2KCALMOL;
-    etotmm *= OMMP_AU2KCALMOL;
-    eqm *= OMMP_AU2KCALMOL;
-    evqmmm *= OMMP_AU2KCALMOL;
-    etot *= OMMP_AU2KCALMOL;
-
     sprintf(msg, "EM      %20.12e", em);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EP      %20.12e", ep);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EV      %20.12e", ev);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EVQMMM  %20.12e", evqmmm);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EB      %20.12e", eb);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EA      %20.12e", ea);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EBA     %20.12e", eba);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EUB     %20.12e", eub);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EOPB    %20.12e", eopb);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EPT     %20.12e", ept);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ET      %20.12e", et);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ETT     %20.12e", ett);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EAA     %20.12e", eaa); 
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EOPD    %20.12e", eopd);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EID     %20.12e", eid); 
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EIT     %20.12e", eit); 
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EBT     %20.12e", ebt); 
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EAT     %20.12e", eat); 
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ER      %20.12e", er);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EDSP    %20.12e", edsp);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EC      %20.12e", ec);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ECD     %20.12e", ecd);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ED      %20.12e", ed);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ECT     %20.12e", ect);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ERXF    %20.12e", erxf);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ES      %20.12e", es);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ELF     %20.12e", elf);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EG      %20.12e", eg);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EX      %20.12e", ex);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ETOTMM    %20.12e", etotmm);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "EQM       %20.12e", eqm);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     sprintf(msg, "ETOT      %20.12e", etot);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE");
     
     // Print also induced point dipoles
     int n_ipd = ommp_get_n_ipd(my_system);

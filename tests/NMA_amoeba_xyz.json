@@ -1,0 +1,14 @@
+{
+    "name": "NMA_AMOEBA_XYZ",
+    "description": "N-methylacetamide, amoeba FF, from XYZ file",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/N-methylacetamide/input.xyz",
+        "md5sum": "a076d1a13ae7b10ecafdf0eee6c976a8"
+    },
+    "prm_file": {
+        "path": "amoeba09.prm",
+        "md5sum": "91eaeec4edd2c581863c6cd4e0b2d975"
+    },
+    "verbosity": "high"
+}

@@ -1,32 +1,32 @@
-EB     (Bond stretch          ):  64.46346650
-EA     (Angle bend            ): 168.87868766
-EBA    (Stretch-bend          ):   0.26640655
-EUB    (Urey Bradley          ):  -0.00463131
-EAA    (Angle-Angle           ):   0.00000000
-EOPB   (Out of plane bend     ):   0.38183567
-EOPD   (Out of plane distance ):   0.00000000
-EID    (Improper dihedral     ):   0.00000000
-EIT    (Improper torsion      ):   0.00000000
-ET     (Torsional             ):  15.47633453
-EPT    (Pi-system torsion     ):   0.26456124
-EBT    (Stretch-torsion       ):  -0.35978187
-EAT    (Angle torsion         ):   4.03511143
-ETT    (Torsion-torsion       ):   0.00000000
-EV     (van der Waals         ): 124.92082263
-ER     (Pauli Repulsion       ):   0.00000000
-EDSP   (dampled dispersion    ):   0.00000000
-EC     (charge-charge         ):   0.00000000
-ECD    (charge-dipole         ):   0.00000000
-ED     (dipole-dipole         ):   0.00000000
-EM     (atomic multipole      ): -159.18480866
-EP     (polarization energy   ): -72.32082639
-ECT    (Charge transfer       ):   0.00000000
-ERXF   (reaction field        ):   0.00000000
-ES     (solvation             ):   0.00000000
-ELF    (Metal ligand          ):   0.00000000
-EG     (Restraint             ):   0.00000000
-EX     (Extra                 ):   0.00000000
-ETOT   (Total Energy          ): 146.81717798
+EB     (Bond stretch          ):   0.10272905
+EA     (Angle bend            ):   0.26912526
+EBA    (Stretch-bend          ): 0.00042454577
+EUB    (Urey Bradley          ): -7.3804607e-06
+EAA    (Angle-Angle           ):            0
+EOPB   (Out of plane bend     ): 0.00060849374
+EOPD   (Out of plane distance ):            0
+EID    (Improper dihedral     ):            0
+EIT    (Improper torsion      ):            0
+ET     (Torsional             ):  0.024663104
+EPT    (Pi-system torsion     ): 0.00042160508
+EBT    (Stretch-torsion       ): -0.00057334878
+EAT    (Angle torsion         ):  0.006430358
+ETT    (Torsion-torsion       ):            0
+EV     (van der Waals         ):   0.19907396
+ER     (Pauli Repulsion       ):            0
+EDSP   (dampled dispersion    ):            0
+EC     (charge-charge         ):            0
+ECD    (charge-dipole         ):            0
+ED     (dipole-dipole         ):            0
+EM     (atomic multipole      ):  -0.25367709
+EP     (polarization energy   ):  -0.11525055
+ECT    (Charge transfer       ):            0
+ERXF   (reaction field        ):            0
+ES     (solvation             ):            0
+ELF    (Metal ligand          ):            0
+EG     (Restraint             ):            0
+EX     (Extra                 ):            0
+ETOT   (Total Energy          ):   0.23396802
 
 Grad EB     (Bond stretch          )
  36.35124158  17.44840651  -8.55084065

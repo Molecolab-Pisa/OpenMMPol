@@ -1,0 +1,10 @@
+{
+    "name": "NMA_AMBER_MMP",
+    "description": "N-methylacetamide, amber FF, from MMP file",
+    "version": "0.4.0",
+    "mmpol_file": {
+        "path": "tests/N-methylacetamide/input_WANG_AL.mmp",
+        "md5sum": "6a7eeca77e42b5b7b6755dc741e888ac"
+    },
+    "verbosity": "high"
+}
