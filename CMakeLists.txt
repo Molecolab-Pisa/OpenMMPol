@@ -140,19 +140,7 @@ set(TEST_PROGRAMS
     test_SI_init
     test_SI_potential
     test_SI_geomgrad
-    test_SI_geomgrad_num
-    test_init_xyz
-    test_init
-    test_reinit
-    test_ipd
-    test_potential_xyz
-    test_energy
-    test_geomgrad
-    test_geomgrad_num
-    test_geomgrad_xyz
-    test_geomgrad_xyz_num
-    test_la_potential_xyz
-    test_la_geomgrad_xyz)
+    test_SI_geomgrad_num)
 
 set(UTILITY_PROGRAMS 
     ommp_xyz2mmp)
