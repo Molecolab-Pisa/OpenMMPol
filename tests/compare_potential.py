@@ -35,18 +35,18 @@ if len(tnames_a) == 0 or len(tnames_b) == 0:
     print("No potential terms to compare!")
     exit(1)
 
-if len(sys.argv) > 5:
-    rtol = float(sys.argv[4])
+if len(sys.argv) > 3:
+    rtol = float(sys.argv[3])
 else:
     rtol = 1e-05
 
-if len(sys.argv) > 6:
-    atol = float(sys.argv[5])
+if len(sys.argv) > 4:
+    atol = float(sys.argv[4])
 else:
     atol = 1e-08
 
 outval = 0
-fmt = "{:<10s} {:20.10g} {:20.10g} {:12.6g} {:12.6g}"
+fmt = "{:<10s} {:20.10g} {:20.10g} {:12.6g}/{:12.6g} {:12.6g}/{:12.6g}"
 for tname in list(set(tnames_a) & set(tnames_b)):
     a = get_term(sys.argv[1], tname)
     b = get_term(sys.argv[2], tname)
@@ -59,8 +59,8 @@ for tname in list(set(tnames_a) & set(tnames_b)):
         print("    ", end='')
     
     if abs(b) > 0:
-        print(fmt.format(tname, a, b, abs(a-b)/abs(b), abs(a-b)))
+        print(fmt.format(tname, a, b, abs(a-b)/abs(b), rtol, abs(a-b), atol))
     else:
-        print(fmt.format(tname, a, b, 0.00, abs(a-b)))
+        print(fmt.format(tname, a, b, 0.00, rtol, abs(a-b), atol))
 
 exit(outval)

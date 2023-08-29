@@ -20,12 +20,12 @@ def get_ipd(fname):
 A = get_ipd(sys.argv[1])
 B = get_ipd(sys.argv[2])
 
-if len(sys.argv) > 3:
+if len(sys.argv) > 2:
     rtol = float(sys.argv[3])
 else:
     rtol = 1e-05
 
-if len(sys.argv) > 4:
+if len(sys.argv) > 3:
     atol = float(sys.argv[4])
 else:
     atol = 1e-08
