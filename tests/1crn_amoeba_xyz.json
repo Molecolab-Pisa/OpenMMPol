@@ -1,0 +1,14 @@
+{
+    "name": "1CRN_AMOEBA_XYZ",
+    "description": "1CRN, amoeba, FF, from XYZ file",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/1crn/input.xyz",
+        "md5sum": "801ee35f18665b2caffcba947e43b8b3"
+    },
+    "prm_file": {
+        "path": "amoebabio18.prm",
+        "md5sum": "490ba93448bd71f14398d74f9cb8a523"
+    },
+    "verbosity": "high"
+}

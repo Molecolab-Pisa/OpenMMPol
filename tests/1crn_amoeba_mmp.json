@@ -1,0 +1,10 @@
+{
+    "name": "1CRN_AMOEBA_MMP",
+    "description": "1CRN, AMOEBA FF, from MMP file",
+    "version": "0.4.0",
+    "mmpol_file": {
+        "path": "tests/1crn/input_AMOEBA.mmp",
+        "md5sum": "cd2bbc50b9cda7330bc3828a774206a1"
+    },
+    "verbosity": "high"
+}

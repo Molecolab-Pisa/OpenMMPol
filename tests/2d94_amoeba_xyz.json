@@ -1,0 +1,14 @@
+{
+    "name": "2D94_AMOEBA_XYZ",
+    "description": "2D94, amoeba, FF, from XYZ file",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/2d94/input.xyz",
+        "md5sum": "844a72174247059332796dab9bd20b47"
+    },
+    "prm_file": {
+        "path": "amoebabio18.prm",
+        "md5sum": "490ba93448bd71f14398d74f9cb8a523"
+    },
+    "verbosity": "high"
+}

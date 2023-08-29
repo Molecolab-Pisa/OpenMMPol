@@ -16,3 +16,42 @@ NMA_amber_mmp.json      ipd             N-methylacetamide/IPD_0_WANG_AL.ref     
 NMA_amber_mmp.json      ipd             N-methylacetamide/IPD_1_WANG_AL.ref     N-methylacetamide/EF_1.txt
 NMA_cut_amber_mmp.json  ipd             N-methylacetamide/IPD_0_WANG_AL_CUT.ref none
 NMA_cut_amber_mmp.json  ipd             N-methylacetamide/IPD_1_WANG_AL_CUT.ref N-methylacetamide/EF_1.txt
+NMA_amoeba_mmp.json     grad-num        none                                    none
+NMA_cut_amoeba_mmp.json grad-num        none                                    none
+NMA_amber_mmp.json      grad-num        none                                    none
+NMA_cut_amber_mmp.json  grad-num        none                                    none
+NMA_amoeba_xyz.json     grad-num        none                                    none
+# 1CRN protein -- 648 atoms
+1crn_amber_mmp.json     init            1crn/summary_WANG_AL.ref                none
+1crn_amoeba_mmp.json    init            1crn/summary_AMOEBA.ref                 none
+1crn_amoeba_xyz.json    init            1crn/summary_AMOEBA.ref                 none
+1crn_amber_xyz.json     init            1crn/summary_AMBER99SB.ref              none
+1crn_amber_mmp.json     energy          1crn/ENE_0_WANG_AL.ref                  none
+1crn_amber_mmp.json     energy          1crn/ENE_1_WANG_AL.ref                  1crn/EF_1.txt
+1crn_amoeba_mmp.json    energy          1crn/ENE_0_AMOEBA.ref                   none
+1crn_amoeba_mmp.json    energy          1crn/ENE_1_AMOEBA.ref                   1crn/EF_1.txt
+1crn_amoeba_xyz.json    energy          1crn/FULL_POTENTIAL.ref                 none
+1crn_amber_xyz.json     energy          1crn/FULL_POTENTIAL_AMBER99SB.ref       none
+1crn_amber_mmp.json     ipd             1crn/IPD_0_WANG_AL.ref                  none
+1crn_amber_mmp.json     ipd             1crn/IPD_1_WANG_AL.ref                  1crn/EF_1.txt
+1crn_amoeba_mmp.json    ipd             1crn/IPD_0_AMOEBA.ref                   none
+1crn_amoeba_mmp.json    ipd             1crn/IPD_1_AMOEBA.ref                   1crn/EF_1.txt
+1crn_amoeba_xyz.json    grad            1crn/FULL_POTENTIAL.ref                 none
+1crn_amber_xyz.json     grad            1crn/FULL_POTENTIAL_AMBER99SB.ref       none
+# 1UBQ protein -- 1405 atoms
+1ubq_amber_mmp.json     init            1ubq/summary_WANG_AL.ref                none
+1ubq_amoeba_mmp.json    init            1ubq/summary_AMOEBA.ref                 none
+1ubq_amoeba_xyz.json    init            1ubq/summary_AMOEBA.ref                 none
+1ubq_amber_mmp.json     energy          1ubq/ENE_0_WANG_AL.ref                  none
+1ubq_amber_mmp.json     energy          1ubq/ENE_1_WANG_AL.ref                  1ubq/EF_1.txt
+1ubq_amoeba_mmp.json    energy          1ubq/ENE_0_AMOEBA.ref                   none
+1ubq_amoeba_mmp.json    energy          1ubq/ENE_1_AMOEBA.ref                   1ubq/EF_1.txt
+1ubq_amoeba_xyz.json    energy          1ubq/FULL_POTENTIAL.ref                 none
+1ubq_amber_mmp.json     ipd             1ubq/IPD_0_WANG_AL.ref                  none
+1ubq_amber_mmp.json     ipd             1ubq/IPD_1_WANG_AL.ref                  1ubq/EF_1.txt
+1ubq_amoeba_mmp.json    ipd             1ubq/IPD_0_AMOEBA.ref                   none
+1ubq_amoeba_mmp.json    ipd             1ubq/IPD_1_AMOEBA.ref                   1ubq/EF_1.txt
+1ubq_amoeba_xyz.json    grad            1ubq/FULL_POTENTIAL.ref                 none
+# 2D94 nucleic acid -- 260 atoms
+2d94_amoeba_xyz.json    energy          2d94/FULL_POTENTIAL.ref                 none
+2d94_amoeba_xyz.json    grad            2d94/FULL_POTENTIAL.ref                 none

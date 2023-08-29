@@ -47,7 +47,7 @@ int main(int argc, char **argv){
     if(argc != 3 && argc != 4){
         printf("Syntax expected\n");
         printf("    $ test_geomgrad_num.exe <JSON FILE> <OUTPUT FILE> [<EF_FILE>]\n");
-        return 0;
+        return 1;
     }
     
     double eb, ea, eba, eub, eaa, eopb, eopd, eid, eit, et, ept, ebt, eat, etot,

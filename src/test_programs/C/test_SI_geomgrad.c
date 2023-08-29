@@ -9,14 +9,14 @@ void print_qmmm_grad(char *name, int32_t mm_atoms, int32_t qm_atoms,
     char msg[OMMP_STR_CHAR_MAX];
     
     sprintf(msg, "Grad %s", name);
-    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-GRD");
     
     for(int i = 0; i < mm_atoms; i++){
         sprintf(msg, "MM:%-8d %+20.8g %+20.8g %+20.8g", i,
                 grad_mm[i*3+0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                 grad_mm[i*3+1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                 grad_mm[i*3+2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
-        ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+        ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-GRD");
     }
     if(grad_qm != NULL && qm_atoms > 0){
         for(int i = 0; i < qm_atoms; i++){
@@ -24,10 +24,10 @@ void print_qmmm_grad(char *name, int32_t mm_atoms, int32_t qm_atoms,
                     grad_qm[i*3+0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                     grad_qm[i*3+1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                     grad_qm[i*3+2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
-            ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-OUT");
+            ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-GRD");
         }
     }
-    ommp_message("", OMMP_VERBOSE_NONE, "TEST-OUT");
+    ommp_message("", OMMP_VERBOSE_NONE, "TEST-GRD");
 }
 
 void ana_grd_print(OMMP_SYSTEM_PRT sys,
@@ -134,7 +134,7 @@ void ommptest_totalqmmm_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT qmh,
 }
 
 int main(int argc, char **argv){
-    if(argc != 2){
+    if(argc != 3){
         printf("Given a JSON SmartInput file, it computes the geoemtrical derivatives \n");
         printf("with respect to the MM atoms coordinates using analytical derivatives.\n");
         printf("If a QM system is defined in the JSON file and atom types are provided, \n");
@@ -143,13 +143,14 @@ int main(int argc, char **argv){
         printf("(but not in electrostatic interaction!), with VdW interaction and, if \n");
         printf("defined, by link-atoms.\n\n");
         printf("Syntax expected\n");
-        printf("    $ test_SI_geomgrad.exe <JSON FILE>\n");
-        return 0;
+        printf("    $ test_SI_geomgrad.exe <JSON FILE> <OUTPUT FILE>\n");
+        return 1;
     }
     
     OMMP_SYSTEM_PRT my_system, fake_qm = NULL;
     OMMP_QM_HELPER_PRT my_qmh = NULL;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
+    ommp_set_outputfile(argv[2]);
     
     bool use_qm = false, use_fake_qm = false;
     

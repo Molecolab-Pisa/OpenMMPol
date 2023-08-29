@@ -1,0 +1,10 @@
+{
+    "name": "1CRN_AMBER_MMP",
+    "description": "1CRN, AMBER FF, from MMP file",
+    "version": "0.4.0",
+    "mmpol_file": {
+        "path": "tests/1crn/input_WANG_AL.mmp",
+        "md5sum": "fd403ad767402146482c735e67eba828"
+    },
+    "verbosity": "high"
+}

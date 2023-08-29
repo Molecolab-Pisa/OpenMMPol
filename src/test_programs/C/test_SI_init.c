@@ -8,7 +8,7 @@ int main(int argc, char **argv){
     if(argc != 3 && argc != 2){
         printf("Syntax expected\n");
         printf("    $ test_init_xyz.exe <JSON FILE> [<OUTPUT FILE>]\n");
-        return 0;
+        return 1;
     }
     
     OMMP_SYSTEM_PRT my_system;
