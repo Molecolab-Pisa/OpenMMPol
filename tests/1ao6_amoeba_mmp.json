@@ -1,0 +1,10 @@
+{
+    "name": "1AO6_AMOEBA_MMP",
+    "description": "1AO6, AMOEBA FF, from MMP file",
+    "version": "0.4.0",
+    "mmpol_file": {
+        "path": "tests/1ao6/input_AMOEBA.mmp",
+        "md5sum": "564fd17ceb4fe079135fe90847ed74a1"
+    },
+    "verbosity": "high"
+}

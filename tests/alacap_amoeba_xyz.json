@@ -1,9 +1,9 @@
 {
-    "name": "Test 01",
-    "description": "A simple test of smart input",
+    "name": "ALACAP_AMOEBA_XYZ",
+    "description": "ALANINE Capped, AMOEBA FF, from XYZ file w/ LINK ATOM",
     "version": "0.4.0",
     "xyz_file": {
-        "path": "/home/mattia/LibEnv/open-mmpol-gg/tests/alanine_cap/input_LA_MM_AMOEBA.xyz",
+        "path": "tests/alanine_cap/input_LA_MM_AMOEBA.xyz",
         "md5sum": "7331b5a6f149ceeec95c806104d3f016"
     },
     "prm_file": {
@@ -14,8 +14,7 @@
         {
             "MM_id": 2,
             "QM_id": 1,
-            "LA_id": 5,
-            "bond_length": 1.1
+            "LA_id": 5
         }
     ],
     "qm": {
@@ -31,11 +30,5 @@
             "md5sum": "490ba93448bd71f14398d74f9cb8a523"
         }
     },
-    "solver": "cg",
-    "matrix_vector": "direct",
-    "output_file": {
-        "path": "test.out",
-        "mode": "write"
-    },
-    "verbosity": "low"
+    "verbosity": "high"
 }

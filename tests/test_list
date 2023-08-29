@@ -52,6 +52,29 @@ NMA_amoeba_xyz.json     grad-num        none                                    
 1ubq_amoeba_mmp.json    ipd             1ubq/IPD_0_AMOEBA.ref                   none
 1ubq_amoeba_mmp.json    ipd             1ubq/IPD_1_AMOEBA.ref                   1ubq/EF_1.txt
 1ubq_amoeba_xyz.json    grad            1ubq/FULL_POTENTIAL.ref                 none
+# 1AO6 -- 18k atoms
+1ao6_amber_mmp.json      init           1ao6/summary_WANG_AL.ref                none
+1ao6_cut_amber_mmp.json  init           1ao6/summary_WANG_AL_CUT10.ref          none
+1ao6_amoeba_mmp.json     init           1ao6/summary_AMOEBA.ref                 none
+1ao6_cut_amoeba_mmp.json init           1ao6/summary_AMOEBA_CUT10.ref           none
+1ao6_amoeba_xyz.json     init           1ao6/summary_AMOEBA.ref                 none
+1ao6_cut_amber_mmp.json  energy         1ao6/ENE_0_WANG_AL_CUT10.ref            none
+1ao6_cut_amber_mmp.json  energy         1ao6/ENE_1_WANG_AL_CUT10.ref            1ao6/EF_1.txt
+1ao6_cut_amoeba_mmp.json energy         1ao6/ENE_0_AMOEBA_CUT10.ref             none
+1ao6_cut_amoeba_mmp.json energy         1ao6/ENE_1_AMOEBA_CUT10.ref             1ao6/EF_1.txt
+1ao6_amoeba_xyz.json     energy         1ao6/FULL_POTENTIAL.ref                 none
+1ao6_cut_amber_mmp.json  ipd            1ao6/IPD_0_WANG_AL_CUT10.ref            none
+1ao6_cut_amber_mmp.json  ipd            1ao6/IPD_1_WANG_AL_CUT10.ref            1ao6/EF_1.txt
+1ao6_cut_amoeba_mmp.json ipd            1ao6/IPD_0_AMOEBA_CUT10.ref             none
+1ao6_cut_amoeba_mmp.json ipd            1ao6/IPD_1_AMOEBA_CUT10.ref             1ao6/EF_1.txt
+1ao6_amoeba_xyz.json     grad           1ao6/FULL_POTENTIAL.ref                 none
 # 2D94 nucleic acid -- 260 atoms
 2d94_amoeba_xyz.json    energy          2d94/FULL_POTENTIAL.ref                 none
 2d94_amoeba_xyz.json    grad            2d94/FULL_POTENTIAL.ref                 none
+# Alanine CAP with LINK ATOM
+alacap_amoeba_xyz.json  energy          alanine_cap/FULL_POTENTIAL.ref          none
+alacap_amoeba_xyz.json  grad-num        none                                    none
+# Tyrosine CAP with LINK ATOM(s)
+tyrcap_amoeba_xyz.json  grad-num        none                                    none
+tyr2cap_amoeba_xyz.json grad-num        none                                    none
+

@@ -458,6 +458,136 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_geomgrad_comp_ana_ref
                         Testing/1UBQ_AMOEBA_XYZ_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
                          0.001 0.0001)
+add_test(NAME 1AO6_AMBER_MMP_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_amber_mmp.json 
+                          Testing/1AO6_AMBER_MMP_init.out)
+add_test(NAME 1AO6_AMBER_MMP_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/1AO6_AMBER_MMP_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_WANG_AL.ref)
+add_test(NAME 1AO6CUT_AMBER_MMP_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json 
+                          Testing/1AO6CUT_AMBER_MMP_init.out)
+add_test(NAME 1AO6CUT_AMBER_MMP_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/1AO6CUT_AMBER_MMP_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_WANG_AL_CUT10.ref)
+add_test(NAME 1AO6_AMOEBA_MMP_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_mmp.json 
+                          Testing/1AO6_AMOEBA_MMP_init.out)
+add_test(NAME 1AO6_AMOEBA_MMP_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/1AO6_AMOEBA_MMP_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA.ref)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json 
+                          Testing/1AO6CUT_AMOEBA_MMP_init.out)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/1AO6CUT_AMOEBA_MMP_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA_CUT10.ref)
+add_test(NAME 1AO6_AMOEBA_XYZ_init 
+                          COMMAND bin/${TESTLANG}_test_SI_init 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_xyz.json 
+                          Testing/1AO6_AMOEBA_XYZ_init.out)
+add_test(NAME 1AO6_AMOEBA_XYZ_init_comp
+                          COMMAND ${CMAKE_COMMAND} -E compare_files
+                          Testing/1AO6_AMOEBA_XYZ_init.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/summary_AMOEBA.ref)
+add_test(NAME 1AO6CUT_AMBER_MMP_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json
+                          Testing/1AO6CUT_AMBER_MMP_energy.out )
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMBER_MMP_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_WANG_AL_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json
+                          Testing/1AO6CUT_AMBER_MMP_energy_EF_1.out tests/1ao6/EF_1.txt)
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMBER_MMP_energy_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_WANG_AL_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json
+                          Testing/1AO6CUT_AMOEBA_MMP_energy.out )
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMOEBA_MMP_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_AMOEBA_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json
+                          Testing/1AO6CUT_AMOEBA_MMP_energy_EF_1.out tests/1ao6/EF_1.txt)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMOEBA_MMP_energy_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_AMOEBA_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6_AMOEBA_XYZ_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_xyz.json
+                          Testing/1AO6_AMOEBA_XYZ_energy.out )
+add_test(NAME 1AO6_AMOEBA_XYZ_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6_AMOEBA_XYZ_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/FULL_POTENTIAL.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMBER_MMP_ipd 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json
+                          Testing/1AO6CUT_AMBER_MMP_ipd.out )
+add_test(NAME 1AO6CUT_AMBER_MMP_ipd_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/1AO6CUT_AMBER_MMP_ipd.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_0_WANG_AL_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMBER_MMP_ipd_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json
+                          Testing/1AO6CUT_AMBER_MMP_ipd_EF_1.out tests/1ao6/EF_1.txt)
+add_test(NAME 1AO6CUT_AMBER_MMP_ipd_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/1AO6CUT_AMBER_MMP_ipd_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_1_WANG_AL_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_ipd 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json
+                          Testing/1AO6CUT_AMOEBA_MMP_ipd.out )
+add_test(NAME 1AO6CUT_AMOEBA_MMP_ipd_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/1AO6CUT_AMOEBA_MMP_ipd.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_0_AMOEBA_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_ipd_EF_1 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json
+                          Testing/1AO6CUT_AMOEBA_MMP_ipd_EF_1.out tests/1ao6/EF_1.txt)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_ipd_EF_1_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
+                          Testing/1AO6CUT_AMOEBA_MMP_ipd_EF_1.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/IPD_1_AMOEBA_CUT10.ref 
+                           1e-05  1e-06)
+add_test(NAME 1AO6_AMOEBA_XYZ_geomgrad_ana 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_xyz.json
+                          Testing/1AO6_AMOEBA_XYZ_geomgrad_ana.out)
+add_test(NAME 1AO6_AMOEBA_XYZ_geomgrad_comp_ana_ref 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1AO6_AMOEBA_XYZ_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1ao6/FULL_POTENTIAL.ref
+                         0.001 0.0001)
 add_test(NAME 2D94_AMOEBA_XYZ_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/2d94_amoeba_xyz.json
@@ -476,3 +606,51 @@ add_test(NAME 2D94_AMOEBA_XYZ_geomgrad_comp_ana_ref
                         Testing/2D94_AMOEBA_XYZ_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref
                          0.001 0.0001)
+add_test(NAME ALACAP_AMOEBA_XYZ_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/alacap_amoeba_xyz.json
+                          Testing/ALACAP_AMOEBA_XYZ_energy.out )
+add_test(NAME ALACAP_AMOEBA_XYZ_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/ALACAP_AMOEBA_XYZ_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/alanine_cap/FULL_POTENTIAL.ref 
+                           1e-05  1e-06)
+add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_num 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          ${CMAKE_SOURCE_DIR}/tests/alacap_amoeba_xyz.json
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_num.out)
+add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_ana 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          ${CMAKE_SOURCE_DIR}/tests/alacap_amoeba_xyz.json
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_ana.out)
+add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_comp_num_ana 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_num.out
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_ana.out 
+                           0.001 0.0001)
+add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_num 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          ${CMAKE_SOURCE_DIR}/tests/tyrcap_amoeba_xyz.json
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_num.out)
+add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_ana 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          ${CMAKE_SOURCE_DIR}/tests/tyrcap_amoeba_xyz.json
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_ana.out)
+add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_comp_num_ana 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_num.out
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_ana.out 
+                           0.001 0.0001)
+add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_num 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          ${CMAKE_SOURCE_DIR}/tests/tyr2cap_amoeba_xyz.json
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_num.out)
+add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_ana 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          ${CMAKE_SOURCE_DIR}/tests/tyr2cap_amoeba_xyz.json
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_ana.out)
+add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_comp_num_ana 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_num.out
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_ana.out 
+                           0.001 0.0001)
