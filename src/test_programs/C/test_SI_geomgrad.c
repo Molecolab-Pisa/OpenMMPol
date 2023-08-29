@@ -117,15 +117,15 @@ void ommptest_totalqmmm_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT qmh,
     double *oldgrd_mm = (double *) malloc(sizeof(double) * 3 * mm_atoms);
     double *oldgrd_qm = (double *) malloc(sizeof(double) * 3 * qm_atoms);
     
-    ommp_qm_helper_vdw_geomgrad(qmh, sys, oldgrd_qm, oldgrd_mm);
+    if(qmh != NULL) ommp_qm_helper_vdw_geomgrad(qmh, sys, oldgrd_qm, oldgrd_mm);
     for(int i=0; i < 3 * qm_atoms; i++) qmg[i] += oldgrd_qm[i];
     for(int i=0; i < 3 * mm_atoms; i++) mmg[i] += oldgrd_mm[i];
-    ommp_full_geomgrad(fakeqm, oldgrd_qm);
+    if(fakeqm != NULL) ommp_full_geomgrad(fakeqm, oldgrd_qm);
     ommp_full_geomgrad(sys, oldgrd_mm);
     for(int i=0; i < 3 * qm_atoms; i++) qmg[i] += oldgrd_qm[i];
     for(int i=0; i < 3 * mm_atoms; i++) mmg[i] += oldgrd_mm[i];
     
-    ommp_qm_helper_link_atom_geomgrad(qmh, sys, oldgrd_qm, oldgrd_mm, qmg);
+    if(qmh != NULL) ommp_qm_helper_link_atom_geomgrad(qmh, sys, oldgrd_qm, oldgrd_mm, qmg);
     for(int i=0; i < 3 * qm_atoms; i++) qmg[i] += oldgrd_qm[i];
     for(int i=0; i < 3 * mm_atoms; i++) mmg[i] += oldgrd_mm[i];
     

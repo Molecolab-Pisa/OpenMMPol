@@ -144,8 +144,8 @@ double ommptest_etotqmmm_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMM
     double ene = 0.0;
 
     ene += ommp_get_full_energy(sys);
-    ene += ommp_get_full_energy(fakeqm);
-    ene += ommp_qm_helper_vdw_energy(qmh, sys);
+    if(fakeqm != NULL) ene += ommp_get_full_energy(fakeqm);
+    if(qmh != NULL) ene += ommp_qm_helper_vdw_energy(qmh, sys);
 
     return ene;
 }

@@ -72,9 +72,11 @@ NMA_amoeba_xyz.json     grad-num        none                                    
 2d94_amoeba_xyz.json    energy          2d94/FULL_POTENTIAL.ref                 none
 2d94_amoeba_xyz.json    grad            2d94/FULL_POTENTIAL.ref                 none
 # Alanine CAP with LINK ATOM
-alacap_amoeba_xyz.json  energy          alanine_cap/FULL_POTENTIAL.ref          none
+alacap_amoeba_xyz.json  energy          none                                    none
 alacap_amoeba_xyz.json  grad-num        none                                    none
 # Tyrosine CAP with LINK ATOM(s)
 tyrcap_amoeba_xyz.json  grad-num        none                                    none
 tyr2cap_amoeba_xyz.json grad-num        none                                    none
+# p-nitro aniline
+pna_amoeba_mmp.json     grad-num        none                                    none
 

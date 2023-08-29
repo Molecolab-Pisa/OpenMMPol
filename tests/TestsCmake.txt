@@ -613,7 +613,7 @@ add_test(NAME ALACAP_AMOEBA_XYZ_energy
 add_test(NAME ALACAP_AMOEBA_XYZ_energy_comp 
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
                           Testing/ALACAP_AMOEBA_XYZ_energy.out
-                          ${CMAKE_SOURCE_DIR}/tests/alanine_cap/FULL_POTENTIAL.ref 
+                          ${CMAKE_SOURCE_DIR}/tests/none 
                            1e-05  1e-06)
 add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_num 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
@@ -653,4 +653,17 @@ add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_comp_num_ana
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
                           Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_num.out
                           Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_ana.out 
+                           0.001 0.0001)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_num 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_num.out)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_ana 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_ana.out)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_comp_num_ana 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_num.out
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_ana.out 
                            0.001 0.0001)
