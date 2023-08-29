@@ -863,6 +863,9 @@ module mod_prm
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
         end if
+
+        ! Tinker manual default
+        opb_type = "w-d-c"
         
         ! open tinker xyz file
         open(unit=iof_prminp, &
@@ -2648,6 +2651,8 @@ module mod_prm
         radtype = "r-min"
         vdwtype = "lennard-jones"
         epsrule = "geometric"
+        ! Those are defaults defined in Tinker manual
+        vdw%vdw_screening = [0.0, 0.0, 1.0, 1.0]
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -3123,7 +3128,7 @@ module mod_prm
                 ! Polarization group information
                 tokb = toke+1
                 toke = tokenize(line, tokb)
-                if(isreal(line(tokb:toke))) then
+                if(isreal(line(tokb:toke)) .and. .not. isint(line(tokb:toke))) then
                     ! If there is an additional real modifier then it is AMOEBA+
                     write(errstring, *) "AMOEBA+ FF is not currently supported"
                     call fatal_error(errstring)
@@ -3424,9 +3429,22 @@ module mod_prm
                 
                 ! Rotation axis information
                 tokb = toke+1
-                toke = tokenize(line, tokb, 2)
-                read(line(tokb:toke), *) multax(1:2,imult)
-                ! TODO maybe some check here is not bad.
+                toke = tokenize(line, tokb, 1)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MULTIPOLE card at least two &
+                                        &integers for axys specification expected."
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) multax(1,imult)
+                
+                tokb = toke+1
+                toke = tokenize(line, tokb, 1)
+                if(.not. isint(line(tokb:toke))) then
+                    write(errstring, *) "Wrong MULTIPOLE card at least two &
+                                        &integers for axys specification expected."
+                    call fatal_error(errstring)
+                end if
+                read(line(tokb:toke), *) multax(2,imult)
 
                 ! For some centers also y axis is specified (integer) otherwise
                 ! this is the zeroth-order multipole (charge)
