@@ -1252,6 +1252,56 @@ module ommp_interface
         deallocate(c_json_filename)
     end subroutine
 
+    subroutine ommp_smartinput_cpstr(json_filename, path, outs)
+        use iso_c_binding, only: c_char, c_ptr, c_loc, &
+                                 c_null_char, c_f_pointer, c_new_line
+        !! External interface for smartinput function
+        character(len=*), intent(in) :: json_filename
+        character(len=*), intent(in) :: path
+        character(len=*), intent(inout) :: outs
+
+        interface
+            subroutine c_smartinput_cpstr(json_fname, path, outs) bind(c)
+                use iso_c_binding, only: c_ptr
+                implicit none
+
+                type(c_ptr), value :: json_fname, path
+                type(c_ptr) :: outs ! Pointer to pointer
+            end subroutine
+        end interface
+
+        character(kind=c_char), pointer :: c_json_filename(:), c_path(:)
+        type(c_ptr) :: c_outs, c_json_fname_p, c_path_p
+        integer :: i
+        character(kind=c_char), pointer :: tmp(:)
+
+        allocate(c_json_filename(len(json_filename) + 1))
+        allocate(c_path(len(path) + 1))
+        
+        do i=1, len(json_filename)
+            c_json_filename(i) = json_filename(i:i)
+        end do
+        c_json_filename(i) = c_null_char
+        
+        do i=1, len(path)
+            c_path(i) = path(i:i)
+        end do
+        c_path(i) = c_null_char
+
+        c_json_fname_p = c_loc(c_json_filename)
+        c_path_p = c_loc(c_path)
+
+        call c_smartinput_cpstr(c_json_fname_p, c_path_p, c_outs)
+        ! Put everything back in Fortran pointers
+        call c_f_pointer(c_outs, tmp, shape=[OMMP_STR_CHAR_MAX])
+        do i=1, OMMP_STR_CHAR_MAX
+            if(tmp(i) == c_null_char .or. tmp(i) == c_new_line) exit
+            outs(i:i) = tmp(i)
+        end do
+
+        deallocate(c_json_filename, c_path)
+    end subroutine
+
     subroutine ommp_system_from_qm_helper(qmh, prm_file, sys)
         !! Takes in input a QM Helper object, with initialized
         !! atom types, and using a parameter file, it generates a 
@@ -1271,7 +1321,7 @@ module ommp_interface
         
         implicit none
 
-        type(ommp_system), intent(out) :: sys
+        type(ommp_system), intent(inout), pointer :: sys
         type(ommp_qm_helper), intent(in) :: qmh
         character(len=*), intent(in) :: prm_file
 
@@ -1283,6 +1333,7 @@ module ommp_interface
                               &OMMP System atom types and atomic &
                               &number should be set.")
 
+        allocate(sys)
         call mmpol_init(sys, get_prm_ff_type(prm_file), &
                         qmh%qm_top%mm_atoms, qmh%qm_top%mm_atoms)
         

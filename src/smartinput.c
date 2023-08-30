@@ -937,27 +937,15 @@ void *c_json_cherrypick(const char *json_file, char *path, char type){
     }
 }
 
-void ommp_smartimput_cpstr(const char *json_file, char *path, char **s){
+void c_smartinput_cpstr(const char *json_file, char *path, char **s){
     *s = c_json_cherrypick(json_file, path, 's');
     if(*s == NULL){
         ommp_fatal("JSON cherry picking failed.");
     }
 }
 
-void ommp_smartimput_cpint(const char *json_file, char *path, int32_t *i){
-    int32_t *iprt = c_json_cherrypick(json_file, path, 's');
-    if(iprt == NULL){
-        ommp_fatal("JSON cherry picking failed.");
-    }
-    *i = *iprt;
-}
-
-void ommp_smartimput_cpdouble(const char *json_file, char *path, double *d){
-    double *dprt = c_json_cherrypick(json_file, path, 's');
-    if(dprt == NULL){
-        ommp_fatal("JSON cherry picking failed.");
-    }
-    *d = *dprt;
+void ommp_smartinput_cpstr(const char *json_file, char *path, char **s){
+    c_smartinput_cpstr(json_file, path, s);
 }
 
 void ommp_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPER_PRT ommp_qmh){

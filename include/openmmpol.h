@@ -142,7 +142,7 @@ extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
 extern void ommp_update_link_atoms_position(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 
 extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT, OMMP_QM_HELPER_PRT);
-extern void ommp_smartimput_cpstr(const char *, char *, char **);
+extern void ommp_smartinput_cpstr(const char *, char *, char **);
 extern OMMP_SYSTEM_PRT ommp_system_from_qm_helper(OMMP_QM_HELPER_PRT, const char *);
 #ifdef __cplusplus
 }

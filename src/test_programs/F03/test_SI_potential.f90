@@ -13,7 +13,7 @@ program test_SI_potential
                        ect, erxf, es, elf, eg, ex, evqmmm
     real(ommp_real), allocatable :: ef(:,:)
     logical :: use_qm = .false., use_fake_qm = .false., use_ext_ef = .false.
-    integer(ommp_integer) :: i
+    integer(ommp_integer) :: i, k
   
     narg = command_argument_count()
     if (narg /= 2 .and. narg /= 3) then
@@ -150,6 +150,12 @@ program test_SI_potential
         write(msg, '(A4, E20.12)') "EX  ", ex   
         call ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-ENE")
         
+        do k=1, my_system%eel%n_ipd
+            do i=1, my_system%eel%pol_atoms
+                write(msg, "(E20.12, ' ', E20.12, ' ', E20.12)") my_system%eel%ipd(:,i,k)
+                call ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-IPD")
+            end do
+        end do
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)
     end if

@@ -82,7 +82,7 @@ int main(int argc, char **argv){
         // Cherrypick the parameter file use for QM from
         // the smart input
         char *prm_file, addr[] = "qm/prm_file/path";
-        ommp_smartimput_cpstr(argv[1], addr, &prm_file);
+        ommp_smartinput_cpstr(argv[1], addr, &prm_file);
         //Create the fake qm system
         fake_qm = ommp_system_from_qm_helper(my_qmh, prm_file);
         // In order to make a safe interaction, remove all the polarizabilities
