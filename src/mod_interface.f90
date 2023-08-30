@@ -1211,22 +1211,24 @@ module ommp_interface
     end subroutine
 
     subroutine ommp_smartinput(json_filename, system, qmhelp)
-        use iso_c_binding, only: c_char, c_ptr, c_loc
+        use iso_c_binding, only: c_char, c_ptr, c_loc, &
+                                 c_null_char, c_f_pointer
         !! External interface for smartinput function
         character(len=*), intent(in) :: json_filename
-        type(ommp_system), intent(in), target :: system
-        type(ommp_qm_helper), intent(in), target :: qmhelp
+        type(ommp_system), intent(inout), pointer :: system
+        type(ommp_qm_helper), intent(inout), pointer :: qmhelp
 
         interface
             subroutine c_smartinput(json_fname, s, q) bind(c)
                 use iso_c_binding, only: c_ptr
                 implicit none
 
-                type(c_ptr) :: json_fname, s, q
+                type(c_ptr), value :: json_fname
+                type(c_ptr) :: s, q ! Pointer to pointer
             end subroutine
         end interface
 
-        character(kind=c_char), allocatable, target :: c_json_filename(:)
+        character(kind=c_char), pointer :: c_json_filename(:)
         type(c_ptr) :: c_system, c_qmhelp, c_json_fname_p
         integer :: i
 
@@ -1234,12 +1236,18 @@ module ommp_interface
         c_qmhelp = c_loc(qmhelp)
 
         allocate(c_json_filename(len(json_filename) + 1))
+        
         do i=1, len(json_filename)
             c_json_filename(i) = json_filename(i:i)
         end do
+        c_json_filename(i) = c_null_char
+
         c_json_fname_p = c_loc(c_json_filename)
 
         call c_smartinput(c_json_fname_p, c_system, c_qmhelp)
+        ! Put everything back in Fortran pointers
+        call c_f_pointer(c_system, system)
+        call c_f_pointer(c_qmhelp, qmhelp)
 
         deallocate(c_json_filename)
     end subroutine

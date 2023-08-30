@@ -20,7 +20,8 @@ int main(int argc, char **argv){
     else
         ommp_print_summary(my_system);
     
-    ommp_terminate(my_system);
+    if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
+    if(my_system != NULL) ommp_terminate(my_system);
     
     return 0;
 }
