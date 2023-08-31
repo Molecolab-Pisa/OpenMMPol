@@ -17,7 +17,7 @@ module test_geomgrad
         use mod_memory, only: rp
         type(ommp_system), intent(inout), target :: s, fakeqm
         type(ommp_qm_helper), intent(inout), target :: qmh
-        real(rp) :: energy_term
+        real(rp) :: energy_term_qmmm
     end function
     end interface
     
@@ -61,12 +61,30 @@ module test_geomgrad
             
             deallocate(new_c) 
         end subroutine
-        
+       
+        subroutine update_coordinates_qmmm(s, qmh, fakeqm, new_mm_c, new_qm_c)
+            
+            implicit none
+            
+            type(ommp_system), intent(inout) :: s, fakeqm
+            !! System data structure
+            type(ommp_qm_helper), intent(inout) :: qmh
+            real(ommp_real), intent(inout) :: new_mm_c(:,:), new_qm_c(:,:)
+
+            call ommp_update_coordinates(s, new_mm_c)
+            call ommp_qm_helper_update_coord(qmh, new_qm_c)
+            if(s%use_linkatoms) then
+                call ommp_update_link_atoms_position(qmh, s)
+                call ommp_update_coordinates(fakeqm, qmh%qm_top%cmm)
+            end if
+        end subroutine
+
         subroutine numerical_geomgrad_qmmm(s, qmh, fakeqm, ene_f, grad, qmgrad)
             implicit none
             
-            type(ommp_system), intent(inout) :: s
+            type(ommp_system), intent(inout) :: s, fakeqm
             !! System data structure
+            type(ommp_qm_helper), intent(inout) :: qmh
             procedure(energy_term_qmmm), pointer :: ene_f
             !! The energy function (from interface module) for which
             !! numerical gradients are needed
@@ -75,31 +93,51 @@ module test_geomgrad
             real(ommp_real), dimension(3,qmh%qm_top%mm_atoms), intent(inout) :: qmgrad
 
             integer(ommp_integer) :: i, j
-            real(ommp_real), allocatable :: new_c(:,:)
+            real(ommp_real), allocatable :: new_c_mm(:,:), new_c_qm(:,:)
             real(ommp_real) :: tmp
             real(ommp_real), parameter :: dd = 1e-5
 
-            allocate(new_c(3, s%top%mm_atoms))
-            new_c = s%top%cmm
+            allocate(new_c_mm(3, s%top%mm_atoms))
+            new_c_mm = s%top%cmm
+            
+            allocate(new_c_qm(3, qmh%qm_top%mm_atoms))
+            new_c_qm = qmh%qm_top%cmm
             
             do i=1, s%top%mm_atoms
                 do j=1, 3
-                    new_c(j,i) = new_c(j,i) + dd
-                    call update_coordinates(s, new_c)
-                    tmp = ene_f(s)
+                    new_c_mm(j,i) = new_c_mm(j,i) + dd
+                    call update_coordinates_qmmm(s, qmh, fakeqm, new_c_mm, new_c_qm)
+                    tmp = ene_f(s, qmh, fakeqm)
 
-                    new_c(j,i) = new_c(j,i) - 2*dd
-                    call update_coordinates(s, new_c)
-                    tmp = tmp - ene_f(s)
+                    new_c_mm(j,i) = new_c_mm(j,i) - 2*dd
+                    call update_coordinates_qmmm(s, qmh, fakeqm, new_c_mm, new_c_qm)
+                    tmp = tmp - ene_f(s, qmh, fakeqm)
                     
                     grad(j,i) = grad(j,i) + tmp / (2*dd)
                     
-                    new_c(j,i) = new_c(j,i) + dd
-                    call update_coordinates(s, new_c)
+                    new_c_mm(j,i) = new_c_mm(j,i) + dd
+                    call update_coordinates_qmmm(s, qmh, fakeqm, new_c_mm, new_c_qm)
                 end do
             end do
             
-            deallocate(new_c) 
+            do i=1, qmh%qm_top%mm_atoms
+                do j=1, 3
+                    new_c_qm(j,i) = new_c_qm(j,i) + dd
+                    call update_coordinates_qmmm(s, qmh, fakeqm, new_c_mm, new_c_qm)
+                    tmp = ene_f(s, qmh, fakeqm)
+
+                    new_c_qm(j,i) = new_c_qm(j,i) - 2*dd
+                    call update_coordinates_qmmm(s, qmh, fakeqm, new_c_mm, new_c_qm)
+                    tmp = tmp - ene_f(s, qmh, fakeqm)
+                    
+                    qmgrad(j,i) = qmgrad(j,i) + tmp / (2*dd)
+                    
+                    new_c_qm(j,i) = new_c_qm(j,i) + dd
+                    call update_coordinates_qmmm(s, qmh, fakeqm, new_c_mm, new_c_qm)
+                end do
+            end do
+            
+            deallocate(new_c_qm, new_c_mm) 
         end subroutine
 
     subroutine print_qmmm_grad(n, mmat, qmat, mmg, qmg)

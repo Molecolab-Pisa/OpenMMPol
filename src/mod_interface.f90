@@ -989,7 +989,7 @@ module ommp_interface
         
         implicit none
 
-        type(ommp_qm_helper), pointer, intent(inout) :: s
+        type(ommp_qm_helper), intent(inout) :: s
         real(ommp_real), intent(in) :: cqm(:,:)
 
         call qm_helper_update_coord(s, cqm)
