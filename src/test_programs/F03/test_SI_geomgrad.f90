@@ -150,7 +150,7 @@ module test_geomgrad
     end subroutine
 end module
 
-program test_SI_potential
+program test_SI_geomgrad
     use iso_c_binding, only: c_char
     use ommp_interface
     use test_geomgrad
@@ -176,7 +176,7 @@ program test_SI_potential
         call get_command_argument(2, args(2))
        
         call ommp_smartinput(trim(args(1)), my_system, my_qmh)
-        !!call ommp_set_outputfile(trim(args(2)))
+        call ommp_set_outputfile(trim(args(2)))
 
         if(associated(my_qmh)) then
             use_qm = .true.
@@ -237,4 +237,4 @@ program test_SI_potential
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)
     end if
-end program test_SI_potential
+end program
