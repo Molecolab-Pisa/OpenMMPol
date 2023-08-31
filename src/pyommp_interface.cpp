@@ -27,9 +27,11 @@ typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> 
 typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
 
 class OMMPSystem;
+
 class OMMPQmHelper{
     public:
         OMMPQmHelper();
+        OMMPQmHelper(OMMP_QM_HELPER_PRT);
         OMMPQmHelper(py_cdarray, py_cdarray, py_ciarray);
         ~OMMPQmHelper();
         OMMP_QM_HELPER_PRT get_handler(void);
@@ -72,6 +74,10 @@ class OMMPSystem{
     public:
         OMMPSystem(){
             handler = nullptr;
+        }
+        
+        OMMPSystem(OMMP_SYSTEM_PRT s){
+            handler = s;
         }
 
         OMMPSystem(std::string mmp_filename){
@@ -835,6 +841,10 @@ OMMPQmHelper::OMMPQmHelper(){
     handler = nullptr;
 }
 
+OMMPQmHelper::OMMPQmHelper(OMMP_QM_HELPER_PRT qm){
+    handler = qm;
+}
+
 OMMPQmHelper::OMMPQmHelper(py_cdarray coord_qm, py_cdarray charge_qm, py_ciarray z_qm){
     if(coord_qm.ndim() != 2 || 
         coord_qm.shape(1) != 3){
@@ -862,6 +872,7 @@ OMMPQmHelper::~OMMPQmHelper(){
 OMMP_QM_HELPER_PRT OMMPQmHelper::get_handler(void){
     return handler;
 }
+
 void OMMPQmHelper::set_frozen_atoms(py_ciarray frozen){
     if(frozen.ndim() != 1){
         throw py::value_error("frozen should be shaped [:]");
@@ -1169,8 +1180,28 @@ void set_verbose(int32_t v){
     ommp_set_verbose(v);
 }
 
+py::list smartinput(std::string json_file){
+    OMMP_SYSTEM_PRT s;
+    OMMP_QM_HELPER_PRT q;
+    py::list res;
+    
+    ommp_smartinput(json_file.c_str(), &s, &q);
+    OMMPSystem *my_sys = new OMMPSystem(s);
+    res.append(my_sys);
+
+    if(q != nullptr){
+        OMMPQmHelper *my_qmh = new OMMPQmHelper(q);
+        res.append(my_qmh);
+    }
+    else{
+        res.append(py::none());
+    }
+    return res;
+}
+
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
+    m.def("smartinput", &smartinput, py::return_value_policy::copy);
     m.attr("available_solvers") = solvers;
     m.attr("available_matrix_vector") = matvs;
     m.attr("__version__") = OMMP_VERSION_STRING;

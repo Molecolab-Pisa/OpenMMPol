@@ -156,51 +156,53 @@ if (HDF5_WORKS)
         test_potential_hdf5)
 endif ()
 
-set(UTILITY_EXE)
-foreach( exe ${UTILITY_PROGRAMS} )
-    add_executable(${exe} src/${exe}.c)
-    target_compile_options(${exe} PRIVATE -Wall -Wextra -pedantic)
-    set_property(TARGET ${exe} PROPERTY C_STANDARD 99)
-    target_link_libraries(${exe} openmmpol)
-    set(UTILITY_EXE
-        ${UTILITY_EXE}
-        ${exe})
-endforeach()
-add_custom_target(utility_programs DEPENDS ${UTILITY_PROGRAMS})
-
-set(TEST_LANG
-    C
-    F03)
-foreach( lang ${TEST_LANG} )
-    set(TEST_EXE)
-    foreach( exe ${TEST_PROGRAMS} )
-        if (${lang} STREQUAL "C")
-            if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/test_programs/${lang}/${exe}.c)
-                continue ()
-            endif ()
-
-            add_executable(${lang}_${exe} src/test_programs/${lang}/${exe}.c)
-            target_compile_options(${lang}_${exe} PRIVATE -Wall -Wextra -pedantic)
-            set_property(TARGET ${lang}_${exe} PROPERTY C_STANDARD 99)
-        endif()
-        if (${lang} STREQUAL "F03") 
-            if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/test_programs/${lang}/${exe}.f90) 
-                continue ()
-            endif ()
-
-            add_executable(${lang}_${exe} src/test_programs/${lang}/${exe}.f90)
-            if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-                target_compile_options(${lang}_${exe} PRIVATE -Wall -Wextra -pedantic -std=f2003)
-            endif ()
-        endif()
-
-        target_link_libraries(${lang}_${exe} openmmpol)
-        set(TEST_EXE
-            ${TEST_EXE}
-            ${lang}_${exe})
+if(NOT PYTHON)
+    set(UTILITY_EXE)
+    foreach( exe ${UTILITY_PROGRAMS} )
+        add_executable(${exe} src/${exe}.c)
+        target_compile_options(${exe} PRIVATE -Wall -Wextra -pedantic)
+        set_property(TARGET ${exe} PROPERTY C_STANDARD 99)
+        target_link_libraries(${exe} openmmpol)
+        set(UTILITY_EXE
+            ${UTILITY_EXE}
+            ${exe})
     endforeach()
-    add_custom_target(${lang}_test_programs DEPENDS ${TEST_EXE})
-endforeach()
+    add_custom_target(utility_programs DEPENDS ${UTILITY_PROGRAMS})
+
+    set(TEST_LANG
+        C
+        F03)
+    foreach( lang ${TEST_LANG} )
+        set(TEST_EXE)
+        foreach( exe ${TEST_PROGRAMS} )
+            if (${lang} STREQUAL "C")
+                if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/test_programs/${lang}/${exe}.c)
+                    continue ()
+                endif ()
+
+                add_executable(${lang}_${exe} src/test_programs/${lang}/${exe}.c)
+                target_compile_options(${lang}_${exe} PRIVATE -Wall -Wextra -pedantic)
+                set_property(TARGET ${lang}_${exe} PROPERTY C_STANDARD 99)
+            endif()
+            if (${lang} STREQUAL "F03") 
+                if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/test_programs/${lang}/${exe}.f90) 
+                    continue ()
+                endif ()
+
+                add_executable(${lang}_${exe} src/test_programs/${lang}/${exe}.f90)
+                if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+                    target_compile_options(${lang}_${exe} PRIVATE -Wall -Wextra -pedantic -std=f2003)
+                endif ()
+            endif()
+
+            target_link_libraries(${lang}_${exe} openmmpol)
+            set(TEST_EXE
+                ${TEST_EXE}
+                ${lang}_${exe})
+        endforeach()
+        add_custom_target(${lang}_test_programs DEPENDS ${TEST_EXE})
+    endforeach()
+endif()
 
 # Python
 option(PYTHON "Build python module (Generally you want to use ./setup.py build_ext for this)" OFF)
@@ -220,6 +222,8 @@ if (PYTHON)
         target_link_libraries(openmmpol_static ${HDF5_Fortran_LIBRARIES})
         add_definitions(-DUSE_HDF5)
     endif()
+    target_link_libraries(openmmpol_static ${CJSON_LIBRARIES})
+    target_link_libraries(openmmpol_static ${OPENSSL_LIBRARIES})
 
     pybind11_add_module(pyopenmmpol MODULE src/pyommp_interface.cpp)
     target_compile_definitions(pyopenmmpol PRIVATE VERSION_INFO=${OMMP_VERSION})
