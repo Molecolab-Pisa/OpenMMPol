@@ -8,9 +8,9 @@ if len(sys.argv) != 2 and len(sys.argv) != 3:
     exit(1)
 
 my_system, my_qmh = ommp.smartinput(sys.argv[1])
-print(my_system)
-print(my_qmh)
+ommp.se~.
 
+t
 if len(sys.argv) == 3:
     my_system.print_summary(sys.argv[2])
 else:

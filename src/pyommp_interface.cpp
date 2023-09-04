@@ -22,6 +22,13 @@ std::map<std::string, int32_t> matvs{
     {"direct", OMMP_MATV_DIRECT}
 };
 
+std::map<std::string, int32_t> verbosity{
+    {"none", OMMP_VERBOSE_NONE},
+    {"low", OMMP_VERBOSE_LOW},
+    {"high", OMMP_VERBOSE_HIGH},
+    {"debug", OMMP_VERBOSE_DEBUG}
+};
+
 typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_ciarray;
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
@@ -1224,6 +1231,7 @@ PYBIND11_MODULE(pyopenmmpol, m){
     m.def("smartinput", &smartinput, py::return_value_policy::copy);
     m.attr("available_solvers") = solvers;
     m.attr("available_matrix_vector") = matvs;
+    m.attr("verbosity") = verbosity;
     m.attr("__version__") = OMMP_VERSION_STRING;
     py::class_<OMMPSystem, std::shared_ptr<OMMPSystem>>(m, "OMMPSystem", "System of OMMP library.")
         .def(py::init<std::string>(), 
