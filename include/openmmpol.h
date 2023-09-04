@@ -27,8 +27,10 @@ extern void ommp_checkpoint(OMMP_SYSTEM_PRT, const char *, const char *);
 extern OMMP_SYSTEM_PRT ommp_init_hdf5(const char *, const char *);
 #endif
 extern void ommp_set_verbose(int32_t);
-extern void ommp_set_outputfile(char *);
+extern void ommp_set_outputfile(const char *);
 extern void ommp_close_outputfile(void);
+extern void ommp_message(const char *, int32_t, const char *);
+extern void ommp_fatal(const char *);
 extern void ommp_print_summary(OMMP_SYSTEM_PRT);
 extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, const char *);
 

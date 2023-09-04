@@ -1180,6 +1180,22 @@ void set_verbose(int32_t v){
     ommp_set_verbose(v);
 }
 
+void set_outputfile(std::string of){
+    ommp_set_outputfile(of.c_str());
+}
+
+void close_outputfile(void){
+    ommp_close_outputfile();
+}
+
+void message(std::string m, int32_t l, std::string p){
+    ommp_message(m.c_str(), l, p.c_str());
+}
+
+void fatal(std::string m){
+    ommp_fatal(m.c_str());
+}
+
 py::list smartinput(std::string json_file){
     OMMP_SYSTEM_PRT s;
     OMMP_QM_HELPER_PRT q;
@@ -1201,6 +1217,10 @@ py::list smartinput(std::string json_file){
 
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
+    m.def("set_outputfile", &set_outputfile);
+    m.def("close_outputfile", &close_outputfile);
+    m.def("message", &message);
+    m.def("fatal", &fatal);
     m.def("smartinput", &smartinput, py::return_value_policy::copy);
     m.attr("available_solvers") = solvers;
     m.attr("available_matrix_vector") = matvs;
