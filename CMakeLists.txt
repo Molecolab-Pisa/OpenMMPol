@@ -65,6 +65,7 @@ set(LIBRARY_SRC
     src/mod_link_atom.f90
     src/mod_memory.f90
     src/mod_mmpol.f90
+    src/mod_neighbors_list.f90
     src/mod_nonbonded.f90
     src/mod_polarization.f90
     src/mod_prm.f90

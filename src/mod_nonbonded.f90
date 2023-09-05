@@ -1,6 +1,7 @@
 module mod_nonbonded
 
-    use mod_memory, only: rp, ip
+    use mod_memory, only: rp, ip, lp
+    use mod_neighbor_list, only: ommp_neigh_list
     use mod_constants, only: OMMP_STR_CHAR_MAX
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type
@@ -22,6 +23,10 @@ module mod_nonbonded
         !! of non-bonding interactions
         type(ommp_topology_type), pointer :: top
         !! Data structure for topology
+        logical(lp) :: use_nl
+        !! Flag for using neighbors list
+        type(ommp_neigh_list) :: nl
+        !! Neighbor list struture
         real(rp), allocatable, dimension(:) :: vdw_r
         !! VdW radii for the atoms of the system
         real(rp), allocatable, dimension(:) :: vdw_e
@@ -88,6 +93,7 @@ module mod_nonbonded
         
         use mod_memory, only: mallocate
         use mod_io, only: fatal_error
+        use mod_neighbor_list, only: nl_init
 
         implicit none
 
@@ -179,11 +185,15 @@ module mod_nonbonded
                        vdw%vdw_pair_e)
 
         vdw%vdw_f = 1.0_rp
+
+        vdw%use_nl = .true.
+        call nl_init(vdw%nl, top%cmm, 24.0_rp, 2)
     end subroutine vdw_init
 
     subroutine vdw_terminate(vdw)
         use mod_memory, only: mfree
         use mod_adjacency_mat, only: matfree
+        use mod_neighbor_list, only: nl_terminate
 
         implicit none
         
@@ -195,6 +205,7 @@ module mod_nonbonded
         call matfree(vdw%vdw_pair)
         call mfree('vdw_terminate [vdw_pair_r]', vdw%vdw_pair_r)
         call mfree('vdw_terminate [vdw_pair_e]', vdw%vdw_pair_e)
+        if(vdw%use_nl) call nl_terminate(vdw%nl)
 
     end subroutine
 
