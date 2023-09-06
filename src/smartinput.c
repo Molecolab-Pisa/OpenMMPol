@@ -588,6 +588,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             req_matv = OMMP_MATV_DEFAULT;
     
     int32_t nla = 0, *la_mm, *la_qm, *la_la, *la_ner;
+    int32_t nfrozen=0, *frozenat;
     double *la_bl;
     *ommp_qmh = NULL;
 
@@ -691,6 +692,29 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             else{
                 sprintf(msg, "Unrecognized option \"%s\" for matrix_vector; Available solvers are default, direct, incore.", cur->valuestring);
                 ommp_fatal(msg);
+            }
+        }
+        else if(strcmp(cur->string, "frozen_atoms") == 0){
+            if(!cJSON_IsArray(cur))
+                ommp_fatal("frozen_atoms should be an array of integers!");
+            if(nfrozen > 0) 
+                ommp_fatal("Only a single frozen_atoms section should be present");
+            cJSON *_arr = cur->child;
+            for(nfrozen = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("frozen_atoms should be an array of integers!");
+                nfrozen++;
+            }
+            
+            if(nfrozen < 0)
+                ommp_fatal("Wired error when parsing frozen_atoms");
+            
+            frozenat = (int32_t *) malloc(sizeof(int32_t) * nfrozen);
+            
+            _arr = cur->child;
+            for(int i = 0; _arr != NULL; i++){
+                frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
             }
         }
         else if(strcmp(cur->string, "link_atoms") == 0){
@@ -813,6 +837,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                      OMMP_VERBOSE_LOW, "SI");
     }
 
+    // Handle frozen atoms
+    if(nfrozen > 0){
+        ommp_set_frozen_atoms(*ommp_sys, nfrozen, frozenat);
+        free(frozenat);
+    }
     // Handle link atoms
     if(nla > 0){
         if(*ommp_qmh == NULL)
