@@ -120,7 +120,7 @@ if(OpenSSL_FOUND)
 endif()
 
 # Enable preprocessor for Fortran
-target_compile_options(openmmpol PRIVATE -cpp)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
 # cmake 3.18 is needed for this
 #set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
 
