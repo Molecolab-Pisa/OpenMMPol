@@ -10,5 +10,8 @@ file(DOWNLOAD https://raw.githubusercontent.com/TinkerTools/tinker/release/param
      EXPECTED_HASH MD5=e9330e340a3f4045cc8025dc9ce42e33) 
 
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/tests ${CMAKE_BINARY_DIR}/tests SYMBOLIC)
+set(VALGRINDOPT --track-origins=yes --leak-check=full --show-leak-kinds=all) 
+set(TESTLANG "C" CACHE STRING "Language to be used for the test suite, the very same test programs are implemented in C99 (C) and Fortran2003 (F03).")
+
 
 include(tests/TestsCmake.txt)
