@@ -52,7 +52,7 @@ module mod_mmpol
         
         use mod_constants, only: OMMP_FF_AMBER, OMMP_FF_AMOEBA, OMMP_FF_UNKNOWN
         use mod_electrostatics, only: electrostatics_init
-        use mod_io, only: print_matrix, fatal_error
+        use mod_io, only: print_matrix, fatal_error, time_pull, time_push
 
         implicit none
 
@@ -65,6 +65,8 @@ module mod_mmpol
         integer(ip), intent(in) :: l_pol_atoms
         !! Number of polarizable atoms used in initialization
         
+        call time_push()
+
         !! Allocation topology...
         allocate(sys_obj%top)
         !! ... and electrostatics
@@ -91,7 +93,7 @@ module mod_mmpol
 
         ! Everything is done
         sys_obj%mmpol_is_init = .true.
-
+        call time_pull('mmpol object creation')
     end subroutine mmpol_init
 
     subroutine mmpol_init_nonbonded(sys_obj)
