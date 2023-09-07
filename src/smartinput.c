@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,8 +59,8 @@ semversion str_to_semversion(char *strin){
     ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
     for(i = 0; major[i] != '\0' && major_ok; i++)
-        major_ok &= isdigit(major[i]);
-    major_ok &= (i>0);
+        major_ok = (major_ok && isdigit(major[i]));
+    major_ok = (major_ok && i>0);
 
     if(!major_ok){
         sprintf(msg, "Malformed major version in \"%s\".", strin);
@@ -76,8 +77,8 @@ semversion str_to_semversion(char *strin){
     ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
     for(i = 0; minor[i] != '\0' && minor_ok; i++)
-        minor_ok &= isdigit(minor[i]);
-    minor_ok &= (i>0);
+        minor_ok = (minor_ok && isdigit(minor[i]));
+    minor_ok = (minor_ok && i>0);
 
     if(!minor_ok){
         sprintf(msg, "Malformed minor version in \"%s\".", strin);
@@ -97,8 +98,8 @@ semversion str_to_semversion(char *strin){
     ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
     for(i = 0; patch[i] != '\0' && patch_ok; i++)
-        patch_ok &= isdigit(patch[i]);
-    patch_ok &= (i>0);
+        patch_ok = (patch_ok && isdigit(patch[i]));
+    patch_ok = (patch_ok && i>0);
 
     if(!patch_ok){
         sprintf(msg, "Malformed patch version in \"%s\".", strin);
@@ -109,7 +110,7 @@ semversion str_to_semversion(char *strin){
     v.patch = atoi(patch);
 
     if(plus != NULL){
-        if(strtok(NULL, "+") != NULL){
+        if(strtok(NULL, "+") != NULL || plus[0] != 'r'){
             sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
             ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
             return v_err;
@@ -118,45 +119,49 @@ semversion str_to_semversion(char *strin){
         sprintf(msg, "Pre-Release \"%s\".", plus);
         ommp_message(msg, OMMP_VERBOSE_DEBUG, "SemVersDB");
 
+        plus = &(plus[1]);
         char *ncommits = strtok(plus, ".");
         bool ncommits_ok = (ncommits != NULL);
-
-        if(ncommits[0] != 'r') ncommits_ok = false;
-
-        for(i = 1; ncommits[i] != '\0' && ncommits_ok; i++)
-            ncommits_ok &= isdigit(ncommits[i]);
-        ncommits_ok &= (i>0);
-    
-        if(!ncommits_ok){
-            sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
-            ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
-            return v_err;
+        if(ncommits_ok && strcmp(ncommits, "dirty") == 0){
+            v.clean = false;
+            v.ncommit = 0;
         }
-
-        v.ncommit = atoi(&(ncommits[1]));
+        else{
+            for(i = 0; ncommits[i] != '\0' && ncommits_ok; i++)
+                ncommits_ok = (ncommits_ok && isdigit(ncommits[i]));
+            ncommits_ok = (ncommits_ok && i>0);
         
-        char *commithash = strtok(NULL, ".");
-        bool commithash_ok = (commithash != NULL);
-
-        for(i = 0; commithash[i] != '\0' && commithash_ok; i++);
-        commithash_ok &= (i == 8);
-    
-        if(!commithash_ok){
-            sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
-            ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
-            return v_err;
-        }
-
-        strcpy(v.commit, commithash);
-
-        char *clean = strtok(NULL, ".");
-        if(clean != NULL){
-            if(strcmp(clean, "dirty") == 0) 
-                v.clean = false;
-            else{
+            if(!ncommits_ok){
                 sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
                 ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
                 return v_err;
+            }
+
+            v.ncommit = atoi(&(ncommits[0]));
+            
+            char *commithash = strtok(NULL, ".");
+            bool commithash_ok = (commithash != NULL);
+
+            for(i = 0; commithash[i] != '\0' && commithash_ok; i++);
+            commithash_ok = (commithash_ok && i == 8);
+        
+            if(!commithash_ok){
+                sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
+                ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+                return v_err;
+            }
+
+            strcpy(v.commit, commithash);
+
+            char *clean = strtok(NULL, ".");
+            if(clean != NULL){
+                if(strcmp(clean, "dirty") == 0) 
+                    v.clean = false;
+                else{
+                    sprintf(msg, "Malformed pre-release string in \"%s\".", strin);
+                    ommp_message(msg, OMMP_VERBOSE_LOW, "SemVers");
+                    return v_err;
+                }
             }
         }
     }
@@ -286,10 +291,12 @@ bool check_file(cJSON *file_json, char **path, char *outmode){
 
 bool check_version(char *verstr){
     semversion vreq = str_to_semversion(verstr);
+    if(vreq.major < 0) return false;
     
     char *ommp_vstr[256];
     sprintf(ommp_vstr, "%s", OMMP_VERSION_STRING);
     semversion vommp = str_to_semversion(ommp_vstr);
+    if(vommp.major < 0) return false;
     
     if(vreq.major < vommp.major) return true;
     if(vreq.major > vommp.major) return false;
@@ -587,6 +594,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             req_matv = OMMP_MATV_DEFAULT;
     
     int32_t nla = 0, *la_mm, *la_qm, *la_la, *la_ner;
+    int32_t nfrozen=0, *frozenat;
     double *la_bl;
     *ommp_qmh = NULL;
 
@@ -690,6 +698,29 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             else{
                 sprintf(msg, "Unrecognized option \"%s\" for matrix_vector; Available solvers are default, direct, incore.", cur->valuestring);
                 ommp_fatal(msg);
+            }
+        }
+        else if(strcmp(cur->string, "frozen_atoms") == 0){
+            if(!cJSON_IsArray(cur))
+                ommp_fatal("frozen_atoms should be an array of integers!");
+            if(nfrozen > 0) 
+                ommp_fatal("Only a single frozen_atoms section should be present");
+            cJSON *_arr = cur->child;
+            for(nfrozen = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("frozen_atoms should be an array of integers!");
+                nfrozen++;
+            }
+            
+            if(nfrozen < 0)
+                ommp_fatal("Wired error when parsing frozen_atoms");
+            
+            frozenat = (int32_t *) malloc(sizeof(int32_t) * nfrozen);
+            
+            _arr = cur->child;
+            for(int i = 0; _arr != NULL; i++){
+                frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
             }
         }
         else if(strcmp(cur->string, "link_atoms") == 0){
@@ -812,6 +843,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                      OMMP_VERBOSE_LOW, "SI");
     }
 
+    // Handle frozen atoms
+    if(nfrozen > 0){
+        ommp_set_frozen_atoms(*ommp_sys, nfrozen, frozenat);
+        free(frozenat);
+    }
     // Handle link atoms
     if(nla > 0){
         if(*ommp_qmh == NULL)
