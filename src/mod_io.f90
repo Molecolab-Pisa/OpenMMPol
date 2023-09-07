@@ -1,4 +1,5 @@
 #include "version.h"
+#define OMMP_TIMING
 
 module mod_io
     !! Unified Input/Output handling across the code.
@@ -19,7 +20,13 @@ module mod_io
     integer(ip), protected :: verbose = OMMP_VERBOSE_DEFAULT
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
-    
+#ifdef OMMP_TIMING
+    integer(ip), parameter :: ntimes = 128
+    integer(ip) :: tcnt = 1
+    real(rp) :: times(ntimes)
+#endif
+
+    public :: time_pull, time_push
     public :: iof_mmpol, iof_mmpinp
     public :: set_iof_mmpol, close_output
     public :: set_verbosity, ommp_message, fatal_error, ommp_version
@@ -338,4 +345,39 @@ module mod_io
 
     end subroutine print_int_vec
 
+    subroutine time_push()
+        implicit none
+#ifdef OMMP_TIMING
+        real(rp) :: omp_get_wtime
+        
+        if(tcnt <= ntimes) then
+            times(tcnt) = omp_get_wtime()
+            tcnt = tcnt + 1
+        else
+            call fatal_error('time_push Cannot push another time in the buffer.')
+        end if
+#endif
+    end subroutine
+
+    subroutine time_pull(s)
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+        implicit none
+
+        character(len=*), intent(in) :: s
+#ifdef OMMP_TIMING
+        real(rp) :: elap
+        character(len=OMMP_STR_CHAR_MAX) :: msg
+
+        real(rp) :: omp_get_wtime
+
+        if(tcnt > 1) then
+            elap = omp_get_wtime() - times(tcnt-1)
+            tcnt = tcnt - 1
+            write(msg, "(a, ':', f8.2, ' s')") s, elap
+            call ommp_message(msg, OMMP_VERBOSE_HIGH, 'time')
+        else
+            call fatal_error('time_pull Cannot pull any value.')
+        end if
+#endif
+    end subroutine
 end module mod_io
