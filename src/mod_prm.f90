@@ -2,7 +2,7 @@ module mod_prm
     !! This module handles the reading of a parameter file in .prm format and
     !! the asignament of parameters based on atom type and connectivity.
 
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_io, only: fatal_error, ommp_message
     use mod_topology, only: ommp_topology_type
     use mod_bonded, only: ommp_bonded_type
@@ -2599,6 +2599,7 @@ module mod_prm
                                  vdwpr_r(:), vdwpr_e(:)
         integer(ip) :: nvdw, ivdw, atc, nvdwpr, ivdwpr
         logical :: done
+        logical(lp), allocatable :: maska(:), maskb(:)
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
             call read_atom_cards(top, prm_file)
@@ -2643,6 +2644,7 @@ module mod_prm
         call mallocate('read_prm [vdwpr_b]', nvdwpr, vdwpr_b)
         call mallocate('read_prm [vdwpr_e]', nvdwpr, vdwpr_e)
         call mallocate('read_prm [vdwpr_r]', nvdwpr, vdwpr_r)
+        allocate(maska(top%mm_atoms), maskb(top%mm_atoms))
         ivdwpr = 1
 
         ! Default rules for VDW (from Tinker Manual)
@@ -2813,6 +2815,8 @@ module mod_prm
         
         call vdw_init(vdw, top, vdwtype, radrule, radsize, radtype, epsrule)
         
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,atc,done)
         do i=1, top%mm_atoms
             ! Atom class for current atom
             atc = top%atclass(i)
@@ -2831,27 +2835,15 @@ module mod_prm
             if(.not. done) then
                 call fatal_error("VdW parameter not found!")
             end if
-
-            ! VdW pair parameters
-            do l=1, nvdwpr
-                if(vdwpr_a(l) == atc) then
-                    do j=i+1, top%mm_atoms
-                        if(top%atclass(j) == vdwpr_b(l)) then
-                            call vdw_set_pair(vdw, i, j, &
-                                              vdwpr_r(l) * angstrom2au, &
-                                              vdwpr_e(l) * kcalmol2au)
-                        end if
-                    end do
-                else if(vdwpr_b(l) == atc) then
-                    do j=i+1, top%mm_atoms
-                        if(top%atclass(j) == vdwpr_a(l)) then
-                            call vdw_set_pair(vdw, i, j, &
-                                              vdwpr_r(l) * angstrom2au, &
-                                              vdwpr_e(l) * kcalmol2au)
-                        end if
-                    end do
-                end if
-            end do
+        end do
+            
+        ! VdW pair parameters
+        do l=1, nvdwpr
+            maska = (top%atclass == vdwpr_a(l))
+            maskb = (top%atclass == vdwpr_b(l))
+            call vdw_set_pair(vdw, maska, maskb, &
+                              vdwpr_r(l) * angstrom2au, &
+                              vdwpr_e(l) * kcalmol2au)
         end do
         
         call mfree('read_prm [vdwat]', vdwat)
@@ -2862,6 +2854,7 @@ module mod_prm
         call mfree('read_prm [vdwpr_b]', vdwpr_b)
         call mfree('read_prm [vdwpr_e]', vdwpr_e)
         call mfree('read_prm [vdwpr_r]', vdwpr_r)
+        deallocate(maska, maskb)
     
     end subroutine assign_vdw
     

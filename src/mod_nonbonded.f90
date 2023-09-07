@@ -16,7 +16,7 @@ module mod_nonbonded
     implicit none
     private
 
-    integer(ip), parameter :: pair_allocation_chunk = 20
+    integer(ip), parameter :: pair_allocation_chunk = 256
 
     type ommp_nonbonded_type
         !! Derived type for storing the information relative to the calculation
@@ -34,10 +34,8 @@ module mod_nonbonded
         real(rp), allocatable, dimension(:) :: vdw_f
         !! Scale factor for displacing the interaction center
     
-        type(yale_sparse) :: vdw_pair
-        !! If a pair is present in this sparse matrix, its VdW interaction
-        !! should be calculated using the corresponding radius and energy
-        !! not the standard ones, derived from the single-atom values.
+        integer(ip) :: npair = 1
+        logical(lp), allocatable :: vdw_pair_mask_a(:,:), vdw_pair_mask_b(:,:)
         real(rp), allocatable :: vdw_pair_r(:)
         !! Radii for the VdW atom pairs
         real(rp), allocatable :: vdw_pair_e(:)
@@ -174,11 +172,9 @@ module mod_nonbonded
         call mallocate('vdw_init [vdw_r]', top%mm_atoms, vdw%vdw_r)
         call mallocate('vdw_init [vdw_e]', top%mm_atoms, vdw%vdw_e)
         call mallocate('vdw_init [vdw_f]', top%mm_atoms, vdw%vdw_f)
-        call mallocate('vdw_init [vdw_pair%ri]', top%mm_atoms+1, &
-                       vdw%vdw_pair%ri)
-        vdw%vdw_pair%ri = 1 ! The matrix is empty for now
-        call mallocate('vdw_init [vdw_pair%ci]', pair_allocation_chunk, &
-                       vdw%vdw_pair%ci)
+        
+        allocate(vdw%vdw_pair_mask_a(top%mm_atoms,pair_allocation_chunk))
+        allocate(vdw%vdw_pair_mask_b(top%mm_atoms,pair_allocation_chunk))
         call mallocate('vdw_init [vdw_pair_r]', pair_allocation_chunk, &
                        vdw%vdw_pair_r)
         call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, &
@@ -188,7 +184,7 @@ module mod_nonbonded
 
         ! TODO
         vdw%use_nl = .false.
-        if(vdw%use_nl) call nl_init(vdw%nl, top%cmm, 24.0_rp, 2)
+        if(vdw%use_nl) call nl_init(vdw%nl, top%cmm, 60.0_rp, 2)
     end subroutine vdw_init
 
     subroutine vdw_terminate(vdw)
@@ -203,9 +199,10 @@ module mod_nonbonded
         call mfree('vdw_terminate [vdw_r]', vdw%vdw_r)
         call mfree('vdw_terminate [vdw_e]', vdw%vdw_e)
         call mfree('vdw_terminate [vdw_f]', vdw%vdw_f)
-        call matfree(vdw%vdw_pair)
         call mfree('vdw_terminate [vdw_pair_r]', vdw%vdw_pair_r)
         call mfree('vdw_terminate [vdw_pair_e]', vdw%vdw_pair_e)
+        deallocate(vdw%vdw_pair_mask_a)
+        deallocate(vdw%vdw_pair_mask_b)
         if(vdw%use_nl) call nl_terminate(vdw%nl)
 
     end subroutine
@@ -223,88 +220,30 @@ module mod_nonbonded
         ! TODO do it also for pair interactions
     end subroutine
 
-    subroutine vdw_set_pair(vdw, ia, ib, r, e)
-        !! Set VdW interaction parameters for a specific atom pair, those
-        !! parameters overwrite the one obtained combining the mono-atomic
-        !! ones. If a specific interaction is already set for this atom pair,
-        !! it is overwritten with a warning print
-        
+    subroutine vdw_set_pair(vdw, mask_a, mask_b, r, e)
         use mod_io, only: ommp_message, fatal_error
         use mod_constants, only: OMMP_VERBOSE_LOW
-        use mod_adjacency_mat, only: reallocate_mat
         use mod_memory, only: mallocate, mfree
 
         implicit none
 
         type(ommp_nonbonded_type), intent(inout) :: vdw
         !! Nonbonded data structure
-        integer(ip), intent(in) :: ia
-        !! First atom for which the interaction is defined
-        integer(ip), intent(in) :: ib
-        !! Second atom for which the interaction is defined
+        logical(lp), intent(in) :: mask_a(vdw%top%mm_atoms)
+        logical(lp), intent(in) :: mask_b(vdw%top%mm_atoms)
         real(rp), intent(in) :: r
         !! Equilibrium distance for the pair
         real(rp), intent(in) :: e 
         !! Depth of the potential 
 
-        integer(ip) :: i, jc, jr, newsize, oldsize
-        real(rp), allocatable :: tmp(:)
+        logical(lp), allocatable :: tmp(:,:)
         character(len=OMMP_STR_CHAR_MAX) :: msg
 
-        if(ia == ib) then 
-            call fatal_error("VdW parameters could not be set for a self-interaction")
-        end if
-
-        ! To avoid saving the same interaction two times, we always use 
-        ! min(ia, ib) as row index and max(ia, ib) as column index
-        jr = min(ia, ib)
-        jc = max(ia, ib)
-        if(any(vdw%vdw_pair%ci(vdw%vdw_pair%ri(jr):&
-                               vdw%vdw_pair%ri(jr+1)-1) == jc)) then
-            ! The pair is already present in the matrix
-            write(msg, "(A, I5, I5, A)") "VdW parameter for pair ", jr, jc, "will be overwritten"
-            call ommp_message(msg, OMMP_VERBOSE_LOW)
-
-            do i=vdw%vdw_pair%ri(jr), vdw%vdw_pair%ri(jr+1)-1
-                if(vdw%vdw_pair%ci(i) == jc) then
-                    vdw%vdw_pair_r = r
-                    vdw%vdw_pair_e = e
-                end if
-            end do
-        else
-            ! The pair is not present and should be created
-            ! 1. check if there is space in the vectors
-            if(size(vdw%vdw_pair%ci) < vdw%vdw_pair%ri(vdw%top%mm_atoms+1) + 1) then
-                ! 1b. if there is no space, allocate a new chunk
-                oldsize = size(vdw%vdw_pair%ci)
-                newsize = oldsize + pair_allocation_chunk
-                call reallocate_mat(vdw%vdw_pair, newsize)
-                call mallocate('vdw_set_pair [tmp]', oldsize, tmp)
-                tmp = vdw%vdw_pair_r
-                call mfree('vdw_set_pair [vdw_pair_r]', vdw%vdw_pair_r)
-                call mallocate('vdw_set_pair [vdw_pair_r]', newsize, vdw%vdw_pair_r)
-                vdw%vdw_pair_r(1:oldsize) = tmp
-                tmp = vdw%vdw_pair_e
-                call mfree('vdw_set_pair [vdw_pair_e]', vdw%vdw_pair_e)
-                call mallocate('vdw_set_pair [vdw_pair_e]', newsize, vdw%vdw_pair_e)
-                vdw%vdw_pair_e(1:oldsize) = tmp
-                call mfree('vdw_set_pair [tmp]', tmp)
-            end if
-            ! 2. rewrite the r and e vectors
-            do i=vdw%vdw_pair%ri(vdw%top%mm_atoms+1)-1, vdw%vdw_pair%ri(jr+1), -1
-                vdw%vdw_pair%ci(i+1) = vdw%vdw_pair%ci(i)
-                vdw%vdw_pair_r(i+1) = vdw%vdw_pair_r(i)
-                vdw%vdw_pair_e(i+1) = vdw%vdw_pair_e(i)
-            end do
-            
-            ! 3. rewrite the index vectors
-            vdw%vdw_pair%ri(jr+1:) = vdw%vdw_pair%ri(jr+1:) + 1
-
-            ! 4. write the new parameters
-            vdw%vdw_pair_r(vdw%vdw_pair%ri(jr+1)-1) = r
-            vdw%vdw_pair_e(vdw%vdw_pair%ri(jr+1)-1) = e
-            vdw%vdw_pair%ci(vdw%vdw_pair%ri(jr+1)-1) = jc
-        end if
+        vdw%vdw_pair_mask_a(:,vdw%npair) = mask_a
+        vdw%vdw_pair_mask_b(:,vdw%npair) = mask_b
+        vdw%vdw_pair_r(vdw%npair) = r
+        vdw%vdw_pair_e(vdw%npair) = e
+        vdw%npair = vdw%npair + 1
 
     end subroutine vdw_set_pair
 
@@ -483,7 +422,7 @@ module mod_nonbonded
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm
 
-        use mod_io, only : fatal_error
+        use mod_io, only : fatal_error, time_push, time_pull
         use mod_constants, only: eps_rp
         use mod_memory, only: mallocate, mfree
         use mod_neighbor_list, only: get_ith_nl
@@ -494,18 +433,21 @@ module mod_nonbonded
         real(rp), intent(inout) :: V
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh
+        integer(ip) :: i, j, l, ipair, ineigh, nthreads, ithread
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
         type(ommp_topology_type), pointer :: top
         procedure(vdw_term), pointer :: vdw_func
 
-        logical(lp), allocatable :: nl_neigh(:)
-        real(rp), allocatable :: nl_r(:)
+        logical(lp), allocatable :: nl_neigh(:,:)
+        real(rp), allocatable :: nl_r(:,:)
+
+        integer :: omp_get_num_threads, omp_get_thread_num
         
-        real(rp) :: startt, endt
-        real(rp) :: omp_get_wtime
-        write(*, *) "START!"
-        startt = omp_get_wtime()
+        call time_push()
+        !$omp parallel
+        nthreads = omp_get_num_threads()
+        !$omp end parallel
+
         top => vdw%top
         select case(vdw%vdwtype)
             case(OMMP_VDWTYPE_LJ)
@@ -517,13 +459,14 @@ module mod_nonbonded
         end select
 
         if(vdw%use_nl) then
-            call mallocate('vdw_potential [rneigh]', top%mm_atoms, nl_r)
-            allocate(nl_neigh(top%mm_atoms))
+            call mallocate('vdw_potential [rneigh]', top%mm_atoms, nthreads, nl_r)
+            allocate(nl_neigh(top%mm_atoms, nthreads))
         end if
 
         !$omp parallel do default(shared) reduction(+:v)  schedule(dynamic) &
-        !$omp private(i,j,ineigh,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
+        !$omp private(i,j,ineigh,ithread,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
         do i=1, top%mm_atoms
+            ithread = omp_get_thread_num() + 1
             if(abs(vdw%vdw_f(i) - 1.0_rp) < eps_rp) then
                 ci = top%cmm(:,i)
             else
@@ -541,11 +484,17 @@ module mod_nonbonded
             endif
             
             ! If neighbor list are enabled get the one for the current
-            if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, nl_neigh, nl_r)
+            if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, &
+                                           nl_neigh(:,ithread), &
+                                           nl_r(:,ithread))
 
             do j=i+1, top%mm_atoms
                 ! If the two atoms aren't neighbors, just skip the loop
-                if(.not. nl_neigh(j)) exit
+                if(vdw%use_nl) then
+                    if(.not. nl_neigh(j,ithread)) then
+                        cycle
+                    end if
+                end if
                 ! Compute the screening factor for this pair
                 s = 1.0_rp
                 do ineigh=1,4
@@ -561,8 +510,9 @@ module mod_nonbonded
                 
                 if(s > eps_rp) then
                     ipair = -1
-                    do l=vdw%vdw_pair%ri(i), vdw%vdw_pair%ri(i+1)-1
-                        if(vdw%vdw_pair%ci(l) == j) then
+                    do l=1, vdw%npair
+                        if((vdw%vdw_pair_mask_a(i,l) .and. vdw%vdw_pair_mask_b(j,l)) .or. &
+                           (vdw%vdw_pair_mask_a(j,l) .and. vdw%vdw_pair_mask_b(i,l))) then
                             ipair = l
                             exit
                         end if
@@ -604,8 +554,7 @@ module mod_nonbonded
             call mfree('vdw_potential [rneigh]', nl_r)
             deallocate(nl_neigh)
         end if
-        endt = omp_get_wtime()
-        write(*, *) "VDWTIME : ", endt-startt
+        call time_pull('VdW potential calculation')
     end subroutine vdw_potential
     
     subroutine vdw_geomgrad(vdw, grad)
@@ -706,8 +655,9 @@ module mod_nonbonded
                     end if
 
                     ipair = -1
-                    do l=vdw%vdw_pair%ri(i), vdw%vdw_pair%ri(i+1)-1
-                        if(vdw%vdw_pair%ci(l) == j) then
+                    do l=1, vdw%npair
+                        if((vdw%vdw_pair_mask_a(i,l) .and. vdw%vdw_pair_mask_b(j,l)) .or. &
+                           (vdw%vdw_pair_mask_a(j,l) .and. vdw%vdw_pair_mask_b(i,l))) then
                             ipair = l
                             exit
                         end if
