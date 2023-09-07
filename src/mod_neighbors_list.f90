@@ -82,6 +82,8 @@ module mod_neighbor_list
         end subroutine
 
         subroutine nl_update(nl, c)
+            use mod_io, only: ommp_message, time_push, time_pull
+            use mod_constants, only: OMMP_VERBOSE_LOW
             implicit none
             
             type(ommp_neigh_list), intent(inout) :: nl
@@ -91,6 +93,8 @@ module mod_neighbor_list
 
             integer(ip) :: i, j, k, l, cc(3), ccmap(3)
 
+            call time_push()
+            call ommp_message('Updating neighbor lists', OMMP_VERBOSE_LOW)
             do i=1, 3
                 !! TODO this should be improved 
                 nl%offset(i) = minval(c(i,:))
@@ -135,6 +139,7 @@ module mod_neighbor_list
                     end if
                 end do
             end do
+            call time_pull("Neighbor list update")
         end subroutine
 
         subroutine get_ith_nl(nl, i, c, neigh, dist)
