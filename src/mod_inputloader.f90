@@ -1,5 +1,6 @@
 module mod_inputloader
-    use mod_io, only: ommp_message, fatal_error
+    use mod_io, only: ommp_message, fatal_error, &
+                     time_push, time_pull
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
     use mod_mmpol, only: ommp_system
@@ -70,6 +71,7 @@ module mod_inputloader
         character(len=OMMP_STR_CHAR_MAX) :: msg
         logical :: fex
        
+        call time_push()
         write(msg, "(A)") "Reading MMP file: "//input_file(1:len(trim(input_file)))
         call ommp_message(msg, OMMP_VERBOSE_DEBUG)
 
@@ -248,7 +250,7 @@ module mod_inputloader
         call mmpol_prepare(sys_obj)
         close(iof_mmpinp) 
         call ommp_message("Initialization from MMP file done.", OMMP_VERBOSE_DEBUG)
-
+        call time_pull('MMPol initialization from .mmp file')
     end subroutine mmpol_init_from_mmp
 
     subroutine polgroup11_to_mm2pg(polgroup_neigh, mm2pol)
@@ -332,7 +334,8 @@ module mod_inputloader
         type(ommp_topology_type), pointer :: top
         type(ommp_electrostatics_type), pointer :: eel
 
-        
+        call time_push()
+        call time_push()
         ! Check that files are present
         inquire(file=prm_file(1:len(trim(prm_file))), exist=fex)
         if(.not. fex) then
@@ -439,19 +442,25 @@ module mod_inputloader
         if( .not. check_keyword(prm_file)) then
             call fatal_error("PRM file cannot be completely understood")
         end if
-    
+        call time_pull("XYZ reading and topology generation")
+
         top%attype = attype
         top%attype_initialized = .true.
         call mfree('mmpol_init_from_xyz [attype]', attype)
-
+        
+        call time_push()
         call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
         call assign_pol(eel, prm_file)
         call assign_mpoles(eel, prm_file)
+        call time_pull('Assigning electrostatic prm')
         
+        call time_push()
         call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_nonbonded(sys_obj)
         call assign_vdw(sys_obj%vdw, top, prm_file)
+        call time_pull('Assigning non-bonded prm')
         
+        call time_push()
         call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_bonded(sys_obj)
         call check_conn_matrix(sys_obj%top, 4)
@@ -466,8 +475,10 @@ module mod_inputloader
         call assign_tortors(sys_obj%bds, prm_file)
         call assign_angtor(sys_obj%bds, prm_file)
         call assign_strtor(sys_obj%bds, prm_file)
+        call time_pull('Assigning bonded prm')
 
         call mmpol_prepare(sys_obj)
+        call time_pull('MMPol initialization from .xyz file')
 
     end subroutine mmpol_init_from_xyz
 
