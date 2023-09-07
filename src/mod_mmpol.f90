@@ -93,7 +93,7 @@ module mod_mmpol
 
         ! Everything is done
         sys_obj%mmpol_is_init = .true.
-        call time_pull('mmpol object creation')
+        call time_pull('MMPol object creation (mmpol_init)')
     end subroutine mmpol_init
 
     subroutine mmpol_init_nonbonded(sys_obj)
@@ -151,7 +151,7 @@ module mod_mmpol
         !!   * performs multipoles rotation   
 
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy
-        use mod_io, only: ommp_message
+        use mod_io, only: ommp_message, time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
         use mod_electrostatics, only: thole_init, remove_null_pol, &
                                       make_screening_lists
@@ -165,6 +165,7 @@ module mod_mmpol
         
         type(yale_sparse) :: adj, pg_adj
 
+        call time_push()
         call ommp_message("Building connectivity lists", OMMP_VERBOSE_DEBUG)
         
         ! compute connectivity lists from connected atoms
@@ -221,7 +222,7 @@ module mod_mmpol
 
         call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)
         call make_screening_lists(sys_obj%eel)
-
+        call time_pull('MMPol object initialization (mmpol_prepare)')
     end subroutine mmpol_prepare
 
     subroutine mmpol_terminate(sys_obj)
