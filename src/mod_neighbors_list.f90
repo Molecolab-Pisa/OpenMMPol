@@ -35,7 +35,7 @@ module mod_neighbor_list
         !! Particles contained in each cell, sparse matrix format
     end type ommp_neigh_list
 
-    public :: ommp_neigh_list, nl_init, nl_terminate, nl_update
+    public :: ommp_neigh_list, nl_init, nl_terminate, nl_update, get_ith_nl
 
     contains
 
@@ -112,15 +112,12 @@ module mod_neighbor_list
                 end do
             end do
 
-            !write(*, *) "[MB23] DIMS", nl%ncell,"TOT", nl%ncells
-
             ! Each particle is assigned to a cell
             do i=1, nl%n
                 do j=1, 3
                     cc(j) = floor((c(j,i)-nl%offset(j)) / nl%celld)
                 end do
                 nl%p2c(i) = dot_product(cc, ccmap) + 1
-                !write(*, *) "[MB23] ", i, nl%p2c(i)
             end do
             
             ! Revert assignation to get neighbor list!
@@ -138,59 +135,47 @@ module mod_neighbor_list
                     end if
                 end do
             end do
-            call nl_test(nl, c)
         end subroutine
-        
-        subroutine nl_test(nl, c)
-            use mod_constants, only: eps_rp
+
+        subroutine get_ith_nl(nl, i, c, neigh, dist)
+            !! Once that the neighbor list have been initialized and
+            !! updated, this function provide a logical array for atom
+            !! [[i]] with all interactions that should be computed and
+            !! corresponding distances.
             implicit none
-            
-            type(ommp_neigh_list), intent(inout) :: nl
-            !! Neigh list object to initialize
+
+            type(ommp_neigh_list), intent(in) :: nl
+            !! Neigh list object
+            integer(ip), intent(in) :: i
+            !! Index of atom for which the neigbor list is required
             real(rp), intent(in) :: c(3,nl%n)
             !! Coordinates in input
+            logical(lp), intent(out) :: neigh(nl%n)
+            !! Logical array for marking neighbors
+            real(rp), intent(out) :: dist(nl%n)
+            !! Array for returning distances
 
-            integer(ip) :: i, j, ip, jp, iip, jjp, jid, pi, pj, cnt
-            real(rp), allocatable :: dn2(:,:), dnl(:,:)
+            integer(ip) :: icell, j, jid, jp, jjp
+            real(rp) :: vdist(3), d2, thr2
 
-            allocate(dn2(nl%n,nl%n))
-            allocate(dnl(nl%n,nl%n))
+            icell = nl%p2c(i)
+            thr2 = nl%cutoff * nl%cutoff
+            neigh = .false.
+            dist = 0.0
 
-            do i=1, nl%n
-                do j=i, nl%n
-                    dn2(i,j) = norm2(c(:,i)-c(:,j))
-                    if(dn2(i,j) > nl%cutoff) dn2(i,j) = -1.0
-                    dn2(j,i) = dn2(i,j)
-                end do
+            do j=1, nl%nneigh
+                jid = icell + nl%neigh_offset(j)
+                if(jid > 0 .and. jid <= nl%ncells) then
+                    do jp=nl%c2p%ri(jid), nl%c2p%ri(jid+1)-1
+                        jjp = nl%c2p%ci(jp)
+                        vdist = c(:,i)-c(:,jjp)
+                        d2 = dot_product(vdist, vdist)
+                        if(d2 < thr2) then
+                            dist(jjp) = sqrt(d2)
+                            neigh(jjp) = .true.
+                        end if
+                    end do
+                end if
             end do
-
-            dnl = -1.0
-            cnt = 0
-            do i=1, nl%ncells
-                do j=1, nl%nneigh
-                    jid = i + nl%neigh_offset(j)
-                    if(jid > 0 .and. jid <= nl%ncells .and. i >= jid) then
-                        do ip=nl%c2p%ri(i), nl%c2p%ri(i+1)-1
-                            iip = nl%c2p%ci(ip)
-                            do jp=nl%c2p%ri(jid), nl%c2p%ri(jid+1)-1
-                                jjp = nl%c2p%ci(jp)
-                                dnl(iip,jjp) = norm2(c(:,iip)-c(:,jjp))
-                                if(dnl(iip,jjp) > nl%cutoff) dnl(iip,jjp) = -1.0
-                                dnl(jjp,iip) = dnl(iip,jjp)
-                                cnt = cnt +1
-                            end do
-                        end do
-                    end if
-                end do
-            end do
-            
-            write(*, *) "CALC ", cnt, nl%n*(nl%n-1)/2, real(cnt)/real(nl%n*(nl%n-1)/2)
-            do i=1, nl%n
-                do j=i, nl%n
-                    if(abs(dnl(i,j) - dn2(i,j)) > eps_rp) &
-                        write(*, *) i, j, dnl(i,j), dn2(i,j)
-                end do
-            end do
-            stop 1
         end subroutine
 end module

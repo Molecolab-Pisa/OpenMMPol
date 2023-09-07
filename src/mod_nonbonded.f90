@@ -186,8 +186,9 @@ module mod_nonbonded
 
         vdw%vdw_f = 1.0_rp
 
-        vdw%use_nl = .true.
-        call nl_init(vdw%nl, top%cmm, 24.0_rp, 2)
+        ! TODO
+        vdw%use_nl = .false.
+        if(vdw%use_nl) call nl_init(vdw%nl, top%cmm, 24.0_rp, 2)
     end subroutine vdw_init
 
     subroutine vdw_terminate(vdw)
@@ -484,6 +485,8 @@ module mod_nonbonded
 
         use mod_io, only : fatal_error
         use mod_constants, only: eps_rp
+        use mod_memory, only: mallocate, mfree
+        use mod_neighbor_list, only: get_ith_nl
         implicit none
 
         type(ommp_nonbonded_type), intent(in), target :: vdw
@@ -496,6 +499,13 @@ module mod_nonbonded
         type(ommp_topology_type), pointer :: top
         procedure(vdw_term), pointer :: vdw_func
 
+        logical(lp), allocatable :: nl_neigh(:)
+        real(rp), allocatable :: nl_r(:)
+        
+        real(rp) :: startt, endt
+        real(rp) :: omp_get_wtime
+        write(*, *) "START!"
+        startt = omp_get_wtime()
         top => vdw%top
         select case(vdw%vdwtype)
             case(OMMP_VDWTYPE_LJ)
@@ -505,6 +515,11 @@ module mod_nonbonded
             case default
                 call fatal_error("Unexpected error in vdw_potential")
         end select
+
+        if(vdw%use_nl) then
+            call mallocate('vdw_potential [rneigh]', top%mm_atoms, nl_r)
+            allocate(nl_neigh(top%mm_atoms))
+        end if
 
         !$omp parallel do default(shared) reduction(+:v)  schedule(dynamic) &
         !$omp private(i,j,ineigh,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
@@ -524,8 +539,13 @@ module mod_nonbonded
                 ci = top%cmm(:,ineigh) + (top%cmm(:,i) - top%cmm(:,ineigh)) &
                      * vdw%vdw_f(i)
             endif
-                
+            
+            ! If neighbor list are enabled get the one for the current
+            if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, nl_neigh, nl_r)
+
             do j=i+1, top%mm_atoms
+                ! If the two atoms aren't neighbors, just skip the loop
+                if(.not. nl_neigh(j)) exit
                 ! Compute the screening factor for this pair
                 s = 1.0_rp
                 do ineigh=1,4
@@ -579,6 +599,13 @@ module mod_nonbonded
                 end if
             end do
         end do
+        
+        if(vdw%use_nl) then
+            call mfree('vdw_potential [rneigh]', nl_r)
+            deallocate(nl_neigh)
+        end if
+        endt = omp_get_wtime()
+        write(*, *) "VDWTIME : ", endt-startt
     end subroutine vdw_potential
     
     subroutine vdw_geomgrad(vdw, grad)
