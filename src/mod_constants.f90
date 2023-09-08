@@ -122,6 +122,8 @@ module mod_constants
     integer(ip), parameter :: OMMP_EPSRULE_GEOMETRIC = 0 
     integer(ip), parameter :: OMMP_EPSRULE_HHG = 1
 
+    integer(ip), parameter :: ommp_default_nl_sub = OMMP_DEFAULT_NL_SUB
+    real(rp), parameter :: ommp_default_nl_cutoff = OMMP_DEFAULT_NL_CUTOFF
     
     integer(ip), parameter :: default_link_atom_n_eel_remove = OMMP_DEFAULT_LA_N_EEL_REMOVE
     real(rp), parameter :: default_link_atom_dist = OMMP_DEFAULT_LA_DIST

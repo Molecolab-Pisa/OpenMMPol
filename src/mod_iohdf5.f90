@@ -1356,8 +1356,8 @@ module mod_iohdf5
         call hdf5_group_exists(iof_hdf5, namespace//"/nonbonded", use_nonbonded)
         if(use_nonbonded) then
             call mmpol_init_nonbonded(s)
-            call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
-                          "hhg")
+            !call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
+            !              "hhg")
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/screening", &
                                  l_vdwscale)

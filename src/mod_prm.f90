@@ -2579,7 +2579,7 @@ module mod_prm
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         use mod_nonbonded, only: ommp_nonbonded_type, vdw_init, vdw_set_pair
-        use mod_constants, only: angstrom2au, kcalmol2au
+        use mod_constants, only: angstrom2au, kcalmol2au, OMMP_DEFAULT_NL_CUTOFF
         
         implicit none
        
@@ -2813,7 +2813,7 @@ module mod_prm
         end do
         close(iof_prminp)
         
-        call vdw_init(vdw, top, vdwtype, radrule, radsize, radtype, epsrule)
+        call vdw_init(vdw, top, vdwtype, radrule, radsize, radtype, epsrule, OMMP_DEFAULT_NL_CUTOFF)
         
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,atc,done)

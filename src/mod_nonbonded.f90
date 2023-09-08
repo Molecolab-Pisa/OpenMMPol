@@ -79,6 +79,7 @@ module mod_nonbonded
    
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_remove_potential
+    public :: vdw_set_cutoff
     public :: vdw_potential, vdw_geomgrad
     public :: vdw_potential_inter, vdw_geomgrad_inter
     public :: vdw_potential_inter_restricted, vdw_geomgrad_inter_restricted
@@ -86,12 +87,13 @@ module mod_nonbonded
     contains
 
     subroutine vdw_init(vdw, top, vdw_type, radius_rule, radius_size, &
-                        radius_type, epsrule)
+                        radius_type, epsrule, cutoff)
         !! Initialize the non-bonded object allocating the parameters vectors
         
         use mod_memory, only: mallocate
         use mod_io, only: fatal_error
         use mod_neighbor_list, only: nl_init
+        use mod_constants, only: OMMP_DEFAULT_NL_SUB
 
         implicit none
 
@@ -99,6 +101,7 @@ module mod_nonbonded
         type(ommp_topology_type), intent(in), target :: top
         character(len=*) :: vdw_type, radius_rule, radius_size, radius_type, &
                             epsrule
+        real(rp) :: cutoff
 
         select case(trim(vdw_type))
             case("lennard-jones")
@@ -182,10 +185,33 @@ module mod_nonbonded
 
         vdw%vdw_f = 1.0_rp
 
-        ! TODO
-        vdw%use_nl = .false.
-        if(vdw%use_nl) call nl_init(vdw%nl, top%cmm, 60.0_rp, 2)
+        if(cutoff > 0.0) then
+            vdw%use_nl = .true.
+            if(vdw%use_nl) call nl_init(vdw%nl, top%cmm, cutoff, OMMP_DEFAULT_NL_SUB)
+        else
+            vdw%use_nl = .false.
+        end if
     end subroutine vdw_init
+
+    subroutine vdw_set_cutoff(vdw, cutoff, subdivision)
+        use mod_neighbor_list, only: nl_terminate, nl_init
+        implicit none
+
+        type(ommp_nonbonded_type), intent(inout) :: vdw
+        real(rp), intent(in) :: cutoff
+        integer(ip), intent(in) :: subdivision
+
+        if(vdw%use_nl) then
+            ! This is re-initialization, old stuff should be cleaned.
+            call nl_terminate(vdw%nl)
+        end if
+        if(cutoff > 0.0) then
+            vdw%use_nl = .true.
+            call nl_init(vdw%nl, vdw%top%cmm, cutoff, subdivision)
+        else
+            vdw%use_nl = .false.
+        end if 
+    end subroutine
 
     subroutine vdw_terminate(vdw)
         use mod_memory, only: mfree

@@ -166,6 +166,7 @@ module mod_qm_helper
             use mod_memory, only: mallocate
             use mod_nonbonded, only: vdw_init
             use mod_io, only: fatal_error
+            use mod_constants, only: OMMP_DEFAULT_NL_CUTOFF
 
             implicit none
 
@@ -183,7 +184,7 @@ module mod_qm_helper
             allocate(qm%qm_vdw)
 
             call vdw_init(qm%qm_vdw, qm%qm_top, vdw_type, radius_rule, &
-                          radius_size, radius_type, epsrule)
+                          radius_size, radius_type, epsrule, OMMP_DEFAULT_NL_CUTOFF)
 
             qm%qm_vdw%vdw_e = eps
             qm%qm_vdw%vdw_r = rad
