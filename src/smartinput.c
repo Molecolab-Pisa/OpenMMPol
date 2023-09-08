@@ -7,10 +7,11 @@
 
 #include <openmmpol.h>
 
-#define NELEM 11
+#define NELEM 19
 char ELEMENTS[NELEM][2] = {"X", 
                            "H", "He", 
-                           "Li", "Be", "B", "C", "N", "O", "F", "Ne"};
+                           "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+                           "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar"};
 
 int element_to_Z(char *elem){
     for(int i=0; i<NELEM; i++)
