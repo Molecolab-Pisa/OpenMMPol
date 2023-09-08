@@ -16,7 +16,7 @@ module mod_nonbonded
     implicit none
     private
 
-    integer(ip), parameter :: pair_allocation_chunk = 256
+    integer(ip), parameter :: pair_allocation_chunk = 16
 
     type ommp_nonbonded_type
         !! Derived type for storing the information relative to the calculation
@@ -34,7 +34,7 @@ module mod_nonbonded
         real(rp), allocatable, dimension(:) :: vdw_f
         !! Scale factor for displacing the interaction center
     
-        integer(ip) :: npair = 1
+        integer(ip) :: npair = 0
         logical(lp), allocatable :: vdw_pair_mask_a(:,:), vdw_pair_mask_b(:,:)
         real(rp), allocatable :: vdw_pair_r(:)
         !! Radii for the VdW atom pairs
@@ -262,14 +262,45 @@ module mod_nonbonded
         real(rp), intent(in) :: e 
         !! Depth of the potential 
 
-        logical(lp), allocatable :: tmp(:,:)
+        integer(ip) :: oldsize, newsize
+        logical(lp), allocatable :: ltmp(:,:)
+        real(rp), allocatable :: rtmp(:)
         character(len=OMMP_STR_CHAR_MAX) :: msg
 
+        oldsize = size(vdw%vdw_pair_r)
+        if(vdw%npair >= oldsize) then
+            newsize = oldsize + pair_allocation_chunk
+            call mallocate('vdw_set_pair [rtmp]', oldsize, rtmp)
+            allocate(ltmp(vdw%top%mm_atoms, oldsize))
+            
+            rtmp = vdw%vdw_pair_r
+            call mfree('vdw_set_pair [vdw%vdw_pair_r]', vdw%vdw_pair_r)
+            call mallocate('vdw_set_pair [vdw%vdw_pair_r]', newsize, vdw%vdw_pair_r)
+            vdw%vdw_pair_r(1:oldsize) = rtmp
+            
+            rtmp = vdw%vdw_pair_e
+            call mfree('vdw_set_pair [vdw%vdw_pair_e]', vdw%vdw_pair_e)
+            call mallocate('vdw_set_pair [vdw%vdw_pair_e]', newsize, vdw%vdw_pair_e)
+            vdw%vdw_pair_e(1:oldsize) = rtmp
+
+            ltmp = vdw%vdw_pair_mask_a
+            deallocate(vdw%vdw_pair_mask_a)
+            allocate(vdw%vdw_pair_mask_a(vdw%top%mm_atoms, newsize))
+            vdw%vdw_pair_mask_a(:,1:oldsize) = ltmp
+            
+            ltmp = vdw%vdw_pair_mask_b
+            deallocate(vdw%vdw_pair_mask_b)
+            allocate(vdw%vdw_pair_mask_b(vdw%top%mm_atoms, newsize))
+            vdw%vdw_pair_mask_b(:,1:oldsize) = ltmp
+
+            call mfree('vdw_set_pair [rtmp]', rtmp)
+            deallocate(ltmp)
+        end if
+        vdw%npair = vdw%npair + 1
         vdw%vdw_pair_mask_a(:,vdw%npair) = mask_a
         vdw%vdw_pair_mask_b(:,vdw%npair) = mask_b
         vdw%vdw_pair_r(vdw%npair) = r
         vdw%vdw_pair_e(vdw%npair) = e
-        vdw%npair = vdw%npair + 1
 
     end subroutine vdw_set_pair
 
