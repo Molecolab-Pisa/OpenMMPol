@@ -131,11 +131,15 @@ void num_grd_print(OMMP_SYSTEM_PRT qm_sys,
     use_fake_qm = (qm_sys != NULL);
 
     nmm = ommp_get_mm_atoms(mm_sys);
-    if(use_qm) nqm = ommp_qm_helper_get_qm_atoms(qmh);
+    if(use_qm)
+        nqm = ommp_qm_helper_get_qm_atoms(qmh);
+    else
+        nqm = 0;
+
 
     gmm = (double *) malloc(sizeof(double) * 3 * nmm);
     if(use_qm) gqm = (double *) malloc(sizeof(double) * 3 * nqm);
-
+    
     num_geomgrad(qm_sys, qmh, mm_sys, ene_f, gqm, gmm, 1e-6);
     print_qmmm_grad(name, nmm, nqm, gmm, gqm);
 }
@@ -290,7 +294,6 @@ int main(int argc, char **argv){
     num_grd_print(fake_qm, NULL, my_system, ommptest_ep_ene, "EP");
 
     num_grd_print(fake_qm, NULL, my_system, ommptest_ev_ene, "EV");
-
 
     num_grd_print(fake_qm, NULL, my_system, ommptest_eb_ene, "EB");
     num_grd_print(fake_qm, NULL, my_system, ommptest_ea_ene, "EA");
