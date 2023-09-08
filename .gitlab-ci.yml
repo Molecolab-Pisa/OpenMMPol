@@ -272,7 +272,7 @@ code_coverage:
         - cd build_cov
         - cmake .. -DCMAKE_BUILD_TYPE=COVERAGE
         - make 
-        - ctest -E "memcheck|1ao6"
+        - ctest -E "memcheck|1AO6"
         - find . -iname '*.gcda' | xargs gcov > gcov.out
         - echo "CODECOVERAGE" `cat gcov.out | tail -n 1 | grep --only-matching -P '.{0,5}%'`
         - lcov --gcov-tool gcov --capture --directory . --output-file ../coverage/coverage.info
