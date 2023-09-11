@@ -137,6 +137,7 @@ endif()
 target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 
 set(TEST_PROGRAMS
+    test_timing
     test_SI_init
     test_SI_potential
     test_SI_geomgrad
@@ -234,10 +235,10 @@ if (PYTHON)
 endif()
 
 include(GNUInstallDirs)
-install(TARGETS openmmpol ${UTILITY_EXE}
+install(TARGETS C_test_timing openmmpol ${UTILITY_EXE}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/openMMPol-${OMMP_VERSION})
-install(TARGETS ${UTILITY_EXE})
+install(TARGETS C_test_timing ${UTILITY_EXE})
 install(FILES ${CMAKE_BINARY_DIR}/include/openmmpol.h ${CMAKE_BINARY_DIR}/mod/ommp_interface.mod
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openMMPol-${OMMP_VERSION})
 
