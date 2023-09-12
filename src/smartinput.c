@@ -597,6 +597,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     int32_t nla = 0, *la_mm, *la_qm, *la_la, *la_ner;
     int32_t nfrozen=0, *frozenat;
     double *la_bl;
+    double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
 
     while(cur != NULL){
@@ -724,6 +725,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 _arr = _arr->next;
             }
         }
+        else if(strcmp(cur->string, "vdw_cutoff") == 0){
+            if(!cJSON_IsNumber(cur))
+                ommp_fatal("Van der Walls cutoff should be a number.");
+            vdw_cutoff = cur->valuedouble;
+        }
         else if(strcmp(cur->string, "link_atoms") == 0){
             if(!cJSON_IsArray(cur))
                 ommp_fatal("link_atoms should be an array of structures!");
@@ -837,6 +843,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     ommp_set_default_solver(*ommp_sys, req_solver);
     // Set matv in ommp_sys
     ommp_set_default_matv(*ommp_sys, req_matv);
+    // Set cutoff for VdW
+    ommp_set_vdw_cutoff(*ommp_sys, vdw_cutoff);
 
     // Handle QM part of the system
     if(*ommp_qmh == NULL){

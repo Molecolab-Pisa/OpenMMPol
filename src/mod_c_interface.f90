@@ -1733,5 +1733,19 @@ module mod_ommp_C_interface
             call ommp_system_from_qm_helper(qm, prm_file, s)
             csys = c_loc(s)
         end function
+    
+        subroutine C_ommp_set_vdw_cutoff(sp, cutoff) &
+                bind(c, name='ommp_set_vdw_cutoff')
+
+            implicit none
+
+             type(c_ptr), value, intent(in) :: sp
+            real(ommp_real), intent(in), value :: cutoff
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            call ommp_set_vdw_cutoff(s, cutoff)
+    end subroutine
 
 end module mod_ommp_C_interface
