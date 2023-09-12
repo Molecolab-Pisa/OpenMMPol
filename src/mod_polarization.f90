@@ -141,14 +141,16 @@ module mod_polarization
         end if
 
         ! Handling of optional arguments
-        if(present(arg_solver) .and. arg_solver /= OMMP_SOLVER_NONE) then
+        if(present(arg_solver)) then
             solver = arg_solver
+            if(solver == OMMP_SOLVER_NONE) solver = eel%def_solver
         else
             solver = eel%def_solver
         end if
 
-        if(present(arg_mvmethod) .and. arg_mvmethod /= OMMP_MATV_NONE) then
+        if(present(arg_mvmethod)) then
             mvmethod = arg_mvmethod
+            if(mvmethod == OMMP_MATV_NONE) mvmethod = eel%def_matv
         else
             mvmethod = eel%def_matv
         end if
@@ -223,7 +225,6 @@ module mod_polarization
                     call fatal_error("Unknown matrix-vector method requested")
             end select
         end if
-        
         select case (solver)
             case(OMMP_SOLVER_CG)
                 ! For now we do not have any other option.
