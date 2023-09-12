@@ -1131,7 +1131,7 @@ module ommp_interface
             cnew(:,ila), "] to [", cla, "]."
         call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         cnew(:,ila) = cla
-        call qm_helper_update_coord(qm, cnew, logical(.true., lp), s%la%links(3,:))
+        call qm_helper_update_coord(qm, cnew, logical(.true., lp), s%la%links(3,1:s%la%nla))
         do i=1, s%la%nla
             call create_new_bond(qm%qm_top, s%la%links(2,i), s%la%links(3,i)) 
         end do
