@@ -219,6 +219,7 @@ module mod_mmpol
 
         call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)
         call make_screening_lists(sys_obj%eel)
+        call ommp_message("MMPol initialization (mmpol_prepare) completed.", OMMP_VERBOSE_DEBUG)
 
     end subroutine mmpol_prepare
 
