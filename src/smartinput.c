@@ -643,6 +643,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             output_path = path;
         }
         else if(strcmp(cur->string, "qm") == 0){
+            ommp_message("Initializing QM object", OMMP_VERBOSE_DEBUG, "SI");
             if(*ommp_qmh == NULL){
                 if(!smartinput_qm(cur, ommp_qmh))
                     ommp_fatal("Error during creation of QM Helper object");
@@ -803,6 +804,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     sprintf(msg, "Smart Input Description: %s", json_description);
     ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
     
+    ommp_message("Initializing main object", OMMP_VERBOSE_DEBUG, "SI");
     // Input for MM
     if(xyz_path != NULL){
         ommp_message("Trying initialization from Tinker .xyz file.", OMMP_VERBOSE_LOW, "SI");
@@ -833,6 +835,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_fatal("No input for MM system found in Smart Input file, set one of xyz_file+prm_file, mmpol_file, hdf5_file");
     }
     
+    ommp_message("Setting solver and matrix-vector in main object", OMMP_VERBOSE_DEBUG, "SI");
     // Set solver in ommp_sys
     ommp_set_default_solver(*ommp_sys, req_solver);
     // Set matv in ommp_sys
@@ -846,14 +849,18 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
 
     // Handle frozen atoms
     if(nfrozen > 0){
+        ommp_message("Setting frozen atoms", OMMP_VERBOSE_DEBUG, "SI");
         ommp_set_frozen_atoms(*ommp_sys, nfrozen, frozenat);
         free(frozenat);
     }
     // Handle link atoms
     if(nla > 0){
+        ommp_message("Initializing link atoms", OMMP_VERBOSE_DEBUG, "SI");
         if(*ommp_qmh == NULL)
             ommp_fatal("Link atoms requested but no qm section is defined!");
         for(int i=0; i<nla; i++){
+            sprintf(msg, "Handling link atom %d", i+1);
+            ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
             if(la_bl[i] < 0) la_bl[i] = OMMP_DEFAULT_LA_DIST;
             if(la_ner[i] == 0) la_ner[i] = OMMP_DEFAULT_LA_N_EEL_REMOVE;
 
