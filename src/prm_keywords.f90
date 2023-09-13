@@ -319,6 +319,11 @@ function check_keyword(prm_file)
     integer(ip), parameter :: iof_prminp = 201
     integer(ip) :: ist, ibeg, iend
     character(len=OMMP_STR_CHAR_MAX) :: line, kw, msg
+
+    integer(ip), parameter :: nalready = 256
+    character(len=OMMP_STR_CHAR_MAX) :: unrecog(nalready), ignored(nalready)
+    integer(ip) :: nunrecog = 0, nignored = 0, i, l
+    logical :: already_unr, already_ign 
     
     ! open tinker xyz file
     open(unit=iof_prminp, &
@@ -346,9 +351,20 @@ function check_keyword(prm_file)
             if(keyword_is_recognized(kw)) then
                 if(.not. keyword_is_implemented(kw)) then
                     if(keyword_is_ignored(kw)) then
-                        write(msg, "(A)") "'"//trim(kw)//"' - keyword&
-                                   & ignored"
-                        call ommp_message(msg, OMMP_VERBOSE_HIGH)
+                        already_ign = .false.
+                        do i=1, nignored
+                            if(ignored(i) == trim(kw)) already_ign = .true.
+                        end do
+                        
+                        if(.not. already_ign) then
+                            write(msg, "(A)") "'"//trim(kw)//"' - keyword&
+                                    & ignored"
+                            call ommp_message(msg, OMMP_VERBOSE_HIGH)
+                            if(nignored < nalready) then
+                                nignored = nignored + 1
+                                ignored(nignored) = trim(kw)
+                            end if
+                        end if
                     else
                         write(msg, "(A)") "'"//trim(kw)//"' - keyword&
                                    & is not implemented and &
@@ -358,9 +374,20 @@ function check_keyword(prm_file)
                     end if
                 end if
             else
-                write(msg, "(A)") "'"//trim(kw)//"' - keyword&
-                           & is not recognized."
-                call ommp_message(msg, OMMP_VERBOSE_HIGH)
+                already_unr = .false.
+                do i=1, nunrecog
+                    if(unrecog(i) == trim(kw)) already_unr = .true.
+                end do
+
+                if(.not. already_unr) then
+                    write(msg, "(A)") "'"//trim(kw)//"' - keyword&
+                            & is not recognized."
+                    call ommp_message(msg, OMMP_VERBOSE_HIGH)
+                    if(nunrecog < nalready) then
+                        nunrecog = nunrecog + 1
+                        unrecog(nunrecog) = trim(kw)
+                    end if
+                end if
             end if
         end if
     end do
