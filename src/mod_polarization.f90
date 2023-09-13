@@ -525,6 +525,7 @@ module mod_polarization
         ! Compute the matrix vector product
         call dgemm('N', 'N', n, 1, n, 1.0_rp, eel%tmat, n, x, n, 0.0_rp, y, n)
         ! Subtract the product of diagonal 
+        !$omp parallel do default(shared) private(i) 
         do i = 1, n
             y(i) = y(i) - eel%tmat(i,i) * x(i)
         end do
@@ -547,6 +548,7 @@ module mod_polarization
         
         integer(ip) :: i, indx
         
+        !$omp parallel do default(shared) private(indx,i)
         do i = 1, 3*eel%pol_atoms
             indx = (i+2)/3
             y(i) = eel%pol(indx)*x(i)   
