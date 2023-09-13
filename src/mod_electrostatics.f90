@@ -481,6 +481,7 @@ module mod_electrostatics
             ! If amoeba is used, some scaling (D-field) are performed using 
             ! polarization group, so a second guess should be done and the 
             ! maximum is used in memory allocation.
+            ns_guess_grp = 0
             do i=1, n
                 pg_i = eel%mmat_polgrp(i)
                 do ineigh=1, 4
