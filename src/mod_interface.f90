@@ -1041,7 +1041,9 @@ module ommp_interface
 
     function ommp_create_link_atom(qm, s, imm, iqm, ila, prmfile, &
                                    la_dist_in, n_eel_remove_in) result(la_idx)
-
+#define _MM_ 1
+#define _QM_ 2
+#define _LA_ 3
         use mod_link_atom, only: link_atom_position, init_link_atom, &
                                  default_link_atom_dist, default_link_atom_n_eel_remove, &
                                  init_eel_for_link_atom, &
@@ -1131,9 +1133,9 @@ module ommp_interface
             cnew(:,ila), "] to [", cla, "]."
         call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         cnew(:,ila) = cla
-        call qm_helper_update_coord(qm, cnew, logical(.true., lp), s%la%links(3,1:s%la%nla))
+        call qm_helper_update_coord(qm, cnew, logical(.true., lp), s%la%links(_LA_,1:s%la%nla))
         do i=1, s%la%nla
-            call create_new_bond(qm%qm_top, s%la%links(2,i), s%la%links(3,i)) 
+            call create_new_bond(qm%qm_top, s%la%links(_QM_,i), s%la%links(_LA_,i)) 
         end do
         deallocate(cnew)
         
@@ -1159,6 +1161,9 @@ module ommp_interface
 
         ! Return link atom index
         la_idx = s%la%nla
+#undef _MM_
+#undef _QM_
+#undef _LA_
     end function
 
     subroutine ommp_get_link_atom_coordinates(s, la_idx, crd)
@@ -1326,6 +1331,8 @@ module ommp_interface
         character(len=*), intent(in) :: prm_file
 
         integer(ommp_integer) :: i
+        
+        !call time_push()
 
         if(.not. (qmh%qm_top%attype_initialized .and. &
                   qmh%qm_top%atz_initialized)) &
@@ -1383,6 +1390,8 @@ module ommp_interface
         call assign_strtor(sys%bds, prm_file)
 
         call mmpol_prepare(sys)
+        !call time_pull('Conversion of QMHelper to OMMP System')
+        call ommp_message('QMH->SYS Completed', OMMP_VERBOSE_DEBUG)
     end subroutine ommp_system_from_qm_helper
 
 end module ommp_interface
