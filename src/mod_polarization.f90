@@ -62,7 +62,7 @@ module mod_polarization
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
-        use mod_io, only: print_matrix
+        use mod_io, only: print_matrix, time_pull, time_push
         use mod_constants, only: OMMP_MATV_DIRECT, &
                                  OMMP_MATV_INCORE, &
                                  OMMP_MATV_NONE, &
@@ -123,6 +123,7 @@ module mod_polarization
         end interface
         procedure(pc), pointer :: precond
         
+        call time_push()
         ! Shortcuts
         eel => sys_obj%eel
         amoeba = sys_obj%amoeba
@@ -305,6 +306,7 @@ module mod_polarization
         
         call mfree('polarization [ipd0]', ipd0)
         call mfree('polarization [e_vec]', e_vec)
+        call time_pull('Polarization routine')
 
     end subroutine polarization
 

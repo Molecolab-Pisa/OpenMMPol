@@ -53,8 +53,10 @@ module ommp_interface
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
                              ommp_prepare_qm_ele_grd => electrostatic_for_grad
 
+    use mod_io, only: time_push, time_pull
     implicit none
     
+    private :: time_push, time_pull
     character(*), parameter :: ommp_version_string = _OMMP_VERSION
 
     contains
@@ -340,6 +342,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
             
+            call time_push()
             if(sys_obj%eel%pol_atoms == 0) then
                 ene = 0.0
             else
@@ -352,6 +355,7 @@ module ommp_interface
                 ene = 0.0
                 call energy_MM_pol(sys_obj%eel, ene)
             end if
+            call time_pull('Polarizable Electrostatic energy')
         end function
         
         function ommp_get_fixedelec_energy(sys_obj) result(ene)
@@ -363,8 +367,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
+            call time_push()
             ene = 0.0
             call energy_MM_MM(sys_obj%eel, ene)
+            call time_pull('Fixed Electrostatic energy')
 
         end function
         
@@ -388,8 +394,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: evdw
 
+            call time_push()
             evdw = 0.0
             if(sys_obj%use_nonbonded) call vdw_potential(sys_obj%vdw, evdw)
+            call time_pull('Non-bonded energy')
         
         end function
         
@@ -401,7 +409,8 @@ module ommp_interface
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eb
-
+            
+            call time_push()
             eb = 0.0
             if(sys_obj%use_bonded) then
                 call bond_potential(sys_obj%bds, eb)
@@ -410,6 +419,7 @@ module ommp_interface
                     call bond_potential(sys_obj%la%bds, eb)
                 endif
             end if
+            call time_pull('Bonded energy')
         
         end function
         
@@ -422,6 +432,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ea
 
+            call time_push()
             ea = 0.0
             if(sys_obj%use_bonded) then
                 call angle_potential(sys_obj%bds, ea)
@@ -430,6 +441,7 @@ module ommp_interface
                     call angle_potential(sys_obj%la%bds, ea)
                 end if
             end if
+            call time_pull('Angle energy')
         
         end function
         
@@ -441,8 +453,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eba
 
+            call time_push
             eba = 0.0
             if(sys_obj%use_bonded) call strbnd_potential(sys_obj%bds, eba)
+            call time_pull('Stretching-bending energy')
         
         end function
         
@@ -454,8 +468,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eub
 
+            call time_push
             eub = 0.0
             if(sys_obj%use_bonded) call urey_potential(sys_obj%bds, eub)
+            call time_pull('Urey-Bradley energy')
         
         end function
         
@@ -467,8 +483,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eopb
 
+            call time_push
             eopb = 0.0
             if(sys_obj%use_bonded) call opb_potential(sys_obj%bds, eopb)
+            call time_pull('Out of plane energy')
         
         end function
         
@@ -480,8 +498,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: et
 
+            call time_push
             et = 0.0
             if(sys_obj%use_bonded) call imptorsion_potential(sys_obj%bds, et)
+            call time_pull('Improper torsion energy')
         
         end function
         
@@ -494,6 +514,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: et
 
+            call time_push
             et = 0.0
             if(sys_obj%use_bonded) then
                 call torsion_potential(sys_obj%bds, et)
@@ -502,6 +523,7 @@ module ommp_interface
                     call torsion_potential(sys_obj%la%bds, et)
                 end if
             end if
+            call time_pull('Torsion energy')
         
         end function
         
@@ -513,8 +535,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ept
 
+            call time_push
             ept = 0.0
             if(sys_obj%use_bonded) call pitors_potential(sys_obj%bds, ept)
+            call time_pull('Pi-system torsion energy')
         
         end function
         
@@ -526,8 +550,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: est
 
+            call time_push
             est = 0.0
             if(sys_obj%use_bonded) call strtor_potential(sys_obj%bds, est)
+            call time_pull('Stretching-torsion energy')
         
         end function
 
@@ -539,8 +565,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eat
 
+            call time_push
             eat = 0.0
             if(sys_obj%use_bonded) call angtor_potential(sys_obj%bds, eat)
+            call time_pull('Bending-torsion energy')
 
         end function
         
@@ -552,8 +580,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ett
 
+            call time_push
             ett = 0.0
             if(sys_obj%use_bonded) call tortor_potential(sys_obj%bds, ett)
+            call time_pull('Torsion-torsion energy')
         
         end function
         
@@ -570,7 +600,8 @@ module ommp_interface
             implicit none
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
-
+            
+            call time_push
             ene = 0.0
             
             if(sys_obj%use_bonded) then
@@ -594,6 +625,7 @@ module ommp_interface
                 end if
 
             end if
+            call time_pull('Total bond energy')
         end function
         
         function ommp_get_full_energy(sys_obj) result(ene)
@@ -602,10 +634,12 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
+            call time_push
             ene = 0.0
             ene = ene + ommp_get_vdw_energy(sys_obj)
             ene = ene + ommp_get_full_ele_energy(sys_obj)
             ene = ene + ommp_get_full_bnd_energy(sys_obj)
+            call time_pull('Total energy')
         end function
 
         ! Functions for advanced operation and gradients
