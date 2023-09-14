@@ -275,7 +275,7 @@ module mod_bonded
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
-            !$omp parallel do default(shared) schedule(static) & 
+            !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad)& 
             !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,J_a,J_b) 
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
@@ -301,7 +301,7 @@ module mod_bonded
                 if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
             end do
         else
-            !$omp parallel do default(shared) schedule(static) & 
+            !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) & 
             !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,J_a,J_b) 
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
@@ -468,8 +468,8 @@ module mod_bonded
 
         if(.not. bds%use_angle) return
         
-        !$omp parallel do default(shared) schedule(static) &
-        !$omp private(i,sk_a,sk_b,sk_c,sk_x,a,b,c,aux,thet,d_theta,g,Ja,Jb,Jc)
+        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+        !$omp private(i,sk_a,sk_b,sk_c,sk_x,a,b,c,aux,thet,d_theta,g,Ja,Jb,Jc,Jx)
         do i=1, bds%nangle
             if(abs(bds%kangle(i)) < eps_rp) cycle
             if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
@@ -633,7 +633,7 @@ module mod_bonded
         
         if(.not. bds%use_strbnd) return
 
-        !$omp parallel do default(shared) schedule(static) &
+        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad)&
         !$omp private(i,ia,ib,ic,sk_a,sk_b,sk_c,a,b,c,l1,l2,d_l1,d_l2,thet,d_thet) &
         !$omp private(J1_a,J1_b,J2_b,J2_c,J3_a,J3_b,J3_c,g1,g2,g3)
         do i=1, bds%nstrbnd
@@ -773,7 +773,7 @@ module mod_bonded
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
-            !$omp parallel do default(shared)  &
+            !$omp parallel do default(shared)  reduction(+:grad) &
             !$omp private(i,ia,ib,sk_a,sk_b,l,dl,g,J_a,J_b)
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
@@ -797,7 +797,7 @@ module mod_bonded
                 if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
             end do
         else
-            !$omp parallel do default(shared)  &
+            !$omp parallel do default(shared)  reduction(+:grad) &
             !$omp private(i,ia,ib,sk_a,sk_b,l,dl,g,J_a,J_b)
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
@@ -934,7 +934,7 @@ module mod_bonded
         
         if(.not. bds%use_opb) return
         
-        !$omp parallel do default(shared) &
+        !$omp parallel do default(shared) reduction(+:grad) schedule(dynamic)&
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%nopb
             ia = bds%opbat(2,i)
@@ -1091,7 +1091,7 @@ module mod_bonded
 
         if(.not. bds%use_pitors) return
         
-        !$omp parallel do default(shared) &
+        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
         !$omp private(i,ia,ib,ic,id,ie,if_,sk_a,sk_b,sk_c,sk_d,sk_e,sk_f) &
         !$omp private(J_a,J_b,J_c,J_d,J_e,J_f,g,thet)
         do i=1, bds%npitors
@@ -1217,7 +1217,7 @@ module mod_bonded
         
         if(.not. bds%use_torsion) return
 
-        !$omp parallel do default(shared) &
+        !$omp parallel do default(shared) reduction(+:grad)&
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%ntorsion
             ia = bds%torsionat(1,i)
@@ -1308,7 +1308,7 @@ module mod_bonded
         
         if(.not. bds%use_imptorsion) return
         
-        !$omp parallel do default(shared) &
+        !$omp parallel do default(shared) reduction(+:grad) &
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%nimptorsion
             ! Atoms that defines the dihedral angle
@@ -1502,11 +1502,12 @@ module mod_bonded
         
         if(.not. bds%use_angtor) return
 
-        !$omp parallel do default(shared) &
-        !$omp private(i,it_a,it_b,it_c,it_d,ia1,ia1_a,ia1_b,ia1_c) &
-        !$omp private(ia2,ia2_a,ia2_b,ia2_c,sk_ta,sk_tb,sk_tc,sk_td) &
-        !$omp private(sk_1a,sk_1b,sk_1c,sk_2a,sk_2b,sk_2c,j,gt,dihef) &
-        !$omp private(da1,da2,angle1,angle2,Ja1_a,Ja1_b,Ja1_c,Ja2_a,Ja2_b,Ja2_c,k)
+        !$omp parallel do default(shared) reduction(+:grad) &
+        !$omp private(thet, gt, dihef, da1, da2, angle1, angle2, Jt_a, Jt_b) &
+        !$omp private(Jt_c, Jt_d, Ja1_a, Ja1_b, Ja1_c) &
+        !$omp private(Ja2_a, Ja2_b, Ja2_c, i, j, k, ia1, ia2) &
+        !$omp private(it_a, it_b, it_c, it_d, ia1_a, ia1_b, ia1_c, ia2_a, ia2_b, ia2_c) &
+        !$omp private(sk_ta, sk_tb, sk_tc, sk_td, sk_1a, sk_1b, sk_1c, sk_2a, sk_2b, sk_2c)
         do i=1, bds%nangtor
             ! Atoms that defines the dihedral angle
             it_a = bds%angtorat(1,i)
@@ -1674,10 +1675,12 @@ module mod_bonded
         
         if(.not. bds%use_strtor) return
 
-        !$omp parallel do default(shared) &
-        !$omp private(i,it_a,it_b,it_c,it_d,ib1,ib1_a,ib1_b,ib2,ib2_a,ib2_b,ib3,ib3_a,ib3_b) &
-        !$omp private(sk_ta,sk_tb,sk_tc,sk_td,sk_1a,sk_1b,sk_2a,sk_2b,sk_3a,sk_3b) &
-        !$omp private(j,k,gt,dihef,r1,r2,r3,dr1,dr2,dr3,Jb1_a,Jb1_b,Jb2_a,Jb2_b,Jb3_a,Jb3_b)
+        !$omp parallel do default(shared) reduction(+:grad) &
+        !$omp private(thet, gt, dihef, dr1, dr2,  dr3, r1, r2, r3) &
+        !$omp private(Jt_a, Jt_b, Jt_c, Jt_d, Jb1_a, Jb1_b, Jb2_a, Jb2_b) &
+        !$omp private(Jb3_a, Jb3_b, i, j, k, ib1, ib2, ib3, it_a, it_b, it_c, it_d) &
+        !$omp private(ib1_a, ib1_b, ib2_a, ib2_b, ib3_a, ib3_b, sk_ta, sk_tb, sk_tc, sk_td) &
+        !$omp private(sk_1a, sk_1b, sk_2a, sk_2b, sk_3a, sk_3b)
         do i=1, bds%nstrtor
             ! Atoms that defines the dihedral angle
             it_a = bds%strtorat(1,i)
@@ -2039,8 +2042,8 @@ module mod_bonded
 
         if(.not. bds%use_tortor) return
         
-        !$omp parallel do default(shared) &
-        !$omp private(iprm,ibeg,j,iend,ia,ib,ic,id,ie,sk_a,sk_b,sk_c,sk_d,sk_e) &
+        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+        !$omp private(i,iprm,ibeg,j,iend,ia,ib,ic,id,ie,sk_a,sk_b,sk_c,sk_d,sk_e) &
         !$omp private(thetx,thety,J1_a,J1_b,J1_c,J1_d,J2_b,J2_c,J2_d,J2_e,vtt,dvttdx,dvttdy)
         do i=1, bds%ntortor
             ! Atoms that defines the two angles
