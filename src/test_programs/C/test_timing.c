@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <omp.h>
 #include "openmmpol.h"
 
 int countLines(char *fin){
@@ -56,6 +56,8 @@ int main(int argc, char **argv){
 
     char msg[OMMP_STR_CHAR_MAX];
     
+    double t0 = omp_get_wtime();
+
     OMMP_SYSTEM_PRT my_system, fake_qm;
     OMMP_QM_HELPER_PRT my_qmh;
     ommp_smartinput(argv[1], &my_system, &my_qmh);
@@ -91,6 +93,8 @@ int main(int argc, char **argv){
                 electric_field[j*3+k] += external_ef[polar_mm[j]][k];
         }
     
+    sprintf(msg, "Initialization: %12.4g s \n", omp_get_wtime()-t0);
+    ommp_message(msg, OMMP_VERBOSE_LOW, "time");
     em = ommp_get_fixedelec_energy(my_system);
     ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
     ep = ommp_get_polelec_energy(my_system);
@@ -107,12 +111,12 @@ int main(int argc, char **argv){
     eat = ommp_get_angtor_energy(my_system);
     ebt = ommp_get_strtor_energy(my_system);
     eit = ommp_get_imptorsion_energy(my_system);
-    etotmm = ommp_get_full_energy(my_system);
-    etot = etotmm + eqm + evqmmm;
 
     free(electric_field);
     if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
     
+    sprintf(msg, "Total exec: %12.4g s \n", omp_get_wtime()-t0);
+    ommp_message(msg, OMMP_VERBOSE_LOW, "time");
     return 0;
 }
