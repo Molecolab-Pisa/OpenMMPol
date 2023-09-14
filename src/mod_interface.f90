@@ -1427,4 +1427,18 @@ module ommp_interface
         call ommp_message('QMH->SYS Completed', OMMP_VERBOSE_DEBUG)
     end subroutine ommp_system_from_qm_helper
 
+    subroutine ommp_set_vdw_cutoff(s, cutoff)
+        use mod_nonbonded, only: vdw_set_cutoff
+        use mod_constants, only: OMMP_DEFAULT_NL_SUB
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        real(ommp_real), intent(in) :: cutoff
+
+        if(s%use_nonbonded) then
+            call vdw_set_cutoff(s%vdw, cutoff, OMMP_DEFAULT_NL_SUB)
+        end if
+    end subroutine
+
 end module ommp_interface

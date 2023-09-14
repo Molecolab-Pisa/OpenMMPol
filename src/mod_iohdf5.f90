@@ -785,8 +785,9 @@ module mod_iohdf5
             call hdf5_add_array(hg, "radius", vdw%vdw_r)
             call hdf5_add_array(hg, "energy", vdw%vdw_e)
             call hdf5_add_array(hg, "scale_factor", vdw%vdw_f)
-            call hdf5_add_array(hg, "pair_row_idx", vdw%vdw_pair%ri)
-            call hdf5_add_array(hg, "pair_col_idx", vdw%vdw_pair%ci)
+            ! TODO
+            !call hdf5_add_array(hg, "pair_row_idx", vdw%vdw_pair%ri)
+            !call hdf5_add_array(hg, "pair_col_idx", vdw%vdw_pair%ci)
             call hdf5_add_array(hg, "pair_radius", vdw%vdw_pair_r)
             call hdf5_add_array(hg, "pair_energy", vdw%vdw_pair_e)
         end if
@@ -1355,8 +1356,8 @@ module mod_iohdf5
         call hdf5_group_exists(iof_hdf5, namespace//"/nonbonded", use_nonbonded)
         if(use_nonbonded) then
             call mmpol_init_nonbonded(s)
-            call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
-                          "hhg")
+            !call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
+            !              "hhg")
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/screening", &
                                  l_vdwscale)
@@ -1387,12 +1388,13 @@ module mod_iohdf5
                                  tmp_vdw_pair_e)
         end if
 
-        do i=1, s%top%mm_atoms
-            do j=tmp_vdw_pair%ri(i), tmp_vdw_pair%ri(i+1)-1
-               call vdw_set_pair(s%vdw, i, tmp_vdw_pair%ci(j), tmp_vdw_pair_r(j), &
-                                 tmp_vdw_pair_e(j)) 
-            end do
-        end do
+        ! TODO
+        !do i=1, s%top%mm_atoms
+        !    do j=tmp_vdw_pair%ri(i), tmp_vdw_pair%ri(i+1)-1
+        !       call vdw_set_pair(s%vdw, i, tmp_vdw_pair%ci(j), tmp_vdw_pair_r(j), &
+        !                         tmp_vdw_pair_e(j)) 
+        !    end do
+        !end do
         call mfree('mmpol_init_hdf5', tmp_vdw_pair_e)
         call mfree('mmpol_init_hdf5', tmp_vdw_pair_r)
         
