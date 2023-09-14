@@ -58,15 +58,21 @@ void num_geomgrad(OMMP_SYSTEM_PRT qm_sys,
 
     double *new_c_mm, *new_c_qm, *cmm, *cqm, tmp;
     int nmm, nqm;
-    bool use_qm, use_fake_qm;
+    bool use_qm;
 
     use_qm = (qmh != NULL);
-    use_fake_qm = (qm_sys != NULL);
 
     nmm = ommp_get_mm_atoms(mm_sys);
-    if(use_qm) nqm = ommp_qm_helper_get_qm_atoms(qmh);
+    if(use_qm)
+        nqm = ommp_qm_helper_get_qm_atoms(qmh);
+    else
+        nqm = 0;
+
     cmm = ommp_get_cmm(mm_sys);
-    if(use_qm) cqm = ommp_qm_helper_get_cqm(qmh);
+    if(use_qm) 
+        cqm = ommp_qm_helper_get_cqm(qmh);
+    else
+        cqm = NULL;
 
     new_c_mm = (double *) malloc(sizeof(double) * 3 * nmm);
     for(int i=0; i < nmm; i++)
@@ -78,6 +84,9 @@ void num_geomgrad(OMMP_SYSTEM_PRT qm_sys,
         for(int i=0; i < nqm; i++)
             for(int j=0; j < 3; j++) 
                 new_c_qm[i*3+j] = cqm[i*3+j];
+    }
+    else{
+        new_c_qm = NULL;
     }
 
     for(int i=0; i < nmm; i++){
@@ -125,10 +134,9 @@ void num_grd_print(OMMP_SYSTEM_PRT qm_sys,
 
     double *gmm, *gqm = NULL;
     int nmm, nqm;
-    bool use_qm, use_fake_qm;
+    bool use_qm;
 
     use_qm = (qmh != NULL);
-    use_fake_qm = (qm_sys != NULL);
 
     nmm = ommp_get_mm_atoms(mm_sys);
     if(use_qm)

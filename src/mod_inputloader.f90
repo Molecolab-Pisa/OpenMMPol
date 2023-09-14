@@ -303,7 +303,7 @@ module mod_inputloader
         use mod_electrostatics, only: ommp_electrostatics_type
         
         use mod_memory, only: ip, mfree, mallocate, memory_init
-        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, OMMP_FF_AMOEBA
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG
         use mod_adjacency_mat, only: adj_mat_from_conn, yale_sparse, &
                                      build_conn_upto_n
         use mod_prm, only: check_keyword, assign_pol, assign_mpoles, &

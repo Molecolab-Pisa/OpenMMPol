@@ -63,18 +63,15 @@ module mod_polarization
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
         use mod_io, only: print_matrix
-        use mod_constants, only: OMMP_MATV_DEFAULT, &
-                                 OMMP_MATV_DIRECT, &
+        use mod_constants, only: OMMP_MATV_DIRECT, &
                                  OMMP_MATV_INCORE, &
                                  OMMP_MATV_NONE, &
-                                 OMMP_SOLVER_DEFAULT, &
                                  OMMP_SOLVER_CG, &
                                  OMMP_SOLVER_DIIS, &
                                  OMMP_SOLVER_INVERSION, &
                                  OMMP_SOLVER_NONE, &
                                  OMMP_VERBOSE_DEBUG, &
-                                 OMMP_VERBOSE_HIGH, &
-                                 eps_rp
+                                 OMMP_VERBOSE_HIGH
       
         implicit none
 

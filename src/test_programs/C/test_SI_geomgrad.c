@@ -4,7 +4,7 @@
 
 #include "openmmpol.h"
 
-void print_qmmm_grad(char *name, int32_t mm_atoms, int32_t qm_atoms, 
+void print_qmmm_grad(const char *name, int32_t mm_atoms, int32_t qm_atoms, 
                      double *grad_mm, double *grad_qm){
     char msg[OMMP_STR_CHAR_MAX];
     
@@ -38,7 +38,6 @@ void ana_grd_print(OMMP_SYSTEM_PRT sys,
     
     double *_grad_ana = (double *) malloc(sizeof(double) * 3 * mm_atoms);
     double **grad_ana = (double **) malloc(sizeof(double *) * mm_atoms);
-    char msg[OMMP_STR_CHAR_MAX];
 
     for(int i = 0; i < mm_atoms; i++){
         grad_ana[i] = &(_grad_ana[i*3]);
@@ -59,7 +58,6 @@ void ana_grd_print_qmmm(OMMP_SYSTEM_PRT sys,
                                        OMMP_SYSTEM_PRT,
                                        double *, double *),
                         const char *name){
-    char msg[OMMP_STR_CHAR_MAX];
     
     int mm_atoms = ommp_get_mm_atoms(sys);
     double *_grad_ana_mm = (double *) malloc(sizeof(double) * 3 * mm_atoms);
@@ -100,7 +98,6 @@ void ommptest_fakeqm_internal_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT q
 void ommptest_fakeqm_linkatom_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT qmh,
                                        OMMP_SYSTEM_PRT fakeqm, double *mmg, double *qmg){
     int qm_atoms = ommp_qm_helper_get_qm_atoms(qmh);
-    int mm_atoms = ommp_get_mm_atoms(sys);
     double *oldgrd = (double *) malloc(sizeof(double) * 3 * qm_atoms);
     ommp_qm_helper_vdw_geomgrad(qmh, sys, qmg, mmg);
     ommp_full_geomgrad(fakeqm, oldgrd);

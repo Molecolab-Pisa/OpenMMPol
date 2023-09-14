@@ -319,7 +319,7 @@ module mod_nonbonded
         real(rp), intent(in) :: Eij
         real(rp), intent(out) :: Rijgrad
 
-        real(rp) :: sigma_ov_r, tmp
+        real(rp) :: sigma_ov_r
 
         sigma_ov_r = Rij0 / Rij
         Rijgrad = -12.0 * Eij * (sigma_ov_r ** 12 - sigma_ov_r ** 6) / Rij
@@ -415,6 +415,7 @@ module mod_nonbonded
     end function
 
     pure function get_Rij0_inter(vdw1, vdw2, i, j) result(Rij0)
+        use mod_constants, only: eps_rp
         
         implicit none
 
@@ -424,8 +425,8 @@ module mod_nonbonded
         !! Indices of interacting atoms
         real(rp) :: Rij0
 
-        if(vdw1%radrule /= vdw2%radrule .or. &
-           vdw1%radf /= vdw2%radf) then
+        if(abs(vdw1%radrule - vdw2%radrule) > eps_rp .or. &
+           abs(vdw1%radf - vdw2%radf) > eps_rp) then
            Rij0 = 0.0
            return
         end if
@@ -492,6 +493,7 @@ module mod_nonbonded
             case(OMMP_VDWTYPE_BUF714)
                 vdw_func => vdw_buffered_7_14
             case default
+                vdw_func => vdw_buffered_7_14
                 call fatal_error("Unexpected error in vdw_potential")
         end select
 
@@ -598,6 +600,7 @@ module mod_nonbonded
             case(OMMP_VDWTYPE_BUF714)
                 vdw_gfunc => vdw_buffered_7_14_Rijgrad
             case default
+                vdw_gfunc => vdw_buffered_7_14_Rijgrad
                 call fatal_error("Unexpected error in vdw_potential")
         end select
 
@@ -608,6 +611,7 @@ module mod_nonbonded
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top%cmm(:,i)
                 ineigh_i = 0 ! This is needed later for force projection
+                f_i = 1.0
             else
                 ! Scale factors are used only for monovalent atoms, in that
                 ! case the vdw center is displaced along the axis connecting
@@ -641,6 +645,7 @@ module mod_nonbonded
                     if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
                         cj = top%cmm(:,j)
                         ineigh_j = 0 ! This is needed later for force projection
+                        f_j = 1.0
                     else
                         ! Scale factors are used only for monovalent atoms, in that
                         ! case the vdw center is displaced along the axis connecting
@@ -733,8 +738,8 @@ module mod_nonbonded
         real(rp), intent(inout) :: V
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh
-        real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
+        integer(ip) :: i, j, ineigh
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), vtmp
         type(ommp_topology_type), pointer :: top1, top2
         procedure(vdw_term), pointer :: vdw_func
 
@@ -754,6 +759,7 @@ module mod_nonbonded
             case(OMMP_VDWTYPE_BUF714)
                 vdw_func => vdw_buffered_7_14
             case default
+                vdw_func => vdw_buffered_7_14
                 call fatal_error("Unexpected error in vdw_potential")
         end select
 
@@ -819,8 +825,8 @@ module mod_nonbonded
                                    grad2(3,vdw2%top%mm_atoms)
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j
-        real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp, Rijg, f_i, f_j, &
+        integer(ip) :: i, j, ineigh_i, ineigh_j
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), Rijg, f_i, f_j, &
                     J_i(3), J_j(3)
         logical :: skip
         type(ommp_topology_type), pointer :: top1, top2
@@ -842,6 +848,7 @@ module mod_nonbonded
             case(OMMP_VDWTYPE_BUF714)
                 vdw_grad => vdw_buffered_7_14_Rijgrad
             case default
+                vdw_grad => vdw_buffered_7_14_Rijgrad
                 call fatal_error("Unexpected error in vdw_potential")
         end select
         
@@ -851,6 +858,7 @@ module mod_nonbonded
             if(abs(vdw1%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top1%cmm(:,i)
                 ineigh_i = 0
+                f_i = 1.0
             else
                 ! Scale factors are used only for monovalent atoms, in that
                 ! case the vdw center is displaced along the axis connecting
@@ -869,6 +877,7 @@ module mod_nonbonded
                 if(abs(vdw2%vdw_f(j) - 1.0) < eps_rp) then
                     cj = top2%cmm(:,j)
                     ineigh_j = 0
+                    f_j = 1.0
                 else
                     ! Scale factors are used only for monovalent atoms, in that
                     ! case the vdw center is displaced along the axis connecting
@@ -952,7 +961,7 @@ module mod_nonbonded
         real(rp), intent(inout) :: V
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh, ip
+        integer(ip) :: i, j, ineigh, ip
         real(rp) :: eij, rij0, rij, ci(3), cj(3), vtmp
         type(ommp_topology_type), pointer :: top1, top2
         procedure(vdw_term), pointer :: vdw_func
@@ -973,6 +982,7 @@ module mod_nonbonded
             case(OMMP_VDWTYPE_BUF714)
                 vdw_func => vdw_buffered_7_14
             case default
+                vdw_func => vdw_buffered_7_14
                 call fatal_error("Unexpected error in vdw_potential")
         end select
 
@@ -1046,8 +1056,8 @@ module mod_nonbonded
                                    grad2(3,vdw2%top%mm_atoms)
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh_i, ineigh_j, ip
-        real(rp) :: eij, rij0, rij, ci(3), cj(3), vtmp, Rijg, f_i, f_j, &
+        integer(ip) :: i, j, ineigh_i, ineigh_j, ip
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), Rijg, f_i, f_j, &
                     J_i(3), J_j(3)
         logical :: skip
         type(ommp_topology_type), pointer :: top1, top2
@@ -1069,6 +1079,7 @@ module mod_nonbonded
             case(OMMP_VDWTYPE_BUF714)
                 vdw_grad => vdw_buffered_7_14_Rijgrad
             case default
+                vdw_grad => vdw_buffered_7_14_Rijgrad
                 call fatal_error("Unexpected error in vdw_potential")
         end select
         

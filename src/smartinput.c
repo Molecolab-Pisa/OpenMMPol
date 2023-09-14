@@ -294,7 +294,7 @@ bool check_version(char *verstr){
     semversion vreq = str_to_semversion(verstr);
     if(vreq.major < 0) return false;
     
-    char *ommp_vstr[256];
+    char ommp_vstr[256];
     sprintf(ommp_vstr, "%s", OMMP_VERSION_STRING);
     semversion vommp = str_to_semversion(ommp_vstr);
     if(vommp.major < 0) return false;
@@ -328,7 +328,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
     
     cJSON *qm_data = qm_json->child;
     char errstring[OMMP_STR_CHAR_MAX];
-    int32_t natoms = 0;
+    unsigned int natoms = 0;
     int32_t *qmz = NULL, *qmt = NULL;
     double *coords = NULL, *nucq = NULL;
     char *xyz_path = NULL, *prm_path = NULL;
@@ -364,7 +364,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         else if(strcmp(qm_data->string, "qm_atoms") == 0){
             if(cJSON_IsArray(qm_data)){
                 cJSON *qmat_array = qm_data->child;
-                int nat;
+                unsigned int nat;
 
                 // Check number of elements in array
                 for(nat = 0; qmat_array != NULL; qmat_array = qmat_array->next) nat++;
@@ -380,7 +380,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                                  OMMP_VERBOSE_LOW, "SI QMH");
                     return false;
                 }
-                qmz = (int32_t *) malloc(sizeof(int32_t) * natoms);
+                qmz = (int32_t *) malloc((int32_t) sizeof(int32_t) * natoms);
                 nucq = (double *) malloc(sizeof(double) * natoms);
 
                 qmat_array = qm_data->child;
@@ -408,7 +408,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         else if(strcmp(qm_data->string, "qm_coords") == 0){
             if(cJSON_IsArray(qm_data)){
                 cJSON *qc_array = qm_data->child;
-                int nat;
+                unsigned int nat;
 
                 // Check number of elements in array
                 for(nat = 0; qc_array != NULL; qc_array = qc_array->next) nat++;
@@ -455,7 +455,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         else if(strcmp(qm_data->string, "qm_atom_types") == 0){
             if(cJSON_IsArray(qm_data)){
                 cJSON *qmat_array = qm_data->child;
-                int nat;
+                unsigned int nat;
 
                 // Check number of elements in array
                 for(nat = 0; qmat_array != NULL; qmat_array = qmat_array->next) nat++;
@@ -589,14 +589,15 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     char *path, *xyz_path = NULL, *prm_path = NULL,
          *hdf5_path = NULL, *mmpol_path = NULL,
          *output_path = NULL, mode;
-    char *json_name, *json_description;
+    char *json_name=NULL, *json_description=NULL;
     int32_t req_verbosity = OMMP_VERBOSE_DEFAULT,
             req_solver = OMMP_SOLVER_DEFAULT,
             req_matv = OMMP_MATV_DEFAULT;
     
-    int32_t nla = 0, *la_mm, *la_qm, *la_la, *la_ner;
-    int32_t nfrozen=0, *frozenat;
-    double *la_bl;
+    int32_t *la_mm=NULL, *la_qm=NULL, *la_la=NULL, *la_ner=NULL;
+    unsigned int nfrozen = 0, nla = 0;
+    int32_t *frozenat=NULL;
+    double *la_bl=NULL;
     *ommp_qmh = NULL;
 
     while(cur != NULL){
@@ -714,9 +715,6 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 nfrozen++;
             }
             
-            if(nfrozen < 0)
-                ommp_fatal("Wired error when parsing frozen_atoms");
-            
             frozenat = (int32_t *) malloc(sizeof(int32_t) * nfrozen);
             
             _arr = cur->child;
@@ -737,8 +735,6 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 nla++;
             }
 
-            if(nla < 0)
-                ommp_fatal("Wired error when parsing link_atoms");
             la_mm = (int32_t *) malloc(sizeof(int32_t) * nla);
             la_qm = (int32_t *) malloc(sizeof(int32_t) * nla);
             la_la = (int32_t *) malloc(sizeof(int32_t) * nla);
@@ -798,11 +794,15 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_set_outputfile(output_path);
 
     // Print information from JSON
-    sprintf(msg, "Smart Input Name: %s", json_name);
-    ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+    if(json_name != NULL){
+        sprintf(msg, "Smart Input Name: %s", json_name);
+        ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+    }
     
-    sprintf(msg, "Smart Input Description: %s", json_description);
-    ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+    if(json_description != NULL){
+        sprintf(msg, "Smart Input Description: %s", json_description);
+        ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+    }
     
     ommp_message("Initializing main object", OMMP_VERBOSE_DEBUG, "SI");
     // Input for MM
@@ -858,7 +858,10 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_message("Initializing link atoms", OMMP_VERBOSE_DEBUG, "SI");
         if(*ommp_qmh == NULL)
             ommp_fatal("Link atoms requested but no qm section is defined!");
-        for(int i=0; i<nla; i++){
+        if(la_bl == NULL || la_ner == NULL || la_mm == NULL || la_qm == NULL || la_la == NULL)
+            ommp_fatal("Unexpected error in linkatom initialization in SI function.");
+
+        for(unsigned int i=0; i<nla; i++){
             sprintf(msg, "Handling link atom %d", i+1);
             ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
             if(la_bl[i] < 0) la_bl[i] = OMMP_DEFAULT_LA_DIST;
@@ -979,6 +982,9 @@ void *c_json_cherrypick(const char *json_file, char *path, char type){
             }
         }
     }
+    ommp_message("Unexpected error in JSON cherry pick!",
+                    OMMP_VERBOSE_LOW, "SI");
+    return NULL;
 }
 
 void c_smartinput_cpstr(const char *json_file, char *path, char **s){

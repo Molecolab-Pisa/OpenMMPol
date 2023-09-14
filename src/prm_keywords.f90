@@ -322,7 +322,7 @@ function check_keyword(prm_file)
 
     integer(ip), parameter :: nalready = 256
     character(len=OMMP_STR_CHAR_MAX) :: unrecog(nalready), ignored(nalready)
-    integer(ip) :: nunrecog = 0, nignored = 0, i, l
+    integer(ip) :: nunrecog = 0, nignored = 0, i
     logical :: already_unr, already_ign 
     
     ! open tinker xyz file

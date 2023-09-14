@@ -150,7 +150,7 @@ module mod_link_atom
             call ommp_message(message, OMMP_VERBOSE_LOW, 'linkatom')
         end subroutine
 
-        subroutine init_eel_for_link_atom(la, iqm, imm, ila, eel, prmfile)
+        subroutine init_eel_for_link_atom(la, imm, ila, eel, prmfile)
             use mod_memory, only: mallocate, mfree
             use mod_prm, only: assign_mpoles
             use mod_electrostatics, only: ommp_electrostatics_type, &
@@ -164,7 +164,6 @@ module mod_link_atom
             implicit none
 
             integer(ip), intent(in) :: imm
-            integer(ip), intent(in) :: iqm
             integer(ip), intent(in) :: ila
             type(ommp_link_atom_type), intent(in) :: la
             type(ommp_electrostatics_type), intent(inout) :: eel
@@ -172,7 +171,7 @@ module mod_link_atom
 
             real(rp) :: removed_charge, qred, old_q
             integer(ip) :: n_eel_remove = default_link_atom_n_eel_remove
-            integer(ip) :: i, j, idx, ineigh, ii
+            integer(ip) :: i, j, idx, ii
             type(ommp_electrostatics_type) :: tmp_eel
             character(len=OMMP_STR_CHAR_MAX) :: msg
             integer(ip), allocatable :: attocheck(:)

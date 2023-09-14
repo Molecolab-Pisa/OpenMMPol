@@ -133,7 +133,7 @@ module ommp_interface
             integer(ommp_integer), intent(in) :: n, nopol(n)
             !! Atoms to freeze in MM indexing
 
-            integer(ommp_integer) :: i, j, ipol
+            integer(ommp_integer) :: i, j
             character(len=OMMP_STR_CHAR_MAX) :: msg
 
             do i=1, n
@@ -334,7 +334,6 @@ module ommp_interface
 
             use mod_electrostatics, only: energy_MM_pol, prepare_polelec
             use mod_polarization, only: polarization
-            use mod_constants, only: OMMP_SOLVER_DEFAULT
 
             implicit none
             
@@ -1118,7 +1117,7 @@ module ommp_interface
         
         ! Create the link atom inside OMMP main object
         write(message, "('Creating link [',I0,'] (MM) - [',I0,'] (LA) - [',&
-            I0,'] (QM) with a fixed distance LA-QM of ', F5.3, ' A.U.')") &
+            &I0,'] (QM) with a fixed distance LA-QM of ', F5.3, ' A.U.')") &
             imm, ila, iqm, la_dist
         call ommp_message(message, OMMP_VERBOSE_DEBUG, 'linkatom')
 
@@ -1141,7 +1140,7 @@ module ommp_interface
         
         call ommp_message("Preparing electrostatics for link atom", &
                           OMMP_VERBOSE_LOW, 'linkatom')
-        call init_eel_for_link_atom(s%la, iqm, imm, ila, s%eel, prmfile)
+        call init_eel_for_link_atom(s%la, imm, ila, s%eel, prmfile)
 
         ! Remove non-bonded interactions from link atom inside QMHelper object
         write(message, '(A, I0, A)') "Removing VdW interactions from link atom (QM) [", ila, "]"

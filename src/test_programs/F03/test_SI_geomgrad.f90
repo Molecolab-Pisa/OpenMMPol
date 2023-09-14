@@ -28,6 +28,7 @@ module test_geomgrad
         type(ommp_qm_helper), intent(inout), target :: qmh
         real(ommp_real), intent(out) :: gmm(3,sys%top%mm_atoms), gqm(3,qmh%qm_top%mm_atoms)
 
+        gmm = 0.0
         call ommp_full_geomgrad(fakeqm, gqm)
     end subroutine
 
@@ -157,7 +158,7 @@ program test_SI_geomgrad
 
     implicit none
     character(kind=c_char, len=120), dimension(3) :: args
-    character(len=OMMP_STR_CHAR_MAX) :: msg, prm_file
+    character(len=OMMP_STR_CHAR_MAX) :: prm_file
     integer :: narg
     type(ommp_system), pointer :: my_system, fake_qm
     type(ommp_qm_helper), pointer :: my_qmh

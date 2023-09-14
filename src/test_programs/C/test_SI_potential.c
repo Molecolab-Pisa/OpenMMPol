@@ -97,7 +97,7 @@ int main(int argc, char **argv){
     
     // If an external field is present (this is mutally exclusive with a QM part)
     int pol_atoms;
-    double *electric_field, *qm_ef, **external_ef;
+    double *electric_field, *qm_ef=NULL, **external_ef;
 
     int32_t *polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
     pol_atoms = ommp_get_pol_atoms(my_system);
@@ -120,7 +120,7 @@ int main(int argc, char **argv){
             electric_field[j*3+k] = 0.0;
             if(use_external_ef)
                 electric_field[j*3+k] += external_ef[polar_mm[j]][k];
-            if(use_fake_qm)
+            if(use_fake_qm && qm_ef != NULL)
                 electric_field[j*3+k] += qm_ef[j*3+k];
         }
     

@@ -245,8 +245,8 @@ module mod_prm
 
         top => bds%top
         
+        nexc = nexc_default
         if(present(exclude_list)) then
-            nexc = nexc_default
             if(present(nexc_in)) then
                 if(nexc_in > 0 .and. nexc_in < 4) then
                     nexc = nexc_in
@@ -403,7 +403,7 @@ module mod_prm
                     write(errstring, '(A,I0,A,I0,A,I0,A)') &
                         "Bond ", bds%bondat(1,i), '-', bds%bondat(2,i), &
                         " not found and ignored because ", iexc, " atoms are &
-                        in excluded list."
+                        &in excluded list."
                     call ommp_message(errstring, OMMP_VERBOSE_HIGH)
                 end if
             end if
@@ -2196,8 +2196,8 @@ module mod_prm
 
         top => bds%top
 
+        nexc = nexc_default
         if(present(exclude_list)) then
-            nexc = nexc_default
             if(present(nexc_in)) then
                 if(nexc_in > 0 .and. nexc_in < 4) then
                     nexc = nexc_in
@@ -2517,8 +2517,8 @@ module mod_prm
                         if(iexc >= nexc) then
                             write(errstring, '(A,I0,A,I0,A,I0,A,I0,A)') &
                                 "Angle ", a, '-', b, '-', c, " not found &
-                                and ignored because ", iexc, " atoms are &
-                                in excluded list."
+                                &and ignored because ", iexc, " atoms are &
+                                &in excluded list."
                             call ommp_message(errstring, OMMP_VERBOSE_HIGH)
                             done = .true.
                         end if
