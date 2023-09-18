@@ -120,10 +120,10 @@ module ommp_interface
             !! Atoms to freeze
             
             if(minval(frozen) < 1) then
-                call fatal_error("Atom indexes are 1-based, so no index should be less than 1")
+                call ommp_fatal("Atom indexes are 1-based, so no index should be less than 1")
             end if
             if(maxval(frozen) > s%top%mm_atoms) then
-                call fatal_error("Atom indexes should be inside the topology range")
+                call ommp_fatal("Atom indexes should be inside the topology range")
             end if
             call set_frozen(s%top, frozen)
         end subroutine
@@ -145,10 +145,10 @@ module ommp_interface
             character(len=OMMP_STR_CHAR_MAX) :: msg
 
             if(minval(nopol) < 1) then
-                call fatal_error("Atom indexes are 1-based, so no index should be less than 1")
+                call ommp_fatal("Atom indexes are 1-based, so no index should be less than 1")
             end if
             if(maxval(nopol) > s%top%mm_atoms) then
-                call fatal_error("Atom indexes should be inside the topology range")
+                call ommp_fatal("Atom indexes should be inside the topology range")
             end if
 
             do i=1, n
@@ -1044,10 +1044,10 @@ module ommp_interface
         !! Atoms to freeze
 
         if(minval(frozen) < 1) then
-            call fatal_error("Atom indexes are 1-based, so no index should be less than 1")
+            call ommp_fatal("Atom indexes are 1-based, so no index should be less than 1")
         end if
         if(maxval(frozen) > s%qm_top%mm_atoms) then
-            call fatal_error("Atom indexes should be inside the topology range")
+            call ommp_fatal("Atom indexes should be inside the topology range")
         end if
         call set_frozen(s%qm_top, frozen)
     end subroutine
@@ -1135,7 +1135,6 @@ module ommp_interface
         use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
         use mod_mmpol, only: mmpol_init_link_atom
         use mod_nonbonded, only: vdw_remove_potential
-        use mod_io, only: ommp_message, fatal_error
         use mod_memory, only: lp
 
         implicit none
@@ -1161,7 +1160,7 @@ module ommp_interface
 
         ! Sanity checks
         if(.not. qm%qm_top%attype_initialized) then
-            call fatal_error("For a correct handling of link atoms you should &
+            call ommp_fatal("For a correct handling of link atoms you should &
                              &initialize atom types for QM atoms before.")
         end if
 
@@ -1181,19 +1180,19 @@ module ommp_interface
 
         ! Sanity check
         if(iqm == ila) then
-            call fatal_error("QM atom and link atom should have different indices")
+            call ommp_fatal("QM atom and link atom should have different indices")
         end if
 
         if(iqm > s%la%qmtop%mm_atoms .or. iqm < 1) then
-            call fatal_error("QM atom index is not in the topology.")
+            call ommp_fatal("QM atom index is not in the topology.")
         end if
         
         if(ila > s%la%qmtop%mm_atoms .or. ila < 1) then
-            call fatal_error("LA atom index is not in the topology.")
+            call ommp_fatal("LA atom index is not in the topology.")
         end if
         
         if(imm > s%la%mmtop%mm_atoms .or. imm < 1) then
-            call fatal_error("MM atom index is not in the topology.")
+            call ommp_fatal("MM atom index is not in the topology.")
         end if
         ! TODO check that link atom is a monovalent hydrogen
         
