@@ -118,7 +118,13 @@ module ommp_interface
             !! OpenMMPol system
             integer(ommp_integer), intent(in) :: n, frozen(n)
             !! Atoms to freeze
-
+            
+            if(minval(frozen) < 1) then
+                call fatal_error("Atom indexes are 1-based, so no index should be less than 1")
+            end if
+            if(maxval(frozen) > s%top%mm_atoms) then
+                call fatal_error("Atom indexes should be inside the topology range")
+            end if
             call set_frozen(s%top, frozen)
         end subroutine
 
@@ -138,17 +144,19 @@ module ommp_interface
             integer(ommp_integer) :: i, j
             character(len=OMMP_STR_CHAR_MAX) :: msg
 
+            if(minval(nopol) < 1) then
+                call fatal_error("Atom indexes are 1-based, so no index should be less than 1")
+            end if
+            if(maxval(nopol) > s%top%mm_atoms) then
+                call fatal_error("Atom indexes should be inside the topology range")
+            end if
+
             do i=1, n
-                if(nopol(i) <= s%top%mm_atoms) then
-                    j = s%eel%mm_polar(i)
-                    if(j > 0) then
-                        s%eel%pol(j) = 0.0
-                    else
-                        write(msg, "('Atom ', I0, ' is not polarizable. Ignoring.')") i
-                        call ommp_message(msg, OMMP_VERBOSE_LOW)
-                    end if
+                j = s%eel%mm_polar(i)
+                if(j > 0) then
+                    s%eel%pol(j) = 0.0
                 else
-                    write(msg, "('Atom ', I0, ' is outside current MM topology. Ignoring.')") i
+                    write(msg, "('Atom ', I0, ' is not polarizable. Ignoring.')") i
                     call ommp_message(msg, OMMP_VERBOSE_LOW)
                 end if
             end do
@@ -1035,6 +1043,12 @@ module ommp_interface
         integer(ommp_integer), intent(in) :: n, frozen(n)
         !! Atoms to freeze
 
+        if(minval(frozen) < 1) then
+            call fatal_error("Atom indexes are 1-based, so no index should be less than 1")
+        end if
+        if(maxval(frozen) > s%qm_top%mm_atoms) then
+            call fatal_error("Atom indexes should be inside the topology range")
+        end if
         call set_frozen(s%qm_top, frozen)
     end subroutine
     
