@@ -140,7 +140,11 @@ module mod_link_atom
             la%links(_QM_, la%nla) = iqm
             la%links(_LA_, la%nla) = ila
             la%la_distance(la%nla) = la_dist
-            
+           
+            if(la%qmmmtop%frozen(la%qm2full(iqm)) .and. la%qmmmtop%frozen(la%mm2full(imm))) then
+                ! if QM atom and MM atoms are frozen, also LA is frozen
+                la%qmmmtop%frozen(la%qm2full(ila)) = .true.
+            end if
             call create_new_bond(la%qmmmtop, la%mm2full(imm), la%qm2full(iqm))
 
             write(message, "(A, I0, A, I0, A, I0, A)") &
@@ -777,10 +781,12 @@ module mod_link_atom
                 dedqm(2,2) = 1.0
                 dedqm(3,3) = 1.0
                 dedqm = dedqm - dedmm
-
-                qmg(:, iqm) = qmg(:, iqm) + matmul(dedqm, laforces(:,i))
+                
+                if(.not. la%qmmmtop%frozen(la%qm2full(iqm))) &
+                    qmg(:, iqm) = qmg(:, iqm) + matmul(dedqm, laforces(:,i))
+                if(.not. la%qmmmtop%frozen(la%mm2full(imm))) &
+                    mmg(:, imm) = mmg(:, imm) + matmul(dedmm, laforces(:,i))
                 qmg(:, ila) = -laforces(:,i)
-                mmg(:, imm) = mmg(:, imm) + matmul(dedmm, laforces(:,i))
             end do
         end subroutine
 end module
