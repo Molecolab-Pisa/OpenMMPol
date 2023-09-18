@@ -650,9 +650,11 @@ module ommp_interface
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
-
+            
+            call time_push
             grd = 0.0
             call fixedelec_geomgrad(s, grd)
+            call time_pull('Fixed Elctrostatic grad')
         end subroutine
         
         subroutine ommp_polelec_geomgrad(s, grd)
@@ -662,9 +664,11 @@ module ommp_interface
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
-
+            
+            call time_push
             grd = 0.0
             if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
+            call time_pull('Polarizable Elctrostatic grad')
         end subroutine
 
         subroutine ommp_vdw_geomgrad(s, grd)
@@ -675,8 +679,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
+            call time_pull('Non-bonded grad')
         end subroutine
         
         subroutine ommp_rotation_geomgrad(s, E, Egrd, grd )
@@ -686,8 +692,10 @@ module ommp_interface
             real(ommp_real), intent(in) :: E(:,:), Egrd(:,:)
             real(ommp_real), intent(out) :: grd(:,:)
             
+            call time_push
             grd = 0.0
             call rotation_geomgrad(s%eel, E, Egrd, grd)
+            call time_pull('Multipole rotation grad')
         end subroutine
 
         subroutine ommp_bond_geomgrad(s, grd)
@@ -702,6 +710,7 @@ module ommp_interface
 
             real(ommp_real) :: fake_qmg(3,1)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) then
                 call bond_geomgrad(s%bds, grd)
@@ -712,6 +721,7 @@ module ommp_interface
                                                 .false., .true.)
                 end if
             end if
+            call time_pull("Bonded grad")
         end subroutine
         
         subroutine ommp_angle_geomgrad(s, grd)
@@ -726,6 +736,7 @@ module ommp_interface
             
             real(ommp_real) :: fake_qmg(3,1)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) then
                 call angle_geomgrad(s%bds, grd)
@@ -736,6 +747,7 @@ module ommp_interface
                                                 .false., .true.)
                 end if
             end if
+            call time_pull("Angle grad")
         end subroutine
         
         subroutine ommp_strbnd_geomgrad(s, grd)
@@ -746,8 +758,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) call strbnd_geomgrad(s%bds, grd)
+            call time_pull("Stretching-bending grad")
         end subroutine
         
         subroutine ommp_urey_geomgrad(s, grd)
@@ -758,8 +772,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) call urey_geomgrad(s%bds, grd)
+            call time_pull("Urey-Bradley grad")
         end subroutine
         
         subroutine ommp_torsion_geomgrad(s, grd)
@@ -774,6 +790,7 @@ module ommp_interface
             
             real(ommp_real) :: fake_qmg(3,1)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) then
                 call torsion_geomgrad(s%bds, grd)
@@ -784,6 +801,7 @@ module ommp_interface
                                                     .false., .true.)
                 end if
             end if
+            call time_pull("Torsion grad")
         end subroutine
         
         subroutine ommp_imptorsion_geomgrad(s, grd)
@@ -794,8 +812,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) call imptorsion_geomgrad(s%bds, grd)
+            call time_pull("Improper torsion grad")
         end subroutine
         
         subroutine ommp_angtor_geomgrad(s, grd)
@@ -806,8 +826,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) call angtor_geomgrad(s%bds, grd)
+            call time_pull("Angle-torsion grad")
         end subroutine
         
         subroutine ommp_opb_geomgrad(s, grd)
@@ -817,9 +839,11 @@ module ommp_interface
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
-
+            
+            call time_push
             grd = 0.0
             if(s%use_bonded) call opb_geomgrad(s%bds, grd)
+            call time_pull("Out of plane grad")
         end subroutine
         
         subroutine ommp_strtor_geomgrad(s, grd)
@@ -830,8 +854,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) call strtor_geomgrad(s%bds, grd)
+            call time_pull("Stretching-torsion grad")
         end subroutine
         
         subroutine ommp_tortor_geomgrad(s, grd)
@@ -841,9 +867,11 @@ module ommp_interface
             
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
-
+            
+            call time_push
             grd = 0.0
             if(s%use_bonded) call tortor_geomgrad(s%bds, grd)
+            call time_pull('Torsion-torsion grad')
         end subroutine
         
         subroutine ommp_pitors_geomgrad(s, grd)
@@ -854,8 +882,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) call pitors_geomgrad(s%bds, grd)
+            call time_pull('Pi-system torsion grad')
         end subroutine
         
         subroutine ommp_full_bnd_geomgrad(s, grd)
@@ -882,6 +912,7 @@ module ommp_interface
             
             real(ommp_real) :: fake_qmg(3,1)
 
+            call time_push
             grd = 0.0
             if(s%use_bonded) then
                 call bond_geomgrad(s%bds, grd)
@@ -908,6 +939,7 @@ module ommp_interface
                                                     .false., .true.)
                 end if
             end if
+            call time_pull("Total bonded grad")
         end subroutine
         
         subroutine ommp_full_geomgrad(s, grd)
@@ -919,11 +951,13 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
+            call time_push
             grd = 0.0
             call ommp_full_bnd_geomgrad(s, grd)
             call fixedelec_geomgrad(s, grd)
             if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
+            call time_pull("Total grad")
 
         end subroutine
 

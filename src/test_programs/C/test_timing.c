@@ -93,7 +93,7 @@ int main(int argc, char **argv){
                 electric_field[j*3+k] += external_ef[polar_mm[j]][k];
         }
     
-    sprintf(msg, "Initialization: %12.4g s \n", omp_get_wtime()-t0);
+    sprintf(msg, "> Initialization: %12.4g s \n", omp_get_wtime()-t0);
     ommp_message(msg, OMMP_VERBOSE_LOW, "time");
     em = ommp_get_fixedelec_energy(my_system);
     ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
@@ -116,7 +116,7 @@ int main(int argc, char **argv){
     if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
     
-    sprintf(msg, "Total exec: %12.4g s \n", omp_get_wtime()-t0);
+    sprintf(msg, "> Total exec: %12.4g s \n", omp_get_wtime()-t0);
     ommp_message(msg, OMMP_VERBOSE_LOW, "time");
     return 0;
 }
