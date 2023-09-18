@@ -621,8 +621,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             req_matv = OMMP_MATV_DEFAULT;
     
     int32_t *la_mm=NULL, *la_qm=NULL, *la_la=NULL, *la_ner=NULL;
-    unsigned int nfrozen = 0, nla = 0;
-    int32_t *frozenat=NULL;
+    unsigned int nfrozen = 0, nla = 0, nremovepol=0;
+    int32_t *frozenat=NULL, *removepolat=NULL;
     double *la_bl=NULL;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
@@ -747,6 +747,26 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             _arr = cur->child;
             for(int i = 0; _arr != NULL; i++){
                 frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
+            }
+        }
+        else if(strcmp(cur->string, "remove_pol") == 0){
+            if(!cJSON_IsArray(cur))
+                ommp_fatal("remove_pol should be an array of integers!");
+            if(nremovepol > 0) 
+                ommp_fatal("Only a single remove_pol section should be present");
+            cJSON *_arr = cur->child;
+            for(nremovepol = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("remove_pol should be an array of integers!");
+                nremovepol++;
+            }
+            
+            removepolat = (int32_t *) malloc(sizeof(int32_t) * nremovepol);
+            
+            _arr = cur->child;
+            for(int i = 0; _arr != NULL; i++){
+                removepolat[i] = _arr->valueint;
                 _arr = _arr->next;
             }
         }
@@ -886,6 +906,12 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_message("Setting frozen atoms", OMMP_VERBOSE_DEBUG, "SI");
         ommp_set_frozen_atoms(*ommp_sys, nfrozen, frozenat);
         free(frozenat);
+    }
+
+    if(nremovepol > 0){
+        ommp_message("Removing polarizabilities from requested atoms", OMMP_VERBOSE_DEBUG, "SI");
+        ommp_turn_pol_off(*ommp_sys, nremovepol, removepolat);
+        free(removepolat);
     }
     // Handle link atoms
     if(nla > 0){
