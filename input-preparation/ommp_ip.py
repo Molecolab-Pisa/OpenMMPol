@@ -45,47 +45,101 @@ def input_load(fin_txyz, fin_pdb=None):
         universe = mda.Universe(fin_txyz, format='txyz')
     except FileNotFoundError:
         print("{:s} not found, cannot open input.".format(fin_txyz))
-        universe = None
+        return None
     except (ValueError, IndexError):
         print("""{:s} doesen't seems to be a correctly"""
               """formatted Tinker xyz.""".format(fin_txyz))
-        universe = None
+        return None
 
     if fin_pdb is not None:
         try:
             universe_pdb = mda.Universe(fin_pdb, format='pdb')
         except FileNotFoundError:
             print("{:s} not found, cannot open input.".format(fin_pdb))
-            universe_pdb = None
+            return None
         except (ValueError, IndexError):
             print("""{:s} doesen't seems to be a correctly"""
                   """formatted PDB.""".format(fin_pdb))
-            universe_pdb = None
+            return None
 
-        if universe_pdb is None:
-            # To signal an error in the calling function
-            universe = None
-
-    universe.add_TopologyAttr('elements')
-    universe.add_TopologyAttr('resnames')
-    
     # Match the atoms of the two universes
     match_list = match_atoms(universe, universe_pdb)
     
-    for at in universe.atoms:
-        if at.index not in match_list:
-            # Check that it looks like an hydrogen...
-            if mda.topology.guessers.guess_atom_element(at.name) == 'H' \
-                and len(at.bonds) == 1:
-                # Guess that it is an hydrogen atom
-                # It was probably added during input preparation so it is
-                # allowed to be here.
-                at.element = 'H' # TODO
-            else:
-                print(mda.topology.guessers.guess_atom_element(at.name), at)
-        else:
+    # Now let's start dancing
+    # 1. create a new universe
+    new_universe = mda.Universe.empty(n_atoms=len(universe.atoms),
+                                      n_residues=len(universe_pdb.residues),
+                                      n_segments=len(universe_pdb.segments),
+                                      atom_resindex=[0] * len(universe.atoms),
+                                      residue_segindex=universe_pdb.residues.segindices,
+                                      trajectory=True)
+
+    new_universe.add_TopologyAttr('segid', [s.segid for s in universe_pdb.segments])
+    new_universe.add_TopologyAttr('resid', [r.resid for r in universe_pdb.residues])
+    new_universe.add_TopologyAttr('resnum', [r.resnum for r in universe_pdb.residues])
+    new_universe.add_TopologyAttr('resname', [r.resname for r in universe_pdb.residues])
+
+    new_universe.add_TopologyAttr('element')
+    new_universe.add_TopologyAttr('name')
+    new_universe.add_TopologyAttr('type')
+    new_universe.add_TopologyAttr('bonds', [(b[0].index, b[1].index) for b in universe.bonds])
+    
+    # Let's start trivial
+    for at in new_universe.atoms:
+        if at.index in match_list:
+            # From PDB
             at.element = universe_pdb.atoms[match_list[at.index]].element
-    return universe
+            # Overwrite the tinker names, that here are just harmful
+            at.name = universe_pdb.atoms[match_list[at.index]].name
+            match_residue = universe_pdb.atoms[match_list[at.index]].residue
+            at.residue = new_universe.residues[match_residue.ix]
+            # From tinker XYZ
+            at.type = universe.atoms[at.index].type
+
+    ## Then think to the unmatched atoms
+    #for at in new_universe.atoms:
+    #    if at.index not in match_list:
+    #        # Only go ahead if the atom has just one bond!
+    #        if len(at.bonds) != 1:
+    #            print("""Atom {} does not match to any atom in PDB and """
+    #                  """we do not understand why it is here (number of """
+    #                  """bond different from 1).""")
+    #            return None
+    #            
+    #        guessed_element = mda.topology.guessers.guess_atom_element(universe.atoms[at.index].name)
+    #        # Check that it looks like an hydrogen...
+    #        if guessed_element == 'H':
+    #            # Guess that it is an hydrogen atom
+    #            # It was probably added during input preparation so it is
+    #            # allowed to be here.
+    #            at.element = 'H'
+    #            at.name = 'H'
+    #            at.type = universe.atoms[at.index].type
+    #            at.residue = at.bonds[0].partner(at).residue
+    #        elif guessed_element == 'O':
+    #            # Ok that's a carbonyl oxygen let's see if it is a terminal one.
+    #            partn = at.bonds[0].partner(at)
+    #            nox = 0
+    #            nca = 0
+    #            for b in partn.bonds:
+    #                if b.partner(partn).element == 'O' \
+    #                   or b.partner(partn) == at:
+    #                    nox += 1
+    #                elif b.partner(partn).element == 'C':
+    #                    nca += 1
+    #            if nox == 2 and nca == 1:
+    #                # Ok it actually seems a terminal carbon the oxygen
+    #                # is allowed to stay there
+    #                at.element = 'O'
+    #                at.name = 'O'
+    #                at.type = universe.atoms[at.index].type
+    #                at.residue = at.bonds[0].partner(at).residue
+    #        else:
+    #            print("""Atom {} does not match to any atom in PDB and """
+    #                  """we do not understand why it is here (element """
+    #                  """or connectivity unrecognized).""")
+    #            return None
+    return new_universe
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='OMMP-IP',
