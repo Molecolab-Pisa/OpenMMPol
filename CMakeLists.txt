@@ -236,10 +236,10 @@ if (PYTHON)
 endif()
 
 include(GNUInstallDirs)
-install(TARGETS C_test_timing openmmpol ${UTILITY_EXE}
+install(TARGETS openmmpol ${UTILITY_EXE}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/openMMPol-${OMMP_VERSION})
-install(TARGETS C_test_timing ${UTILITY_EXE})
+install(TARGETS ${UTILITY_EXE})
 install(FILES ${CMAKE_BINARY_DIR}/include/openmmpol.h ${CMAKE_BINARY_DIR}/mod/ommp_interface.mod
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openMMPol-${OMMP_VERSION})
 
