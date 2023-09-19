@@ -6,8 +6,8 @@ from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 
 def match_atoms(uni1, uni2):
-    """This function takes two universes and return a list
-    of atoms touple [(at1@uni1, at1@uni2), ...] containing 
+    """This function takes two universes and return a 
+    dictionary {at1@uni1: at1@uni2, ... } containing 
     the atoms that match (in general coordinates and 
     element are checked)."""
 
@@ -24,16 +24,17 @@ def match_atoms(uni1, uni2):
     distmatrix = cdist(uniS.atoms.positions, 
                        uniL.atoms.positions)
 
-    matchlist = []
+    matchlist = {}
     for i, at in enumerate(uniS.atoms):
         mindist = np.min(distmatrix[i,:])
         if mindist < DIST_THR:
             # Ok this atom has a match!
             match_at = np.argmin(distmatrix[i,:])
+            # TODO CHECK
             if uniL == uni1:
-                matchlist += [(uniL.atoms[match_at].id, at.id)]
+                matchlist[match_at] = i
             else:
-                matchlist += [(at.id, uniL.atoms[match_at].id)]
+                matchlist[i] = match_at
         else:
             print("No matching atom found for atom {}".format(at))
     
@@ -65,8 +66,25 @@ def input_load(fin_txyz, fin_pdb=None):
             # To signal an error in the calling function
             universe = None
 
-    print(match_atoms(universe, universe_pdb))
-
+    universe.add_TopologyAttr('elements')
+    universe.add_TopologyAttr('resnames')
+    
+    # Match the atoms of the two universes
+    match_list = match_atoms(universe, universe_pdb)
+    
+    for at in universe.atoms:
+        if at.index not in match_list:
+            # Check that it looks like an hydrogen...
+            if mda.topology.guessers.guess_atom_element(at.name) == 'H' \
+                and len(at.bonds) == 1:
+                # Guess that it is an hydrogen atom
+                # It was probably added during input preparation so it is
+                # allowed to be here.
+                at.element = 'H' # TODO
+            else:
+                print(mda.topology.guessers.guess_atom_element(at.name), at)
+        else:
+            at.element = universe_pdb.atoms[match_list[at.index]].element
     return universe
 
 if __name__ == "__main__":
