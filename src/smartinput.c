@@ -333,6 +333,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
     double *coords = NULL, *nucq = NULL;
     char *xyz_path = NULL, *prm_path = NULL;
     char mode, *path;
+    int32_t nfrozen=0, *frozenat=NULL;
 
     while(qm_data != NULL){
         if(str_ends_with(qm_data->string, "_file")){
@@ -494,6 +495,26 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                 return false;
             }
         }
+        else if(strcmp(qm_data->string, "qm_frozen_atoms") == 0){
+            if(!cJSON_IsArray(qm_data))
+                ommp_fatal("qm_frozen_atoms should be an array of integers!");
+            if(nfrozen > 0) 
+                ommp_fatal("Only a single frozen_atoms section should be present");
+            cJSON *_arr = qm_data->child;
+            for(nfrozen = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("frozen_atoms should be an array of integers!");
+                nfrozen++;
+            }
+            
+            frozenat = (int32_t *) malloc(sizeof(int32_t) * nfrozen);
+            
+            _arr = qm_data->child;
+            for(int i = 0; _arr != NULL; i++){
+                frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
+            }
+        }
         else{
             sprintf(errstring, "Unrecognized qm attribute %s", qm_data->string);
             ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
@@ -546,9 +567,14 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         return false;
     }
 
+    if(frozenat != NULL){
+        ommp_qm_helper_set_frozen_atoms(*qmh, nfrozen, frozenat);
+    }
+
     if(qmz != NULL) free(qmz);
     if(nucq != NULL) free(nucq);
     if(coords != NULL) free(coords); 
+    if(frozenat != NULL) free(frozenat);
 
     return true;
 }
@@ -595,8 +621,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             req_matv = OMMP_MATV_DEFAULT;
     
     int32_t *la_mm=NULL, *la_qm=NULL, *la_la=NULL, *la_ner=NULL;
-    unsigned int nfrozen = 0, nla = 0;
-    int32_t *frozenat=NULL;
+    unsigned int nfrozen = 0, nla = 0, nremovepol=0;
+    int32_t *frozenat=NULL, *removepolat=NULL;
     double *la_bl=NULL;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
@@ -721,6 +747,26 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             _arr = cur->child;
             for(int i = 0; _arr != NULL; i++){
                 frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
+            }
+        }
+        else if(strcmp(cur->string, "remove_pol") == 0){
+            if(!cJSON_IsArray(cur))
+                ommp_fatal("remove_pol should be an array of integers!");
+            if(nremovepol > 0) 
+                ommp_fatal("Only a single remove_pol section should be present");
+            cJSON *_arr = cur->child;
+            for(nremovepol = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("remove_pol should be an array of integers!");
+                nremovepol++;
+            }
+            
+            removepolat = (int32_t *) malloc(sizeof(int32_t) * nremovepol);
+            
+            _arr = cur->child;
+            for(int i = 0; _arr != NULL; i++){
+                removepolat[i] = _arr->valueint;
                 _arr = _arr->next;
             }
         }
@@ -860,6 +906,12 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_message("Setting frozen atoms", OMMP_VERBOSE_DEBUG, "SI");
         ommp_set_frozen_atoms(*ommp_sys, nfrozen, frozenat);
         free(frozenat);
+    }
+
+    if(nremovepol > 0){
+        ommp_message("Removing polarizabilities from requested atoms", OMMP_VERBOSE_DEBUG, "SI");
+        ommp_turn_pol_off(*ommp_sys, nremovepol, removepolat);
+        free(removepolat);
     }
     // Handle link atoms
     if(nla > 0){

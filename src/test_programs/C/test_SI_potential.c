@@ -90,7 +90,7 @@ int main(int argc, char **argv){
         int natm = ommp_get_pol_atoms(fake_qm);
         int32_t *nopol = malloc(sizeof(int32_t) * natm);
         for(int j=0; j < natm; j++)
-            nopol[j] = j;
+            nopol[j] = j+1;
         ommp_turn_pol_off(fake_qm, natm, nopol);
         free(nopol);
     }
