@@ -230,6 +230,13 @@ if __name__ == "__main__":
                         default='not all',
                         help="""Selection string used to select atoms in the system
                                 that will be in the QM part""")
+    parser.add_argument('-f', '--frozen-selection',
+                        required=False,
+                        metavar='<FROZEN_SELECTION_STRING>',
+                        dest='frozen_sele',
+                        default='not all',
+                        help="""Selection string used to select atoms in the system
+                                that are frozen, that is fixed during a MD/optimization""")
     parser.add_argument('-o', '--output-basename',
                         required=False,
                         metavar='<OUTPUT_BASENAME>',
@@ -244,6 +251,7 @@ if __name__ == "__main__":
     qmxyz_path = args.output_basename+'_qm.xyz'
     json_si_path = args.output_basename+'_si.json'
     mmpdb_path = args.output_basename+'_mm.pdb'
+    frozenpdb_path = args.output_basename+'_frozen.pdb'
 
     qmmm_sys = input_load(args.input_file, args.pdb_input_file)
     #qmmm_sys.atoms.write(args.output_basename+'_full_system.pdb')dd
@@ -251,10 +259,26 @@ if __name__ == "__main__":
         exit(1)
 
     qm_sys = qmmm_sys.select_atoms(args.qm_sele)
-    mm_sys = qmmm_sys.select_atoms("not ({:s})".format(args.qm_sele))
+    mm_sys = qmmm_sys.atoms - qm_sys
     print("The whole system has {:d} atoms.".format(len(qmmm_sys.atoms)))
     print("{:d} atoms selected for QM part".format(len(qm_sys)))
     print("{:d} atoms selected for MM part".format(len(mm_sys)))
+
+    # Frozen atoms
+    frozen = qmmm_sys.select_atoms(args.frozen_sele)
+    notfrozen = qmmm_sys.atoms - frozen
+    mm_frozen = []
+    qm_frozen = []
+    if len(frozen) > 0:
+        for at in frozen:
+            if at in mm_sys:
+                mm_frozen += [int(np.argwhere(at.index == mm_sys.indices).flatten()[0])+1]
+            else:
+                qm_frozen += [int(np.argwhere(at.index == qm_sys.indices).flatten()[0])+1]
+    print("{:d} atoms are frozen.".format(len(frozen)))
+    print("{:d} frozen are in QM part".format(len(qm_frozen)))
+    print("{:d} frozen are in MM part".format(len(mm_frozen)))
+
     
     # Search for required link atoms
     linkatoms = []
@@ -323,19 +347,24 @@ if __name__ == "__main__":
         json_si_data['prm_file']['path'] = "<PUT PRM FILE HERE>"
         print("Since no prm file has been provide in input, please add it in the JSON file")
     json_si_data['verbosity'] = 'low'
-    json_si_data['qm'] = {}
-    json_si_data['qm']['qm_atoms'] = [at.element for at in qm_and_la_sys.atoms]
-    json_si_data['qm']['qm_coords'] = [[float(at.position[0]),
-                                        float(at.position[1]),
-                                        float(at.position[2])] for at in qm_and_la_sys.atoms]
-    json_si_data['qm']['qm_atom_types'] = [at.type for at in qm_and_la_sys.atoms]
-    json_si_data['qm']['prm_file'] = {}
-    if args.prm_input_file is not None:
-        json_si_data['qm']['prm_file']['path'] = args.prm_input_file
-        json_si_data['qm']['prm_file']['md5sum'] = file_md5sum(args.prm_input_file)
-    else:
-        json_si_data['qm']['prm_file']['path'] = "<PUT PRM FILE HERE>"
-        print("Since no prm file has been provide in input, please add it in the JSON file")
+    if len(mm_frozen) > 0:
+        json_si_data['frozen_atoms'] = mm_frozen
+    if len(qm_and_la_sys.atoms) > 0:
+        json_si_data['qm'] = {}
+        json_si_data['qm']['qm_atoms'] = [at.element for at in qm_and_la_sys.atoms]
+        json_si_data['qm']['qm_coords'] = [[float(at.position[0]),
+                                            float(at.position[1]),
+                                            float(at.position[2])] for at in qm_and_la_sys.atoms]
+        json_si_data['qm']['qm_atom_types'] = [at.type for at in qm_and_la_sys.atoms]
+        json_si_data['qm']['prm_file'] = {}
+        if args.prm_input_file is not None:
+            json_si_data['qm']['prm_file']['path'] = args.prm_input_file
+            json_si_data['qm']['prm_file']['md5sum'] = file_md5sum(args.prm_input_file)
+        else:
+            json_si_data['qm']['prm_file']['path'] = "<PUT PRM FILE HERE>"
+            print("Since no prm file has been provide in input, please add it in the JSON file")
+        if len(qm_frozen) > 0:
+            json_si_data['qm']['qm_frozen_atoms'] = qm_frozen
 
     # Write on file
     with open(json_si_path, 'w+') as f:
@@ -343,6 +372,8 @@ if __name__ == "__main__":
 
     # 3. Assemble utility files
     mm_sys.atoms.write(mmpdb_path)
+    if len(frozen.atoms) > 0:
+        frozen.atoms.write(frozenpdb_path)
 
 
 
