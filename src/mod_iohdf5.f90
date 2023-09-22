@@ -1,7 +1,7 @@
 #ifdef USE_HDF5
 
 #define H5T_RP H5T_NATIVE_DOUBLE
-#define H5T_LOGICAL H5T_BITFIELD_F
+#define H5T_LP H5T_BITFIELD_F
 #ifdef USE_I8
 #define H5T_IP H5T_STD_I64LE
 #else
@@ -10,7 +10,7 @@
 
 module mod_iohdf5
     use hdf5
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_mmpol, only: ommp_system
     use mod_topology, only: ommp_topology_type
     use mod_electrostatics, only: ommp_electrostatics_type
@@ -46,6 +46,9 @@ module mod_iohdf5
         module procedure i1_hdf5_add_array
         module procedure i2_hdf5_add_array
         module procedure i3_hdf5_add_array
+        
+        module procedure l1_hdf5_add_array
+        module procedure l2_hdf5_add_array
     end interface hdf5_add_array
 
     interface hdf5_read_array
@@ -56,6 +59,9 @@ module mod_iohdf5
         module procedure i1_hdf5_read_array
         module procedure i2_hdf5_read_array
         module procedure i3_hdf5_read_array
+        
+        !module procedure l1_hdf5_read_array
+        !module procedure l2_hdf5_read_array
     end interface hdf5_read_array
     
     contains
@@ -261,6 +267,50 @@ module mod_iohdf5
                          H5T_IP, &
                          cur_dsp, cur_dst, eflag)
         call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
+    end subroutine
+    
+    subroutine l1_hdf5_add_array(hid, label, v)
+        use hdf5
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        logical(lp), intent(in), dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(1, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_LP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_LP, v, dims, eflag)
+    end subroutine
+    
+    subroutine l2_hdf5_add_array(hid, label, v)
+        use hdf5
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        logical(lp), intent(in), dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        dims = shape(v)
+        call h5screate_simple_f(2, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_LP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_LP, v, dims, eflag)
     end subroutine
     
     function hdf5_array_len(hid, dataset_name)
