@@ -656,6 +656,13 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             }
             prm_path = path;
         }
+        else if(strcmp(cur->string, "hdf5_file") == 0){
+            if(mode != 'r'){
+                sprintf(msg, "hdf5_file should be in read mode.");
+                ommp_fatal(msg);
+            }
+            hdf5_path = path;
+        }
         else if(strcmp(cur->string, "mmpol_file") == 0){
             if(mode != 'r'){
                 sprintf(msg, "mmpol_file should be in read mode.");
@@ -881,7 +888,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         if(prm_path != NULL)
             ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
 
-        ommp_fatal("input from hdf5_file is still not implemented.");
+        *ommp_sys = ommp_init_hdf5(hdf5_path, "system");
     }
     else{
         ommp_fatal("No input for MM system found in Smart Input file, set one of xyz_file+prm_file, mmpol_file, hdf5_file");

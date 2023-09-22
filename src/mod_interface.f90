@@ -971,9 +971,6 @@ module ommp_interface
 
 #ifdef USE_HDF5
         subroutine ommp_init_hdf5(s, filename, namespace)
-            !! This function is an interface for saving an HDF5 file 
-            !! with all the data contained in mmpol module using
-            !! [[mod_io:mmpol_save_as_hdf5]]
             use mod_iohdf5, only: mmpol_init_from_hdf5
             
             implicit none
@@ -989,7 +986,9 @@ module ommp_interface
         end subroutine ommp_init_hdf5
         
         subroutine ommp_save_as_hdf5(s, filename, namespace) 
-            
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
             use mod_iohdf5, only: save_system_as_hdf5 
 
             implicit none
