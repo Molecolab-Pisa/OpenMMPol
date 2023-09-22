@@ -35,7 +35,10 @@ module mod_nonbonded
         !! Scale factor for displacing the interaction center
     
         integer(ip) :: npair = 0
+        !! Number of nonbonded pair parameters
         logical(lp), allocatable :: vdw_pair_mask_a(:,:), vdw_pair_mask_b(:,:)
+        !! Mask to apply a pair parameter to a pair of atoms dimension is
+        !! Natoms x Nparams
         real(rp), allocatable :: vdw_pair_r(:)
         !! Radii for the VdW atom pairs
         real(rp), allocatable :: vdw_pair_e(:)
@@ -176,8 +179,10 @@ module mod_nonbonded
         call mallocate('vdw_init [vdw_e]', top%mm_atoms, vdw%vdw_e)
         call mallocate('vdw_init [vdw_f]', top%mm_atoms, vdw%vdw_f)
         
-        allocate(vdw%vdw_pair_mask_a(top%mm_atoms,pair_allocation_chunk))
-        allocate(vdw%vdw_pair_mask_b(top%mm_atoms,pair_allocation_chunk))
+        call mallocate('vdw_init [vdw_pair_mask_a]', &
+                       top%mm_atoms, pair_allocation_chunk,vdw%vdw_pair_mask_a)
+        call mallocate('vdw_init [vdw_pair_mask_b]', & 
+                       top%mm_atoms, pair_allocation_chunk,vdw%vdw_pair_mask_b)
         call mallocate('vdw_init [vdw_pair_r]', pair_allocation_chunk, &
                        vdw%vdw_pair_r)
         call mallocate('vdw_init [vdw_pair_e]', pair_allocation_chunk, &
@@ -227,8 +232,8 @@ module mod_nonbonded
         call mfree('vdw_terminate [vdw_f]', vdw%vdw_f)
         call mfree('vdw_terminate [vdw_pair_r]', vdw%vdw_pair_r)
         call mfree('vdw_terminate [vdw_pair_e]', vdw%vdw_pair_e)
-        deallocate(vdw%vdw_pair_mask_a)
-        deallocate(vdw%vdw_pair_mask_b)
+        call mfree('vdw_terminate [vdw_pair_mask_b]', vdw%vdw_pair_mask_a)
+        call mfree('vdw_terminate [vdw_pair_mask_b]', vdw%vdw_pair_mask_b)
         if(vdw%use_nl) call nl_terminate(vdw%nl)
 
     end subroutine
@@ -271,7 +276,7 @@ module mod_nonbonded
         if(vdw%npair >= oldsize) then
             newsize = oldsize + pair_allocation_chunk
             call mallocate('vdw_set_pair [rtmp]', oldsize, rtmp)
-            allocate(ltmp(vdw%top%mm_atoms, oldsize))
+            call mallocate('vdw_set_pair [ltmp]',vdw%top%mm_atoms, oldsize, ltmp)
             
             rtmp = vdw%vdw_pair_r
             call mfree('vdw_set_pair [vdw%vdw_pair_r]', vdw%vdw_pair_r)
@@ -284,17 +289,19 @@ module mod_nonbonded
             vdw%vdw_pair_e(1:oldsize) = rtmp
 
             ltmp = vdw%vdw_pair_mask_a
-            deallocate(vdw%vdw_pair_mask_a)
-            allocate(vdw%vdw_pair_mask_a(vdw%top%mm_atoms, newsize))
+            call mfree('vdw_set_pair [vdw_pair_mask_a]', vdw%vdw_pair_mask_a)
+            call mallocate('vdw_set_pair [vdw_pair_mask_a]', &
+                           vdw%top%mm_atoms, newsize, vdw%vdw_pair_mask_a)
             vdw%vdw_pair_mask_a(:,1:oldsize) = ltmp
             
             ltmp = vdw%vdw_pair_mask_b
-            deallocate(vdw%vdw_pair_mask_b)
-            allocate(vdw%vdw_pair_mask_b(vdw%top%mm_atoms, newsize))
+            call mfree('vdw_set_pair [vdw_pair_mask_b]', vdw%vdw_pair_mask_b)
+            call mallocate('vdw_set_pair [vdw_pair_mask_b]', &
+                           vdw%top%mm_atoms, newsize, vdw%vdw_pair_mask_b)
             vdw%vdw_pair_mask_b(:,1:oldsize) = ltmp
 
             call mfree('vdw_set_pair [rtmp]', rtmp)
-            deallocate(ltmp)
+            call mfree('vdw_set_pair [ltmp]', ltmp)
         end if
         vdw%npair = vdw%npair + 1
         vdw%vdw_pair_mask_a(:,vdw%npair) = mask_a
