@@ -34,8 +34,8 @@ module mod_memory
         module procedure i_alloc1
         module procedure i_alloc2
         module procedure i_alloc3
-        !module procedure l_alloc1
-        !module procedure l_alloc2
+        module procedure l_alloc1
+        module procedure l_alloc2
     end interface mallocate
 
     interface mfree
@@ -48,8 +48,8 @@ module mod_memory
         module procedure i_free1
         module procedure i_free2
         module procedure i_free3
-        !module procedure l_free1
-        !module procedure l_free2
+        module procedure l_free1
+        module procedure l_free2
     end interface mfree
 
     contains
@@ -202,6 +202,44 @@ module mod_memory
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_int, istat)
     end subroutine i_alloc3
+    
+    subroutine l_alloc1(string, len1, v)
+        !! Allocate a 1-dimensional array of reals
+        implicit none
+
+        character(len=*), intent(in) :: string
+        !! Human-readable description string of the allocation
+        !! operation, just for output purpose.
+        integer(ip), intent(in) :: len1
+        !! Dimension of the vector
+        logical(lp), allocatable, intent(inout) :: v(:)
+        !! Vector to allocate
+
+        integer(ip) :: istat
+ 
+        if(.not. is_init) call memory_init(.false., 0)
+        allocate(v(len1), stat=istat)
+        call chk_alloc(string, len1*size_of_logical, istat)
+    end subroutine l_alloc1
+  
+    subroutine l_alloc2(string, len1, len2, v)
+        !! Allocate a 2-dimensional array of reals
+        implicit none
+
+        character(len=*), intent(in) :: string
+        !! Human-readable description string of the allocation
+        !! operation, just for output purpose.
+        integer(ip), intent(in) :: len1, len2
+        !! Dimensions of the vector
+        logical(lp), allocatable, intent(inout) :: v(:,:)
+        !! Vector to allocate
+
+        integer(ip) :: istat
+
+        if(.not. is_init) call memory_init(.false., 0)
+        allocate(v(len1, len2), stat=istat)
+        call chk_alloc(string, len1*len2*size_of_logical, istat)
+    end subroutine l_alloc2
 
     subroutine chk_alloc(string, lall, istat)
         !! Handles the memory errors (including soft limit)
@@ -337,6 +375,42 @@ module mod_memory
             call chk_free(string, ltot, istat)
         end if
     end subroutine i_free3
+    
+    subroutine l_free1(string, v)
+        !! Free a 1-dimensional array of integers
+        
+        character (len=*), intent(in) :: string
+        !! Human-readable description string of the deallocation
+        !! operation, just for output purpose.
+        logical(lp), allocatable, intent(inout) :: v(:)
+        !! Array to free
+        
+        integer(ip) :: istat, ltot
+  
+        if(allocated(v)) then
+            ltot = size(v) * size_of_logical
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
+    end subroutine l_free1
+  
+    subroutine l_free2(string, v)
+        !! Free a 2-dimensional array of integers
+        
+        character (len=*), intent(in) :: string
+        !! Human-readable description string of the deallocation
+        !! operation, just for output purpose.
+        logical(lp), allocatable, intent(inout) :: v(:,:)
+        !! Array to free
+        
+        integer(ip) :: istat, ltot
+  
+        if(allocated(v)) then
+            ltot = size(v) * size_of_logical
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
+    end subroutine l_free2
  
     subroutine chk_free(string, lfree, istat)
         !! Handles the memory errors (including soft limits)
