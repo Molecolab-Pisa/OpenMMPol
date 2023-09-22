@@ -16,6 +16,8 @@ module mod_memory
     integer(ip) :: usedmem !! Memory that is currently used by the code
     integer(ip) :: size_of_int !! Number of bytes for an integer
     integer(ip) :: size_of_real !! Number of bytes for a real
+    integer(ip) :: size_of_logical !! Number of bytes for a logical (?)
+    logical(lp) :: is_init = .false.
     logical :: do_chk_limit !! Decide if the soft memory limit is on
 
     public :: rp, ip, lp
@@ -32,6 +34,8 @@ module mod_memory
         module procedure i_alloc1
         module procedure i_alloc2
         module procedure i_alloc3
+        !module procedure l_alloc1
+        !module procedure l_alloc2
     end interface mallocate
 
     interface mfree
@@ -44,6 +48,8 @@ module mod_memory
         module procedure i_free1
         module procedure i_free2
         module procedure i_free3
+        !module procedure l_free1
+        !module procedure l_free2
     end interface mfree
 
     contains
@@ -69,13 +75,18 @@ module mod_memory
         integer(ip), intent(in) :: max_bytes !! Amount of memory available in bytes
         integer(ip) :: my_int !! Integer used only as target for sizeof
         real(rp) :: my_real !! Real used only as target for sizeof
+        logical(lp) :: my_bool
         intrinsic :: sizeof
 
-        do_chk_limit = do_chk
-        maxmem = max_bytes
-        usedmem = 0
-        size_of_real = sizeof(my_real)
-        size_of_int = sizeof(my_int)
+        if(.not. is_init) then
+            do_chk_limit = do_chk
+            maxmem = max_bytes
+            usedmem = 0
+            size_of_real = sizeof(my_real)
+            size_of_int = sizeof(my_int)
+            size_of_logical = sizeof(my_bool)
+            is_init = .true.
+        end if
     end subroutine memory_init
     
     subroutine r_alloc1(string, len1, v)
@@ -92,6 +103,7 @@ module mod_memory
 
         integer(ip) :: istat
  
+        if(.not. is_init) call memory_init(.false., 0)
         allocate(v(len1), stat=istat)
         call chk_alloc(string, len1*size_of_real, istat)
     end subroutine r_alloc1
@@ -110,6 +122,7 @@ module mod_memory
 
         integer(ip) :: istat
 
+        if(.not. is_init) call memory_init(.false., 0)
         allocate(v(len1, len2), stat=istat)
         call chk_alloc(string, len1*len2*size_of_real, istat)
     end subroutine r_alloc2
@@ -128,6 +141,7 @@ module mod_memory
         
         integer(ip) :: istat
 
+        if(.not. is_init) call memory_init(.false., 0)
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_real, istat)
     end subroutine r_alloc3
@@ -146,6 +160,7 @@ module mod_memory
 
         integer(ip) :: istat 
 
+        if(.not. is_init) call memory_init(.false., 0)
         allocate(v(len1), stat=istat)
         call chk_alloc(string, len1*size_of_int, istat)
     end subroutine i_alloc1
@@ -164,6 +179,7 @@ module mod_memory
  
         integer(ip) :: istat 
 
+        if(.not. is_init) call memory_init(.false., 0)
         allocate(v(len1, len2), stat=istat)
         call chk_alloc(string, len1*len2*size_of_int, istat)
     end subroutine i_alloc2
@@ -182,6 +198,7 @@ module mod_memory
 
         integer(ip) :: istat
 
+        if(.not. is_init) call memory_init(.false., 0)
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_int, istat)
     end subroutine i_alloc3
