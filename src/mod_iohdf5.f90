@@ -954,9 +954,9 @@ module mod_iohdf5
             call hdf5_add_array(hg, "radius", vdw%vdw_r)
             call hdf5_add_array(hg, "energy", vdw%vdw_e)
             call hdf5_add_array(hg, "scale_factor", vdw%vdw_f)
-            ! TODO
-            !call hdf5_add_array(hg, "pair_row_idx", vdw%vdw_pair%ri)
-            !call hdf5_add_array(hg, "pair_col_idx", vdw%vdw_pair%ci)
+            call hdf5_add_scalar(hg, "npair", vdw%npair)
+            call hdf5_add_array(hg, "vdw_pair_mask_a", vdw%vdw_pair_mask_a)
+            call hdf5_add_array(hg, "vdw_pair_mask_b", vdw%vdw_pair_mask_b)
             call hdf5_add_array(hg, "pair_radius", vdw%vdw_pair_r)
             call hdf5_add_array(hg, "pair_energy", vdw%vdw_pair_e)
         end if
@@ -1151,7 +1151,7 @@ module mod_iohdf5
         integer(kind=4) :: eflag
         real(rp), dimension(:), allocatable :: l_mscale, l_pscale, l_dscale, &
                                                l_uscale, l_ipscale, l_vdwscale
-        type(yale_sparse) :: conn_1, tmp_vdw_pair
+        type(yale_sparse) :: conn_1
         integer(ip) :: mm_atoms, pol_atoms
         logical(lp) :: amoeba, mutable_only
         logical :: bp_exist, use_nonbonded
@@ -1159,8 +1159,7 @@ module mod_iohdf5
         ! For handling torsion maps
         integer(ip) :: i, j, ibeg, iend
         integer(ip), allocatable, dimension(:,:) :: tmp_shape
-        real(rp), allocatable, dimension(:) :: tmp_ang1, tmp_ang2, tmp_v, &
-                                               tmp_vdw_pair_e, tmp_vdw_pair_r
+        real(rp), allocatable, dimension(:) :: tmp_ang1, tmp_ang2, tmp_v
 
         ! Initialize interface
         call h5open_f(eflag)
@@ -1544,29 +1543,22 @@ module mod_iohdf5
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/scale_factor", &
                                  s%vdw%vdw_f)
+            call hdf5_read_scalar(iof_hdf5, &
+                                  namespace//"/nonbonded", "npair", &
+                                  s%vdw%npair)
             call hdf5_read_array(iof_hdf5, & 
-                                 namespace//"/nonbonded/pair_row_idx", &
-                                 tmp_vdw_pair%ri)
+                                 namespace//"/nonbonded/vdw_pair_mask_a", &
+                                 s%vdw%vdw_pair_mask_a)
             call hdf5_read_array(iof_hdf5, & 
-                                 namespace//"/nonbonded/pair_col_idx", &
-                                 tmp_vdw_pair%ci)
+                                 namespace//"/nonbonded/vdw_pair_mask_b", &
+                                 s%vdw%vdw_pair_mask_b)
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/pair_radius", &
-                                 tmp_vdw_pair_r)
+                                 s%vdw%vdw_pair_r)
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/pair_energy", &
-                                 tmp_vdw_pair_e)
+                                 s%vdw%vdw_pair_e)
         end if
-
-        ! TODO
-        !do i=1, s%top%mm_atoms
-        !    do j=tmp_vdw_pair%ri(i), tmp_vdw_pair%ri(i+1)-1
-        !       call vdw_set_pair(s%vdw, i, tmp_vdw_pair%ci(j), tmp_vdw_pair_r(j), &
-        !                         tmp_vdw_pair_e(j)) 
-        !    end do
-        !end do
-        call mfree('mmpol_init_hdf5', tmp_vdw_pair_e)
-        call mfree('mmpol_init_hdf5', tmp_vdw_pair_r)
         
         call hdf5_read_array(iof_hdf5, &
                              namespace//"/electrostatics/fixed_multipoles_unrotated", s%eel%q)
