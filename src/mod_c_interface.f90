@@ -888,7 +888,7 @@ module mod_ommp_C_interface
 
             call c2f_string(filename, hdf5out)
             call c2f_string(namespace, nms)
-            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .false.)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), logical(.false., kind=ommp_logical))
             
         end subroutine C_ommp_save_as_hdf5
         
@@ -910,7 +910,7 @@ module mod_ommp_C_interface
 
             call c2f_string(filename, hdf5out)
             call c2f_string(namespace, nms)
-            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .true.)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), logical(.true., kind=ommp_logical))
             
         end subroutine C_ommp_checkpoint
 #endif

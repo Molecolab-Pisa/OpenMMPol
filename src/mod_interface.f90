@@ -997,7 +997,11 @@ module ommp_interface
             type(ommp_system), pointer :: s
             integer(kind=4) :: err
 
-            call save_system_as_hdf5(filename, s, err, namespace, .false.)
+            call save_system_as_hdf5(filename, &
+                                     s, &
+                                     err, &
+                                     namespace, &
+                                     logical(.false., kind=ommp_logical))
             
         end subroutine ommp_save_as_hdf5
         
@@ -1011,7 +1015,11 @@ module ommp_interface
             type(ommp_system), pointer :: s
             integer(kind=4) :: err
 
-            call save_system_as_hdf5(filename, s, err, namespace, .true.)
+            call save_system_as_hdf5(filename, &
+                                     s, &
+                                     err, &
+                                     namespace, &
+                                     logical(.true., kind=ommp_logical))
             
         end subroutine ommp_checkpoint
 #endif

@@ -60,8 +60,8 @@ module mod_iohdf5
         module procedure i2_hdf5_read_array
         module procedure i3_hdf5_read_array
         
-        !module procedure l1_hdf5_read_array
-        !module procedure l2_hdf5_read_array
+        module procedure l1_hdf5_read_array
+        module procedure l2_hdf5_read_array
     end interface hdf5_read_array
     
     contains
@@ -118,7 +118,7 @@ module mod_iohdf5
         
         integer(hid_t), intent(in) :: hid
         character(len=*), intent(in) :: label
-        logical, intent(in) :: scalar
+        logical(lp), intent(in) :: scalar
 
         integer(hsize_t), dimension(1), parameter :: dims = [1]
         integer(hid_t) :: cur_dst, cur_dsp
@@ -127,12 +127,12 @@ module mod_iohdf5
         call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
         call H5Acreate_f(hid, &
                          label, &
-                         H5T_IP, &
+                         H5T_LP, &
                          cur_dsp, cur_dst, eflag)
         if(scalar) then
-            call H5Awrite_f(cur_dst, H5T_IP, 1, dims, eflag)
+            call H5Awrite_f(cur_dst, H5T_LP, 1, dims, eflag)
         else
-            call H5Awrite_f(cur_dst, H5T_IP, 0, dims, eflag)
+            call H5Awrite_f(cur_dst, H5T_LP, 0, dims, eflag)
         end if
 
     end subroutine
@@ -541,6 +541,95 @@ module mod_iohdf5
         end if
         call h5dread_f(dataset, H5T_IP, v, dims, eflag)
     end subroutine
+    
+    subroutine l1_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_mmpol, only: fatal_error
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        logical(lp), allocatable, dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        integer(kind=c_int8_t), dimension(:), allocatable :: tmp
+        integer(hsize_t) :: i
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        if(.not. allocated(v)) then
+            call mallocate('l1_hdf5_read_array [v]', int(dims(1), ip), v)
+        else 
+            if(size(v, 1) /= int(dims(1), ip)) then
+                call fatal_error("Reading HDF5 array on a buffer of wrong size ["//dataset_name//"]")
+            end if
+        end if
+
+        allocate(tmp(dims(1)))
+        call h5dread_f(dataset, H5T_LP, tmp, dims, eflag)
+
+        do i=1, dims(1)
+            if(tmp(i) == 1) then
+                v(i) = .true.
+            else
+                v(i) = .false.
+            end if
+        end do
+
+        deallocate(tmp)
+    end subroutine
+
+    subroutine l2_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_mmpol, only: fatal_error
+        use mod_memory, only:  mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        logical(lp), allocatable, dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        integer(kind=c_int8_t), dimension(:,:), allocatable :: tmp
+        integer(hsize_t) :: i, j
+
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        if(.not. allocated(v)) then
+            call mallocate('i2_hdf5_read_array [v]', int(dims(1), ip), &
+                           int(dims(2), ip), v)
+        else 
+            if(size(v, 1) /= int(dims(1), ip) .or. &
+               size(v, 2) /= int(dims(2), ip)) then
+                call fatal_error("Reading HDF5 array on a buffer of wrong size ["//dataset_name//"]")
+            end if
+        end if
+
+        allocate(tmp(dims(1), dims(2)))
+        call h5dread_f(dataset, H5T_IP, tmp, dims, eflag)
+        
+        do i=1, dims(1)
+            do j=1, dims(2)
+                if(tmp(i,j) == 1) then
+                    v(i,j) = .true.
+                else
+                    v(i,j) = .false.
+                end if
+            end do
+        end do
+
+        deallocate(tmp)
+    end subroutine
 
     subroutine r_hdf5_read_scalar(hid, location, attname, s)
         use hdf5
@@ -587,8 +676,8 @@ module mod_iohdf5
 
         integer(hid_t), intent(in) :: hid
         character(len=*), intent(in) :: location, attname
-        integer(ip) :: is
-        logical :: s
+        integer(c_int8_t) :: is
+        logical(lp) :: s
         
         integer(hsize_t), dimension(1), parameter :: dims = [1]
         integer(kind=4) :: eflag
@@ -633,7 +722,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: filename, namespace
         type(ommp_system), intent(in) :: s
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg
         integer(kind=4) :: eflag
@@ -715,7 +804,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_topology_type), intent(in) :: top
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg, hg_cur
         integer(kind=4) :: eflag
@@ -760,7 +849,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_electrostatics_type), intent(in) :: eel
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg
         integer(kind=4) :: eflag
@@ -847,7 +936,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_nonbonded_type), intent(in) :: vdw
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg
         integer(kind=4) :: eflag
@@ -886,7 +975,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_bonded_type), intent(in) :: bds
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg, hg_cur_bp
         integer(kind=4) :: eflag
@@ -1064,7 +1153,8 @@ module mod_iohdf5
                                                l_uscale, l_ipscale, l_vdwscale
         type(yale_sparse) :: conn_1, tmp_vdw_pair
         integer(ip) :: mm_atoms, pol_atoms
-        logical :: amoeba, mutable_only, use_nonbonded, bp_exist
+        logical(lp) :: amoeba, mutable_only
+        logical :: bp_exist, use_nonbonded
 
         ! For handling torsion maps
         integer(ip) :: i, j, ibeg, iend
