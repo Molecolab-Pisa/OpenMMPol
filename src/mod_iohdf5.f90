@@ -1,7 +1,7 @@
 #ifdef USE_HDF5
 
 #define H5T_RP H5T_NATIVE_DOUBLE
-#define H5T_LP H5T_BITFIELD_F
+#define H5T_LP H5T_NATIVE_B8
 #ifdef USE_I8
 #define H5T_IP H5T_STD_I64LE
 #else
@@ -281,14 +281,29 @@ module mod_iohdf5
         integer(hsize_t), dimension(1) :: dims
         integer(hid_t) :: cur_dst, cur_dsp
         integer(kind=4) :: eflag
+
+        integer(kind=c_int8_t), dimension(:), allocatable :: tmp
+        integer(hsize_t) :: i
         
         dims = shape(v)
+        
+        allocate(tmp(dims(1)))
+        do i=1, dims(1)
+            if(v(i)) then
+                tmp(i) = 1
+            else
+                tmp(i) = 0
+            end if
+        end do
+
         call h5screate_simple_f(1, dims, cur_dsp, eflag)
         call h5dcreate_f(hid, &
                          label, &
                          H5T_LP, &
                          cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_LP, v, dims, eflag)
+        call h5dwrite_f(cur_dst, H5T_LP, tmp, dims, eflag)
+
+        deallocate(tmp)
     end subroutine
     
     subroutine l2_hdf5_add_array(hid, label, v)
@@ -304,13 +319,28 @@ module mod_iohdf5
         integer(hid_t) :: cur_dst, cur_dsp
         integer(kind=4) :: eflag
         
+        integer(kind=c_int8_t), dimension(:,:), allocatable :: tmp
+        integer(hsize_t) :: i, j
+        
         dims = shape(v)
+        
+        allocate(tmp(dims(1), dims(2)))
+        do i=1, dims(1)
+            do j=1, dims(2)
+                if(v(i,j)) then
+                    tmp(i,j) = 1
+                else
+                    tmp(i,j) = 0
+                end if
+            end do
+        end do
         call h5screate_simple_f(2, dims, cur_dsp, eflag)
         call h5dcreate_f(hid, &
                          label, &
                          H5T_LP, &
                          cur_dsp, cur_dst, eflag)
-        call h5dwrite_f(cur_dst, H5T_LP, v, dims, eflag)
+        call h5dwrite_f(cur_dst, H5T_LP, tmp, dims, eflag)
+        deallocate(tmp)
     end subroutine
     
     function hdf5_array_len(hid, dataset_name)
@@ -331,7 +361,7 @@ module mod_iohdf5
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_ndims_f(dataspace, rank, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
-        hdf5_array_len = dims(rank)
+        hdf5_array_len = int(dims(rank), kind=ip)
     end function
     
     subroutine r1_hdf5_read_array(hid, dataset_name, v)
