@@ -652,7 +652,7 @@ module mod_nonbonded
                 vdw_gfunc => vdw_buffered_7_14_Rijgrad
             case default
                 vdw_gfunc => vdw_buffered_7_14_Rijgrad
-                call fatal_error("Unexpected error in vdw_potential")
+                call fatal_error("Unexpected error in vdw_geomgrad")
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
@@ -812,7 +812,7 @@ module mod_nonbonded
                 vdw_func => vdw_buffered_7_14
             case default
                 vdw_func => vdw_buffered_7_14
-                call fatal_error("Unexpected error in vdw_potential")
+                call fatal_error("Unexpected error in vdw_potential_inter")
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
@@ -901,7 +901,7 @@ module mod_nonbonded
                 vdw_grad => vdw_buffered_7_14_Rijgrad
             case default
                 vdw_grad => vdw_buffered_7_14_Rijgrad
-                call fatal_error("Unexpected error in vdw_potential")
+                call fatal_error("Unexpected error in vdw_geomgrad_inter")
         end select
         
         !$omp parallel do default(shared) schedule(dynamic) &
@@ -1035,7 +1035,7 @@ module mod_nonbonded
                 vdw_func => vdw_buffered_7_14
             case default
                 vdw_func => vdw_buffered_7_14
-                call fatal_error("Unexpected error in vdw_potential")
+                call fatal_error("Unexpected error in vdw_potential_inter_restricted")
         end select
 
         !$omp parallel do default(shared) schedule(dynamic) &
@@ -1132,7 +1132,7 @@ module mod_nonbonded
                 vdw_grad => vdw_buffered_7_14_Rijgrad
             case default
                 vdw_grad => vdw_buffered_7_14_Rijgrad
-                call fatal_error("Unexpected error in vdw_potential")
+                call fatal_error("Unexpected error in vdw_geomgrad_inter_restricted")
         end select
         
         do ip=1, n

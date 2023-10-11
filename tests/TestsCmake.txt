@@ -76,6 +76,17 @@ add_test(NAME NMA_AMOEBA_MMP_energy_comp
                           Testing/NMA_AMOEBA_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_AMOEBA.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMOEBA_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/NMA_AMOEBA_MMP_HDF5.json
+                          Testing/NMA_AMOEBA_MMP_energy.out_HDF5 )
+add_test(NAME NMA_AMOEBA_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMOEBA_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_AMOEBA.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME NMA_AMOEBA_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
@@ -85,6 +96,17 @@ add_test(NAME NMA_AMOEBA_MMP_energy_EF_1_comp
                           Testing/NMA_AMOEBA_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_AMOEBA.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMOEBA_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/NMA_AMOEBA_MMP_HDF5.json
+                          Testing/NMA_AMOEBA_MMP_energy_EF_1.out_HDF5 tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMA_AMOEBA_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMOEBA_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_AMOEBA.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME NMA_AMBER_MMP_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
@@ -94,6 +116,17 @@ add_test(NAME NMA_AMBER_MMP_energy_comp
                           Testing/NMA_AMBER_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_WANG_AL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMBER_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/NMA_AMBER_MMP_HDF5.json
+                          Testing/NMA_AMBER_MMP_energy.out_HDF5 )
+add_test(NAME NMA_AMBER_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMBER_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_WANG_AL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME NMA_AMBER_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
@@ -103,6 +136,17 @@ add_test(NAME NMA_AMBER_MMP_energy_EF_1_comp
                           Testing/NMA_AMBER_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_WANG_AL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMBER_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/NMA_AMBER_MMP_HDF5.json
+                          Testing/NMA_AMBER_MMP_energy_EF_1.out_HDF5 tests/N-methylacetamide/EF_1.txt)
+add_test(NAME NMA_AMBER_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMBER_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_WANG_AL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME NMA_AMOEBA_XYZ_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json
@@ -112,6 +156,17 @@ add_test(NAME NMA_AMOEBA_XYZ_energy_comp
                           Testing/NMA_AMOEBA_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMOEBA_XYZ_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/NMA_AMOEBA_XYZ_HDF5.json
+                          Testing/NMA_AMOEBA_XYZ_energy.out_HDF5 )
+add_test(NAME NMA_AMOEBA_XYZ_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/NMA_AMOEBA_XYZ_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/FULL_POTENTIAL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME NMA_AMOEBA_MMP_ipd 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
@@ -360,6 +415,17 @@ add_test(NAME 1CRN_AMBER_MMP_energy_comp
                           Testing/1CRN_AMBER_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_0_WANG_AL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMBER_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1CRN_AMBER_MMP_HDF5.json
+                          Testing/1CRN_AMBER_MMP_energy.out_HDF5 )
+add_test(NAME 1CRN_AMBER_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1CRN_AMBER_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_0_WANG_AL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1CRN_AMBER_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amber_mmp.json
@@ -369,6 +435,17 @@ add_test(NAME 1CRN_AMBER_MMP_energy_EF_1_comp
                           Testing/1CRN_AMBER_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_1_WANG_AL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMBER_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1CRN_AMBER_MMP_HDF5.json
+                          Testing/1CRN_AMBER_MMP_energy_EF_1.out_HDF5 tests/1crn/EF_1.txt)
+add_test(NAME 1CRN_AMBER_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1CRN_AMBER_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_1_WANG_AL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1CRN_AMOEBA_MMP_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_mmp.json
@@ -378,6 +455,17 @@ add_test(NAME 1CRN_AMOEBA_MMP_energy_comp
                           Testing/1CRN_AMOEBA_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_0_AMOEBA.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMOEBA_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1CRN_AMOEBA_MMP_HDF5.json
+                          Testing/1CRN_AMOEBA_MMP_energy.out_HDF5 )
+add_test(NAME 1CRN_AMOEBA_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1CRN_AMOEBA_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_0_AMOEBA.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1CRN_AMOEBA_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_mmp.json
@@ -387,6 +475,17 @@ add_test(NAME 1CRN_AMOEBA_MMP_energy_EF_1_comp
                           Testing/1CRN_AMOEBA_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_1_AMOEBA.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMOEBA_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1CRN_AMOEBA_MMP_HDF5.json
+                          Testing/1CRN_AMOEBA_MMP_energy_EF_1.out_HDF5 tests/1crn/EF_1.txt)
+add_test(NAME 1CRN_AMOEBA_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1CRN_AMOEBA_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1crn/ENE_1_AMOEBA.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1CRN_AMOEBA_XYZ_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_xyz.json
@@ -396,6 +495,17 @@ add_test(NAME 1CRN_AMOEBA_XYZ_energy_comp
                           Testing/1CRN_AMOEBA_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMOEBA_XYZ_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1CRN_AMOEBA_XYZ_HDF5.json
+                          Testing/1CRN_AMOEBA_XYZ_energy.out_HDF5 )
+add_test(NAME 1CRN_AMOEBA_XYZ_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1CRN_AMOEBA_XYZ_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1CRN_AMBER_XYZ_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amber_xyz.json
@@ -405,6 +515,17 @@ add_test(NAME 1CRN_AMBER_XYZ_energy_comp
                           Testing/1CRN_AMBER_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMBER_XYZ_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1CRN_AMBER_XYZ_HDF5.json
+                          Testing/1CRN_AMBER_XYZ_energy.out_HDF5 )
+add_test(NAME 1CRN_AMBER_XYZ_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1CRN_AMBER_XYZ_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1CRN_AMBER_MMP_ipd 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amber_mmp.json
@@ -537,6 +658,17 @@ add_test(NAME 1UBQ_AMBER_MMP_energy_comp
                           Testing/1UBQ_AMBER_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_0_WANG_AL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMBER_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1UBQ_AMBER_MMP_HDF5.json
+                          Testing/1UBQ_AMBER_MMP_energy.out_HDF5 )
+add_test(NAME 1UBQ_AMBER_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMBER_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_0_WANG_AL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1UBQ_AMBER_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ubq_amber_mmp.json
@@ -546,6 +678,17 @@ add_test(NAME 1UBQ_AMBER_MMP_energy_EF_1_comp
                           Testing/1UBQ_AMBER_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_WANG_AL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMBER_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1UBQ_AMBER_MMP_HDF5.json
+                          Testing/1UBQ_AMBER_MMP_energy_EF_1.out_HDF5 tests/1ubq/EF_1.txt)
+add_test(NAME 1UBQ_AMBER_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMBER_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_WANG_AL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1UBQ_AMOEBA_MMP_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_mmp.json
@@ -555,6 +698,17 @@ add_test(NAME 1UBQ_AMOEBA_MMP_energy_comp
                           Testing/1UBQ_AMOEBA_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_0_AMOEBA.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMOEBA_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1UBQ_AMOEBA_MMP_HDF5.json
+                          Testing/1UBQ_AMOEBA_MMP_energy.out_HDF5 )
+add_test(NAME 1UBQ_AMOEBA_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMOEBA_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_0_AMOEBA.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1UBQ_AMOEBA_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_mmp.json
@@ -564,6 +718,17 @@ add_test(NAME 1UBQ_AMOEBA_MMP_energy_EF_1_comp
                           Testing/1UBQ_AMOEBA_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_AMOEBA.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMOEBA_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1UBQ_AMOEBA_MMP_HDF5.json
+                          Testing/1UBQ_AMOEBA_MMP_energy_EF_1.out_HDF5 tests/1ubq/EF_1.txt)
+add_test(NAME 1UBQ_AMOEBA_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMOEBA_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/ENE_1_AMOEBA.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1UBQ_AMOEBA_XYZ_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz.json
@@ -573,6 +738,17 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_energy_comp
                           Testing/1UBQ_AMOEBA_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMOEBA_XYZ_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1UBQ_AMOEBA_XYZ_HDF5.json
+                          Testing/1UBQ_AMOEBA_XYZ_energy.out_HDF5 )
+add_test(NAME 1UBQ_AMOEBA_XYZ_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMOEBA_XYZ_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1UBQ_AMBER_MMP_ipd 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ubq_amber_mmp.json
@@ -742,6 +918,17 @@ add_test(NAME 1AO6CUT_AMBER_MMP_energy_comp
                           Testing/1AO6CUT_AMBER_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_WANG_AL_CUT10.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1AO6CUT_AMBER_MMP_HDF5.json
+                          Testing/1AO6CUT_AMBER_MMP_energy.out_HDF5 )
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMBER_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_WANG_AL_CUT10.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1AO6CUT_AMBER_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json
@@ -751,6 +938,17 @@ add_test(NAME 1AO6CUT_AMBER_MMP_energy_EF_1_comp
                           Testing/1AO6CUT_AMBER_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_WANG_AL_CUT10.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1AO6CUT_AMBER_MMP_HDF5.json
+                          Testing/1AO6CUT_AMBER_MMP_energy_EF_1.out_HDF5 tests/1ao6/EF_1.txt)
+add_test(NAME 1AO6CUT_AMBER_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMBER_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_WANG_AL_CUT10.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1AO6CUT_AMOEBA_MMP_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json
@@ -760,6 +958,17 @@ add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_comp
                           Testing/1AO6CUT_AMOEBA_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_AMOEBA_CUT10.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1AO6CUT_AMOEBA_MMP_HDF5.json
+                          Testing/1AO6CUT_AMOEBA_MMP_energy.out_HDF5 )
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMOEBA_MMP_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_0_AMOEBA_CUT10.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_EF_1 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json
@@ -769,6 +978,17 @@ add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_EF_1_comp
                           Testing/1AO6CUT_AMOEBA_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_AMOEBA_CUT10.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_EF_1_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1AO6CUT_AMOEBA_MMP_HDF5.json
+                          Testing/1AO6CUT_AMOEBA_MMP_energy_EF_1.out_HDF5 tests/1ao6/EF_1.txt)
+add_test(NAME 1AO6CUT_AMOEBA_MMP_energy_EF_1_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6CUT_AMOEBA_MMP_energy_EF_1.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/ENE_1_AMOEBA_CUT10.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1AO6_AMOEBA_XYZ_energy 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_xyz.json
@@ -778,6 +998,17 @@ add_test(NAME 1AO6_AMOEBA_XYZ_energy_comp
                           Testing/1AO6_AMOEBA_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ao6/FULL_POTENTIAL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1AO6_AMOEBA_XYZ_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1AO6_AMOEBA_XYZ_HDF5.json
+                          Testing/1AO6_AMOEBA_XYZ_energy.out_HDF5 )
+add_test(NAME 1AO6_AMOEBA_XYZ_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1AO6_AMOEBA_XYZ_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ao6/FULL_POTENTIAL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 1AO6CUT_AMBER_MMP_ipd 
                           COMMAND bin/${TESTLANG}_test_SI_potential 
                           ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json
@@ -837,6 +1068,17 @@ add_test(NAME 2D94_AMOEBA_XYZ_energy_comp
                           Testing/2D94_AMOEBA_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref 
                            1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 2D94_AMOEBA_XYZ_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/2D94_AMOEBA_XYZ_HDF5.json
+                          Testing/2D94_AMOEBA_XYZ_energy.out_HDF5 )
+add_test(NAME 2D94_AMOEBA_XYZ_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/2D94_AMOEBA_XYZ_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref 
+                           1e-06  1e-06)
+endif ()
 add_test(NAME 2D94_AMOEBA_XYZ_geomgrad_ana 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad
                           ${CMAKE_SOURCE_DIR}/tests/2d94_amoeba_xyz.json

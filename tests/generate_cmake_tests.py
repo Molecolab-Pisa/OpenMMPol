@@ -71,6 +71,19 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s} 
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
+        print("if (HDF5_WORKS)", file=fout)
+        print("""add_test(NAME {:s}_HDF5 
+                          COMMAND bin/${{TESTLANG}}_test_SI_potential 
+                          {:s}
+                          Testing/{:s}_HDF5 {:s})""".format(tname, converted_to_hdf5[jsonfile], tout, ef_str),
+              file=fout)
+        print("""add_test(NAME {:s}_comp_HDF5 
+                          COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_potential.py
+                          Testing/{:s}_HDF5
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s} 
+                          {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
+              file=fout)
+        print("endif ()", file=fout)
     elif program == "ipd":
         if atol is None:
             atol = 1e-5

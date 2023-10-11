@@ -616,7 +616,7 @@ module mod_iohdf5
         end if
 
         allocate(tmp(dims(1), dims(2)))
-        call h5dread_f(dataset, H5T_IP, tmp, dims, eflag)
+        call h5dread_f(dataset, H5T_LP, tmp, dims, eflag)
         
         do i=1, dims(1)
             do j=1, dims(2)
@@ -951,6 +951,13 @@ module mod_iohdf5
         end if
         
         if(.not. mutable_only) then
+            call hdf5_add_scalar(hg, "use_nl", vdw%use_nl)
+            call hdf5_add_scalar(hg, "radrule", vdw%radrule)
+            call hdf5_add_scalar(hg, "radtype", vdw%radtype)
+            call hdf5_add_scalar(hg, "vdwtype", vdw%vdwtype)
+            call hdf5_add_scalar(hg, "epsrule", vdw%epsrule)
+            call hdf5_add_scalar(hg, "radf", vdw%radf)
+
             call hdf5_add_array(hg, "screening", vdw%vdw_screening)
             call hdf5_add_array(hg, "radius", vdw%vdw_r)
             call hdf5_add_array(hg, "energy", vdw%vdw_e)
@@ -1144,7 +1151,7 @@ module mod_iohdf5
         implicit none
 
         character(len=*), intent(in) :: namespace
-        type(ommp_system), intent(inout) :: s
+        type(ommp_system), intent(inout), target :: s
         character(len=*), intent(in) :: filename
         integer(ip), intent(out) :: out_fail
         
@@ -1528,6 +1535,13 @@ module mod_iohdf5
             call mmpol_init_nonbonded(s)
             !call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
             !              "hhg")
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "use_nl", s%vdw%use_nl)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "radrule", s%vdw%radrule)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "radtype", s%vdw%radtype)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "vdwtype", s%vdw%vdwtype)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "epsrule", s%vdw%epsrule)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "radf", s%vdw%radf)
+            s%vdw%top => s%top
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/screening", &
                                  l_vdwscale)
