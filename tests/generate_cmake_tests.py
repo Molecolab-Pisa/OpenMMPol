@@ -1,6 +1,8 @@
 import json
 import os.path as path
 
+converted_to_hdf5 = {}
+
 def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
     atol_ene = 1e-6
     rtol_ene = 1e-6
@@ -10,6 +12,14 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
     with open(jsonfile, "r") as f:
         data = json.loads(f.read())
     basename = data['name']
+
+    if jsonfile not in converted_to_hdf5:
+        print("""if (HDF5_WORKS)
+                    add_test(NAME {:s}_HDF5_convert
+                            COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/convert_test_to_hdf5.py
+                            ${{CMAKE_SOURCE_DIR}}/tests/{:s} Testing/{:s}_HDF5 ./bin/ommp_pp)
+                 endif ()""".format(basename, jsonfile, basename), file=fout)
+        converted_to_hdf5[jsonfile] = 'Testing/{:s}_HDF5.json'
 
     if program == "init":
         tname = "{:s}_init".format(basename)
