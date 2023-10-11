@@ -685,7 +685,7 @@ module mod_iohdf5
        
         call h5gopen_f(hid, location, dataset, eflag)
         call H5Aopen_name_f(dataset, attname, att_id, eflag)
-        call H5Aread_f(att_id, H5T_IP, is, dims, eflag)
+        call H5Aread_f(att_id, H5T_LP, is, dims, eflag)
         call h5gclose_f(dataset, eflag)
         if(is == 0) then
             s = .false.
@@ -866,6 +866,7 @@ module mod_iohdf5
         if(.not. mutable_only) then
             call hdf5_add_scalar(hg, "N-pol-atoms", eel%pol_atoms)
             call hdf5_add_scalar(hg, "amoeba", eel%amoeba)
+            call hdf5_add_scalar(hg, "thole_scale", eel%thole_scale)
             
             if(eel%amoeba) then
                 ! Write the unrotated multipoles, that are coordinates independent
@@ -1130,7 +1131,7 @@ module mod_iohdf5
         use hdf5
         use mod_adjacency_mat, only: build_conn_upto_n, yale_sparse
         use mod_io, only: ommp_message
-        use mod_memory, only: mfree
+        use mod_memory, only: mfree, mallocate
         use mod_mmpol, only: mmpol_init, &
                              mmpol_prepare, mmpol_init_nonbonded, mmpol_init_bonded
         use mod_electrostatics, only: set_screening_parameters
@@ -1560,9 +1561,9 @@ module mod_iohdf5
                                  s%vdw%vdw_pair_e)
         end if
         
-        call hdf5_read_array(iof_hdf5, &
-                             namespace//"/electrostatics/fixed_multipoles_unrotated", s%eel%q)
         if(amoeba) then
+            call hdf5_read_array(iof_hdf5, &
+                                namespace//"/electrostatics/fixed_multipoles_unrotated", s%eel%q)
             call hdf5_read_array(iof_hdf5, &
                                 namespace//"/electrostatics/fixed_mmpoles_rot_Z", &
                                 s%eel%iz)
@@ -1575,7 +1576,11 @@ module mod_iohdf5
             call hdf5_read_array(iof_hdf5, &
                                 namespace//"/electrostatics/fixed_mmpoles_rot_CONV", &
                                 s%eel%mol_frame)
+        else
+            call hdf5_read_array(iof_hdf5, &
+                                namespace//"/electrostatics/fixed_multipoles", s%eel%q)
         end if
+        call hdf5_read_scalar(iof_hdf5, namespace//"/electrostatics", "thole_scale", s%eel%thole_scale)
         call hdf5_read_array(iof_hdf5, &
                              namespace//"/electrostatics/fixed_fixed_scale_f", l_mscale)
         call hdf5_read_array(iof_hdf5, &
@@ -1589,9 +1594,13 @@ module mod_iohdf5
             call hdf5_read_array(iof_hdf5, &
                                  namespace//"/electrostatics/fixed_intragroup_ipd_scale_f", &
                                  l_ipscale)
+            call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale, &
+                                        l_ipscale)
+        else
+            call mallocate('l_dscale', 4_ip, l_dscale)
+            l_dscale = l_pscale
+            call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale)
         end if
-        call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale, &
-                                      l_ipscale)
         call mfree('mmpol_init_from_hdf5 [l_mscale]', l_mscale)
         call mfree('mmpol_init_from_hdf5 [l_pscale]', l_pscale)
         call mfree('mmpol_init_from_hdf5 [l_dscale]', l_dscale)
