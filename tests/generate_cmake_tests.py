@@ -19,7 +19,7 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                             COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/convert_test_to_hdf5.py
                             ${{CMAKE_SOURCE_DIR}}/tests/{:s} Testing/{:s}_HDF5 ./bin/ommp_pp)
                  endif ()""".format(basename, jsonfile, basename), file=fout)
-        converted_to_hdf5[jsonfile] = 'Testing/{:s}_HDF5.json'
+        converted_to_hdf5[jsonfile] = 'Testing/{:s}_HDF5.json'.format(basename)
 
     if program == "init":
         tname = "{:s}_init".format(basename)
@@ -34,6 +34,18 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           Testing/{:s}
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s})""".format(tname, tout, ref),
               file=fout)
+        print("if (HDF5_WORKS)", file=fout)
+        print("""add_test(NAME {:s}_HDF5 
+                          COMMAND bin/${{TESTLANG}}_test_SI_init 
+                          {:s} 
+                          Testing/{:s}_HDF5)""".format(tname, converted_to_hdf5[jsonfile], tout),
+              file=fout)
+        print("""add_test(NAME {:s}_comp_HDF5
+                          COMMAND ${{CMAKE_COMMAND}} -E compare_files
+                          Testing/{:s}_HDF5
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s})""".format(tname, tout, ref),
+              file=fout)
+        print("endif ()", file=fout)
     elif program == "energy":
         if atol is None:
             atol = atol_ene
