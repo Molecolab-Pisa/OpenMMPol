@@ -8,7 +8,7 @@
     },
     "prm_file": {
         "path": "amoebabio18.prm",
-        "md5sum": "490ba93448bd71f14398d74f9cb8a523"
+        "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
     },
     "link_atoms": [
         {
@@ -52,7 +52,7 @@
                           229, 230, 230, 230, 230],
         "prm_file": {
             "path": "amoebabio18.prm",
-            "md5sum": "490ba93448bd71f14398d74f9cb8a523"
+            "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
         }
     },
     "verbosity": "high"
