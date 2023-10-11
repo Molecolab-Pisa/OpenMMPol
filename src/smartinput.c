@@ -1065,7 +1065,7 @@ void ommp_smartinput_cpstr(const char *json_file, char *path, char **s){
     c_smartinput_cpstr(json_file, path, s);
 }
 
-void ommp_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPER_PRT ommp_qmh){
+void ommp_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     // Just an interface function to expose same names and functionalities in C and Fortran
     c_smartinput(json_file, ommp_sys, ommp_qmh);
 }
