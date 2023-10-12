@@ -694,7 +694,7 @@ module mod_iohdf5
         end if
     end subroutine
 
-    subroutine hdf5_group_exists(hid, location, exists)
+    subroutine hdf5_name_exists(hid, location, exists)
         implicit none 
         
         integer(hid_t), intent(in) :: hid
@@ -704,15 +704,9 @@ module mod_iohdf5
         integer(kind=4) :: eflag
         integer(hid_t) :: grp_id
        
-        call h5gopen_f(hid, location, grp_id, eflag)
-        if(eflag == 0) then
-            exists = .true.
-            call h5gclose_f(grp_id, eflag)
-        else
-            exists = .false.
-        end if
-    end subroutine
+        call h5lexists_f(hid, location, exists, eflag)
 
+    end subroutine
 
     subroutine save_system_as_hdf5(filename, s, out_fail, & 
                                    namespace, &
@@ -1231,7 +1225,7 @@ module mod_iohdf5
         end if
         
         ! Bonded Parameters
-        call hdf5_group_exists(iof_hdf5, namespace//'/bonded', bp_exist)
+        call hdf5_name_exists(iof_hdf5, namespace//'/bonded', bp_exist)
         if(bp_exist) then
             call mmpol_init_bonded(s)
             ! Bond stretching
@@ -1530,7 +1524,7 @@ module mod_iohdf5
             end if
         end if
         
-        call hdf5_group_exists(iof_hdf5, namespace//"/nonbonded", use_nonbonded)
+        call hdf5_name_exists(iof_hdf5, namespace//"/nonbonded", use_nonbonded)
         if(use_nonbonded) then
             call mmpol_init_nonbonded(s)
             !call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
@@ -1615,6 +1609,9 @@ module mod_iohdf5
             l_dscale = l_pscale
             call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale)
         end if
+
+        !call hdf5_name_exists(
+        
         call mfree('mmpol_init_from_hdf5 [l_mscale]', l_mscale)
         call mfree('mmpol_init_from_hdf5 [l_pscale]', l_pscale)
         call mfree('mmpol_init_from_hdf5 [l_dscale]', l_dscale)
