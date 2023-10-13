@@ -780,7 +780,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         else if(strcmp(cur->string, "vdw_cutoff") == 0){
             if(!cJSON_IsNumber(cur))
                 ommp_fatal("Van der Walls cutoff should be a number.");
-            vdw_cutoff = cur->valuedouble;
+            vdw_cutoff = cur->valuedouble * OMMP_ANG2AU;
         }
         else if(strcmp(cur->string, "link_atoms") == 0){
             if(!cJSON_IsArray(cur))

@@ -903,6 +903,51 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_geomgrad_comp_ana_ref_HDF5
                          0.001 0.0001)
 endif ()
 if (HDF5_WORKS)
+                    add_test(NAME 1UBQ_AMOEBA_XYZ_LS_HDF5_convert
+                            COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
+                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz_LS.json Testing/1UBQ_AMOEBA_XYZ_LS_HDF5 ./bin/ommp_pp)
+                 endif ()
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_energy 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz_LS.json
+                          Testing/1UBQ_AMOEBA_XYZ_LS_energy.out )
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_energy_comp 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMOEBA_XYZ_LS_energy.out
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL_LS.ref 
+                           1e-06  1e-06)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_energy_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_potential 
+                          Testing/1UBQ_AMOEBA_XYZ_LS_HDF5.json
+                          Testing/1UBQ_AMOEBA_XYZ_LS_energy.out_HDF5 )
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_energy_comp_HDF5 
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
+                          Testing/1UBQ_AMOEBA_XYZ_LS_energy.out_HDF5
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL_LS.ref 
+                           1e-06  1e-06)
+endif ()
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_ana 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz_LS.json
+                          Testing/1UBQ_AMOEBA_XYZ_LS_geomgrad_ana.out)
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_comp_ana_ref 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1UBQ_AMOEBA_XYZ_LS_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL_LS.ref
+                         0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/1UBQ_AMOEBA_XYZ_LS_HDF5.json
+                          Testing/1UBQ_AMOEBA_XYZ_LS_geomgrad_ana.out_HDF5)
+add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_comp_ana_ref_HDF5 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1UBQ_AMOEBA_XYZ_LS_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL_LS.ref
+                         0.001 0.0001)
+endif ()
+if (HDF5_WORKS)
                     add_test(NAME 1AO6_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
                             ${CMAKE_SOURCE_DIR}/tests/1ao6_amber_mmp.json Testing/1AO6_AMBER_MMP_HDF5 ./bin/ommp_pp)
