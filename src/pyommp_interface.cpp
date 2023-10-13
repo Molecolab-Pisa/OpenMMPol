@@ -33,6 +33,91 @@ typedef typename py::array_t<int, py::array::c_style | py::array::forcecast> py_
 typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> py_cdarray;
 typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
 
+int getMaxValue(py_ciarray inputArray) {
+    if(inputarray.ndim() != 1){
+        throw py::value_error("maximum can only be computed on 1-dimensional array.");
+    }
+    if (inputarray.size() == 0) {
+        throw py::value_error("input array is empty");
+    }
+
+    int *ptr = inputArray.data();
+    int size = inputArray.size();
+    int maxVal = ptr[0];
+
+    for (int i = 1; i < size; i++) {
+        if (ptr[i] > maxVal) {
+            maxVal = ptr[i];
+        }
+    }
+
+    return maxVal;
+}
+
+int getMinValue(py_ciarray inputArray) {
+    if(inputarray.ndim() != 1){
+        throw py::value_error("maximum can only be computed on 1-dimensional array.");
+    }
+    if (inputarray.size() == 0) {
+        throw py::value_error("input array is empty");
+    }
+
+    int *ptr = inputArray.data();
+    int size = inputArray.size();
+    int minVal = ptr[0];
+
+    for (int i = 1; i < size; i++) {
+        if (ptr[i] < minVal) {
+            minVal = ptr[i];
+        }
+    }
+
+    return minVal;
+}
+
+double getMaxValue(py_cdarray inputArray) {
+    if(inputarray.ndim() != 1){
+        throw py::value_error("maximum can only be computed on 1-dimensional array.");
+    }
+    if (inputarray.size() == 0) {
+        throw py::value_error("input array is empty");
+    }
+
+    double *ptr = inputArray.data();
+    int size = inputArray.size();
+    double maxVal = ptr[0];
+
+    for (int i = 1; i < size; i++) {
+        if (ptr[i] > maxVal) {
+            maxVal = ptr[i];
+        }
+    }
+
+    return maxVal;
+}
+
+double getMinValue(py_cdarray inputArray) {
+    if(inputarray.ndim() != 1){
+        throw py::value_error("maximum can only be computed on 1-dimensional array.");
+    }
+    if (inputarray.size() == 0) {
+        throw py::value_error("input array is empty");
+    }
+
+    double *ptr = inputArray.data();
+    int size = inputArray.size();
+    double minVal = ptr[0];
+
+    for (int i = 1; i < size; i++) {
+        if (ptr[i] < minVal) {
+            minVal = ptr[i];
+        }
+    }
+
+    return minVal;
+}
+
+
 class OMMPSystem;
 
 class OMMPQmHelper{
@@ -123,13 +208,19 @@ class OMMPSystem{
             if(frozen.ndim() != 1){
                 throw py::value_error("frozen should be shaped [:]");
             }
+            if(getMinValue(frozen) < 1){
+                throw py::value_error("Atom index are 1-based, so they should all be grater than 0");
+            }
 
             ommp_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
         }
 
         void turn_pol_off(py_ciarray nopol){
             if(nopol.ndim() != 1){
-                throw py::value_error("frozen should be shaped [:]");
+                throw py::value_error("nopol should be shaped [:]");
+            }
+            if(getMinValue(nopol) < 1){
+                throw py::value_error("Atom index are 1-based, so they should all be grater than 0");
             }
 
             ommp_turn_pol_off(handler, nopol.shape(0), nopol.data());
@@ -824,6 +915,13 @@ class OMMPSystem{
                                  std::string prmfile,
                                  double la_dist=OMMP_DEFAULT_LA_DIST, 
                                  int neel_remove=OMMP_DEFAULT_LA_N_EEL_REMOVE){
+            if(imm < 1 || iqm < 1 || ila < 1)
+                throw py::value_error("Atom index are 1-based, so they should all be grater than 0");
+            int nmm = self.get_mm_atoms(), nqm = qm.get_qm_atoms();
+
+            if(iqm > nqm || ila > nqm || imm > nmm) 
+                throw py::value_error("Atom index should be inside the topology");
+
             return ommp_create_link_atom(qm.get_handler(), handler, imm, iqm, ila, 
                                          prmfile.c_str(), la_dist, neel_remove);
         }
@@ -883,6 +981,9 @@ OMMP_QM_HELPER_PRT OMMPQmHelper::get_handler(void){
 void OMMPQmHelper::set_frozen_atoms(py_ciarray frozen){
     if(frozen.ndim() != 1){
         throw py::value_error("frozen should be shaped [:]");
+    }
+    if(getMinValue(frozen) < 1){
+        throw py::value_error("Atom index are 1-based, so they should all be grater than 0");
     }
 
     ommp_qm_helper_set_frozen_atoms(handler, frozen.shape(0), frozen.data());

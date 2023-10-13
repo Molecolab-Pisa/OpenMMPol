@@ -12,7 +12,7 @@ void print_qmmm_grad(const char *name, int32_t mm_atoms, int32_t qm_atoms,
     ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-GRD");
     
     for(int i = 0; i < mm_atoms; i++){
-        sprintf(msg, "MM:%-8d %+20.8g %+20.8g %+20.8g", i,
+        sprintf(msg, "MM:%-8d %+20.8g %+20.8g %+20.8g", i+1,
                 grad_mm[i*3+0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                 grad_mm[i*3+1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                 grad_mm[i*3+2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
@@ -20,7 +20,7 @@ void print_qmmm_grad(const char *name, int32_t mm_atoms, int32_t qm_atoms,
     }
     if(grad_qm != NULL && qm_atoms > 0){
         for(int i = 0; i < qm_atoms; i++){
-            sprintf(msg, "QM:%-8d %+20.8g %+20.8g %+20.8g", i,
+            sprintf(msg, "QM:%-8d %+20.8g %+20.8g %+20.8g", i+1,
                     grad_qm[i*3+0]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                     grad_qm[i*3+1]*OMMP_AU2KCALMOL*OMMP_ANG2AU,
                     grad_qm[i*3+2]*OMMP_AU2KCALMOL*OMMP_ANG2AU);
@@ -176,7 +176,7 @@ int main(int argc, char **argv){
         int natm = ommp_get_pol_atoms(fake_qm);
         int32_t *nopol = malloc(sizeof(int32_t) * natm);
         for(int j=0; j < natm; j++)
-            nopol[j] = j;
+            nopol[j] = j+1;
         ommp_turn_pol_off(fake_qm, natm, nopol);
         free(nopol);
     }

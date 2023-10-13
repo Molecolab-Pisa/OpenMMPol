@@ -118,7 +118,13 @@ module ommp_interface
             !! OpenMMPol system
             integer(ommp_integer), intent(in) :: n, frozen(n)
             !! Atoms to freeze
-
+            
+            if(minval(frozen) < 1) then
+                call ommp_fatal("Atom indexes are 1-based, so no index should be less than 1")
+            end if
+            if(maxval(frozen) > s%top%mm_atoms) then
+                call ommp_fatal("Atom indexes should be inside the topology range")
+            end if
             call set_frozen(s%top, frozen)
         end subroutine
 
@@ -138,17 +144,19 @@ module ommp_interface
             integer(ommp_integer) :: i, j
             character(len=OMMP_STR_CHAR_MAX) :: msg
 
+            if(minval(nopol) < 1) then
+                call ommp_fatal("Atom indexes are 1-based, so no index should be less than 1")
+            end if
+            if(maxval(nopol) > s%top%mm_atoms) then
+                call ommp_fatal("Atom indexes should be inside the topology range")
+            end if
+
             do i=1, n
-                if(nopol(i) <= s%top%mm_atoms) then
-                    j = s%eel%mm_polar(i)
-                    if(j > 0) then
-                        s%eel%pol(j) = 0.0
-                    else
-                        write(msg, "('Atom ', I0, ' is not polarizable. Ignoring.')") i
-                        call ommp_message(msg, OMMP_VERBOSE_LOW)
-                    end if
+                j = s%eel%mm_polar(i)
+                if(j > 0) then
+                    s%eel%pol(j) = 0.0
                 else
-                    write(msg, "('Atom ', I0, ' is outside current MM topology. Ignoring.')") i
+                    write(msg, "('Atom ', I0, ' is not polarizable. Ignoring.')") i
                     call ommp_message(msg, OMMP_VERBOSE_LOW)
                 end if
             end do
@@ -963,9 +971,6 @@ module ommp_interface
 
 #ifdef USE_HDF5
         subroutine ommp_init_hdf5(s, filename, namespace)
-            !! This function is an interface for saving an HDF5 file 
-            !! with all the data contained in mmpol module using
-            !! [[mod_io:mmpol_save_as_hdf5]]
             use mod_iohdf5, only: mmpol_init_from_hdf5
             
             implicit none
@@ -981,7 +986,9 @@ module ommp_interface
         end subroutine ommp_init_hdf5
         
         subroutine ommp_save_as_hdf5(s, filename, namespace) 
-            
+            !! This function is an interface for saving an HDF5 file 
+            !! with all the data contained in mmpol module using
+            !! [[mod_io:mmpol_save_as_hdf5]]
             use mod_iohdf5, only: save_system_as_hdf5 
 
             implicit none
@@ -990,7 +997,11 @@ module ommp_interface
             type(ommp_system), pointer :: s
             integer(kind=4) :: err
 
-            call save_system_as_hdf5(filename, s, err, namespace, .false.)
+            call save_system_as_hdf5(filename, &
+                                     s, &
+                                     err, &
+                                     namespace, &
+                                     logical(.false., kind=ommp_logical))
             
         end subroutine ommp_save_as_hdf5
         
@@ -1004,7 +1015,11 @@ module ommp_interface
             type(ommp_system), pointer :: s
             integer(kind=4) :: err
 
-            call save_system_as_hdf5(filename, s, err, namespace, .true.)
+            call save_system_as_hdf5(filename, &
+                                     s, &
+                                     err, &
+                                     namespace, &
+                                     logical(.true., kind=ommp_logical))
             
         end subroutine ommp_checkpoint
 #endif
@@ -1035,6 +1050,12 @@ module ommp_interface
         integer(ommp_integer), intent(in) :: n, frozen(n)
         !! Atoms to freeze
 
+        if(minval(frozen) < 1) then
+            call ommp_fatal("Atom indexes are 1-based, so no index should be less than 1")
+        end if
+        if(maxval(frozen) > s%qm_top%mm_atoms) then
+            call ommp_fatal("Atom indexes should be inside the topology range")
+        end if
         call set_frozen(s%qm_top, frozen)
     end subroutine
     
@@ -1121,7 +1142,6 @@ module ommp_interface
         use mod_qm_helper, only: qm_helper_update_coord, qm_helper_init_vdw_prm
         use mod_mmpol, only: mmpol_init_link_atom
         use mod_nonbonded, only: vdw_remove_potential
-        use mod_io, only: ommp_message, fatal_error
         use mod_memory, only: lp
 
         implicit none
@@ -1147,7 +1167,7 @@ module ommp_interface
 
         ! Sanity checks
         if(.not. qm%qm_top%attype_initialized) then
-            call fatal_error("For a correct handling of link atoms you should &
+            call ommp_fatal("For a correct handling of link atoms you should &
                              &initialize atom types for QM atoms before.")
         end if
 
@@ -1167,19 +1187,19 @@ module ommp_interface
 
         ! Sanity check
         if(iqm == ila) then
-            call fatal_error("QM atom and link atom should have different indices")
+            call ommp_fatal("QM atom and link atom should have different indices")
         end if
 
         if(iqm > s%la%qmtop%mm_atoms .or. iqm < 1) then
-            call fatal_error("QM atom index is not in the topology.")
+            call ommp_fatal("QM atom index is not in the topology.")
         end if
         
         if(ila > s%la%qmtop%mm_atoms .or. ila < 1) then
-            call fatal_error("LA atom index is not in the topology.")
+            call ommp_fatal("LA atom index is not in the topology.")
         end if
         
         if(imm > s%la%mmtop%mm_atoms .or. imm < 1) then
-            call fatal_error("MM atom index is not in the topology.")
+            call ommp_fatal("MM atom index is not in the topology.")
         end if
         ! TODO check that link atom is a monovalent hydrogen
         

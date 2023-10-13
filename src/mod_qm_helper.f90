@@ -19,50 +19,50 @@ module mod_qm_helper
         !! at each change of geometry.
         real(rp), allocatable :: qqm(:)
         !! Charges of QM nuclei
-        logical :: E_n2p_done = .false.
+        logical(lp) :: E_n2p_done = .false.
         !! Flag for [[E_n2p]]
         real(rp), allocatable :: E_n2p(:,:)
         !! Electric field of nuclei at polarizable sites
-        logical :: G_n2p_done = .false.
+        logical(lp) :: G_n2p_done = .false.
         !! Flag for [[G_n2p]]
         real(rp), allocatable :: G_n2p(:,:)
         !! Electric field gradients of nuclei at polarizable sites
-        logical :: E_n2m_done = .false.
+        logical(lp) :: E_n2m_done = .false.
         !! Flag for [[E_n2m]]
         real(rp), allocatable :: E_n2m(:,:)
         !! Electric field of nuclei at static sites
-        logical :: G_n2m_done = .false.
+        logical(lp) :: G_n2m_done = .false.
         !! Flag for [[G_n2m]]
         real(rp), allocatable :: G_n2m(:,:)
         !! Electric field gradients of nuclei at static sites
-        logical :: H_n2m_done = .false.
+        logical(lp) :: H_n2m_done = .false.
         !! Flag for [[H_n2m]]
         real(rp), allocatable :: H_n2m(:,:)
         !! Electric field Hessian of nuclei at static sites
-        logical :: V_m2n_done = .false.
+        logical(lp) :: V_m2n_done = .false.
         !! Flag for [[V_m2n]]
         real(rp), allocatable :: V_m2n(:)
         !! Electrostatic potential of MMPol atoms (static) at QM nuclei
-        logical :: E_m2n_done = .false.
+        logical(lp) :: E_m2n_done = .false.
         !! Flag for [[E_m2n]]
         real(rp), allocatable :: E_m2n(:,:)
         !! Electrostatic potential of MMPol atoms (static) at QM nuclei
-        logical :: V_p2n_done = .false.
+        logical(lp) :: V_p2n_done = .false.
         !! Flag for [[V_p2n]]
         real(rp), allocatable :: V_p2n(:)
         !! Electrostatic potential of MMPol atoms (polarizable) at QM nuclei
-        logical :: V_pp2n_done = .false.
+        logical(lp) :: V_pp2n_done = .false.
         !! Flag for [[V_pp2n]]
-        logical :: V_pp2n_req = .false.
+        logical(lp) :: V_pp2n_req = .false.
         !! Flag to enable the computation of V_pp2n, this is only needed in some
         !! wired cases like when using qm_helper as driver for DFTB
         real(rp), allocatable :: V_pp2n(:)
         !! Electrostatic potential of MMPol atoms (polarizable, AMOEBA P dipoles) at QM nuclei
-        logical :: E_p2n_done = .false.
+        logical(lp) :: E_p2n_done = .false.
         !! Flag for [[E_p2n]]
         real(rp), allocatable :: E_p2n(:,:)
         !! Electrostatic potential of MMPol atoms (polarizable) at QM nuclei
-        logical :: use_nonbonded = .false.
+        logical(lp) :: use_nonbonded = .false.
         !! Flag for using QM nonbonded terms
         type(ommp_nonbonded_type), allocatable :: qm_vdw
         !! Structure to store VdW parameter for QM atoms

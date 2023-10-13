@@ -239,9 +239,7 @@ module mod_ommp_C_interface
 
             call c_f_pointer(s_prt, s)
             call c_f_pointer(frozen, f, [n])
-            f = f + 1
             call ommp_set_frozen_atoms(s, n, f)
-            f = f - 1
         end subroutine
         
         subroutine C_ommp_turn_pol_off(s_prt, n, nopol) &
@@ -254,9 +252,7 @@ module mod_ommp_C_interface
 
             call c_f_pointer(s_prt, s)
             call c_f_pointer(nopol, f, [n])
-            f = f + 1
             call ommp_turn_pol_off(s, n, f)
-            f = f - 1
         end subroutine
         
         subroutine C_ommp_terminate(s_prt) bind(c, name='ommp_terminate')
@@ -892,7 +888,7 @@ module mod_ommp_C_interface
 
             call c2f_string(filename, hdf5out)
             call c2f_string(namespace, nms)
-            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .false.)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), logical(.false., kind=ommp_logical))
             
         end subroutine C_ommp_save_as_hdf5
         
@@ -914,7 +910,7 @@ module mod_ommp_C_interface
 
             call c2f_string(filename, hdf5out)
             call c2f_string(namespace, nms)
-            call save_system_as_hdf5(hdf5out, s, err, trim(nms), .true.)
+            call save_system_as_hdf5(hdf5out, s, err, trim(nms), logical(.true., kind=ommp_logical))
             
         end subroutine C_ommp_checkpoint
 #endif
@@ -1189,9 +1185,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             call c_f_pointer(frozen, f, [n])
 
-            f = f + 1
             call ommp_qm_helper_set_frozen_atoms(s, n, f)
-            f = f - 1
         end subroutine
 
         subroutine C_ommp_terminate_qm_helper(s_ptr) &
