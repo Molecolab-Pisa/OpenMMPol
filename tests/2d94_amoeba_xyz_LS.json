@@ -1,0 +1,15 @@
+{
+    "name": "2D94_AMOEBA_XYZ_LS",
+    "description": "2D94, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/2d94/input.xyz",
+        "md5sum": "844a72174247059332796dab9bd20b47"
+    },
+    "prm_file": {
+        "path": "amoebabio18.prm",
+        "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
+    },
+    "verbosity": "high",
+    "vdw_cutoff": 12.0
+}
