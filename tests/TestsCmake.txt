@@ -262,6 +262,21 @@ add_test(NAME NMA_AMOEBA_MMP_geomgrad_comp_num_ana
                           Testing/NMA_AMOEBA_MMP_geomgrad_num.out
                           Testing/NMA_AMOEBA_MMP_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMOEBA_MMP_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/NMA_AMOEBA_MMP_HDF5.json
+                          Testing/NMA_AMOEBA_MMP_geomgrad_num.out_HDF5)
+add_test(NAME NMA_AMOEBA_MMP_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/NMA_AMOEBA_MMP_HDF5.json
+                          Testing/NMA_AMOEBA_MMP_geomgrad_ana.out_HDF5)
+add_test(NAME NMA_AMOEBA_MMP_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/NMA_AMOEBA_MMP_geomgrad_num.out_HDF5
+                          Testing/NMA_AMOEBA_MMP_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
 add_test(NAME NMACUT_AMOEBA_MMP_geomgrad_num 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
                           ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amoeba_mmp.json
@@ -275,6 +290,21 @@ add_test(NAME NMACUT_AMOEBA_MMP_geomgrad_comp_num_ana
                           Testing/NMACUT_AMOEBA_MMP_geomgrad_num.out
                           Testing/NMACUT_AMOEBA_MMP_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME NMACUT_AMOEBA_MMP_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/NMACUT_AMOEBA_MMP_HDF5.json
+                          Testing/NMACUT_AMOEBA_MMP_geomgrad_num.out_HDF5)
+add_test(NAME NMACUT_AMOEBA_MMP_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/NMACUT_AMOEBA_MMP_HDF5.json
+                          Testing/NMACUT_AMOEBA_MMP_geomgrad_ana.out_HDF5)
+add_test(NAME NMACUT_AMOEBA_MMP_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/NMACUT_AMOEBA_MMP_geomgrad_num.out_HDF5
+                          Testing/NMACUT_AMOEBA_MMP_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
 add_test(NAME NMA_AMBER_MMP_geomgrad_num 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
@@ -288,6 +318,21 @@ add_test(NAME NMA_AMBER_MMP_geomgrad_comp_num_ana
                           Testing/NMA_AMBER_MMP_geomgrad_num.out
                           Testing/NMA_AMBER_MMP_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMBER_MMP_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/NMA_AMBER_MMP_HDF5.json
+                          Testing/NMA_AMBER_MMP_geomgrad_num.out_HDF5)
+add_test(NAME NMA_AMBER_MMP_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/NMA_AMBER_MMP_HDF5.json
+                          Testing/NMA_AMBER_MMP_geomgrad_ana.out_HDF5)
+add_test(NAME NMA_AMBER_MMP_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/NMA_AMBER_MMP_geomgrad_num.out_HDF5
+                          Testing/NMA_AMBER_MMP_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
 add_test(NAME NMACUT_AMBER_MMP_geomgrad_num 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
                           ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amber_mmp.json
@@ -301,6 +346,21 @@ add_test(NAME NMACUT_AMBER_MMP_geomgrad_comp_num_ana
                           Testing/NMACUT_AMBER_MMP_geomgrad_num.out
                           Testing/NMACUT_AMBER_MMP_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME NMACUT_AMBER_MMP_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/NMACUT_AMBER_MMP_HDF5.json
+                          Testing/NMACUT_AMBER_MMP_geomgrad_num.out_HDF5)
+add_test(NAME NMACUT_AMBER_MMP_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/NMACUT_AMBER_MMP_HDF5.json
+                          Testing/NMACUT_AMBER_MMP_geomgrad_ana.out_HDF5)
+add_test(NAME NMACUT_AMBER_MMP_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/NMACUT_AMBER_MMP_geomgrad_num.out_HDF5
+                          Testing/NMACUT_AMBER_MMP_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
 add_test(NAME NMA_AMOEBA_XYZ_geomgrad_num 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json
@@ -314,6 +374,21 @@ add_test(NAME NMA_AMOEBA_XYZ_geomgrad_comp_num_ana
                           Testing/NMA_AMOEBA_XYZ_geomgrad_num.out
                           Testing/NMA_AMOEBA_XYZ_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME NMA_AMOEBA_XYZ_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/NMA_AMOEBA_XYZ_HDF5.json
+                          Testing/NMA_AMOEBA_XYZ_geomgrad_num.out_HDF5)
+add_test(NAME NMA_AMOEBA_XYZ_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/NMA_AMOEBA_XYZ_HDF5.json
+                          Testing/NMA_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME NMA_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/NMA_AMOEBA_XYZ_geomgrad_num.out_HDF5
+                          Testing/NMA_AMOEBA_XYZ_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1CRN_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
@@ -571,6 +646,17 @@ add_test(NAME 1CRN_AMOEBA_XYZ_geomgrad_comp_ana_ref
                         Testing/1CRN_AMOEBA_XYZ_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
                          0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMOEBA_XYZ_geomgrad_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/1CRN_AMOEBA_XYZ_HDF5.json
+                          Testing/1CRN_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME 1CRN_AMOEBA_XYZ_geomgrad_comp_ana_ref_HDF5 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1CRN_AMOEBA_XYZ_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL.ref
+                         0.001 0.0001)
+endif ()
 add_test(NAME 1CRN_AMBER_XYZ_geomgrad_ana 
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad
                           ${CMAKE_SOURCE_DIR}/tests/1crn_amber_xyz.json
@@ -580,6 +666,17 @@ add_test(NAME 1CRN_AMBER_XYZ_geomgrad_comp_ana_ref
                         Testing/1CRN_AMBER_XYZ_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
                          0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME 1CRN_AMBER_XYZ_geomgrad_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/1CRN_AMBER_XYZ_HDF5.json
+                          Testing/1CRN_AMBER_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME 1CRN_AMBER_XYZ_geomgrad_comp_ana_ref_HDF5 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1CRN_AMBER_XYZ_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1crn/FULL_POTENTIAL_AMBER99SB.ref
+                         0.001 0.0001)
+endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1UBQ_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
@@ -794,6 +891,17 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_geomgrad_comp_ana_ref
                         Testing/1UBQ_AMOEBA_XYZ_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
                          0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME 1UBQ_AMOEBA_XYZ_geomgrad_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/1UBQ_AMOEBA_XYZ_HDF5.json
+                          Testing/1UBQ_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME 1UBQ_AMOEBA_XYZ_geomgrad_comp_ana_ref_HDF5 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1UBQ_AMOEBA_XYZ_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
+                         0.001 0.0001)
+endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1AO6_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
@@ -1055,6 +1163,17 @@ add_test(NAME 1AO6_AMOEBA_XYZ_geomgrad_comp_ana_ref
                         ${CMAKE_SOURCE_DIR}/tests/1ao6/FULL_POTENTIAL.ref
                          0.001 0.0001)
 if (HDF5_WORKS)
+add_test(NAME 1AO6_AMOEBA_XYZ_geomgrad_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/1AO6_AMOEBA_XYZ_HDF5.json
+                          Testing/1AO6_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME 1AO6_AMOEBA_XYZ_geomgrad_comp_ana_ref_HDF5 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/1AO6_AMOEBA_XYZ_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/1ao6/FULL_POTENTIAL.ref
+                         0.001 0.0001)
+endif ()
+if (HDF5_WORKS)
                     add_test(NAME 2D94_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
                             ${CMAKE_SOURCE_DIR}/tests/2d94_amoeba_xyz.json Testing/2D94_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
@@ -1089,6 +1208,17 @@ add_test(NAME 2D94_AMOEBA_XYZ_geomgrad_comp_ana_ref
                         ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref
                          0.001 0.0001)
 if (HDF5_WORKS)
+add_test(NAME 2D94_AMOEBA_XYZ_geomgrad_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/2D94_AMOEBA_XYZ_HDF5.json
+                          Testing/2D94_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME 2D94_AMOEBA_XYZ_geomgrad_comp_ana_ref_HDF5 
+                        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                        Testing/2D94_AMOEBA_XYZ_geomgrad_ana.out
+                        ${CMAKE_SOURCE_DIR}/tests/2d94/FULL_POTENTIAL.ref
+                         0.001 0.0001)
+endif ()
+if (HDF5_WORKS)
                     add_test(NAME ALACAP_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
                             ${CMAKE_SOURCE_DIR}/tests/alacap_amoeba_xyz.json Testing/ALACAP_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
@@ -1106,6 +1236,21 @@ add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_comp_num_ana
                           Testing/ALACAP_AMOEBA_XYZ_geomgrad_num.out
                           Testing/ALACAP_AMOEBA_XYZ_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/ALACAP_AMOEBA_XYZ_HDF5.json
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_num.out_HDF5)
+add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/ALACAP_AMOEBA_XYZ_HDF5.json
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_num.out_HDF5
+                          Testing/ALACAP_AMOEBA_XYZ_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
 if (HDF5_WORKS)
                     add_test(NAME TYRCAP_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
@@ -1125,6 +1270,21 @@ add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_comp_num_ana
                           Testing/TYRCAP_AMOEBA_XYZ_geomgrad_ana.out 
                            0.001 0.0001)
 if (HDF5_WORKS)
+add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/TYRCAP_AMOEBA_XYZ_HDF5.json
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_num.out_HDF5)
+add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/TYRCAP_AMOEBA_XYZ_HDF5.json
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_num.out_HDF5
+                          Testing/TYRCAP_AMOEBA_XYZ_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
+if (HDF5_WORKS)
                     add_test(NAME TYR2CAP_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
                             ${CMAKE_SOURCE_DIR}/tests/tyr2cap_amoeba_xyz.json Testing/TYR2CAP_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
@@ -1143,6 +1303,21 @@ add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_comp_num_ana
                           Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_ana.out 
                            0.001 0.0001)
 if (HDF5_WORKS)
+add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/TYR2CAP_AMOEBA_XYZ_HDF5.json
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_num.out_HDF5)
+add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/TYR2CAP_AMOEBA_XYZ_HDF5.json
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_num.out_HDF5
+                          Testing/TYR2CAP_AMOEBA_XYZ_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()
+if (HDF5_WORKS)
                     add_test(NAME PNA4H2O_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
                             ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json Testing/PNA4H2O_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
@@ -1160,3 +1335,18 @@ add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_comp_num_ana
                           Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_num.out
                           Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_ana.out 
                            0.001 0.0001)
+if (HDF5_WORKS)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_num_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
+                          Testing/PNA4H2O_AMOEBA_XYZ_HDF5.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_num.out_HDF5)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_ana_HDF5 
+                          COMMAND bin/${TESTLANG}_test_SI_geomgrad
+                          Testing/PNA4H2O_AMOEBA_XYZ_HDF5.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_ana.out_HDF5)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_num.out_HDF5
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomgrad_ana.out_HDF5 
+                           0.001 0.0001)
+endif ()

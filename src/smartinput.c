@@ -885,8 +885,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         *ommp_sys = ommp_init_mmp(mmpol_path);
     }
     else if(hdf5_path != NULL){
-        if(prm_path != NULL)
-            ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
+        //if(prm_path != NULL)
+        //    ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
 
         *ommp_sys = ommp_init_hdf5(hdf5_path, "system");
     }
@@ -925,6 +925,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_message("Initializing link atoms", OMMP_VERBOSE_DEBUG, "SI");
         if(*ommp_qmh == NULL)
             ommp_fatal("Link atoms requested but no qm section is defined!");
+        if(prm_path == NULL)
+            ommp_fatal("Link atoms require to set a prm file!");
         if(la_bl == NULL || la_ner == NULL || la_mm == NULL || la_qm == NULL || la_la == NULL)
             ommp_fatal("Unexpected error in linkatom initialization in SI function.");
 
@@ -933,7 +935,6 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
             if(la_bl[i] < 0) la_bl[i] = OMMP_DEFAULT_LA_DIST;
             if(la_ner[i] == 0) la_ner[i] = OMMP_DEFAULT_LA_N_EEL_REMOVE;
-
             ommp_create_link_atom(*ommp_qmh,  *ommp_sys, 
                                   la_mm[i], la_qm[i], la_la[i], 
                                   prm_path, 

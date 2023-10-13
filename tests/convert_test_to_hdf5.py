@@ -43,7 +43,8 @@ jout = jin.copy()
 # 4a. Starting from original json, remove xyz_file and prm_file
 #     or mmpol_file
 jout.pop('xyz_file', None)
-jout.pop('prm_file', None)
+if 'link_atoms' not in jout:
+    jout.pop('prm_file', None)
 jout.pop('mmpol_file', None)
 # 4b. Add to the new json hdf5_file (and its md5sum)
 jout['hdf5_file'] = {}

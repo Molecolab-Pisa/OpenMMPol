@@ -1250,6 +1250,20 @@ module mod_iohdf5
                              conn_1%ci)
         conn_1%n = size(conn_1%ri) - 1
         call build_conn_upto_n(conn_1, 4, s%top%conn, .false.)
+        
+        if(hdf5_name_exists(iof_hdf5,  namespace//'/topology/Atoms-Type')) then
+            s%top%attype_initialized = .true.
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//'/topology/Atoms-Type', &
+                                 s%top%attype)
+        end if
+
+        if(hdf5_name_exists(iof_hdf5,  namespace//'/topology/Atoms-Class')) then
+            s%top%atclass_initialized = .true.
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//'/topology/Atoms-Class', &
+                                 s%top%atclass)
+        end if
 
         ! AMOEBA
         if(amoeba) then

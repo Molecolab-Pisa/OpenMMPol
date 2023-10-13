@@ -141,6 +141,24 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           Testing/{:s} 
                           {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
               file=fout)
+        print("if (HDF5_WORKS)", file=fout)
+        print("""add_test(NAME {:s}_HDF5 
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomgrad_num
+                          {:s}
+                          Testing/{:s}_HDF5)""".format(tname_num, converted_to_hdf5[jsonfile], tout_num),
+              file=fout)
+        print("""add_test(NAME {:s}_HDF5 
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
+                          {:s}
+                          Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
+              file=fout)
+        print("""add_test(NAME {:s}_comp_num_ana_HDF5
+                          COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
+                          Testing/{:s}_HDF5
+                          Testing/{:s}_HDF5 
+                          {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
+              file=fout)
+        print("endif ()", file=fout)
         if doref:
             print("""add_test(NAME {:s}_comp_ana_ref 
                             COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
@@ -176,6 +194,19 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                         ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                         {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
             file=fout)
+        print("if (HDF5_WORKS)", file=fout)
+        print("""add_test(NAME {:s}_HDF5
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
+                          {:s}
+                          Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
+              file=fout)
+        print("""add_test(NAME {:s}_comp_ana_ref_HDF5 
+                        COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
+                        Testing/{:s}
+                        ${{CMAKE_SOURCE_DIR}}/tests/{:s}
+                        {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
+            file=fout)
+        print("endif ()", file=fout)
     else:
         print("message(FATAL_ERROR, \"Automatically generated test {:s} cannot be understood\")".format(program), file=fout)
 
