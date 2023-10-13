@@ -4,7 +4,7 @@ module mod_mmpol
     !! build up the atomistic polarizable embedding model and perform
     !! the calculation required from the quantum chemical software.
     
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type, topology_init, &
                             topology_terminate
@@ -22,7 +22,7 @@ module mod_mmpol
         !! Initialization flag
         integer(ip) :: ff_type
         !! Force field type selection flag (0 for AMBER, 1 for AMOEBA)
-        logical :: amoeba
+        logical(lp) :: amoeba
         !! AMOEBA FF = True; WANG-AMBER = False
 
         type(ommp_topology_type), allocatable :: top
@@ -30,15 +30,15 @@ module mod_mmpol
         type(ommp_electrostatics_type), allocatable :: eel
         !! Data structure containing all the information needed to run the
         !! elctrostatics related calculations
-        logical :: use_bonded = .false.
+        logical(lp) :: use_bonded = .false.
         type(ommp_bonded_type), allocatable :: bds
         !! Data structure containing all the information needed to run the
         !! bonded terms calculations
-        logical :: use_nonbonded = .false.
+        logical(lp) :: use_nonbonded = .false.
         type(ommp_nonbonded_type), allocatable :: vdw
         !! Data structure containing all the information needed to run the
         !! non-bonded terms calculations
-        logical :: use_linkatoms = .false.
+        logical(lp) :: use_linkatoms = .false.
         type(ommp_link_atom_type), allocatable :: la
         !! Data structure containing all the information needed to handle 
         !! link atoms with a certain QM part described by a QM Helper object

@@ -2,7 +2,7 @@ module mod_bonded
     !! Module to handle the bonded part of the FF, it closely follows the 
     !! AMOEBA functional form.
     
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_topology, only: ommp_topology_type
     use mod_io, only: fatal_error
     
@@ -47,7 +47,7 @@ module mod_bonded
         !! Force constants for bond terms
         real(rp), allocatable :: l0bond(:)
         !! Equilibrium lengths for bonds
-        logical :: use_bond = .false.
+        logical(lp) :: use_bond = .false.
         !! Flag to enable the calculation of bond terms in potential 
         !! energy function
 
@@ -67,7 +67,7 @@ module mod_bonded
         !! Force constants for the ith angle term
         real(rp), allocatable :: eqangle(:)
         !! Equilibrium angle for the ith angle term
-        logical :: use_angle = .false.
+        logical(lp) :: use_angle = .false.
         !! Flag to enable the calculation of angle terms in potential energy 
         !! function
 
@@ -82,7 +82,7 @@ module mod_bonded
         !! Equilibrium angle for the ith stretching-bending term
         real(rp), allocatable :: strbndl10(:), strbndl20(:)
         !! Equilibrium distances for the ith stretching-bending term
-        logical :: use_strbnd = .false.
+        logical(lp) :: use_strbnd = .false.
         !! Flag to enable calculation of stretching-bending coupling terms in 
         !! potential energy function
         
@@ -90,13 +90,13 @@ module mod_bonded
         integer(ip) :: nangtor
         integer(ip), allocatable :: angtorat(:,:), angtor_t(:), angtor_a(:,:)
         real(rp), allocatable :: angtork(:,:)
-        logical :: use_angtor = .false.
+        logical(lp) :: use_angtor = .false.
         
         ! Bond-Torsion coupling
         integer(ip) :: nstrtor
         integer(ip), allocatable :: strtorat(:,:), strtor_t(:), strtor_b(:,:)
         real(rp), allocatable :: strtork(:,:)
-        logical :: use_strtor = .false.
+        logical(lp) :: use_strtor = .false.
         
         ! Urey-Bradley
         integer(ip) :: nurey
@@ -110,7 +110,7 @@ module mod_bonded
         !! Force constants for U-B terms
         real(rp), allocatable :: l0urey(:)
         !! Equilibrium distance for U-B potentials
-        logical :: use_urey = .false.
+        logical(lp) :: use_urey = .false.
         !! Flag to enable calculation of U-B terms in the potential energy function
 
         ! Out-of-Plane Bending
@@ -123,33 +123,33 @@ module mod_bonded
         !! \(k^{(3)}\) ... \(k^{(6)}\) for out-of-plane bending. 
         real(rp), allocatable :: kopb(:)
         !! Force constants for ith out-of plane bending
-        logical :: use_opb = .false.
+        logical(lp) :: use_opb = .false.
         !! Flag to enable out-of-plane bending calculation
         
         ! Pi-torsion 
         integer(ip) :: npitors
         integer(ip), allocatable :: pitorsat(:,:)
         real(rp), allocatable :: kpitors(:)
-        logical :: use_pitors = .false.
+        logical(lp) :: use_pitors = .false.
 
         ! Torsion
         integer(ip) :: ntorsion
         integer(ip), allocatable :: torsionat(:,:), torsn(:,:)
         real(rp), allocatable :: torsamp(:,:), torsphase(:,:)
-        logical :: use_torsion = .false.
+        logical(lp) :: use_torsion = .false.
         
         ! Imporoper Torsion
         integer(ip) :: nimptorsion
         integer(ip), allocatable :: imptorsionat(:,:), imptorsn(:,:)
         real(rp), allocatable :: imptorsamp(:,:), imptorsphase(:,:)
-        logical :: use_imptorsion = .false.
+        logical(lp) :: use_imptorsion = .false.
 
         ! Torsion-torsion coupling (cmap)
         integer(ip) :: ntortor
         integer(ip), allocatable :: tortorat(:,:), tortorprm(:), ttmap_shape(:,:)
         real(rp), allocatable :: ttmap_ang1(:), ttmap_ang2(:), ttmap_v(:), &
                                  ttmap_vx(:), ttmap_vy(:), ttmap_vxy(:)
-        logical :: use_tortor = .false.
+        logical(lp) :: use_tortor = .false.
     end type ommp_bonded_type
 
     public :: ommp_bonded_type
@@ -216,7 +216,7 @@ module mod_bonded
         !! Bond potential, result will be added to V
 
         integer :: i
-        logical :: use_cubic, use_quartic
+        logical(lp) :: use_cubic, use_quartic
         real(rp) :: dr(3), l, dl, dl2
 
         use_cubic = (abs(bds%bond_cubic) > eps_rp)
@@ -265,7 +265,8 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
 
         integer :: i, ia, ib
-        logical :: use_cubic, use_quartic, sk_a, sk_b
+        logical(lp) :: use_cubic, use_quartic
+        logical :: sk_a, sk_b
         real(rp) :: ca(3), cb(3), J_a(3), J_b(3), l, dl, g
 
         use_cubic = (abs(bds%bond_cubic) > eps_rp)
@@ -716,7 +717,7 @@ module mod_bonded
         !! Urey-Bradley potential, result will be added to V
 
         integer :: i
-        logical :: use_cubic, use_quartic
+        logical(lp) :: use_cubic, use_quartic
         real(rp) :: dr(3), l, dl, dl2
         
         if(.not. bds%use_urey) return
@@ -763,7 +764,8 @@ module mod_bonded
         !! Gradients of bond stretching terms of potential energy
 
         integer :: i, ia, ib
-        logical :: use_cubic, use_quartic, sk_a, sk_b
+        logical(lp) :: use_cubic, use_quartic
+        logical :: sk_a, sk_b
         real(rp) :: l, dl, J_a(3), J_b(3), g
         
         if(.not. bds%use_urey) return

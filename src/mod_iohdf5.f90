@@ -1,7 +1,7 @@
 #ifdef USE_HDF5
 
 #define H5T_RP H5T_NATIVE_DOUBLE
-#define H5T_LOGICAL H5T_BITFIELD_F
+#define H5T_LP H5T_NATIVE_B8
 #ifdef USE_I8
 #define H5T_IP H5T_STD_I64LE
 #else
@@ -10,7 +10,7 @@
 
 module mod_iohdf5
     use hdf5
-    use mod_memory, only: ip, rp
+    use mod_memory, only: ip, rp, lp
     use mod_mmpol, only: ommp_system
     use mod_topology, only: ommp_topology_type
     use mod_electrostatics, only: ommp_electrostatics_type
@@ -46,6 +46,9 @@ module mod_iohdf5
         module procedure i1_hdf5_add_array
         module procedure i2_hdf5_add_array
         module procedure i3_hdf5_add_array
+        
+        module procedure l1_hdf5_add_array
+        module procedure l2_hdf5_add_array
     end interface hdf5_add_array
 
     interface hdf5_read_array
@@ -56,6 +59,9 @@ module mod_iohdf5
         module procedure i1_hdf5_read_array
         module procedure i2_hdf5_read_array
         module procedure i3_hdf5_read_array
+        
+        module procedure l1_hdf5_read_array
+        module procedure l2_hdf5_read_array
     end interface hdf5_read_array
     
     contains
@@ -112,7 +118,7 @@ module mod_iohdf5
         
         integer(hid_t), intent(in) :: hid
         character(len=*), intent(in) :: label
-        logical, intent(in) :: scalar
+        logical(lp), intent(in) :: scalar
 
         integer(hsize_t), dimension(1), parameter :: dims = [1]
         integer(hid_t) :: cur_dst, cur_dsp
@@ -121,12 +127,12 @@ module mod_iohdf5
         call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
         call H5Acreate_f(hid, &
                          label, &
-                         H5T_IP, &
+                         H5T_LP, &
                          cur_dsp, cur_dst, eflag)
         if(scalar) then
-            call H5Awrite_f(cur_dst, H5T_IP, 1, dims, eflag)
+            call H5Awrite_f(cur_dst, H5T_LP, 1, dims, eflag)
         else
-            call H5Awrite_f(cur_dst, H5T_IP, 0, dims, eflag)
+            call H5Awrite_f(cur_dst, H5T_LP, 0, dims, eflag)
         end if
 
     end subroutine
@@ -263,6 +269,80 @@ module mod_iohdf5
         call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
     end subroutine
     
+    subroutine l1_hdf5_add_array(hid, label, v)
+        use hdf5
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        logical(lp), intent(in), dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+
+        integer(kind=c_int8_t), dimension(:), allocatable :: tmp
+        integer(hsize_t) :: i
+        
+        dims = shape(v)
+        
+        allocate(tmp(dims(1)))
+        do i=1, dims(1)
+            if(v(i)) then
+                tmp(i) = 1
+            else
+                tmp(i) = 0
+            end if
+        end do
+
+        call h5screate_simple_f(1, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_LP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_LP, tmp, dims, eflag)
+
+        deallocate(tmp)
+    end subroutine
+    
+    subroutine l2_hdf5_add_array(hid, label, v)
+        use hdf5
+        
+        implicit none
+        
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: label
+        logical(lp), intent(in), dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims
+        integer(hid_t) :: cur_dst, cur_dsp
+        integer(kind=4) :: eflag
+        
+        integer(kind=c_int8_t), dimension(:,:), allocatable :: tmp
+        integer(hsize_t) :: i, j
+        
+        dims = shape(v)
+        
+        allocate(tmp(dims(1), dims(2)))
+        do i=1, dims(1)
+            do j=1, dims(2)
+                if(v(i,j)) then
+                    tmp(i,j) = 1
+                else
+                    tmp(i,j) = 0
+                end if
+            end do
+        end do
+        call h5screate_simple_f(2, dims, cur_dsp, eflag)
+        call h5dcreate_f(hid, &
+                         label, &
+                         H5T_LP, &
+                         cur_dsp, cur_dst, eflag)
+        call h5dwrite_f(cur_dst, H5T_LP, tmp, dims, eflag)
+        deallocate(tmp)
+    end subroutine
+    
     function hdf5_array_len(hid, dataset_name)
         use hdf5
 
@@ -281,7 +361,7 @@ module mod_iohdf5
         call h5dget_space_f(dataset, dataspace, eflag)
         call h5sget_simple_extent_ndims_f(dataspace, rank, eflag)
         call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
-        hdf5_array_len = dims(rank)
+        hdf5_array_len = int(dims(rank), kind=ip)
     end function
     
     subroutine r1_hdf5_read_array(hid, dataset_name, v)
@@ -461,6 +541,95 @@ module mod_iohdf5
         end if
         call h5dread_f(dataset, H5T_IP, v, dims, eflag)
     end subroutine
+    
+    subroutine l1_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_mmpol, only: fatal_error
+        use mod_memory, only: mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        logical(lp), allocatable, dimension(:) :: v
+
+        integer(hsize_t), dimension(1) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        integer(kind=c_int8_t), dimension(:), allocatable :: tmp
+        integer(hsize_t) :: i
+        
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        if(.not. allocated(v)) then
+            call mallocate('l1_hdf5_read_array [v]', int(dims(1), ip), v)
+        else 
+            if(size(v, 1) /= int(dims(1), ip)) then
+                call fatal_error("Reading HDF5 array on a buffer of wrong size ["//dataset_name//"]")
+            end if
+        end if
+
+        allocate(tmp(dims(1)))
+        call h5dread_f(dataset, H5T_LP, tmp, dims, eflag)
+
+        do i=1, dims(1)
+            if(tmp(i) == 1) then
+                v(i) = .true.
+            else
+                v(i) = .false.
+            end if
+        end do
+
+        deallocate(tmp)
+    end subroutine
+
+    subroutine l2_hdf5_read_array(hid, dataset_name, v)
+        use hdf5
+        use mod_mmpol, only: fatal_error
+        use mod_memory, only:  mallocate
+
+        implicit none
+
+        integer(hid_t), intent(in) :: hid
+        character(len=*), intent(in) :: dataset_name
+        logical(lp), allocatable, dimension(:,:) :: v
+
+        integer(hsize_t), dimension(2) :: dims, maxdims
+        integer(hid_t) :: dataset, dataspace
+        integer(kind=4) :: eflag
+        
+        integer(kind=c_int8_t), dimension(:,:), allocatable :: tmp
+        integer(hsize_t) :: i, j
+
+        call h5dopen_f(hid, dataset_name, dataset, eflag)
+        call h5dget_space_f(dataset, dataspace, eflag)
+        call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
+        if(.not. allocated(v)) then
+            call mallocate('i2_hdf5_read_array [v]', int(dims(1), ip), &
+                           int(dims(2), ip), v)
+        else 
+            if(size(v, 1) /= int(dims(1), ip) .or. &
+               size(v, 2) /= int(dims(2), ip)) then
+                call fatal_error("Reading HDF5 array on a buffer of wrong size ["//dataset_name//"]")
+            end if
+        end if
+
+        allocate(tmp(dims(1), dims(2)))
+        call h5dread_f(dataset, H5T_LP, tmp, dims, eflag)
+        
+        do i=1, dims(1)
+            do j=1, dims(2)
+                if(tmp(i,j) == 1) then
+                    v(i,j) = .true.
+                else
+                    v(i,j) = .false.
+                end if
+            end do
+        end do
+
+        deallocate(tmp)
+    end subroutine
 
     subroutine r_hdf5_read_scalar(hid, location, attname, s)
         use hdf5
@@ -507,8 +676,8 @@ module mod_iohdf5
 
         integer(hid_t), intent(in) :: hid
         character(len=*), intent(in) :: location, attname
-        integer(ip) :: is
-        logical :: s
+        integer(c_int8_t) :: is
+        logical(lp) :: s
         
         integer(hsize_t), dimension(1), parameter :: dims = [1]
         integer(kind=4) :: eflag
@@ -516,7 +685,7 @@ module mod_iohdf5
        
         call h5gopen_f(hid, location, dataset, eflag)
         call H5Aopen_name_f(dataset, attname, att_id, eflag)
-        call H5Aread_f(att_id, H5T_IP, is, dims, eflag)
+        call H5Aread_f(att_id, H5T_LP, is, dims, eflag)
         call h5gclose_f(dataset, eflag)
         if(is == 0) then
             s = .false.
@@ -525,25 +694,17 @@ module mod_iohdf5
         end if
     end subroutine
 
-    subroutine hdf5_group_exists(hid, location, exists)
+    function hdf5_name_exists(hid, location) result(exists)
         implicit none 
         
         integer(hid_t), intent(in) :: hid
         character(len=*), intent(in) :: location
-        logical, intent(out) :: exists
+        logical :: exists
         
         integer(kind=4) :: eflag
-        integer(hid_t) :: grp_id
        
-        call h5gopen_f(hid, location, grp_id, eflag)
-        if(eflag == 0) then
-            exists = .true.
-            call h5gclose_f(grp_id, eflag)
-        else
-            exists = .false.
-        end if
-    end subroutine
-
+        call h5lexists_f(hid, location, exists, eflag)
+    end function
 
     subroutine save_system_as_hdf5(filename, s, out_fail, & 
                                    namespace, &
@@ -553,7 +714,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: filename, namespace
         type(ommp_system), intent(in) :: s
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg
         integer(kind=4) :: eflag
@@ -635,7 +796,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_topology_type), intent(in) :: top
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg, hg_cur
         integer(kind=4) :: eflag
@@ -680,9 +841,9 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_electrostatics_type), intent(in) :: eel
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
-        integer(hid_t) :: hg
+        integer(hid_t) :: hg, listg
         integer(kind=4) :: eflag
         real(rp), allocatable :: tmp_q0(:, :)
 
@@ -697,6 +858,7 @@ module mod_iohdf5
         if(.not. mutable_only) then
             call hdf5_add_scalar(hg, "N-pol-atoms", eel%pol_atoms)
             call hdf5_add_scalar(hg, "amoeba", eel%amoeba)
+            call hdf5_add_scalar(hg, "thole_scale", eel%thole_scale)
             
             if(eel%amoeba) then
                 ! Write the unrotated multipoles, that are coordinates independent
@@ -732,6 +894,43 @@ module mod_iohdf5
             
             call hdf5_add_array(hg, "polarizable_atoms_idx", eel%polar_mm)
             call hdf5_add_array(hg, "polarizabilities", eel%pol) 
+
+            if(eel%screening_list_done) then
+                call h5gcreate_f(iof_hdf5, namespace//"/screening_lists", listg, eflag)
+                if( eflag /= 0) then 
+                    call ommp_message("Error while creating group. &
+                                    &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
+                    out_fail = -1_ip
+                    return
+                end if
+
+                call hdf5_add_scalar(listg, "SS_n", eel%list_S_S%n)
+                call hdf5_add_array(listg,  "SS_ri", eel%list_S_S%ri)
+                call hdf5_add_array(listg,  "SS_ci", eel%list_S_S%ci)
+                call hdf5_add_array(listg,  "SS_scalef", eel%scalef_S_S)
+                call hdf5_add_array(listg,  "SS_todo", eel%todo_S_S)
+                
+                call hdf5_add_scalar(listg, "PP_n", eel%list_P_P%n)
+                call hdf5_add_array(listg,  "PP_ri", eel%list_P_P%ri)
+                call hdf5_add_array(listg,  "PP_ci", eel%list_P_P%ci)
+                call hdf5_add_array(listg,  "PP_scalef", eel%scalef_P_P)
+                call hdf5_add_array(listg,  "PP_todo", eel%todo_P_P)
+                
+                call hdf5_add_scalar(listg, "SPP_n", eel%list_S_P_P%n)
+                call hdf5_add_array(listg,  "SPP_ri", eel%list_S_P_P%ri)
+                call hdf5_add_array(listg,  "SPP_ci", eel%list_S_P_P%ci)
+                call hdf5_add_array(listg,  "SPP_scalef", eel%scalef_S_P_P)
+                call hdf5_add_array(listg,  "SPP_todo", eel%todo_S_P_P)
+
+                if(eel%amoeba) then
+                    call hdf5_add_scalar(listg, "SPD_n", eel%list_S_P_D%n)
+                    call hdf5_add_array(listg,  "SPD_ri", eel%list_S_P_D%ri)
+                    call hdf5_add_array(listg,  "SPD_ci", eel%list_S_P_D%ci)
+                    call hdf5_add_array(listg,  "SPD_scalef", eel%scalef_S_P_D)
+                    call hdf5_add_array(listg,  "SPD_todo", eel%todo_S_P_D)
+                end if 
+                call h5gclose_f(listg, eflag)
+            end if
         end if
        
         if(eel%amoeba) then
@@ -767,7 +966,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_nonbonded_type), intent(in) :: vdw
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg
         integer(kind=4) :: eflag
@@ -781,13 +980,20 @@ module mod_iohdf5
         end if
         
         if(.not. mutable_only) then
+            call hdf5_add_scalar(hg, "use_nl", vdw%use_nl)
+            call hdf5_add_scalar(hg, "radrule", vdw%radrule)
+            call hdf5_add_scalar(hg, "radtype", vdw%radtype)
+            call hdf5_add_scalar(hg, "vdwtype", vdw%vdwtype)
+            call hdf5_add_scalar(hg, "epsrule", vdw%epsrule)
+            call hdf5_add_scalar(hg, "radf", vdw%radf)
+
             call hdf5_add_array(hg, "screening", vdw%vdw_screening)
             call hdf5_add_array(hg, "radius", vdw%vdw_r)
             call hdf5_add_array(hg, "energy", vdw%vdw_e)
             call hdf5_add_array(hg, "scale_factor", vdw%vdw_f)
-            ! TODO
-            !call hdf5_add_array(hg, "pair_row_idx", vdw%vdw_pair%ri)
-            !call hdf5_add_array(hg, "pair_col_idx", vdw%vdw_pair%ci)
+            call hdf5_add_scalar(hg, "npair", vdw%npair)
+            call hdf5_add_array(hg, "vdw_pair_mask_a", vdw%vdw_pair_mask_a)
+            call hdf5_add_array(hg, "vdw_pair_mask_b", vdw%vdw_pair_mask_b)
             call hdf5_add_array(hg, "pair_radius", vdw%vdw_pair_r)
             call hdf5_add_array(hg, "pair_energy", vdw%vdw_pair_e)
         end if
@@ -806,7 +1012,7 @@ module mod_iohdf5
         character(len=*), intent(in) :: namespace
         type(ommp_bonded_type), intent(in) :: bds
         integer(ip), intent(out) :: out_fail
-        logical, intent(in) :: mutable_only
+        logical(lp), intent(in) :: mutable_only
         
         integer(hid_t) :: hg, hg_cur_bp
         integer(kind=4) :: eflag
@@ -961,7 +1167,7 @@ module mod_iohdf5
         use hdf5
         use mod_adjacency_mat, only: build_conn_upto_n, yale_sparse
         use mod_io, only: ommp_message
-        use mod_memory, only: mfree
+        use mod_memory, only: mfree, mallocate
         use mod_mmpol, only: mmpol_init, &
                              mmpol_prepare, mmpol_init_nonbonded, mmpol_init_bonded
         use mod_electrostatics, only: set_screening_parameters
@@ -974,7 +1180,7 @@ module mod_iohdf5
         implicit none
 
         character(len=*), intent(in) :: namespace
-        type(ommp_system), intent(inout) :: s
+        type(ommp_system), intent(inout), target :: s
         character(len=*), intent(in) :: filename
         integer(ip), intent(out) :: out_fail
         
@@ -982,15 +1188,14 @@ module mod_iohdf5
         integer(kind=4) :: eflag
         real(rp), dimension(:), allocatable :: l_mscale, l_pscale, l_dscale, &
                                                l_uscale, l_ipscale, l_vdwscale
-        type(yale_sparse) :: conn_1, tmp_vdw_pair
+        type(yale_sparse) :: conn_1
         integer(ip) :: mm_atoms, pol_atoms
-        logical :: amoeba, mutable_only, use_nonbonded, bp_exist
+        logical(lp) :: amoeba, mutable_only
 
         ! For handling torsion maps
         integer(ip) :: i, j, ibeg, iend
         integer(ip), allocatable, dimension(:,:) :: tmp_shape
-        real(rp), allocatable, dimension(:) :: tmp_ang1, tmp_ang2, tmp_v, &
-                                               tmp_vdw_pair_e, tmp_vdw_pair_r
+        real(rp), allocatable, dimension(:) :: tmp_ang1, tmp_ang2, tmp_v
 
         ! Initialize interface
         call h5open_f(eflag)
@@ -1045,6 +1250,20 @@ module mod_iohdf5
                              conn_1%ci)
         conn_1%n = size(conn_1%ri) - 1
         call build_conn_upto_n(conn_1, 4, s%top%conn, .false.)
+        
+        if(hdf5_name_exists(iof_hdf5,  namespace//'/topology/Atoms-Type')) then
+            s%top%attype_initialized = .true.
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//'/topology/Atoms-Type', &
+                                 s%top%attype)
+        end if
+
+        if(hdf5_name_exists(iof_hdf5,  namespace//'/topology/Atoms-Class')) then
+            s%top%atclass_initialized = .true.
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//'/topology/Atoms-Class', &
+                                 s%top%atclass)
+        end if
 
         ! AMOEBA
         if(amoeba) then
@@ -1054,8 +1273,7 @@ module mod_iohdf5
         end if
         
         ! Bonded Parameters
-        call hdf5_group_exists(iof_hdf5, namespace//'/bonded', bp_exist)
-        if(bp_exist) then
+        if(hdf5_name_exists(iof_hdf5, namespace//'/bonded')) then
             call mmpol_init_bonded(s)
             ! Bond stretching
             call hdf5_read_scalar(iof_hdf5, &
@@ -1353,11 +1571,17 @@ module mod_iohdf5
             end if
         end if
         
-        call hdf5_group_exists(iof_hdf5, namespace//"/nonbonded", use_nonbonded)
-        if(use_nonbonded) then
+        if(hdf5_name_exists(iof_hdf5, namespace//"/nonbonded")) then
             call mmpol_init_nonbonded(s)
             !call vdw_init(s%vdw, s%top, "buffered-14-7", "cubic-mean", "diameter", "r-min", &
             !              "hhg")
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "use_nl", s%vdw%use_nl)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "radrule", s%vdw%radrule)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "radtype", s%vdw%radtype)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "vdwtype", s%vdw%vdwtype)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "epsrule", s%vdw%epsrule)
+            call hdf5_read_scalar(iof_hdf5,  namespace//"/nonbonded", "radf", s%vdw%radf)
+            s%vdw%top => s%top
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/screening", &
                                  l_vdwscale)
@@ -1374,33 +1598,26 @@ module mod_iohdf5
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/scale_factor", &
                                  s%vdw%vdw_f)
+            call hdf5_read_scalar(iof_hdf5, &
+                                  namespace//"/nonbonded", "npair", &
+                                  s%vdw%npair)
             call hdf5_read_array(iof_hdf5, & 
-                                 namespace//"/nonbonded/pair_row_idx", &
-                                 tmp_vdw_pair%ri)
+                                 namespace//"/nonbonded/vdw_pair_mask_a", &
+                                 s%vdw%vdw_pair_mask_a)
             call hdf5_read_array(iof_hdf5, & 
-                                 namespace//"/nonbonded/pair_col_idx", &
-                                 tmp_vdw_pair%ci)
+                                 namespace//"/nonbonded/vdw_pair_mask_b", &
+                                 s%vdw%vdw_pair_mask_b)
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/pair_radius", &
-                                 tmp_vdw_pair_r)
+                                 s%vdw%vdw_pair_r)
             call hdf5_read_array(iof_hdf5, & 
                                  namespace//"/nonbonded/pair_energy", &
-                                 tmp_vdw_pair_e)
+                                 s%vdw%vdw_pair_e)
         end if
-
-        ! TODO
-        !do i=1, s%top%mm_atoms
-        !    do j=tmp_vdw_pair%ri(i), tmp_vdw_pair%ri(i+1)-1
-        !       call vdw_set_pair(s%vdw, i, tmp_vdw_pair%ci(j), tmp_vdw_pair_r(j), &
-        !                         tmp_vdw_pair_e(j)) 
-        !    end do
-        !end do
-        call mfree('mmpol_init_hdf5', tmp_vdw_pair_e)
-        call mfree('mmpol_init_hdf5', tmp_vdw_pair_r)
         
-        call hdf5_read_array(iof_hdf5, &
-                             namespace//"/electrostatics/fixed_multipoles_unrotated", s%eel%q)
         if(amoeba) then
+            call hdf5_read_array(iof_hdf5, &
+                                namespace//"/electrostatics/fixed_multipoles_unrotated", s%eel%q)
             call hdf5_read_array(iof_hdf5, &
                                 namespace//"/electrostatics/fixed_mmpoles_rot_Z", &
                                 s%eel%iz)
@@ -1413,7 +1630,11 @@ module mod_iohdf5
             call hdf5_read_array(iof_hdf5, &
                                 namespace//"/electrostatics/fixed_mmpoles_rot_CONV", &
                                 s%eel%mol_frame)
+        else
+            call hdf5_read_array(iof_hdf5, &
+                                namespace//"/electrostatics/fixed_multipoles", s%eel%q)
         end if
+        call hdf5_read_scalar(iof_hdf5, namespace//"/electrostatics", "thole_scale", s%eel%thole_scale)
         call hdf5_read_array(iof_hdf5, &
                              namespace//"/electrostatics/fixed_fixed_scale_f", l_mscale)
         call hdf5_read_array(iof_hdf5, &
@@ -1427,9 +1648,84 @@ module mod_iohdf5
             call hdf5_read_array(iof_hdf5, &
                                  namespace//"/electrostatics/fixed_intragroup_ipd_scale_f", &
                                  l_ipscale)
+            call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale, &
+                                        l_ipscale)
+        else
+            call mallocate('l_dscale', 4_ip, l_dscale)
+            l_dscale = l_pscale
+            call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale)
         end if
-        call set_screening_parameters(s%eel, l_mscale, l_pscale, l_dscale, l_uscale, &
-                                      l_ipscale)
+
+        if(hdf5_name_exists(iof_hdf5, namespace//"/electrostatics/screening_lists")) then
+            s%eel%screening_list_done = .true.
+            allocate(s%eel%list_S_S)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SS_ri", &
+                                 s%eel%list_S_S%ri)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SS_ci", &
+                                 s%eel%list_S_S%ci)
+            call hdf5_read_scalar(iof_hdf5, &
+                                  namespace//"/electrostatics/screening_lists", "SS_n", &
+                                  s%eel%list_S_S%n)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SS_scalef", &
+                                 s%eel%scalef_S_S)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SS_todo", &
+                                 s%eel%todo_S_S)
+            allocate(s%eel%list_P_P)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/PP_ri", &
+                                 s%eel%list_P_P%ri)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/PP_ci", &
+                                 s%eel%list_P_P%ci)
+            call hdf5_read_scalar(iof_hdf5, &
+                                  namespace//"/electrostatics/screening_lists", "PP_n", &
+                                  s%eel%list_P_P%n)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/PP_scalef", &
+                                 s%eel%scalef_P_P)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/PP_todo", &
+                                 s%eel%todo_P_P)
+            allocate(s%eel%list_S_P_P)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SPP_ri", &
+                                 s%eel%list_S_P_P%ri)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SPP_ci", &
+                                 s%eel%list_S_P_P%ci)
+            call hdf5_read_scalar(iof_hdf5, &
+                                  namespace//"/electrostatics/screening_lists", "SPP_n", &
+                                  s%eel%list_S_P_P%n)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SPP_scalef", &
+                                 s%eel%scalef_S_P_P)
+            call hdf5_read_array(iof_hdf5, &
+                                 namespace//"/electrostatics/screening_lists/SPP_todo", &
+                                 s%eel%todo_S_P_P)
+            if(s%eel%amoeba) then
+                allocate(s%eel%list_S_P_D)
+                call hdf5_read_array(iof_hdf5, &
+                                    namespace//"/electrostatics/screening_lists/SPD_ri", &
+                                    s%eel%list_S_P_D%ri)
+                call hdf5_read_array(iof_hdf5, &
+                                    namespace//"/electrostatics/screening_lists/SPD_ci", &
+                                    s%eel%list_S_P_D%ci)
+                call hdf5_read_scalar(iof_hdf5, &
+                                    namespace//"/electrostatics/screening_lists", "SPD_n", &
+                                    s%eel%list_S_P_D%n)
+                call hdf5_read_array(iof_hdf5, &
+                                    namespace//"/electrostatics/screening_lists/SPD_scalef", &
+                                    s%eel%scalef_S_P_D)
+                call hdf5_read_array(iof_hdf5, &
+                                    namespace//"/electrostatics/screening_lists/SPD_todo", &
+                                    s%eel%todo_S_P_D)
+            endif
+        end if
+        
         call mfree('mmpol_init_from_hdf5 [l_mscale]', l_mscale)
         call mfree('mmpol_init_from_hdf5 [l_pscale]', l_pscale)
         call mfree('mmpol_init_from_hdf5 [l_dscale]', l_dscale)

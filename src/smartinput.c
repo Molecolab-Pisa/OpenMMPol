@@ -333,6 +333,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
     double *coords = NULL, *nucq = NULL;
     char *xyz_path = NULL, *prm_path = NULL;
     char mode, *path;
+    int32_t nfrozen=0, *frozenat=NULL;
 
     while(qm_data != NULL){
         if(str_ends_with(qm_data->string, "_file")){
@@ -494,6 +495,26 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
                 return false;
             }
         }
+        else if(strcmp(qm_data->string, "qm_frozen_atoms") == 0){
+            if(!cJSON_IsArray(qm_data))
+                ommp_fatal("qm_frozen_atoms should be an array of integers!");
+            if(nfrozen > 0) 
+                ommp_fatal("Only a single frozen_atoms section should be present");
+            cJSON *_arr = qm_data->child;
+            for(nfrozen = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("frozen_atoms should be an array of integers!");
+                nfrozen++;
+            }
+            
+            frozenat = (int32_t *) malloc(sizeof(int32_t) * nfrozen);
+            
+            _arr = qm_data->child;
+            for(int i = 0; _arr != NULL; i++){
+                frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
+            }
+        }
         else{
             sprintf(errstring, "Unrecognized qm attribute %s", qm_data->string);
             ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
@@ -546,9 +567,14 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         return false;
     }
 
+    if(frozenat != NULL){
+        ommp_qm_helper_set_frozen_atoms(*qmh, nfrozen, frozenat);
+    }
+
     if(qmz != NULL) free(qmz);
     if(nucq != NULL) free(nucq);
     if(coords != NULL) free(coords); 
+    if(frozenat != NULL) free(frozenat);
 
     return true;
 }
@@ -595,8 +621,8 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             req_matv = OMMP_MATV_DEFAULT;
     
     int32_t *la_mm=NULL, *la_qm=NULL, *la_la=NULL, *la_ner=NULL;
-    unsigned int nfrozen = 0, nla = 0;
-    int32_t *frozenat=NULL;
+    unsigned int nfrozen = 0, nla = 0, nremovepol=0;
+    int32_t *frozenat=NULL, *removepolat=NULL;
     double *la_bl=NULL;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
@@ -629,6 +655,13 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal(msg);
             }
             prm_path = path;
+        }
+        else if(strcmp(cur->string, "hdf5_file") == 0){
+            if(mode != 'r'){
+                sprintf(msg, "hdf5_file should be in read mode.");
+                ommp_fatal(msg);
+            }
+            hdf5_path = path;
         }
         else if(strcmp(cur->string, "mmpol_file") == 0){
             if(mode != 'r'){
@@ -721,6 +754,26 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             _arr = cur->child;
             for(int i = 0; _arr != NULL; i++){
                 frozenat[i] = _arr->valueint;
+                _arr = _arr->next;
+            }
+        }
+        else if(strcmp(cur->string, "remove_pol") == 0){
+            if(!cJSON_IsArray(cur))
+                ommp_fatal("remove_pol should be an array of integers!");
+            if(nremovepol > 0) 
+                ommp_fatal("Only a single remove_pol section should be present");
+            cJSON *_arr = cur->child;
+            for(nremovepol = 0; _arr != NULL; _arr = _arr->next){
+                if(!cJSON_IsNumber(_arr))
+                    ommp_fatal("remove_pol should be an array of integers!");
+                nremovepol++;
+            }
+            
+            removepolat = (int32_t *) malloc(sizeof(int32_t) * nremovepol);
+            
+            _arr = cur->child;
+            for(int i = 0; _arr != NULL; i++){
+                removepolat[i] = _arr->valueint;
                 _arr = _arr->next;
             }
         }
@@ -832,10 +885,10 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         *ommp_sys = ommp_init_mmp(mmpol_path);
     }
     else if(hdf5_path != NULL){
-        if(prm_path != NULL)
-            ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
+        //if(prm_path != NULL)
+        //    ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
 
-        ommp_fatal("input from hdf5_file is still not implemented.");
+        *ommp_sys = ommp_init_hdf5(hdf5_path, "system");
     }
     else{
         ommp_fatal("No input for MM system found in Smart Input file, set one of xyz_file+prm_file, mmpol_file, hdf5_file");
@@ -861,11 +914,19 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_set_frozen_atoms(*ommp_sys, nfrozen, frozenat);
         free(frozenat);
     }
+
+    if(nremovepol > 0){
+        ommp_message("Removing polarizabilities from requested atoms", OMMP_VERBOSE_DEBUG, "SI");
+        ommp_turn_pol_off(*ommp_sys, nremovepol, removepolat);
+        free(removepolat);
+    }
     // Handle link atoms
     if(nla > 0){
         ommp_message("Initializing link atoms", OMMP_VERBOSE_DEBUG, "SI");
         if(*ommp_qmh == NULL)
             ommp_fatal("Link atoms requested but no qm section is defined!");
+        if(prm_path == NULL)
+            ommp_fatal("Link atoms require to set a prm file!");
         if(la_bl == NULL || la_ner == NULL || la_mm == NULL || la_qm == NULL || la_la == NULL)
             ommp_fatal("Unexpected error in linkatom initialization in SI function.");
 
@@ -874,7 +935,6 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             ommp_message(msg, OMMP_VERBOSE_DEBUG, "SI");
             if(la_bl[i] < 0) la_bl[i] = OMMP_DEFAULT_LA_DIST;
             if(la_ner[i] == 0) la_ner[i] = OMMP_DEFAULT_LA_N_EEL_REMOVE;
-
             ommp_create_link_atom(*ommp_qmh,  *ommp_sys, 
                                   la_mm[i], la_qm[i], la_la[i], 
                                   prm_path, 
@@ -1006,7 +1066,7 @@ void ommp_smartinput_cpstr(const char *json_file, char *path, char **s){
     c_smartinput_cpstr(json_file, path, s);
 }
 
-void ommp_smartinput(const char *json_file, OMMP_SYSTEM_PRT ommp_sys, OMMP_QM_HELPER_PRT ommp_qmh){
+void ommp_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELPER_PRT *ommp_qmh){
     // Just an interface function to expose same names and functionalities in C and Fortran
     c_smartinput(json_file, ommp_sys, ommp_qmh);
 }

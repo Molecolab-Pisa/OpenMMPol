@@ -26,7 +26,7 @@ module mod_electrostatics
         !! Data structure containing all the topological informations
         integer(ip) :: pol_atoms 
         !! number of polarizable atoms
-        logical :: amoeba
+        logical(lp) :: amoeba
         !! True if AMOEBA FF is used
         integer(ip) :: ld_cart, ld_cder
         !! size of the cartesian multipolar distribution (i.e., (l+1)*(l+2)*(l+3)/6)
@@ -121,9 +121,9 @@ module mod_electrostatics
         !! neighboring atoms used to define the axes of the molecular frame
         
         !- Intermediate data allocate here -!
-        logical :: M2M_done = .false.
+        logical(lp) :: M2M_done = .false.
         !! flag to set when M2M electrostatic quantities are computed.
-        logical :: M2Mgg_done = .false.
+        logical(lp) :: M2Mgg_done = .false.
         !! flag to set when M2M electrostatic quantities for geometrical
         !! gradients are computed.
         real(rp), allocatable :: V_M2M(:)
@@ -135,9 +135,9 @@ module mod_electrostatics
         real(rp), allocatable :: EHes_M2M(:,:) 
         !! electric field Hessian of MM permanent multipoles at MM sites;
 
-        logical :: M2D_done = .false.
+        logical(lp) :: M2D_done = .false.
         !! Flag to set when M2D electrostatics have been computed.
-        logical :: M2Dgg_done = .false.
+        logical(lp) :: M2Dgg_done = .false.
         !! Flag to set when M2D electrostatics for geometrical gradients 
         !! have been computed.
         real(rp), allocatable :: V_M2D(:,:)
@@ -149,21 +149,21 @@ module mod_electrostatics
         real(rp), allocatable :: EHes_M2D(:,:,:)
         ! electric field Hessian of MM permanent multipoles at POL sites; unused.
 
-        logical :: D2Mgg_done = .false.
+        logical(lp) :: D2Mgg_done = .false.
         real(rp), allocatable :: V_D2M(:)
         real(rp), allocatable :: E_D2M(:,:)
         real(rp), allocatable :: Egrd_D2M(:,:)
         real(rp), allocatable :: EHes_D2M(:,:)
 
-        logical :: D2Dgg_done = .false.
+        logical(lp) :: D2Dgg_done = .false.
         real(rp), allocatable :: V_D2D(:,:)
         real(rp), allocatable :: E_D2D(:,:,:)
         real(rp), allocatable :: Egrd_D2D(:,:,:)
         real(rp), allocatable :: EHes_D2D(:,:,:)
         
-        logical :: ipd_done = .false.
+        logical(lp) :: ipd_done = .false.
         !! Flag to set when IPD have been computed.
-        logical :: ipd_use_guess = .false.
+        logical(lp) :: ipd_use_guess = .false.
         !! Flag to set when current value of IPD can be
         !! used as guess for next solution of LS.
         real(rp), allocatable :: ipd(:,:,:)
@@ -173,13 +173,13 @@ module mod_electrostatics
         !! Interaction tensor, only allocated for the methods that explicitly 
         !! requires it.
         
-        logical :: screening_list_done = .false.
+        logical(lp) :: screening_list_done = .false.
         !! Flag to check if screening list have already been prepared
         type(yale_sparse), allocatable :: list_S_S, list_P_P, list_S_P_P, list_S_P_D
         !! Sparse matrix containg the scale factors for the scaled elements
         !! of electrostatic interactions (all the element that are not 
         !! present in the sparse matrix have a scaling factor 1.0).
-        logical, dimension(:), allocatable :: todo_S_S, todo_P_P, todo_S_P_P, todo_S_P_D
+        logical(lp), dimension(:), allocatable :: todo_S_S, todo_P_P, todo_S_P_P, todo_S_P_D
         !! Logical array of the same dimension of column-index vector; true if 
         !! the scaling factor is zero, false otherwise
         real(rp), dimension(:), allocatable :: scalef_S_S, scalef_P_P, &
@@ -208,7 +208,7 @@ module mod_electrostatics
 
         implicit none 
 
-        logical, intent(in) :: amoeba
+        logical(lp), intent(in) :: amoeba
         integer(ip), intent(in) :: pol_atoms
         type(ommp_topology_type), intent(in), target :: top_obj
         type(ommp_electrostatics_type), intent(inout) :: eel_obj
