@@ -636,7 +636,7 @@ module mod_prm
                        l1a, l1b, l2a, l2b
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), sbtmp(:), &
-                                    sbattmp(:, :)
+                                    sbattmp(:, :), at2bnd(:), at2ang(:)
         real(rp), allocatable :: k1(:), k2(:)
         logical :: done, thet_done, l1_done, l2_done
         type(ommp_topology_type), pointer :: top
@@ -678,6 +678,8 @@ module mod_prm
         call mallocate('assign_strbnd [kang]', nstrbnd, k2)
         call mallocate('assign_strbnd [sbtmp]', maxsb, sbtmp)
         call mallocate('assign_strbnd [sbattmp]', 3, maxsb, sbattmp)
+        call mallocate('assign_strbnd [at2bnd]', top%mm_atoms, at2bnd)
+        call mallocate('assign_strbnd [at2ang]', top%mm_atoms, at2ang)
 
         ! Restart the reading from the beginning to actually save the parameters
         rewind(iof_prminp)
@@ -777,7 +779,24 @@ module mod_prm
         end do
 
         call strbnd_init(bds, isb-1)
+        
+        at2bnd(1) = 1
+        do i=1, top%mm_atoms-1
+            at2bnd(i+1) = at2bnd(i)
+            do j=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
+                if(i < top%conn(1)%ci(j)) then
+                    at2bnd(i+1) = at2bnd(i+1) + 1
+                end if
+            end do
+        end do
+            
+        at2ang = 0
+        do j=1, size(bds%angleat, 2)
+          if(at2ang(bds%angleat(1,j)) == 0) at2ang(bds%angleat(1,j)) = j
+        end do
 
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,l1a,l1b,l2a,l2b,l1_done,l2_done,thet_done)
         do i=1, isb-1
             ! First assign the parameters
             bds%strbndat(:,i) = sbattmp(:,i)
@@ -801,19 +820,23 @@ module mod_prm
             l2_done = .false.
             thet_done = .false.
 
-            do j=1, size(bds%bondat, 2)
+            do j=at2bnd(l1a), size(bds%angleat, 2)
                 if(l1a == bds%bondat(1,j) .and. l1b == bds%bondat(2,j)) then
                     l1_done = .true.
                     bds%strbndl10(i) = bds%l0bond(j)
-                else if(l2a == bds%bondat(1,j) .and. l2b == bds%bondat(2,j)) then
+                    exit
+                end if
+            end do
+
+            do j=at2bnd(l2a), size(bds%angleat, 2)
+                if(l2a == bds%bondat(1,j) .and. l2b == bds%bondat(2,j)) then
                     l2_done = .true.
                     bds%strbndl20(i) = bds%l0bond(j)
+                    exit
                 end if
-
-                if(l1_done .and. l2_done) exit
             end do
             
-            do j=1, size(bds%angleat, 2)
+            do j=at2ang(bds%strbndat(1,i)), size(bds%angleat, 2)
                 if(all(bds%strbndat(:,i) == bds%angleat(:,j))) then
                     thet_done = .true.
                     bds%strbndthet0(i) = bds%eqangle(j)
@@ -833,6 +856,9 @@ module mod_prm
         call mfree('assign_strbnd [kang]', k2)
         call mfree('assign_strbnd [sbtmp]', sbtmp)
         call mfree('assign_strbnd [sbattmp]', sbattmp)
+        call mfree('assign_strbnd [at2bnd]', at2bnd)
+        call mfree('assign_strbnd [at2ang]', at2ang)
+        call time_pull('Copy')
     
     end subroutine assign_strbnd
     
