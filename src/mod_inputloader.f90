@@ -404,8 +404,8 @@ module mod_inputloader
             ! be raised.
             tokb=toke+1
             toke = tokenize(line, tokb)
-            if(.not. starts_with_alpha(line(tokb:toke))) then
-                call fatal_error('Atom symbol missing or PBC string present in XYZ')
+            if(isreal(line(tokb:toke))) then
+                call fatal_error('Atom symbol missing (or completely numerical) or PBC string present in XYZ')
             end if
 
             tokb=toke+1
