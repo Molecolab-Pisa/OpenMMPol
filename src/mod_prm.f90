@@ -858,7 +858,6 @@ module mod_prm
         call mfree('assign_strbnd [sbattmp]', sbattmp)
         call mfree('assign_strbnd [at2bnd]', at2bnd)
         call mfree('assign_strbnd [at2ang]', at2ang)
-        call time_pull('Copy')
     
     end subroutine assign_strbnd
     
