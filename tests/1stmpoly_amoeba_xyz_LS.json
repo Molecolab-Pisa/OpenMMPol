@@ -1,0 +1,15 @@
+{
+    "name": "1STMPOLY_AMOEBA_XYZ_LS",
+    "description": "1STM polymer, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/1stm/input_poly.xyz",
+        "md5sum": "8853e50cdc0a4ff5c88be4c8f3919762"
+    },
+    "prm_file": {
+        "path": "amoebabio18.prm",
+        "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
+    },
+    "verbosity": "high",
+    "vdw_cutoff": 12.0
+}

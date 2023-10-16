@@ -1,0 +1,15 @@
+{
+    "name": "1HTO_AMOEBA_XYZ_LS",
+    "description": "1HTO, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/1hto/input.xyz",
+        "md5sum": "2ccf6a450007ed4080250c0dfecb976f"
+    },
+    "prm_file": {
+        "path": "amoebabio18.prm",
+        "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
+    },
+    "verbosity": "high",
+    "vdw_cutoff": 12.0
+}

@@ -1,0 +1,15 @@
+{
+    "name": "1UF2POLY_AMOEBA_XYZ_LS",
+    "description": "1UF2 polymer, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
+    "version": "0.4.0",
+    "xyz_file": {
+        "path": "tests/1uf2/input_poly.xyz",
+        "md5sum": "0196d085e81e20d380e537a2d6bc606b"
+    },
+    "prm_file": {
+        "path": "amoebabio18.prm",
+        "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
+    },
+    "verbosity": "high",
+    "vdw_cutoff": 12.0
+}
