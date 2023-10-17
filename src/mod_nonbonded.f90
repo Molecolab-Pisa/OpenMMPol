@@ -498,12 +498,12 @@ module mod_nonbonded
         real(rp), intent(inout) :: V
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh, nthreads, ithread
+        integer(ip) :: i, j, jc, l, ipair, ineigh, nthreads, ithread, nn
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
         type(ommp_topology_type), pointer :: top
         procedure(vdw_term), pointer :: vdw_func
 
-        logical(lp), allocatable :: nl_neigh(:,:)
+        integer(ip), allocatable :: nl_neigh(:,:)
         real(rp), allocatable :: nl_r(:,:)
 
         integer :: omp_get_num_threads, omp_get_thread_num
@@ -526,11 +526,13 @@ module mod_nonbonded
 
         if(vdw%use_nl) then
             call mallocate('vdw_potential [rneigh]', top%mm_atoms, nthreads, nl_r)
-            allocate(nl_neigh(top%mm_atoms, nthreads))
+            call mallocate('vdw_potential [nl_neigh]', top%mm_atoms, nthreads, nl_neigh)
+            nl_r = 0.0
+            nl_neigh = .false.
         end if
 
         !$omp parallel do default(shared) reduction(+:v)  schedule(dynamic) &
-        !$omp private(i,j,ineigh,ithread,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
+        !$omp private(i,j,jc,ineigh,ithread,nn,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
         do i=1, top%mm_atoms
             ithread = omp_get_thread_num() + 1
             if(abs(vdw%vdw_f(i) - 1.0_rp) < eps_rp) then
@@ -552,12 +554,18 @@ module mod_nonbonded
             ! If neighbor list are enabled get the one for the current
             if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, &
                                            nl_neigh(:,ithread), &
-                                           nl_r(:,ithread))
+                                           nl_r(:,ithread), nn)
 
-            do j=i+1, top%mm_atoms
+            do jc=1, top%mm_atoms
                 ! If the two atoms aren't neighbors, just skip the loop
                 if(vdw%use_nl) then
-                    if(.not. nl_neigh(j,ithread)) then
+                    if(jc > nn) exit !! All neighbors done!
+                    j = nl_neigh(jc,ithread)
+                else
+                    ! Skip all iteration with j <= i
+                    if(jc > i) then
+                        j = jc
+                    else
                         cycle
                     end if
                 end if
@@ -618,7 +626,7 @@ module mod_nonbonded
         
         if(vdw%use_nl) then
             call mfree('vdw_potential [rneigh]', nl_r)
-            deallocate(nl_neigh)
+            call mfree('vdw_potential [nl_neigh]', nl_neigh)
         end if
         call time_pull('VdW potential calculation')
     end subroutine vdw_potential
