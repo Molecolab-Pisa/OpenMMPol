@@ -373,7 +373,7 @@ module mod_io
         if(tcnt > 1) then
             elap = omp_get_wtime() - times(tcnt-1)
             tcnt = tcnt - 1
-            write(msg, "(3a, ': ', e8.2, ' s')") repeat('-', tcnt), '> ', s, elap
+            write(msg, "(3a, ': ', e14.6E2, ' s')") repeat('-', tcnt), '> ', s, elap
             call ommp_message(msg, OMMP_VERBOSE_HIGH, 'time')
         else
             call fatal_error('time_pull Cannot pull any value.')
