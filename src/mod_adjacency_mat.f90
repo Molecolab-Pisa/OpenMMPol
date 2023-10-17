@@ -39,7 +39,7 @@ module mod_adjacency_mat
 
     public :: yale_sparse
     public :: adj_mat_from_conn, build_conn_upto_n, matfree, matcpy, &
-              reallocate_mat
+              reallocate_mat, reverse_grp_tab
 
     contains
 
@@ -364,5 +364,64 @@ module mod_adjacency_mat
             end do
             call matfree(tmp)
         end subroutine build_conn_upto_n
+        
+        subroutine reverse_grp_tab(a2g, g2a)
+            use mod_memory, only: mallocate, mfree
+            !! Takes as argument an array of  group index for each
+            !! atom, and create a list of atms in each group using the
+            !! sparse matrix format (saved as Yale format).
+            !! This is used by cell lists, polarization group etc.
+            
+            implicit none
+
+            integer(ip), intent(in) :: a2g(:)
+            !! Index of polarization group for each MM atom
+            type(yale_sparse), intent(out) :: g2a
+            !! Indices of atoms included in each polarization group;
+            !! Atom indeces for the n-th group are found at 
+            !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
+
+            integer(ip) :: i, j, na, ng, ig
+            integer(ip), allocatable :: uc_data(:, :), g_dim(:)
+
+            na = size(a2g)
+            ng = maxval(a2g)
+
+            ! Find largest group
+            call mallocate('reverse_grp_tab [g_dim]', ng, g_dim)
+            g_dim = 0
+
+            !$omp parallel
+            do i=1, na
+                g_dim(a2g(i)) = g_dim(a2g(i)) + 1
+            end do
+
+            ! Struct for uncompressed data
+            call mallocate('reverse_grp_tab [uc_data]', maxval(g_dim), ng, uc_data)
+            ! First invert in an uncompressed structure
+            uc_data = 0
+            g_dim = 1
+
+            do i=1, na
+                ig = a2g(i)
+                uc_data(g_dim(ig),ig) = i
+                g_dim(ig) = g_dim(ig) + 1
+            end do
+            
+            ! Compress the list
+            g2a%n = ng
+            call mallocate('reverse_grp_tab [ri]', ng+1, g2a%ri)
+            call mallocate('reverse_grp_tab [ci]', na, g2a%ci)
+            g2a%ri(1) = 1
+            do i=1, ng
+                g2a%ri(i+1) = g2a%ri(i) + g_dim(i) - 1
+                g2a%ci(g2a%ri(i):g2a%ri(i+1)-1) = uc_data(1:g_dim(i)-1,i)
+            end do
+            
+            ! Free temporary mem
+            call mfree('reverse_grp_tab [uc_data]', uc_data)
+            call mfree('reverse_grp_tab [g_dim]', g_dim)
+
+        end subroutine reverse_grp_tab
 
 end module mod_adjacency_mat

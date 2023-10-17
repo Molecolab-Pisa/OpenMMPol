@@ -83,6 +83,7 @@ module mod_neighbor_list
 
         subroutine nl_update(nl, c)
             use mod_io, only: ommp_message, time_push, time_pull
+            use mod_adjacency_mat, only: reverse_grp_tab
             use mod_constants, only: OMMP_VERBOSE_LOW
             implicit none
             
@@ -125,20 +126,7 @@ module mod_neighbor_list
             end do
             
             ! Revert assignation to get neighbor list!
-            nl%c2p%n = nl%ncells
-            if(allocated(nl%c2p%ri)) call mfree('nl_update [ri]', nl%c2p%ri)
-            call mallocate('nl_update [ri]', nl%c2p%n+1, nl%c2p%ri)
-            if(.not. allocated(nl%c2p%ci)) call mallocate('nl_update [ci]', nl%n, nl%c2p%ci)
-            nl%c2p%ri(1) = 1
-            do i=1, nl%ncells
-                nl%c2p%ri(i+1) = nl%c2p%ri(i)
-                do j=1, nl%n
-                    if(nl%p2c(j) == i) then
-                        nl%c2p%ci(nl%c2p%ri(i+1)) = j
-                        nl%c2p%ri(i+1) = nl%c2p%ri(i+1) + 1
-                    end if
-                end do
-            end do
+            call reverse_grp_tab(nl%p2c, nl%c2p)
             call time_pull("Neighbor list update")
         end subroutine
 

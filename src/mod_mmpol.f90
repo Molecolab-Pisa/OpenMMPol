@@ -150,7 +150,7 @@ module mod_mmpol
         !!   * Build list for polarization groups, compute groups connectivity   
         !!   * performs multipoles rotation   
 
-        use mod_adjacency_mat, only: build_conn_upto_n, matcpy
+        use mod_adjacency_mat, only: build_conn_upto_n, matcpy, reverse_grp_tab
         use mod_io, only: ommp_message, time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
         use mod_electrostatics, only: thole_init, remove_null_pol, &
@@ -211,8 +211,8 @@ module mod_mmpol
             sys_obj%eel%q0(5:10,:) = sys_obj%eel%q0(5:10,:) / 3.0_rp
 
             ! polarization groups connectivity list
-            call reverse_polgrp_tab(sys_obj%eel%mmat_polgrp, &
-                                    sys_obj%eel%polgrp_mmat)
+            call reverse_grp_tab(sys_obj%eel%mmat_polgrp, &
+                                 sys_obj%eel%polgrp_mmat)
             call build_pg_adjacency_matrix(sys_obj%eel, pg_adj)
             call build_conn_upto_n(pg_adj, 3, sys_obj%eel%pg_conn, .true.)
 
@@ -258,64 +258,6 @@ module mod_mmpol
 
     end subroutine mmpol_terminate
     
-
-    ! TODO Move to eel module
-    subroutine reverse_polgrp_tab(mm2pg, pg2mm)
-        use mod_memory, only: mallocate, mfree
-        !! Takes as argument an array of polarization group index for each
-        !! atom, and create a list of atms in each group using the boolean
-        !! sparse matrix format (saved as Yale format).
-        
-        implicit none
-
-        integer(ip), intent(in) :: mm2pg(:)
-        !! Index of polarization group for each MM atom
-        type(yale_sparse), intent(out) :: pg2mm
-        !! Indices of atoms included in each polarization group;
-        !! Atom indeces for the n-th group are found at 
-        !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
-
-        integer(ip) :: i, j, mm_atoms, npg, ipg
-        integer(ip), allocatable :: uc_data(:, :), pg_dim(:)
-
-        mm_atoms = size(mm2pg)
-        npg = maxval(mm2pg)
-
-        ! Find largest PG
-        call mallocate('reverse_polgrp_tab [pg_dim]', npg, pg_dim)
-        pg_dim = 0
-        do i=1, mm_atoms
-            pg_dim(mm2pg(i)) = pg_dim(mm2pg(i)) + 1
-        end do
-
-        ! Struct for uncompressed data
-        call mallocate('reverse_polgrp_tab [uc_data]', maxval(pg_dim), npg, uc_data)
-        ! First invert in an uncompressed structure
-        uc_data = 0
-        pg_dim = 1
-
-        do i=1, mm_atoms
-            ipg = mm2pg(i)
-            uc_data(pg_dim(ipg),ipg) = i
-            pg_dim(ipg) = pg_dim(ipg) + 1
-        end do
-        
-        ! Compress the list
-        pg2mm%n = npg
-        call mallocate('reverse_polgrp_tab [ri]', npg+1, pg2mm%ri)
-        call mallocate('reverse_polgrp_tab [ci]', mm_atoms, pg2mm%ci)
-        pg2mm%ri(1) = 1
-        do i=1, npg
-            pg2mm%ri(i+1) = pg2mm%ri(i) + pg_dim(i) - 1
-            pg2mm%ci(pg2mm%ri(i):pg2mm%ri(i+1)-1) = uc_data(1:pg_dim(i)-1,i)
-        end do
-        
-        ! Free temporary mem
-        call mfree('reverse_polgrp_tab [uc_data]', uc_data)
-        call mfree('reverse_polgrp_tab [pg_dim]', pg_dim)
-
-    end subroutine reverse_polgrp_tab
-
     !TODO move to eel module
     subroutine build_pg_adjacency_matrix(eel, adj)
         !! Builds the adjacency matrix of polarization groups starting from
