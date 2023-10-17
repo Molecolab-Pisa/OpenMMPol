@@ -365,7 +365,7 @@ module mod_adjacency_mat
             call matfree(tmp)
         end subroutine build_conn_upto_n
         
-        subroutine reverse_grp_tab(a2g, g2a)
+        subroutine reverse_grp_tab(a2g, g2a, ng_in)
             use mod_memory, only: mallocate, mfree
             !! Takes as argument an array of  group index for each
             !! atom, and create a list of atms in each group using the
@@ -380,18 +380,27 @@ module mod_adjacency_mat
             !! Indices of atoms included in each polarization group;
             !! Atom indeces for the n-th group are found at 
             !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
+            integer(ip), intent(in), optional :: ng_in
+            !! Number of groups if it is not provided in input it is
+            !! assumed that the number of group equals the largest group
+            !! index, that is no empty groups are present after the one
+            !! with the largest index.
 
             integer(ip) :: i, j, na, ng, ig
             integer(ip), allocatable :: uc_data(:, :), g_dim(:)
 
             na = size(a2g)
-            ng = maxval(a2g)
+            if(present(ng_in)) then
+                ng = ng_in
+            else
+                ng = maxval(a2g)
+            end if
 
             ! Find largest group
             call mallocate('reverse_grp_tab [g_dim]', ng, g_dim)
             g_dim = 0
 
-            !$omp parallel
+            
             do i=1, na
                 g_dim(a2g(i)) = g_dim(a2g(i)) + 1
             end do
@@ -410,8 +419,10 @@ module mod_adjacency_mat
             
             ! Compress the list
             g2a%n = ng
-            call mallocate('reverse_grp_tab [ri]', ng+1, g2a%ri)
-            call mallocate('reverse_grp_tab [ci]', na, g2a%ci)
+            if(.not. allocated(g2a%ri)) &
+                call mallocate('reverse_grp_tab [ri]', ng+1, g2a%ri)
+            if(.not. allocated(g2a%ci)) &
+                call mallocate('reverse_grp_tab [ci]', na, g2a%ci)
             g2a%ri(1) = 1
             do i=1, ng
                 g2a%ri(i+1) = g2a%ri(i) + g_dim(i) - 1

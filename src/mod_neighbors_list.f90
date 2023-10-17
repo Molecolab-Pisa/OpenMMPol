@@ -126,7 +126,16 @@ module mod_neighbor_list
             end do
             
             ! Revert assignation to get neighbor list!
-            call reverse_grp_tab(nl%p2c, nl%c2p)
+            ! The number of cell could be different...
+            if(allocated(nl%c2p%ri)) then
+              if(size(nl%c2p%ri) /= nl%ncells+1) then
+                ! This automatically calls for the reallocation in 
+                ! reverse_grp_tab.
+                call mfree('nl_update [ri]', nl%c2p%ri)
+              end if
+            end if
+
+            call reverse_grp_tab(nl%p2c, nl%c2p, nl%ncells)
             call time_pull("Neighbor list update")
         end subroutine
 
