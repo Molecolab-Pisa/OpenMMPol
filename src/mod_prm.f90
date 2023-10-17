@@ -2896,7 +2896,7 @@ module mod_prm
         !! name of the input PRM file
 
         integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, k, l, iat, tokb, toke
+        integer(ip) :: ist, i, j, k, l, iat, tokb, toke, ipg
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         
         integer(ip), allocatable :: polat(:), pgspec(:,:) 
@@ -3176,7 +3176,7 @@ module mod_prm
             call set_screening_parameters(eel, eel%mscale, psc, dsc, usc)
         end if
 
-
+        ipg = 0
         ! Now assign the parameters to the atoms
         do i=1, size(top%attype)
             ! Polarization
@@ -3185,8 +3185,10 @@ module mod_prm
                     eel%pol(i) = isopol(j) * angstrom2au**3
                     !TODO Thole factors.
                     ! Assign a polgroup label to each atom
-                    if(eel%mmat_polgrp(i) == 0) &
-                        eel%mmat_polgrp(i) = maxval(eel%mmat_polgrp) + 1
+                    if(eel%mmat_polgrp(i) == 0) then
+                        ipg = ipg+1
+                        eel%mmat_polgrp(i) = ipg
+                    end if
                     
                     ! loop over the atoms connected to ith atom
                     do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
