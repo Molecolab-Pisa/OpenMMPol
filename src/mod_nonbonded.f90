@@ -527,8 +527,6 @@ module mod_nonbonded
         if(vdw%use_nl) then
             call mallocate('vdw_potential [rneigh]', top%mm_atoms, nthreads, nl_r)
             call mallocate('vdw_potential [nl_neigh]', top%mm_atoms, nthreads, nl_neigh)
-            nl_r = 0.0
-            nl_neigh = .false.
         end if
 
         !$omp parallel do default(shared) reduction(+:v)  schedule(dynamic) &
