@@ -31,6 +31,8 @@ extern void ommp_set_outputfile(const char *);
 extern void ommp_close_outputfile(void);
 extern void ommp_message(const char *, int32_t, const char *);
 extern void ommp_fatal(const char *);
+extern void ommp_time_pull(const char *);
+extern void ommp_time_push();
 extern void ommp_print_summary(OMMP_SYSTEM_PRT);
 extern void ommp_print_summary_to_file(OMMP_SYSTEM_PRT, const char *);
 

@@ -14,6 +14,7 @@ module mod_memory
     !! Unit file for memory errors, warning and debug
     integer(ip) :: maxmem !! Max memory that can be allocated in bytes
     integer(ip) :: usedmem !! Memory that is currently used by the code
+    integer(ip) :: max_used !! Maximum memory used since last call of mem_stat
     integer(ip) :: size_of_int !! Number of bytes for an integer
     integer(ip) :: size_of_real !! Number of bytes for a real
     integer(ip) :: size_of_logical !! Number of bytes for a logical (?)
@@ -21,7 +22,7 @@ module mod_memory
     logical :: do_chk_limit !! Decide if the soft memory limit is on
 
     public :: rp, ip, lp
-    public :: mallocate, mfree, memory_init
+    public :: mallocate, mfree, memory_init, mem_stat
     public :: use_8bytes_int 
     
     interface mallocate
@@ -82,12 +83,30 @@ module mod_memory
             do_chk_limit = do_chk
             maxmem = max_bytes
             usedmem = 0
+            max_used = 0
             size_of_real = sizeof(my_real)
             size_of_int = sizeof(my_int)
             size_of_logical = sizeof(my_bool)
             is_init = .true.
         end if
     end subroutine memory_init
+
+    function mem_stat(pv) result(mm)
+        !! Return the current value of maximum used memory, if an
+        !! argument is present set max_used to that value, otherwise
+        !! max_used is reset to -1
+        implicit none
+
+        integer(ip), intent(in), optional :: pv
+        integer(ip) :: mm
+
+        mm = max_used
+        if(present(pv)) then
+          if(max_used < pv) max_used = pv
+        else
+          max_used = usedmem
+        end if
+    end function
     
     subroutine r_alloc1(string, len1, v)
         !! Allocate a 1-dimensional array of reals
@@ -266,6 +285,7 @@ module mod_memory
         else
             usedmem = usedmem + lall
         end if
+        if(usedmem > max_used) max_used = usedmem
     end subroutine chk_alloc
 
     subroutine r_free1(string, v)

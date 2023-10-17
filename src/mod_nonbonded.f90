@@ -487,7 +487,8 @@ module mod_nonbonded
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm
 
-        use mod_io, only : fatal_error, time_push, time_pull
+        use mod_io, only : fatal_error
+        use mod_profiling, only: time_push, time_pull
         use mod_constants, only: eps_rp
         use mod_memory, only: mallocate, mfree
         use mod_neighbor_list, only: get_ith_nl

@@ -52,7 +52,8 @@ module mod_mmpol
         
         use mod_constants, only: OMMP_FF_AMBER, OMMP_FF_AMOEBA, OMMP_FF_UNKNOWN
         use mod_electrostatics, only: electrostatics_init
-        use mod_io, only: print_matrix, fatal_error, time_pull, time_push
+        use mod_io, only: print_matrix, fatal_error
+        use mod_profiling, only: time_push, time_pull
 
         implicit none
 
@@ -151,7 +152,8 @@ module mod_mmpol
         !!   * performs multipoles rotation   
 
         use mod_adjacency_mat, only: build_conn_upto_n, matcpy, reverse_grp_tab
-        use mod_io, only: ommp_message, time_push, time_pull
+        use mod_io, only: ommp_message
+        use mod_profiling, only: time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
         use mod_electrostatics, only: thole_init, remove_null_pol, &
                                       make_screening_lists

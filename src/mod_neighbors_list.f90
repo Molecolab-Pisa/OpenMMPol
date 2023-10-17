@@ -82,7 +82,8 @@ module mod_neighbor_list
         end subroutine
 
         subroutine nl_update(nl, c)
-            use mod_io, only: ommp_message, time_push, time_pull
+            use mod_io, only: ommp_message
+            use mod_profiling, only: time_push, time_pull
             use mod_adjacency_mat, only: reverse_grp_tab
             use mod_constants, only: OMMP_VERBOSE_LOW
             implicit none

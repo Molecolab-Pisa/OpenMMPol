@@ -62,7 +62,8 @@ module mod_polarization
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
-        use mod_io, only: print_matrix, time_pull, time_push
+        use mod_io, only: print_matrix
+        use mod_profiling, only: time_pull, time_push
         use mod_constants, only: OMMP_MATV_DIRECT, &
                                  OMMP_MATV_INCORE, &
                                  OMMP_MATV_NONE, &
