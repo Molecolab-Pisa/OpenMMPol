@@ -261,6 +261,7 @@ module mod_mmpol
 
     ! TODO Move to eel module
     subroutine reverse_polgrp_tab(mm2pg, pg2mm)
+        use mod_memory, only: mallocate, mfree
         !! Takes as argument an array of polarization group index for each
         !! atom, and create a list of atms in each group using the boolean
         !! sparse matrix format (saved as Yale format).
@@ -274,26 +275,45 @@ module mod_mmpol
         !! Atom indeces for the n-th group are found at 
         !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
 
-        integer(ip) :: i, j, mm_atoms
+        integer(ip) :: i, j, mm_atoms, npg, ipg
+        integer(ip), allocatable :: uc_data(:, :), pg_dim(:)
 
         mm_atoms = size(mm2pg)
+        npg = maxval(mm2pg)
 
-        ! Allocation of Yale fmt sparse matrix
-        pg2mm%n = maxval(mm2pg)
-        allocate(pg2mm%ri(pg2mm%n+1))
-        allocate(pg2mm%ci(mm_atoms))
-        pg2mm%ri(1) = 1
-
-        do i=1, pg2mm%n
-            pg2mm%ri(i+1) = pg2mm%ri(i)
-            
-            do j=1, mm_atoms
-                if(mm2pg(j) /= i) cycle
-                
-                pg2mm%ci(pg2mm%ri(i+1)) = j
-                pg2mm%ri(i+1) = pg2mm%ri(i+1) + 1
-            end do
+        ! Find largest PG
+        call mallocate('reverse_polgrp_tab [pg_dim]', npg, pg_dim)
+        pg_dim = 0
+        do i=1, mm_atoms
+            pg_dim(mm2pg(i)) = pg_dim(mm2pg(i)) + 1
         end do
+
+        ! Struct for uncompressed data
+        call mallocate('reverse_polgrp_tab [uc_data]', maxval(pg_dim), npg, uc_data)
+        ! First invert in an uncompressed structure
+        uc_data = 0
+        pg_dim = 1
+
+        do i=1, mm_atoms
+            ipg = mm2pg(i)
+            uc_data(pg_dim(ipg),ipg) = i
+            pg_dim(ipg) = pg_dim(ipg) + 1
+        end do
+        
+        ! Compress the list
+        pg2mm%n = npg
+        call mallocate('reverse_polgrp_tab [ri]', npg+1, pg2mm%ri)
+        call mallocate('reverse_polgrp_tab [ci]', mm_atoms, pg2mm%ci)
+        pg2mm%ri(1) = 1
+        do i=1, npg
+            pg2mm%ri(i+1) = pg2mm%ri(i) + pg_dim(i) - 1
+            pg2mm%ci(pg2mm%ri(i):pg2mm%ri(i+1)-1) = uc_data(1:pg_dim(i)-1,i)
+        end do
+        
+        ! Free temporary mem
+        call mfree('reverse_polgrp_tab [uc_data]', uc_data)
+        call mfree('reverse_polgrp_tab [pg_dim]', pg_dim)
+
     end subroutine reverse_polgrp_tab
 
     !TODO move to eel module
