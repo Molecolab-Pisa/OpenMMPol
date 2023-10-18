@@ -21,7 +21,7 @@ module mod_profiling
     integer(ip), parameter :: ntimes = 128
     integer(ip) :: tcnt = 1
     real(rp) :: times(ntimes)
-    integer(ip) :: maxmem(ntimes)
+    real(rp) :: maxmem(ntimes)
 #endif
 
     public :: time_pull, time_push
@@ -58,7 +58,7 @@ module mod_profiling
             elap = omp_get_wtime() - times(tcnt-1)
             !! Get maximum memory usage since last time push in
             !! GB, also make it ready for the next push/pull
-            mm = mem_stat(maxmem(tcnt-1)) / 1e9
+            mm = mem_stat(maxmem(tcnt-1))
             tcnt = tcnt - 1
             write(msg, "(3a, ': ', e14.6E2, ' s')") repeat('-', tcnt), '> ', s, elap
             call ommp_message(msg, OMMP_VERBOSE_HIGH, 'time')
