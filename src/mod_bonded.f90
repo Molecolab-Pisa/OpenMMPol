@@ -276,7 +276,7 @@ module mod_bonded
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
-            !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad)& 
+            !$omp parallel do default(shared) schedule(dynamic) & 
             !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,J_a,J_b) 
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
@@ -298,11 +298,13 @@ module mod_bonded
                 dl = l - bds%l0bond(i)
                 
                 g = 2 * bds%kbond(i) * dl
+                !$omp critical
                 if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
                 if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                !$omp end critical
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) & 
+            !$omp parallel do default(shared) schedule(dynamic) & 
             !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,J_a,J_b) 
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
@@ -326,8 +328,10 @@ module mod_bonded
                 g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl&
                                              + 2.0*bds%bond_quartic*dl**2)
 
+                !$omp critical
                 if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
                 if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                !$omp end critical
             end do
         end if
         
@@ -469,7 +473,7 @@ module mod_bonded
 
         if(.not. bds%use_angle) return
         
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,sk_a,sk_b,sk_c,sk_x,a,b,c,aux,thet,d_theta,g,Ja,Jb,Jc,Jx)
         do i=1, bds%nangle
             if(abs(bds%kangle(i)) < eps_rp) cycle
@@ -500,9 +504,11 @@ module mod_bonded
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
 
+                !$omp critical
                 if(.not. sk_a) grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
                 if(.not. sk_b) grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
                 if(.not. sk_c) grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
+                !$omp end critical
             
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
@@ -534,11 +540,12 @@ module mod_bonded
                                                + 4.0 * bds%angle_quartic * d_theta**2 &
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
-               
+                !$omp critical
                 if(.not. sk_a) grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
                 if(.not. sk_b) grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
                 if(.not. sk_c) grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
                 if(.not. sk_x) grad(:,bds%angauxat(i)) = grad(:,bds%angauxat(i)) + g * Jx
+                !$omp end critical
 
             end if
         end do
@@ -634,7 +641,7 @@ module mod_bonded
         
         if(.not. bds%use_strbnd) return
 
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad)&
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,ia,ib,ic,sk_a,sk_b,sk_c,a,b,c,l1,l2,d_l1,d_l2,thet,d_thet) &
         !$omp private(J1_a,J1_b,J2_b,J2_c,J3_a,J3_b,J3_c,g1,g2,g3)
         do i=1, bds%nstrbnd
@@ -669,9 +676,11 @@ module mod_bonded
             g2 = bds%strbndk2(i) * d_thet
             g3 = bds%strbndk1(i) * d_l1 + bds%strbndk2(i) * d_l2
 
+            !$omp critical
             if(.not. sk_a) grad(:,ia) = grad(:,ia) + J1_a * g1 + J3_a * g3
             if(.not. sk_b) grad(:,ib) = grad(:,ib) + J1_b * g1 + J2_b * g2 + J3_b * g3 
             if(.not. sk_c) grad(:,ic) = grad(:,ic) + J2_c * g2 + J3_c * g3
+            !$omp end critical
         end do
 
     end subroutine strbnd_geomgrad
@@ -775,7 +784,7 @@ module mod_bonded
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
-            !$omp parallel do default(shared)  reduction(+:grad) &
+            !$omp parallel do default(shared)  &
             !$omp private(i,ia,ib,sk_a,sk_b,l,dl,g,J_a,J_b)
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
@@ -795,11 +804,13 @@ module mod_bonded
                                   l, J_a, J_b)
                 dl = l - bds%l0urey(i)
                 g = 2 * bds%kurey(i) * dl
+                !$omp critical
                 if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
                 if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                !$omp end critical
             end do
         else
-            !$omp parallel do default(shared)  reduction(+:grad) &
+            !$omp parallel do default(shared) &
             !$omp private(i,ia,ib,sk_a,sk_b,l,dl,g,J_a,J_b)
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
@@ -822,8 +833,10 @@ module mod_bonded
                                              + 3.0/2.0 * bds%urey_cubic*dl &
                                              + 2.0 * bds%urey_quartic*dl**2)
 
+                !$omp critical
                 if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
                 if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                !$omp end critical
             end do
         end if
     end subroutine urey_geomgrad
@@ -936,7 +949,7 @@ module mod_bonded
         
         if(.not. bds%use_opb) return
         
-        !$omp parallel do default(shared) reduction(+:grad) schedule(dynamic)&
+        !$omp parallel do default(shared) schedule(dynamic)&
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%nopb
             ia = bds%opbat(2,i)
@@ -966,11 +979,13 @@ module mod_bonded
             g = bds%kopb(i) * thet * (2.0 + 3.0*bds%opb_cubic*thet &
                 + 4.0*bds%opb_quartic*thet**2 + 5.0*bds%opb_pentic*thet**3 &
                 + 6.0*bds%opb_sextic*thet**4)
-
+            
+            !$omp critical
             if(.not. sk_a) grad(:,ia) = grad(:,ia) + g * J_a
             if(.not. sk_b) grad(:,ib) = grad(:,ib) + g * J_b
             if(.not. sk_c) grad(:,ic) = grad(:,ic) + g * J_c
             if(.not. sk_d) grad(:,id) = grad(:,id) + g * J_d
+            !$omp end critical
         end do
     end subroutine opb_geomgrad
     
@@ -1093,7 +1108,7 @@ module mod_bonded
 
         if(.not. bds%use_pitors) return
         
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,ia,ib,ic,id,ie,if_,sk_a,sk_b,sk_c,sk_d,sk_e,sk_f) &
         !$omp private(J_a,J_b,J_c,J_d,J_e,J_f,g,thet)
         do i=1, bds%npitors
@@ -1131,12 +1146,14 @@ module mod_bonded
 
             g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
 
+            !$omp critical
             if(.not. sk_a) grad(:,ia) = grad(:,ia) + g * J_a
             if(.not. sk_b) grad(:,ib) = grad(:,ib) + g * J_b
             if(.not. sk_c) grad(:,ic) = grad(:,ic) + g * J_c
             if(.not. sk_d) grad(:,id) = grad(:,id) + g * J_d
             if(.not. sk_e) grad(:,ie) = grad(:,ie) + g * J_e
             if(.not. sk_f) grad(:,if_) = grad(:,if_) + g * J_f
+            !$omp end critical
         end do
     end subroutine pitors_geomgrad
     
@@ -1219,7 +1236,7 @@ module mod_bonded
         
         if(.not. bds%use_torsion) return
 
-        !$omp parallel do default(shared) reduction(+:grad)&
+        !$omp parallel do default(shared) &
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%ntorsion
             ia = bds%torsionat(1,i)
@@ -1251,10 +1268,12 @@ module mod_bonded
                 g = -real(bds%torsn(j,i)) * sin(real(bds%torsn(j,i))* thet &
                                                 - bds%torsphase(j,i)) &
                     * bds%torsamp(j,i)
+                !$omp critical
                 if(.not. sk_a) grad(:, ia) = grad(:, ia) + J_a * g
                 if(.not. sk_b) grad(:, ib) = grad(:, ib) + J_b * g
                 if(.not. sk_c) grad(:, ic) = grad(:, ic) + J_c * g
                 if(.not. sk_d) grad(:, id) = grad(:, id) + J_d * g
+                !$omp end critical
             end do
         end do
 
@@ -1310,7 +1329,7 @@ module mod_bonded
         
         if(.not. bds%use_imptorsion) return
         
-        !$omp parallel do default(shared) reduction(+:grad) &
+        !$omp parallel do default(shared) &
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%nimptorsion
             ! Atoms that defines the dihedral angle
@@ -1343,10 +1362,12 @@ module mod_bonded
                 g = -real(bds%imptorsn(j,i)) * sin(real(bds%imptorsn(j,i))* thet &
                                                    - bds%imptorsphase(j,i)) &
                                              * bds%imptorsamp(j,i)
+                !$omp critical
                 if(.not. sk_a) grad(:, ia) = grad(:, ia) + J_a * g
                 if(.not. sk_b) grad(:, ib) = grad(:, ib) + J_b * g
                 if(.not. sk_c) grad(:, ic) = grad(:, ic) + J_c * g
                 if(.not. sk_d) grad(:, id) = grad(:, id) + J_d * g
+                !$omp end critical
             end do
         end do
 
@@ -1504,7 +1525,7 @@ module mod_bonded
         
         if(.not. bds%use_angtor) return
 
-        !$omp parallel do default(shared) reduction(+:grad) &
+        !$omp parallel do default(shared) &
         !$omp private(thet, gt, dihef, da1, da2, angle1, angle2, Jt_a, Jt_b) &
         !$omp private(Jt_c, Jt_d, Ja1_a, Ja1_b, Ja1_c) &
         !$omp private(Ja2_a, Ja2_b, Ja2_c, i, j, k, ia1, ia2) &
@@ -1578,7 +1599,8 @@ module mod_bonded
 
             da1 = angle1 - bds%eqangle(ia1)
             da2 = angle2 - bds%eqangle(ia2)
-
+            
+            !$omp critical
             do k=1, 3
                 if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%angtork(k,i) * da1 * gt(k) * Jt_a
                 if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%angtork(k,i) * da1 * gt(k) * Jt_b
@@ -1598,6 +1620,7 @@ module mod_bonded
                 if(.not. sk_2b) grad(:,ia2_b) = grad(:,ia2_b) + bds%angtork(3+k,i) * dihef(k) * Ja2_b
                 if(.not. sk_2c) grad(:,ia2_c) = grad(:,ia2_c) + bds%angtork(3+k,i) * dihef(k) * Ja2_c
             end do
+            !$omp end critical
         end do
     end subroutine angtor_geomgrad
     
@@ -1677,7 +1700,7 @@ module mod_bonded
         
         if(.not. bds%use_strtor) return
 
-        !$omp parallel do default(shared) reduction(+:grad) &
+        !$omp parallel do default(shared) &
         !$omp private(thet, gt, dihef, dr1, dr2,  dr3, r1, r2, r3) &
         !$omp private(Jt_a, Jt_b, Jt_c, Jt_d, Jb1_a, Jb1_b, Jb2_a, Jb2_b) &
         !$omp private(Jb3_a, Jb3_b, i, j, k, ib1, ib2, ib3, it_a, it_b, it_c, it_d) &
@@ -1759,6 +1782,7 @@ module mod_bonded
                               r3, Jb3_a, Jb3_b) 
             dr3 = r3 - bds%l0bond(ib3)  
             
+            !$omp critical
             do k=1, 3
                 if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(k,i) * dr1 * gt(k) * Jt_a
                 if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(k,i) * dr1 * gt(k) * Jt_b
@@ -1784,6 +1808,7 @@ module mod_bonded
                 if(.not. sk_3a) grad(:,ib3_a) = grad(:,ib3_a) + bds%strtork(6+k,i) * dihef(k) * Jb3_a
                 if(.not. sk_3b) grad(:,ib3_b) = grad(:,ib3_b) + bds%strtork(6+k,i) * dihef(k) * Jb3_b
             end do
+            !$omp end critical
         end do
     end subroutine strtor_geomgrad
     
@@ -2044,7 +2069,7 @@ module mod_bonded
 
         if(.not. bds%use_tortor) return
         
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,iprm,ibeg,j,iend,ia,ib,ic,id,ie,sk_a,sk_b,sk_c,sk_d,sk_e) &
         !$omp private(thetx,thety,J1_a,J1_b,J1_c,J1_d,J2_b,J2_c,J2_d,J2_e,vtt,dvttdx,dvttdy)
         do i=1, bds%ntortor
@@ -2104,11 +2129,13 @@ module mod_bonded
                                         bds%ttmap_vy(ibeg:iend), &
                                         bds%ttmap_vxy(ibeg:iend))
 
+            !$omp critical
             if(.not. sk_a) grad(:,ia) = grad(:,ia) + J1_a * dvttdx
             if(.not. sk_b) grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
             if(.not. sk_c) grad(:,ic) = grad(:,ic) + J1_c * dvttdx + J2_c * dvttdy
             if(.not. sk_d) grad(:,id) = grad(:,id) + J1_d * dvttdx + J2_d * dvttdy
             if(.not. sk_e) grad(:,ie) = grad(:,ie) + J2_e * dvttdy
+            !$omp end critical
         end do
 
     end subroutine tortor_geomgrad
