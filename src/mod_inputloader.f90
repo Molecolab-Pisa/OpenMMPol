@@ -313,7 +313,9 @@ module mod_inputloader
                            assign_strbnd, assign_opb, assign_pitors, &
                            assign_torsion, assign_tortors, assign_angtor, &
                            assign_strtor, assign_imptorsion, get_prm_ff_type
-        use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
+        use mod_utils, only: starts_with_alpha, isreal, isint, &
+                             str_to_lower, str_uncomment, &
+                             tokenize_pure, atoi, atof
         use mod_io, only: large_file_read
 
         implicit none
@@ -327,7 +329,7 @@ module mod_inputloader
 
         integer(ip), parameter :: iof_xyzinp = 200, &
                                   maxn12 = 8
-        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke, lc
+        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, lc, tokx(2)
         integer(ip), allocatable :: i12(:,:), attype(:)
         character(len=OMMP_STR_CHAR_MAX) :: msg
         character(len=OMMP_STR_CHAR_MAX), allocatable :: lines(:), prm_buf(:)
@@ -358,8 +360,13 @@ module mod_inputloader
         call time_push()
         call large_file_read(xyz_file, lines)
         call time_pull('XYZ File reading')
-
         call large_file_read(prm_file, prm_buf)
+        ! Remove comments from prm file
+        !$omp parallel do
+        do i=1, size(prm_buf)
+            prm_buf(i) = str_to_lower(prm_buf(i))
+            prm_buf(i) = str_uncomment(prm_buf(i), '!')
+        end do
         
         ! First line contains as first word the number of atoms and
         ! then a comment that could be ignored.
@@ -374,27 +381,29 @@ module mod_inputloader
         top => sys_obj%top
         eel => sys_obj%eel
 
-        do i=1, my_mm_atoms
-           eel%polar_mm(i) = i 
-        end do
-
         ! Temporary quantities that are only used during the initialization
         call mallocate('mmpol_init_from_xyz [attype]', my_mm_atoms, attype)
         call mallocate('mmpol_init_from_xyz [i12]', maxn12, my_mm_atoms, i12)
-        attype = 0_ip
-        i12 = 0_ip
        
         call time_push()
-        !$omp parallel do default(shared) private(i, lc, tokb, toke) &
+        !$omp parallel do default(shared) private(i, lc, tokx) &
         !$omp private(atom_id, j)
         do i=1, my_mm_atoms
             lc = i+1
+            
+            ! Initializations
+            attype(i) = 0_ip
+            i12(:,i) = 0_ip
+            eel%polar_mm(i) = i
+
             ! First token contains an atom ID. Only sequential numbering is
             ! currently supported.
-            tokb = tokenize(lines(lc))
-            toke = tokenize(lines(lc), tokb)
+            !dir$ forceinline
+            tokx = tokenize_pure(lines(lc))
+            !dir$ forceinline
+            tokx = tokenize_pure(lines(lc), tokx(2))
 
-            read(lines(lc)(tokb:toke), *) atom_id
+            atom_id = atoi(lines(lc)(tokx(1):tokx(2)))
             if(atom_id /= i) then
                 call fatal_error('Non-sequential atom ids in xyz cannot be handled')
             end if
@@ -402,34 +411,35 @@ module mod_inputloader
             ! This token should contain an atom name, so it should start
             ! with a letter. If this is not true, an unexpected error should
             ! be raised.
-            tokb=toke+1
-            toke = tokenize(lines(lc), tokb)
-            if(isreal(lines(lc)(tokb:toke))) then
+            !dir$ forceinline
+            tokx = tokenize_pure(lines(lc), tokx(2)+1)
+            if(isreal(lines(lc)(tokx(1):tokx(2)))) then
                 call fatal_error('Atom symbol missing (or completely numerical) or PBC string present in XYZ')
             end if
 
-            tokb=toke+1
-            toke = tokenize(lines(lc), tokb, 3)
             ! The remaining part contains cartesian coordinates, atom type
             ! and connectivity for the current atom.
-            read(lines(lc)(tokb:toke), *) top%cmm(1,i), top%cmm(2,i), top%cmm(3,i)
+            do j=1, 3
+                ! Read coordinates and convert to angstrom
+                !dir$ forceinline
+                tokx = tokenize_pure(lines(lc), tokx(2)+1)
+                top%cmm(j,i) = atof(lines(lc)(tokx(1):tokx(2))) * angstrom2au
+            end do
             
-            tokb=toke+1
-            toke = tokenize(lines(lc), tokb)
-            read(lines(lc)(tokb:toke), *) attype(i)
+            !dir$ forceinline
+            tokx = tokenize_pure(lines(lc), tokx(2)+1)
+            attype(i) = atoi(lines(lc)(tokx(1):tokx(2)))
 
             do j=1, maxn12
-                tokb=toke+1
-                toke = tokenize(lines(lc), tokb)
-                if(toke < 0) exit
-                read(lines(lc)(tokb:toke), *) i12(j,i)
+                !dir$ forceinline
+                tokx = tokenize_pure(lines(lc), tokx(2)+1)
+                if(tokx(2) < 0) exit
+                i12(j,i) = atoi(lines(lc)(tokx(1):tokx(2)))
             end do
         end do
         deallocate(lines)
         call time_pull('Interpreting XYZ')
 
-        top%cmm = top%cmm * angstrom2au
-        
         ! Writes the adjacency matrix in Yale sparse format in adj and then
         ! build the connectivity up to 4th order. This is needed here to be
         ! able to assign the parameters
