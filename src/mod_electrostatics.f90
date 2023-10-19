@@ -452,17 +452,18 @@ module mod_electrostatics
     subroutine make_screening_lists(eel)
         use mod_memory, only: mallocate, mfree
         use mod_adjacency_mat, only: reallocate_mat
+        use mod_constants, only: eps_rp
         
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
         
         integer(ip) :: i, ineigh, ij, j, ns, ns_guess, n, npol, &
-                       ip, jp, ns_guess_grp, pg_i, igrp, grp
+                       ipp, jp, ns_guess_grp, pg_i, igrp, grp, ib, ie
         logical :: to_do, to_scale
         real(rp) :: scalf
-        logical, allocatable :: ltmp(:)
-        real(rp), allocatable :: rtmp(:)
+        integer(ip), allocatable :: itmp(:,:), ntmp(:), ibi(:)
+        real(rp), allocatable :: rtmp(:,:)
 
         if(eel%screening_list_done) return
 
@@ -471,10 +472,14 @@ module mod_electrostatics
 
         ! First estimate the maximum number of elements to scale
         ns_guess = 0
+        !$omp parallel do default(shared) private(ns, ineigh, i)
         do i=1, n
+            ns = 0
             do ineigh=1, 4
-                ns_guess = ns_guess + eel%top%conn(ineigh)%ri(i+1) - eel%top%conn(ineigh)%ri(i)
+                ns = ns + eel%top%conn(ineigh)%ri(i+1) - eel%top%conn(ineigh)%ri(i)
             end do
+            !$omp atomic
+            ns_guess = max(ns, ns_guess)
         end do
         
         if(eel%amoeba) then
@@ -482,141 +487,195 @@ module mod_electrostatics
             ! polarization group, so a second guess should be done and the 
             ! maximum is used in memory allocation.
             ns_guess_grp = 0
+            
+            !$omp parallel do default(shared) & 
+            !$omp private(i, pg_i, ineigh, igrp, grp, ns)
             do i=1, n
                 pg_i = eel%mmat_polgrp(i)
+                ns = 0
                 do ineigh=1, 4
                     do igrp=eel%pg_conn(ineigh)%ri(pg_i), &
                             eel%pg_conn(ineigh)%ri(pg_i+1)-1
 
                         grp = eel%pg_conn(ineigh)%ci(igrp)
-                        ns_guess_grp = ns_guess_grp + &
-                                       eel%polgrp_mmat%ri(grp+1)-eel%polgrp_mmat%ri(grp)
+                        ns = ns + eel%polgrp_mmat%ri(grp+1)-eel%polgrp_mmat%ri(grp)
                     end do
                 end do
+                !$omp atomic
+                ns_guess_grp = max(ns, ns_guess_grp)
             end do
             
-            if(ns_guess_grp > ns_guess) ns_guess = ns_guess_grp
-
+            ns_guess = max(ns_guess_grp, ns_guess)
         end if
 
         allocate(eel%list_S_S)
-        allocate(eel%list_S_S%ri(n+1))
+        call mallocate('make_screening_list [list_S_S%ri]', n+1, eel%list_S_S%ri)
         eel%list_S_S%ri = 1
-        allocate(eel%list_S_S%ci(ns_guess))
-        eel%list_S_S%n = ns_guess
+        !allocate(eel%list_S_S%ci(ns_guess))
+        !eel%list_S_S%n = ns_guess
         
         allocate(eel%list_P_P)
-        allocate(eel%list_P_P%ri(n+1))
+        call mallocate('make_screening_list [list_P_P%ri]', npol+1, eel%list_P_P%ri)
         eel%list_P_P%ri = 1
-        allocate(eel%list_P_P%ci(ns_guess))
-        eel%list_P_P%n = ns_guess
+        !allocate(eel%list_P_P%ci(ns_guess))
+        !eel%list_P_P%n = ns_guess
 
         allocate(eel%list_S_P_P)
-        allocate(eel%list_S_P_P%ri(n+1))
+        call mallocate('make_screening_list [list_S_P_P%ri]', n+1, eel%list_S_P_P%ri)
         eel%list_S_P_P%ri = 1
-        allocate(eel%list_S_P_P%ci(ns_guess))
-        eel%list_S_P_P%n = ns_guess
+        !allocate(eel%list_S_P_P%ci(ns_guess))
+        !eel%list_S_P_P%n = ns_guess
         
         if(eel%amoeba) then
             allocate(eel%list_S_P_D)
-            allocate(eel%list_S_P_D%ri(n+1))
+            call mallocate('make_screening_list [list_S_P_D%ri]', n+1, eel%list_S_P_D%ri)
             eel%list_S_P_D%ri = 1
-            allocate(eel%list_S_P_D%ci(ns_guess))
-            eel%list_S_P_D%n = ns_guess
+            !allocate(eel%list_S_P_D%ci(ns_guess))
+            !eel%list_S_P_D%n = ns_guess
         end if
 
-        allocate(ltmp(ns_guess))
-        call mallocate('make_screening_list [rtmp]', ns_guess, rtmp)
+        !allocate(ltmp(ns_guess))
+        call mallocate('make_screening_list [rtmp]', ns_guess, n, rtmp)
+        call mallocate('make_screening_list [itmp]', ns_guess, n, itmp)
+        call mallocate('make_screening_list [ntmp]', n, ntmp)
+        call mallocate('make_screening_list [ibi]', n, ibi)
+
 
         ! Build S S list
+        !$omp parallel do schedule(dynamic) default(shared) &
+        !$omp private(i,ineigh,ij,j, scalf)
         do i=1, n
-            eel%list_S_S%ri(i+1) = eel%list_S_S%ri(i)
+            ntmp(i) = 0
             do ineigh=1, 4
                 do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
                     j = eel%top%conn(ineigh)%ci(ij)
-                    call screening_rules(eel, i, 'S', j, 'S', '-', &
-                                         to_do, to_scale, scalf)
-                    if(.not. to_do .or. to_scale) then
-                        eel%list_S_S%ci(eel%list_S_S%ri(i+1)) = j
-                        ltmp(eel%list_S_S%ri(i+1)) = to_do
-                        rtmp(eel%list_S_S%ri(i+1)) = scalf
-                        eel%list_S_S%ri(i+1) = eel%list_S_S%ri(i+1) + 1
+                    scalf = screening_rules(eel, i, 'S', j, 'S', '-')
+                    if(abs(scalf-1.0) > eps_rp) then
+                        ntmp(i) = ntmp(i) + 1
+                        itmp(ntmp(i),i) = j
+                        rtmp(ntmp(i),i) = scalf
                     end if
                 end do
             end do
         end do
 
-        ! Shrink all the list to the actual number of needed elements
-        ns = eel%list_S_S%ri(n+1)-1
+        ! Compress the list
+        ibi(1) = 0
+        do i=1, n-1
+          ibi(i+1) = ntmp(i) + ibi(i)
+        end do
+        ns = ibi(n)
+
+        call mallocate('make_screening_list [scalef_S_S]', ns, eel%list_S_S%ci)
         call mallocate('make_screening_list [scalef_S_S]', ns, eel%scalef_S_S)
-        allocate(eel%todo_S_S(ns))
-        eel%scalef_S_S = rtmp(:ns)
-        eel%todo_S_S = ltmp(:ns)
-        call reallocate_mat(eel%list_S_S, ns)
+        call mallocate('make_screening_list [todo_S_S]', ns, eel%todo_S_S)
+        
+        !$omp parallel do default(shared) private(i,ib,j)
+        do i=1, n
+            ib = ibi(i)
+            eel%list_S_S%ri(i) = ib + 1
+            do j=1, ntmp(i)
+                  eel%list_S_S%ci(ib+j) = itmp(j,i)
+                  eel%scalef_S_S(ib+j) = rtmp(j,i)
+                  eel%todo_S_S(ib+j) = (abs(rtmp(j,i)) > eps_rp)
+            end do
+        end do
+        eel%list_S_S%ri(n+1) = ns + 1
 
         ! Build P P list
-        do ip=1, npol
-            eel%list_P_P%ri(ip+1) = eel%list_P_P%ri(ip)
-            i = eel%polar_mm(ip)
+        ntmp = 0
+        !$omp parallel do schedule(dynamic) default(shared) & 
+        !$omp private(ipp,i,ineigh,ij,j,jp,scalf)
+        do ipp=1, npol
+            i = eel%polar_mm(ipp)
             do ineigh=1, 4
                 do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
                     j = eel%top%conn(ineigh)%ci(ij)
                     jp = eel%mm_polar(j)
                     if(jp > 0) then
-                        call screening_rules(eel, ip, 'P', jp, 'P', '-', &
-                                            to_do, to_scale, scalf)
-                        if(.not. to_do .or. to_scale) then
-                            eel%list_P_P%ci(eel%list_P_P%ri(ip+1)) = jp
-                            ltmp(eel%list_P_P%ri(ip+1)) = to_do
-                            rtmp(eel%list_P_P%ri(ip+1)) = scalf
-                            eel%list_P_P%ri(ip+1) = eel%list_P_P%ri(ip+1) + 1
+                        scalf = screening_rules(eel, ipp, 'P', jp, 'P', '-')
+                        if(abs(scalf-1.0) > eps_rp) then
+                            ntmp(ipp) = ntmp(ipp) + 1
+                            itmp(ntmp(ipp),ipp) = jp
+                            rtmp(ntmp(ipp),ipp) = scalf
                         end if
                     end if
                 end do
             end do
         end do
 
-        ! Shrink all the list to the actual number of needed elements
-        ns = eel%list_P_P%ri(npol+1)-1
+        ! Compress the list
+        ibi(1) = 0
+        do i=1, npol-1
+          ibi(i+1) = ntmp(i) + ibi(i)
+        end do
+        ns = ibi(npol)
+        
+        call mallocate('make_screening_list [scalef_P_P]', ns, eel%list_P_P%ci)
         call mallocate('make_screening_list [scalef_P_P]', ns, eel%scalef_P_P)
-        allocate(eel%todo_P_P(ns))
-        eel%scalef_P_P = rtmp(:ns)
-        eel%todo_P_P = ltmp(:ns)
-        call reallocate_mat(eel%list_P_P, ns)
+        call mallocate('make_screening_list [todo_P_P]', ns, eel%todo_P_P)
+        
+        !$omp parallel do default(shared) private(i,ib,j)
+        do i=1, npol
+            ib = ibi(i)
+            eel%list_P_P%ri(i) = ib + 1
+            do j=1, ntmp(i)
+                eel%list_P_P%ci(ib+j) = itmp(j,i)
+                eel%scalef_P_P(ib+j) = rtmp(j,i)
+                eel%todo_P_P(ib+j) = (abs(rtmp(j,i) - 0.0) > eps_rp)
+            end do
+        end do
+        eel%list_P_P%ri(npol+1) = ns + 1
         
         ! Build S P lists
+        !$omp parallel do schedule(dynamic) default(shared) &
+        !$omp private(i,ineigh,ij,j,jp,scalf)
         do i=1, n
-            eel%list_S_P_P%ri(i+1) = eel%list_S_P_P%ri(i)
+            ntmp(i) = 0
             do ineigh=1, 4
                 do ij=eel%top%conn(ineigh)%ri(i), eel%top%conn(ineigh)%ri(i+1)-1
                     j = eel%top%conn(ineigh)%ci(ij)
                     jp = eel%mm_polar(j)
                     if(jp > 0) then
                         ! Needed for either amoeba or amber
-                        call screening_rules(eel, i, 'S', jp, 'P', 'P', &
-                                            to_do, to_scale, scalf)
-                        if(.not. to_do .or. to_scale) then
-                            eel%list_S_P_P%ci(eel%list_S_P_P%ri(i+1)) = jp
-                            ltmp(eel%list_S_P_P%ri(i+1)) = to_do
-                            rtmp(eel%list_S_P_P%ri(i+1)) = scalf
-                            eel%list_S_P_P%ri(i+1) = eel%list_S_P_P%ri(i+1) + 1
+                        scalf = screening_rules(eel, i, 'S', jp, 'P', 'P')
+                        if(abs(scalf-1.0) > eps_rp) then
+                            ntmp(i) = ntmp(i) + 1
+                            itmp(ntmp(i),i) = jp
+                            rtmp(ntmp(i),i) = scalf
                         end if
                     end if
                 end do
             end do
         end do
 
-        ! Shrink all the list to the actual number of needed elements
-        ns = eel%list_S_P_P%ri(n+1)-1
+        ibi(1) = 0
+        do i=1, n-1
+          ibi(i+1) = ntmp(i) + ibi(i)
+        end do
+        ns = ibi(n)
+
+        call mallocate('make_screening_list [scalef_S_P_P]', ns, eel%list_S_P_P%ci)
         call mallocate('make_screening_list [scalef_S_P_P]', ns, eel%scalef_S_P_P)
-        allocate(eel%todo_S_P_P(ns))
-        eel%scalef_S_P_P = rtmp(:ns)
-        eel%todo_S_P_P = ltmp(:ns)
-        call reallocate_mat(eel%list_S_P_P, ns)
+        call mallocate('make_screening_list [todo_S_P_P]', ns, eel%todo_S_P_P)
+        
+        !$omp parallel do default(shared) private(i,ib,j)
+        do i=1, n
+            ib = ibi(i)
+            eel%list_S_P_P%ri(i) = ib+1
+            do j=1, ntmp(i)
+                eel%list_S_P_P%ci(ib+j) = itmp(j,i)
+                eel%scalef_S_P_P(ib+j) = rtmp(j,i)
+                eel%todo_S_P_P(ib+j) = (abs(rtmp(j,i) - 0.0) > eps_rp)
+            end do
+        end do
+        eel%list_S_P_P%ri(n+1) = ns + 1
         
         if(eel%amoeba) then
+            !$omp parallel do schedule(dynamic) default(shared) &
+            !$omp private(i,ineigh,ij,j,jp,scalf,pg_i,igrp,grp)
             do i=1, n
-                eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i)
+                ntmp(i) = 0
                 pg_i = eel%mmat_polgrp(i)
                 
                 do ineigh=1, 4
@@ -629,13 +688,11 @@ module mod_electrostatics
                              eel%polgrp_mmat%ri(grp+1)-1
                             jp = eel%mm_polar(j)
                             if(jp > 0) then
-                                call screening_rules(eel, i, 'S', jp, 'P', 'D', &
-                                                    to_do, to_scale, scalf)
-                                if(.not. to_do .or. to_scale) then
-                                    eel%list_S_P_D%ci(eel%list_S_P_D%ri(i+1)) = jp
-                                    ltmp(eel%list_S_P_D%ri(i+1)) = to_do
-                                    rtmp(eel%list_S_P_D%ri(i+1)) = scalf
-                                    eel%list_S_P_D%ri(i+1) = eel%list_S_P_D%ri(i+1) + 1
+                                scalf = screening_rules(eel, i, 'S', jp, 'P', 'D')
+                                if(abs(scalf-1.0) > eps_rp) then
+                                    ntmp(i) = ntmp(i) + 1
+                                    itmp(ntmp(i),i) = jp
+                                    rtmp(ntmp(i),i) = scalf
                                 end if
                             end if
                         end do
@@ -643,18 +700,34 @@ module mod_electrostatics
                 end do
             end do
 
-            ns = eel%list_S_P_D%ri(n+1)-1
+            ibi(1) = 0
+            do i=1, n-1
+              ibi(i+1) = ntmp(i) + ibi(i)
+            end do
+            ns = ibi(n)
+
+            call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%list_S_P_D%ci)
             call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%scalef_S_P_D)
-            allocate(eel%todo_S_P_D(ns))
-            eel%scalef_S_P_D = rtmp(:ns)
-            eel%todo_S_P_D = ltmp(:ns)
-            call reallocate_mat(eel%list_S_P_D, ns)
+            call mallocate('make_screening_list [todo_S_P_D]', ns, eel%todo_S_P_D)
+            !$omp parallel do default(shared) private(i,ib,j)
+            do i=1, n
+                ib = ibi(i)
+                eel%list_S_P_D%ri(i) = ib+1
+                do j=1, ntmp(i)
+                    eel%list_S_P_D%ci(ib+j) = itmp(j,i)
+                    eel%scalef_S_P_D(ib+j) = rtmp(j,i)
+                    eel%todo_S_P_D(ib+j) = (abs(rtmp(j,i) - 0.0) > eps_rp)
+                end do
+            end do
+            eel%list_S_P_D%ri(n+1) = ns + 1
         end if
         
         eel%screening_list_done = .true.
 
-        deallocate(ltmp)
         call mfree('make_screening_list [rtmp]', rtmp)
+        call mfree('make_screening_list [itmp]', itmp)
+        call mfree('make_screening_list [ntmp]', ntmp)
+        call mfree('make_screening_list [ibi]', ibi)
     end subroutine
 
     subroutine thole_init(eel)
@@ -2307,8 +2380,7 @@ module mod_electrostatics
         end if
     end subroutine field_M2E
     
-    subroutine screening_rules(eel, i, kind_i, j, kind_j, in_field, &
-                               tocompute, toscale, scalf)
+    function screening_rules(eel, i, kind_i, j, kind_j, in_field) result(scalf)
         !! Utility function used to decide if an interaction between sites i and j
         !! should be computed and eventually scaled by a factor.
         !! This function is intended to be used in \(\mathcalO(n^2)\) code, for
@@ -2335,11 +2407,7 @@ module mod_electrostatics
         !! Type of sites i and j in the interaction for which the screening
         !! rules are required; possible choices are 'P' (polarizable site) or 
         !! 'S' (static site). Any other option will cause a fatal error.
-        logical, intent(out) :: tocompute
-        !! Interaction should be computed?
-        logical, intent(out) :: toscale
-        !! Interaction should be scaled?
-        real(rp), intent(out) :: scalf
+        real(rp) :: scalf
         !! Scale factor for the interaction
 
         integer(ip) :: ineigh, grp, igrp, pg_i
@@ -2400,9 +2468,7 @@ module mod_electrostatics
             interaction = 'M' !Mixed interaction is named M
         end if
 
-        ! Default return values
-        tocompute = .true.
-        toscale = .false.
+        ! Default return value
         scalf = 1.0_rp
         
         if((.not. amoeba) .or. &
@@ -2462,18 +2528,7 @@ module mod_electrostatics
             ! Unexpected error
             call fatal_error("Unexpected combination of parameter for screening_rules")
         end if
-                    
-        if(abs(scalf) < eps_rp) then 
-            ! Scaling factor is 0.0 so interaction should not be
-            ! computed
-            tocompute = .false.
-        else if(abs(scalf - 1.0_rp) < eps_rp) then
-            ! Scaling factor is 1.0 so it's just a normal 
-            ! interaction
-        else
-            toscale = .true.
-        end if
 
-    end subroutine screening_rules
+    end function screening_rules
 
 end module mod_electrostatics
