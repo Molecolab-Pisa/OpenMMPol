@@ -12,10 +12,28 @@ module mod_utils
     public :: starts_with_alpha, isreal, isint, tokenize, &
               count_substr_occurence, str_to_lower, &
               str_uncomment
+    public :: tokenize_pure
     public :: cyclic_spline, compute_bicubic_interp
     public :: cross_product, vec_skw, versor_der
-
-    contains
+    public :: atoi, atof
+    
+    interface
+       function atoi(in) bind(c)
+           use, intrinsic    :: iso_c_binding
+           integer(c_int)    :: atoi
+           character(c_char) :: in(*)
+           end function
+    end interface
+    
+    interface
+       function atof(in) bind(c)
+           use, intrinsic    :: iso_c_binding
+           real(c_double)    :: atof
+           character(c_char) :: in(*)
+           end function
+    end interface
+    
+  contains
 
     function str_to_lower(s)
         !! Convert string in input from upper case to lower case and return
@@ -131,6 +149,81 @@ module mod_utils
         isreal = (verify(s, '+-1234567890.') == 0)
         !isreal = isreal .and. (scan(s, '.') /= 0)
         return
+    end function
+    
+    pure function tokenize_pure(s, ib, ntok) result(tokenize)
+        !! This function is used to subsequently break a string into tokens.
+        !! Tokens separators are any number of spaces.   
+        !! If just the string is provided, the function returns the position of
+        !! the first printable character;   
+        !! If also ib is provided it saves the position of the first printable 
+        !! character after position ib (or ib itself) in ib and return the 
+        !! position of the last printable character before the first space after
+        !! ib. If ntok is specified instead of a single token, ntok are 
+        !! returned. In case of last token hitten -1 is returned.   
+        !! To divide a string follow the following scheme:   
+        !! 1. ib = tokenize(s)   
+        !! 2. ie = tokenize(s, ib)   
+        !! 3. tok1 = s(ib:ie)   
+        !! 4a. ib = ib+1   
+        !! 4b. ie = tokenize(s, ib)   
+        !! 5. tok2 = s(ib:ie)   
+
+        use mod_memory, only: ip
+        implicit none
+
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: s
+        !! String to subdivide in token
+        integer(ip), intent(in), optional :: ib
+        !! Index where to start token research (input)/Index where token 
+        !! begins (output)
+        integer(ip), intent(in), optional :: ntok
+        !! Number of token to be extracted
+        integer(ip) :: tokenize(2)
+        !! Index where token ends.
+
+        integer(ip) :: i, slen, ich, itok
+
+        slen = len(s)
+        ! Default return for end of string
+        tokenize(2) = -1
+        if(present(ib)) then
+            tokenize(1) = ib
+
+            ! This is a very unreasonable case
+            if(tokenize(1) > slen) return
+        
+            do i=tokenize(1), slen
+                ! Search the first valid char and save it in ib
+                ich = iachar(s(i:i))
+                if(ich > 32 .and. ich /= 127) exit
+            end do
+            tokenize(1) = i
+            if(tokenize(1) >= slen) return
+            
+            if(present(ntok)) then
+                itok = ntok
+            else
+                itok = 1
+            end if
+
+            do i=tokenize(1)+1, slen
+                ich = iachar(s(i:i))
+                if(ich <= 32 .or. ich == 127) then 
+                    ich = iachar(s(i-1:i-1))
+                    if(ich > 32 .and. ich /= 127) itok = itok - 1
+                end if
+                if(itok == 0) exit
+            end do
+            tokenize(2) = i-1
+        else 
+            tokenize(1) = 1
+            do i=1, slen
+                ich = iachar(s(i:i))
+                if(ich > 32 .and. ich /= 127) exit
+            end do
+            tokenize(2) = i
+        end if
     end function
 
     function tokenize(s, ib, ntok)
