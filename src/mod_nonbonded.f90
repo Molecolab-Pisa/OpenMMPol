@@ -560,6 +560,7 @@ module mod_nonbonded
                 if(vdw%use_nl) then
                     if(jc > nn) exit !! All neighbors done!
                     j = nl_neigh(jc,ithread)
+                    if(j <= i) cycle
                 else
                     ! Skip all iteration with j <= i
                     if(jc > i) then
@@ -714,6 +715,7 @@ module mod_nonbonded
                 if(vdw%use_nl) then
                     if(jc > nn) exit !! All neighbors done!
                     j = nl_neigh(jc,ithread)
+                    if(j <= i) cycle
                 else
                     ! Skip all iteration with j <= i
                     if(jc > i) then

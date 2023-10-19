@@ -24,9 +24,9 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
     if program == "init":
         tname = "{:s}_init".format(basename)
         tout = "{:s}.out".format(tname)
-        print("""add_test(NAME {:s} 
-                          COMMAND bin/${{TESTLANG}}_test_SI_init 
-                          ${{CMAKE_SOURCE_DIR}}/tests/{:s} 
+        print("""add_test(NAME {:s}
+                          COMMAND bin/${{TESTLANG}}_test_SI_init
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           Testing/{:s})""".format(tname, jsonfile, tout),
               file=fout)
         print("""add_test(NAME {:s}_comp
@@ -35,9 +35,9 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s})""".format(tname, tout, ref),
               file=fout)
         print("if (HDF5_WORKS)", file=fout)
-        print("""add_test(NAME {:s}_HDF5 
-                          COMMAND bin/${{TESTLANG}}_test_SI_init 
-                          {:s} 
+        print("""add_test(NAME {:s}_HDF5
+                          COMMAND bin/${{TESTLANG}}_test_SI_init
+                          {:s}
                           Testing/{:s}_HDF5)""".format(tname, converted_to_hdf5[jsonfile], tout),
               file=fout)
         print("""add_test(NAME {:s}_comp_HDF5
@@ -60,27 +60,27 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
             ef_str = ''
         tout = "{:s}.out".format(tname)
 
-        print("""add_test(NAME {:s} 
-                          COMMAND bin/${{TESTLANG}}_test_SI_potential 
+        print("""add_test(NAME {:s}
+                          COMMAND bin/${{TESTLANG}}_test_SI_potential
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           Testing/{:s} {:s})""".format(tname, jsonfile, tout, ef_str),
               file=fout)
-        print("""add_test(NAME {:s}_comp 
+        print("""add_test(NAME {:s}_comp
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_potential.py
                           Testing/{:s}
-                          ${{CMAKE_SOURCE_DIR}}/tests/{:s} 
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
         print("if (HDF5_WORKS)", file=fout)
-        print("""add_test(NAME {:s}_HDF5 
-                          COMMAND bin/${{TESTLANG}}_test_SI_potential 
+        print("""add_test(NAME {:s}_HDF5
+                          COMMAND bin/${{TESTLANG}}_test_SI_potential
                           {:s}
                           Testing/{:s}_HDF5 {:s})""".format(tname, converted_to_hdf5[jsonfile], tout, ef_str),
               file=fout)
-        print("""add_test(NAME {:s}_comp_HDF5 
+        print("""add_test(NAME {:s}_comp_HDF5
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_potential.py
                           Testing/{:s}_HDF5
-                          ${{CMAKE_SOURCE_DIR}}/tests/{:s} 
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
         print("endif ()", file=fout)
@@ -89,7 +89,7 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
             atol = 1e-5
         if rtol is None:
             rtol = 1e-6
-        
+
         tname = "{:s}_ipd".format(basename)
         if ef.lower() != "none":
             tname += '_{:s}'.format(path.basename(ef)[:-4])
@@ -98,15 +98,15 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
             ef_str = ''
         tout = "{:s}.out".format(tname)
 
-        print("""add_test(NAME {:s} 
-                          COMMAND bin/${{TESTLANG}}_test_SI_potential 
+        print("""add_test(NAME {:s}
+                          COMMAND bin/${{TESTLANG}}_test_SI_potential
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           Testing/{:s} {:s})""".format(tname, jsonfile, tout, ef_str),
               file=fout)
-        print("""add_test(NAME {:s}_comp 
+        print("""add_test(NAME {:s}_comp
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_ipd.py
                           Testing/{:s}
-                          ${{CMAKE_SOURCE_DIR}}/tests/{:s} 
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
     elif program == "grad-num":
@@ -114,7 +114,7 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
             atol = atol_grad
         if rtol is None:
             rtol = rtol_grad
-        
+
         tname = "{:s}_geomgrad".format(basename)
         tname_num = tname+'_num'
         tout_num = "{:s}.out".format(tname_num)
@@ -125,29 +125,29 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
         if ref.lower() != "none":
             doref = True
 
-        print("""add_test(NAME {:s} 
+        print("""add_test(NAME {:s}
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad_num
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           Testing/{:s})""".format(tname_num, jsonfile, tout_num),
               file=fout)
-        print("""add_test(NAME {:s} 
+        print("""add_test(NAME {:s}
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           Testing/{:s})""".format(tname_ana, jsonfile, tout_ana),
               file=fout)
-        print("""add_test(NAME {:s}_comp_num_ana 
+        print("""add_test(NAME {:s}_comp_num_ana
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                           Testing/{:s}
-                          Testing/{:s} 
+                          Testing/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
               file=fout)
         print("if (HDF5_WORKS)", file=fout)
-        print("""add_test(NAME {:s}_HDF5 
+        print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad_num
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname_num, converted_to_hdf5[jsonfile], tout_num),
               file=fout)
-        print("""add_test(NAME {:s}_HDF5 
+        print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
@@ -155,18 +155,18 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
         print("""add_test(NAME {:s}_comp_num_ana_HDF5
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                           Testing/{:s}_HDF5
-                          Testing/{:s}_HDF5 
+                          Testing/{:s}_HDF5
                           {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
               file=fout)
         print("endif ()", file=fout)
         if doref:
-            print("""add_test(NAME {:s}_comp_ana_ref 
+            print("""add_test(NAME {:s}_comp_ana_ref
                             COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                             Testing/{:s}
                             ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                             {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
                 file=fout)
-            print("""add_test(NAME {:s}_comp_num_ref 
+            print("""add_test(NAME {:s}_comp_num_ref
                             COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                             Testing/{:s}
                             ${{CMAKE_SOURCE_DIR}}/tests/{:s}
@@ -177,18 +177,18 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
             atol = atol_grad
         if rtol is None:
             rtol = rtol_grad
-        
+
         tname = "{:s}_geomgrad".format(basename)
         tname_ana = tname+'_ana'
         tout_ana = "{:s}.out".format(tname_ana)
         doref = False
 
-        print("""add_test(NAME {:s} 
+        print("""add_test(NAME {:s}
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           Testing/{:s})""".format(tname_ana, jsonfile, tout_ana),
               file=fout)
-        print("""add_test(NAME {:s}_comp_ana_ref 
+        print("""add_test(NAME {:s}_comp_ana_ref
                         COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                         Testing/{:s}
                         ${{CMAKE_SOURCE_DIR}}/tests/{:s}
@@ -200,7 +200,7 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
               file=fout)
-        print("""add_test(NAME {:s}_comp_ana_ref_HDF5 
+        print("""add_test(NAME {:s}_comp_ana_ref_HDF5
                         COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                         Testing/{:s}
                         ${{CMAKE_SOURCE_DIR}}/tests/{:s}
@@ -221,7 +221,7 @@ with open("test_list") as f, \
             else:
                 atol = None
             if len(tok) >= 6:
-                rtol = float(tok[6])
+                rtol = float(tok[5])
             else:
                 rtol = None
             generate_test(jsonf, program, ref, ef, fout, atol, rtol)
