@@ -10,6 +10,7 @@ module mod_link_atom
                              default_link_atom_n_eel_remove
     use mod_nonbonded, only: vdw_geomgrad_inter
     use mod_bonded, only: ommp_bonded_type
+    use mod_io, only: large_file_read
 
     implicit none
     private
@@ -175,9 +176,10 @@ module mod_link_atom
 
             real(rp) :: removed_charge, qred, old_q
             integer(ip) :: n_eel_remove = default_link_atom_n_eel_remove
-            integer(ip) :: i, j, idx, ii
+            integer(ip) :: ist, i, j, idx, ii
             type(ommp_electrostatics_type) :: tmp_eel
             character(len=OMMP_STR_CHAR_MAX) :: msg
+            character(len=OMMP_STR_CHAR_MAX), allocatable :: prm_buf(:)
             integer(ip), allocatable :: attocheck(:)
             
             ! Check if in the complete topology some of the atoms connected
@@ -206,9 +208,12 @@ module mod_link_atom
 
             call electrostatics_init(tmp_eel, eel%amoeba, la%qmmmtop%mm_atoms, &
                                      la%qmmmtop)
-            call assign_mpoles(tmp_eel, prmfile)
-            old_q = sum(eel%q(1,:))
+            
+            call large_file_read(prmfile, prm_buf)
+            call assign_mpoles(tmp_eel, prm_buf)
+            deallocate(prm_buf) 
 
+            old_q = sum(eel%q(1,:))
             do i=1, size(attocheck)
                 j = attocheck(i)
                     if(abs(tmp_eel%q(1,la%mm2full(j)) - eel%q(1,j)) > eps_rp) then
@@ -505,15 +510,17 @@ module mod_link_atom
             
             type(ommp_bonded_type) :: tmp_bnd
             integer(ip), parameter :: maxt = 1024
-            integer(ip) :: i, j, nqm, nterms, iterms(maxt)
+            integer(ip) :: ist, i, j, nqm, nterms, iterms(maxt)
             character(len=OMMP_STR_CHAR_MAX) :: message
+            character(len=OMMP_STR_CHAR_MAX), allocatable :: prm_buf(:)
 
             call check_conn_matrix(la%qmmmtop, 4)
             tmp_bnd%top => la%qmmmtop
             la%bds%top => la%qmmmtop
 
+            call large_file_read(prmfile, prm_buf)
             ! Bonded terms
-            call assign_bond(tmp_bnd, prmfile, la%qm2full, 2)
+            call assign_bond(tmp_bnd, prm_buf, la%qm2full, 2)
             if(tmp_bnd%use_bond) then
                 nterms = 0
                 do i=1, tmp_bnd%nbond
@@ -550,7 +557,7 @@ module mod_link_atom
                 call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
             end if
             
-            call assign_angle(tmp_bnd, prmfile, la%qm2full, 2)
+            call assign_angle(tmp_bnd, prm_buf, la%qm2full, 2)
             if(tmp_bnd%use_angle) then
                 nterms = 0
                 do i=1, tmp_bnd%nangle
@@ -610,7 +617,7 @@ module mod_link_atom
                 call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
             end if
             
-            call assign_torsion(tmp_bnd, prmfile)
+            call assign_torsion(tmp_bnd, prm_buf)
             if(tmp_bnd%use_torsion) then
                 nterms = 0
                 do i=1, tmp_bnd%ntorsion
@@ -649,7 +656,8 @@ module mod_link_atom
                 write(message, "(I0, A)") nterms, " torsion terms added due to link atoms."
                 call ommp_message(message, OMMP_VERBOSE_LOW, "linkatom")
             end if
-
+            
+            deallocate(prm_buf)
             call bonded_terminate(tmp_bnd)
         end subroutine
 

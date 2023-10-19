@@ -1,6 +1,6 @@
 module mod_inputloader
-    use mod_io, only: ommp_message, fatal_error, &
-                     time_push, time_pull
+    use mod_io, only: ommp_message, fatal_error
+    use mod_profiling, only: time_push, time_pull
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
     use mod_mmpol, only: ommp_system
@@ -101,7 +101,7 @@ module mod_inputloader
             call fatal_error('MMP file is only supported with version 2 or 3.')
 
         !TODO
-        call memory_init(.false., 0)
+        call memory_init(.false., 0.0_rp)
         
         call skip_lines(iof_mmpinp, 2)
         read(iof_mmpinp,*) my_ff_type
@@ -314,6 +314,7 @@ module mod_inputloader
                            assign_torsion, assign_tortors, assign_angtor, &
                            assign_strtor, assign_imptorsion, get_prm_ff_type
         use mod_utils, only: starts_with_alpha, isreal, isint, tokenize
+        use mod_io, only: large_file_read
 
         implicit none
 
@@ -326,9 +327,10 @@ module mod_inputloader
 
         integer(ip), parameter :: iof_xyzinp = 200, &
                                   maxn12 = 8
-        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke
+        integer(ip) :: my_mm_atoms, ist, i, j, atom_id, tokb, toke, lc
         integer(ip), allocatable :: i12(:,:), attype(:)
-        character(len=OMMP_STR_CHAR_MAX) :: line, msg
+        character(len=OMMP_STR_CHAR_MAX) :: msg
+        character(len=OMMP_STR_CHAR_MAX), allocatable :: lines(:), prm_buf(:)
         logical :: fex
         type(yale_sparse) :: adj
         type(ommp_topology_type), pointer :: top
@@ -351,26 +353,22 @@ module mod_inputloader
 
         write(msg, "(A)") "Reading XYZ file: "//xyz_file(1:len(trim(xyz_file)))
         call ommp_message(msg, OMMP_VERBOSE_DEBUG)
-        ! open tinker xyz file
-        open(unit=iof_xyzinp, &
-             file=xyz_file(1:len(trim(xyz_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
+        
+        ! read tinker xyz file
+        call time_push()
+        call large_file_read(xyz_file, lines)
+        call time_pull('XYZ File reading')
 
-        if(ist /= 0) then
-            call fatal_error('Error while opening XYZ input file')
-        end if
-
+        call large_file_read(prm_file, prm_buf)
+        
         ! First line contains as first word the number of atoms and
         ! then a comment that could be ignored.
-        read(iof_xyzinp, *) my_mm_atoms
+        read(lines(1), *) my_mm_atoms
         
         ! Initialize the mmpol module
         ! TODO I'm assuming that it is AMOEBA and fully polarizable
         
-        call mmpol_init(sys_obj, get_prm_ff_type(prm_file), &
+        call mmpol_init(sys_obj, get_prm_ff_type(prm_buf), &
                         my_mm_atoms, my_mm_atoms)
         ! Those are just shortcut
         top => sys_obj%top
@@ -385,16 +383,18 @@ module mod_inputloader
         call mallocate('mmpol_init_from_xyz [i12]', maxn12, my_mm_atoms, i12)
         attype = 0_ip
         i12 = 0_ip
-
+       
+        call time_push()
+        !$omp parallel do default(shared) private(i, lc, tokb, toke) &
+        !$omp private(atom_id, j)
         do i=1, my_mm_atoms
-            read(iof_xyzinp, '(A)') line
-
+            lc = i+1
             ! First token contains an atom ID. Only sequential numbering is
             ! currently supported.
-            tokb = tokenize(line)
-            toke = tokenize(line, tokb)
+            tokb = tokenize(lines(lc))
+            toke = tokenize(lines(lc), tokb)
 
-            read(line(tokb:toke), *) atom_id
+            read(lines(lc)(tokb:toke), *) atom_id
             if(atom_id /= i) then
                 call fatal_error('Non-sequential atom ids in xyz cannot be handled')
             end if
@@ -403,31 +403,30 @@ module mod_inputloader
             ! with a letter. If this is not true, an unexpected error should
             ! be raised.
             tokb=toke+1
-            toke = tokenize(line, tokb)
-            if(isreal(line(tokb:toke))) then
+            toke = tokenize(lines(lc), tokb)
+            if(isreal(lines(lc)(tokb:toke))) then
                 call fatal_error('Atom symbol missing (or completely numerical) or PBC string present in XYZ')
             end if
 
             tokb=toke+1
-            toke = tokenize(line, tokb, 3)
+            toke = tokenize(lines(lc), tokb, 3)
             ! The remaining part contains cartesian coordinates, atom type
             ! and connectivity for the current atom.
-            read(line(tokb:toke), *) top%cmm(1,i), top%cmm(2,i), top%cmm(3,i)
+            read(lines(lc)(tokb:toke), *) top%cmm(1,i), top%cmm(2,i), top%cmm(3,i)
             
             tokb=toke+1
-            toke = tokenize(line, tokb)
-            read(line(tokb:toke), *) attype(i)
+            toke = tokenize(lines(lc), tokb)
+            read(lines(lc)(tokb:toke), *) attype(i)
 
             do j=1, maxn12
                 tokb=toke+1
-                toke = tokenize(line, tokb)
+                toke = tokenize(lines(lc), tokb)
                 if(toke < 0) exit
-                read(line(tokb:toke), *) i12(j,i)
+                read(lines(lc)(tokb:toke), *) i12(j,i)
             end do
-            
         end do
-        ! Close XYZ file after reading
-        close(iof_xyzinp)
+        deallocate(lines)
+        call time_pull('Interpreting XYZ')
 
         top%cmm = top%cmm * angstrom2au
         
@@ -438,8 +437,8 @@ module mod_inputloader
         call build_conn_upto_n(adj, 4, top%conn, .false.)
 
         call mfree('mmpol_init_from_xyz [i12]', i12)
-        
-        if( .not. check_keyword(prm_file)) then
+
+        if( .not. check_keyword(prm_buf)) then
             call fatal_error("PRM file cannot be completely understood")
         end if
         call time_pull("XYZ reading and topology generation")
@@ -447,35 +446,65 @@ module mod_inputloader
         top%attype = attype
         top%attype_initialized = .true.
         call mfree('mmpol_init_from_xyz [attype]', attype)
-        
+       
+        call time_push()
         call time_push()
         call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
-        call assign_pol(eel, prm_file)
-        call assign_mpoles(eel, prm_file)
+        call assign_pol(eel, prm_buf)
+        call time_pull('Assigning pol prm')
+        call time_push()
+        call assign_mpoles(eel, prm_buf)
         call time_pull('Assigning electrostatic prm')
         
         call time_push()
         call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_nonbonded(sys_obj)
-        call assign_vdw(sys_obj%vdw, top, prm_file)
+        call assign_vdw(sys_obj%vdw, top, prm_buf)
         call time_pull('Assigning non-bonded prm')
         
         call time_push()
         call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
+        call time_push()
         call mmpol_init_bonded(sys_obj)
         call check_conn_matrix(sys_obj%top, 4)
-        call assign_bond(sys_obj%bds, prm_file)
-        call assign_angle(sys_obj%bds, prm_file)
-        call assign_urey(sys_obj%bds, prm_file)
-        call assign_strbnd(sys_obj%bds, prm_file)
-        call assign_opb(sys_obj%bds, prm_file)
-        call assign_pitors(sys_obj%bds, prm_file)
-        call assign_torsion(sys_obj%bds, prm_file)
-        call assign_imptorsion(sys_obj%bds, prm_file)
-        call assign_tortors(sys_obj%bds, prm_file)
-        call assign_angtor(sys_obj%bds, prm_file)
-        call assign_strtor(sys_obj%bds, prm_file)
+        call time_pull('Preparing bond assignament')
+        call time_push
+        call assign_bond(sys_obj%bds, prm_buf)
+        call time_pull('bond prm')
+        call time_push
+        call assign_angle(sys_obj%bds, prm_buf)
+        call time_pull('angle prm')
+        call time_push
+        call assign_urey(sys_obj%bds, prm_buf)
+        call time_pull('urey prm')
+        call time_push
+        call assign_strbnd(sys_obj%bds, prm_buf)
+        call time_pull('strbnd prm')
+        call time_push
+        call assign_opb(sys_obj%bds, prm_buf)
+        call time_pull('opb prm')
+        call time_push
+        call assign_pitors(sys_obj%bds, prm_buf)
+        call time_pull('pitors prm')
+        call time_push
+        call assign_torsion(sys_obj%bds, prm_buf)
+        call time_pull('torsion prm')
+        call time_push
+        call assign_imptorsion(sys_obj%bds, prm_buf)
+        call time_pull('imptors prm')
+        call time_push
+        call assign_tortors(sys_obj%bds, prm_buf)
+        call time_pull('torstors prm')
+        call time_push
+        call assign_angtor(sys_obj%bds, prm_buf)
+        call time_pull('angtor prm')
+        call time_push
+        call assign_strtor(sys_obj%bds, prm_buf)
+        call time_pull('strtor prm')
         call time_pull('Assigning bonded prm')
+        call time_pull('Total prm assignament')
+
+        deallocate(prm_buf)
 
         call mmpol_prepare(sys_obj)
         call time_pull('MMPol initialization from .xyz file')

@@ -1142,6 +1142,7 @@ module ommp_interface
         use mod_mmpol, only: mmpol_init_link_atom
         use mod_nonbonded, only: vdw_remove_potential
         use mod_memory, only: lp
+        use mod_io, only: large_file_read
 
         implicit none
 
@@ -1409,6 +1410,8 @@ module ommp_interface
                            assign_strbnd, assign_opb, assign_pitors, &
                            assign_torsion, assign_tortors, assign_angtor, &
                            assign_strtor, assign_imptorsion, get_prm_ff_type
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+        use mod_io, only: fatal_error, large_file_read
         
         implicit none
 
@@ -1416,9 +1419,8 @@ module ommp_interface
         type(ommp_qm_helper), intent(in) :: qmh
         character(len=*), intent(in) :: prm_file
 
-        integer(ommp_integer) :: i
-        
-        !call ommp_time_push()
+        integer(ommp_integer) :: i, ist
+        character(len=OMMP_STR_CHAR_MAX), allocatable :: prm_buf(:)
 
         if(.not. (qmh%qm_top%attype_initialized .and. &
                   qmh%qm_top%atz_initialized)) &
@@ -1427,7 +1429,10 @@ module ommp_interface
                               &number should be set.")
 
         allocate(sys)
-        call mmpol_init(sys, get_prm_ff_type(prm_file), &
+        ! Load prm file in RAM
+        call large_file_read(prm_file, prm_buf)
+
+        call mmpol_init(sys, get_prm_ff_type(prm_buf), &
                         qmh%qm_top%mm_atoms, qmh%qm_top%mm_atoms)
         
         do i=1, sys%top%mm_atoms
@@ -1448,32 +1453,35 @@ module ommp_interface
         ! Create connectivities from adjacency matrix
         call build_conn_upto_n(qmh%qm_top%conn(1), 4, sys%top%conn, .false.)
         ! Now assign parameters
-        if( .not. check_keyword(prm_file)) then
+        
+        if( .not. check_keyword(prm_buf)) then
             call ommp_fatal("PRM file cannot be completely understood")
         end if
     
         call ommp_message("QMH->SYS Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
-        call assign_pol(sys%eel, prm_file)
-        call assign_mpoles(sys%eel, prm_file)
+        call assign_pol(sys%eel, prm_buf)
+        call assign_mpoles(sys%eel, prm_buf)
         
         call ommp_message("QMH->SYS Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_nonbonded(sys)
-        call assign_vdw(sys%vdw, sys%top, prm_file)
+        call assign_vdw(sys%vdw, sys%top, prm_buf)
         
         call ommp_message("QMH->SYS Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_bonded(sys)
         call check_conn_matrix(sys%top, 4)
-        call assign_bond(sys%bds, prm_file)
-        call assign_angle(sys%bds, prm_file)
-        call assign_urey(sys%bds, prm_file)
-        call assign_strbnd(sys%bds, prm_file)
-        call assign_opb(sys%bds, prm_file)
-        call assign_pitors(sys%bds, prm_file)
-        call assign_torsion(sys%bds, prm_file)
-        call assign_imptorsion(sys%bds, prm_file)
-        call assign_tortors(sys%bds, prm_file)
-        call assign_angtor(sys%bds, prm_file)
-        call assign_strtor(sys%bds, prm_file)
+        call assign_bond(sys%bds, prm_buf)
+        call assign_angle(sys%bds, prm_buf)
+        call assign_urey(sys%bds, prm_buf)
+        call assign_strbnd(sys%bds, prm_buf)
+        call assign_opb(sys%bds, prm_buf)
+        call assign_pitors(sys%bds, prm_buf)
+        call assign_torsion(sys%bds, prm_buf)
+        call assign_imptorsion(sys%bds, prm_buf)
+        call assign_tortors(sys%bds, prm_buf)
+        call assign_angtor(sys%bds, prm_buf)
+        call assign_strtor(sys%bds, prm_buf)
+        
+        deallocate(prm_buf)
 
         call mmpol_prepare(sys)
         !call ommp_time_pull('Conversion of QMHelper to OMMP System')

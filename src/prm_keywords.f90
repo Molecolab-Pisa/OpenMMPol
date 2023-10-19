@@ -304,7 +304,7 @@ function keyword_is_recognized(kw)
     end do
 end function
 
-function check_keyword(prm_file)
+function check_keyword(prm_buf)
     use mod_memory, only : ip
     use mod_utils, only : starts_with_alpha, str_to_lower, tokenize
     use mod_io, only : ommp_message
@@ -312,7 +312,7 @@ function check_keyword(prm_file)
     
     implicit none
 
-    character(len=*), intent(in) :: prm_file
+    character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
     !! name of the input PRM file
     logical :: check_keyword
     
@@ -322,26 +322,13 @@ function check_keyword(prm_file)
 
     integer(ip), parameter :: nalready = 256
     character(len=OMMP_STR_CHAR_MAX) :: unrecog(nalready), ignored(nalready)
-    integer(ip) :: nunrecog = 0, nignored = 0, i
+    integer(ip) :: nunrecog = 0, nignored = 0, i,il
     logical :: already_unr, already_ign 
-    
-    ! open tinker xyz file
-    open(unit=iof_prminp, &
-         file=prm_file(1:len(trim(prm_file))), &
-         form='formatted', &
-         access='sequential', &
-         iostat=ist, &
-         action='read')
-    
-    if(ist /= 0) then
-       call fatal_error('Error while opening PRM input file')
-    end if
     
     check_keyword = .true.
 
-    do while(ist == 0) 
-        read(iof_prminp, '(A)', iostat=ist) line
-        line = str_to_lower(line)
+    do il=1, size(prm_buf)
+        line = str_to_lower(prm_buf(il))
 
         ! Only lines that start with a char do contain keyword
         if(starts_with_alpha(line)) then
