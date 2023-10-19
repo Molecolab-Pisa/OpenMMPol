@@ -24,6 +24,7 @@ module mod_io
     public :: set_iof_mmpol, close_output
     public :: set_verbosity, ommp_message, fatal_error, ommp_version
     public :: print_matrix, print_int_vec
+    public :: large_file_read
 
     interface print_matrix
         !! Interface for matrix printing function
@@ -337,4 +338,82 @@ module mod_io
         write(out_unit,'(t5, 10i8)') vec(ib:ie)
 
     end subroutine print_int_vec
+    
+    subroutine  large_file_read(fname, outstr)
+        !! This function attempt some magic to speed up the read of a
+        !! large text file in order to transfer it to memory.
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+        implicit none 
+
+        character(len=*), intent(in) :: fname
+        !! File to be read
+        character(len=OMMP_STR_CHAR_MAX), allocatable, intent(out) :: outstr(:)
+        !! Data structure to be filled with the data from file
+
+        character(len=:), allocatable :: buf
+        character :: nlc
+
+        integer(ip) :: inu, i, nline
+        integer(ip), allocatable :: lineidx(:)
+        integer(8) :: fs
+        integer(ip) :: err_r, ierr
+
+        err_r = 0
+
+        inquire(file = fname, size = fs, iostat = ierr)
+        if(fs < 0 .or. ierr > 0) then
+          call fatal_error("Error while checking size of file '"//fname//"'. Cannot continue.")
+        end if
+
+        if(allocated(outstr)) then
+          deallocate(outstr)
+        end if
+
+        allocate(character(len=fs) :: buf)
+
+        open(newunit=inu, & 
+             file=fname, &
+             form='unformatted', &
+             action='read', &
+             access='stream', &
+             status='old')
+
+        read(inu,pos=1,iostat=err_r) buf
+
+        if(err_r /= 0) call fatal_error("Error while reading file '"//fname//"'. Cannot continue.")
+
+        nlc = new_line(buf(1:1))
+
+        !nline = 1
+        !do i=1, fs
+        !    if(buf(i:i) == nlc) then
+        !      nline = nline + 1
+        !    end if
+        !end do
+
+        ! I think it's just faster to allocate the maximum number of lines
+        ! that could possibly be there...
+        allocate(lineidx(fs))
+
+        nline = 2
+        lineidx(1) = 0
+        do i=1, fs
+            if(buf(i:i) == nlc) then
+              lineidx(nline) = i
+              nline = nline + 1
+            end if
+        end do
+        lineidx(nline) = fs
+
+        allocate(outstr(nline-1))
+
+        !$omp parallel do
+        do i=1, nline-1
+            outstr(i) = buf(lineidx(i)+1:lineidx(i+1)-1)
+        end do
+
+        deallocate(lineidx)
+        deallocate(buf)
+    end subroutine
+
 end module mod_io
