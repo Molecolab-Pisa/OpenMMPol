@@ -379,9 +379,9 @@ module mod_io
              status='old')
 
         read(inu,pos=1,iostat=err_r) buf
+        close(inu)
 
         if(err_r /= 0) call fatal_error("Error while reading file '"//fname//"'. Cannot continue.")
-
         nlc = new_line(buf(1:1))
 
         !nline = 1
@@ -407,7 +407,6 @@ module mod_io
 
         allocate(outstr(nline-1))
 
-        !$omp parallel do
         do i=1, nline-1
             outstr(i) = buf(lineidx(i)+1:lineidx(i+1)-1)
         end do
