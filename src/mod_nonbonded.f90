@@ -637,6 +637,9 @@ module mod_nonbonded
         use mod_io, only : fatal_error
         use mod_constants, only: eps_rp
         use mod_jacobian_mat, only: Rij_jacobian
+        use mod_profiling, only: time_push, time_pull
+        use mod_memory, only: mallocate, mfree
+        use mod_neighbor_list, only: get_ith_nl
         implicit none
 
         type(ommp_nonbonded_type), intent(in), target :: vdw
@@ -644,12 +647,23 @@ module mod_nonbonded
         real(rp), intent(inout) :: grad(3,vdw%top%mm_atoms)
         !! Gradients, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j
+        integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j, jc, &
+                       nn, ithread, nthreads
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, J_i(3), J_j(3), Rijg, &
                     f_i, f_j
         logical :: skip
         type(ommp_topology_type), pointer :: top
         procedure(vdw_gterm), pointer :: vdw_gfunc
+        
+        integer(ip), allocatable :: nl_neigh(:,:)
+        real(rp), allocatable :: nl_r(:,:)
+        
+        integer :: omp_get_num_threads, omp_get_thread_num
+        
+        call time_push()
+        !$omp parallel
+        nthreads = omp_get_num_threads()
+        !$omp end parallel
 
         top => vdw%top
         select case(vdw%vdwtype)
@@ -661,11 +675,17 @@ module mod_nonbonded
                 vdw_gfunc => vdw_buffered_7_14_Rijgrad
                 call fatal_error("Unexpected error in vdw_geomgrad")
         end select
+        
+        if(vdw%use_nl) then
+            call mallocate('vdw_geomgrad [rneigh]', top%mm_atoms, nthreads, nl_r)
+            call mallocate('vdw_geomgrad [nl_neigh]', top%mm_atoms, nthreads, nl_neigh)
+        end if
 
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,ci,cj,ineigh,ineigh_i,ineigh_j,f_i,f_j,s,ipair,l) &
-        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j,skip)
+        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j,skip,jc,nn,ithread)
         do i=1, top%mm_atoms
+            ithread = omp_get_thread_num() + 1
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top%cmm(:,i)
                 ineigh_i = 0 ! This is needed later for force projection
@@ -685,7 +705,23 @@ module mod_nonbonded
                                             top%cmm(:,ineigh_i)) * f_i
             endif
                 
-            do j=i+1, top%mm_atoms
+            if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, &
+                                           nl_neigh(:,ithread), &
+                                           nl_r(:,ithread), nn)
+
+            do jc=1, top%mm_atoms
+                ! If the two atoms aren't neighbors, just skip the loop
+                if(vdw%use_nl) then
+                    if(jc > nn) exit !! All neighbors done!
+                    j = nl_neigh(jc,ithread)
+                else
+                    ! Skip all iteration with j <= i
+                    if(jc > i) then
+                        j = jc
+                    else
+                        cycle
+                    end if
+                end if
                 ! Compute the screening factor for this pair
                 s = 1.0_rp
                 do ineigh=1,4
@@ -782,6 +818,7 @@ module mod_nonbonded
                 end if
             end do
         end do
+        call time_pull('VdW gradients calculation')
     end subroutine
     
     subroutine vdw_potential_inter(vdw1, vdw2, V)
