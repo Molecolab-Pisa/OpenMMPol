@@ -198,6 +198,7 @@ module mod_qm_helper
             use mod_prm, only: assign_vdw
             use mod_io, only: fatal_error, large_file_read
             use mod_constants, only: OMMP_STR_CHAR_MAX
+            use mod_utils, only: str_to_lower, str_uncomment
 
             implicit none
 
@@ -205,7 +206,7 @@ module mod_qm_helper
             character(len=*), intent(in) :: prmfile
             
             character(len=OMMP_STR_CHAR_MAX), allocatable :: prm_buf(:)
-            integer(ip) :: ist
+            integer(ip) :: ist, i
             
             if(qm%use_nonbonded) then
                 call fatal_error("VdW is already initialized!")
@@ -217,6 +218,12 @@ module mod_qm_helper
             end if
             
             call large_file_read(prmfile, prm_buf)
+            ! Remove comments from prm file
+            !$omp parallel do
+            do i=1, size(prm_buf)
+                prm_buf(i) = str_to_lower(prm_buf(i))
+                prm_buf(i) = str_uncomment(prm_buf(i), '!')
+            end do
             
             allocate(qm%qm_vdw)
             call assign_vdw(qm%qm_vdw, qm%qm_top, prm_buf)

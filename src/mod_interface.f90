@@ -1142,7 +1142,6 @@ module ommp_interface
         use mod_mmpol, only: mmpol_init_link_atom
         use mod_nonbonded, only: vdw_remove_potential
         use mod_memory, only: lp
-        use mod_io, only: large_file_read
 
         implicit none
 
@@ -1412,6 +1411,7 @@ module ommp_interface
                            assign_strtor, assign_imptorsion, get_prm_ff_type
         use mod_constants, only: OMMP_STR_CHAR_MAX
         use mod_io, only: fatal_error, large_file_read
+        use mod_utils, only: str_to_lower, str_uncomment
         
         implicit none
 
@@ -1431,6 +1431,12 @@ module ommp_interface
         allocate(sys)
         ! Load prm file in RAM
         call large_file_read(prm_file, prm_buf)
+        ! Remove comments from prm file
+        !$omp parallel do
+        do i=1, size(prm_buf)
+            prm_buf(i) = str_to_lower(prm_buf(i))
+            prm_buf(i) = str_uncomment(prm_buf(i), '!')
+        end do
 
         call mmpol_init(sys, get_prm_ff_type(prm_buf), &
                         qmh%qm_top%mm_atoms, qmh%qm_top%mm_atoms)
