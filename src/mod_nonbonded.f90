@@ -790,33 +790,67 @@ module mod_nonbonded
 
                     Rijg = Rijg * s
 
-                    !$omp critical
                     if(ineigh_i == 0) then
-                        if(.not. (top%use_frozen .and. top%frozen(i))) &
-                            grad(:,i) =  grad(:,i) + J_i * Rijg
+                        if(.not. (top%use_frozen .and. top%frozen(i))) then
+                            !$omp atomic update
+                            grad(1,i) =  grad(1,i) + J_i(1) * Rijg
+                            !$omp atomic update
+                            grad(2,i) =  grad(2,i) + J_i(2) * Rijg
+                            !$omp atomic update
+                            grad(3,i) =  grad(3,i) + J_i(3) * Rijg
+                        end if
                     else
                         ! If the center is displaced, the forces should be 
                         ! projected onto the two atoms that determine the
                         ! position of the center
-                        if(.not. (top%use_frozen .and. top%frozen(i))) &
-                            grad(:,i) = grad(:,i) + J_i * Rijg * f_i
-                        if(.not. (top%use_frozen .and. top%frozen(ineigh_i))) &
-                            grad(:,ineigh_i) = grad(:,ineigh_i) + J_i * Rijg * (1-f_i)
+                        if(.not. (top%use_frozen .and. top%frozen(i))) then
+                            !$omp atomic update
+                            grad(1,i) = grad(1,i) + J_i(1) * Rijg * f_i
+                            !$omp atomic update
+                            grad(2,i) = grad(2,i) + J_i(2) * Rijg * f_i
+                            !$omp atomic update
+                            grad(3,i) = grad(3,i) + J_i(3) * Rijg * f_i
+                        end if
+                        if(.not. (top%use_frozen .and. top%frozen(ineigh_i))) then
+                            !$omp atomic update
+                            grad(1,ineigh_i) = grad(1,ineigh_i) + J_i(1) * Rijg * (1-f_i)
+                            !$omp atomic update
+                            grad(2,ineigh_i) = grad(2,ineigh_i) + J_i(2) * Rijg * (1-f_i)
+                            !$omp atomic update
+                            grad(3,ineigh_i) = grad(3,ineigh_i) + J_i(3) * Rijg * (1-f_i)
+                        end if
                     end if
 
                     if(ineigh_j == 0) then
-                        if(.not. (top%use_frozen .and. top%frozen(j))) &
-                            grad(:,j) =  grad(:,j) + J_j * Rijg
+                        if(.not. (top%use_frozen .and. top%frozen(j))) then
+                            !$omp atomic update
+                            grad(1,j) =  grad(1,j) + J_j(1) * Rijg
+                            !$omp atomic update
+                            grad(2,j) =  grad(2,j) + J_j(2) * Rijg
+                            !$omp atomic update
+                            grad(3,j) =  grad(3,j) + J_j(3) * Rijg
+                        end if
                     else
                         ! If the center is displaced, the forces should be 
                         ! projected onto the two atoms that determine the
                         ! position of the center
-                        if(.not. (top%use_frozen .and. top%frozen(j))) &
-                            grad(:,j) = grad(:,j) + J_j * Rijg * f_j
-                        if(.not. (top%use_frozen .and. top%frozen(ineigh_j))) &
-                            grad(:,ineigh_j) = grad(:,ineigh_j) + J_j * Rijg * (1-f_j)
+                        if(.not. (top%use_frozen .and. top%frozen(j))) then
+                            !$omp atomic update
+                            grad(1,j) = grad(1,j) + J_j(1) * Rijg * f_j
+                            !$omp atomic update
+                            grad(2,j) = grad(2,j) + J_j(2) * Rijg * f_j
+                            !$omp atomic update
+                            grad(3,j) = grad(3,j) + J_j(3) * Rijg * f_j
+                        end if
+                        if(.not. (top%use_frozen .and. top%frozen(ineigh_j))) then
+                            !$omp atomic update
+                            grad(1,ineigh_j) = grad(1,ineigh_j) + J_j(1) * Rijg * (1-f_j)
+                            !$omp atomic update
+                            grad(2,ineigh_j) = grad(2,ineigh_j) + J_j(2) * Rijg * (1-f_j)
+                            !$omp atomic update
+                            grad(3,ineigh_j) = grad(3,ineigh_j) + J_j(3) * Rijg * (1-f_j)
+                        end if
                     endif
-                    !$omp end critical
                 end if
             end do
         end do

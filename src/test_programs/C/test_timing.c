@@ -117,6 +117,7 @@ int main(int argc, char **argv){
     eit = ommp_get_imptorsion_energy(my_system);
     ommp_time_pull("Total energy bonded");
 
+    ommp_vdw_geomgrad(my_system, grd);
     ommp_time_push();
     ommp_bond_geomgrad(my_system, grd);
     ommp_angle_geomgrad(my_system, grd);
