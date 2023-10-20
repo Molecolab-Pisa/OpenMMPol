@@ -443,14 +443,23 @@ module mod_inputloader
         ! Writes the adjacency matrix in Yale sparse format in adj and then
         ! build the connectivity up to 4th order. This is needed here to be
         ! able to assign the parameters
+        
+        call time_push()
+        call time_push()
         call adj_mat_from_conn(i12, adj)
+        call time_pull('adj_mat_from_conn')
+        call time_push()
         call build_conn_upto_n(adj, 4, top%conn, .false.)
+        call time_pull('build')
 
         call mfree('mmpol_init_from_xyz [i12]', i12)
-
+        call time_pull('Adj matrix')
+        
+        call time_push()
         if( .not. check_keyword(prm_buf)) then
             call fatal_error("PRM file cannot be completely understood")
         end if
+        call time_pull("CHK PRM")
         call time_pull("XYZ reading and topology generation")
 
         top%attype = attype
