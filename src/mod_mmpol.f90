@@ -171,20 +171,15 @@ module mod_mmpol
         call ommp_message("Building connectivity lists", OMMP_VERBOSE_DEBUG)
         
         ! compute connectivity lists from connected atoms
-        call time_push()
         if(size(sys_obj%top%conn) < 4) then
             call matcpy(sys_obj%top%conn(1), adj)
             deallocate(sys_obj%top%conn)
             call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if
-        call time_pull("Build con up to n")
 
-        call time_push()
         call remove_null_pol(sys_obj%eel)
-        call time_pull("Remove null pol")
        
         if(sys_obj%eel%pol_atoms > 0) then
-            call time_push()
             call ommp_message("Creating MM->polar and polar->MM lists", &
                               OMMP_VERBOSE_DEBUG)
             ! invert mm_polar list creating mm_polar
@@ -201,16 +196,12 @@ module mod_mmpol
             do i = 1, sys_obj%eel%pol_atoms
                 sys_obj%eel%cpol(:,i) = sys_obj%top%cmm(:, sys_obj%eel%polar_mm(i))
             end do
-            call time_pull("Other elec")
 
             call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
             ! compute factors for thole damping
-            call time_push()
             call thole_init(sys_obj%eel)
-            call time_pull("Thole")
         end if
 
-        call time_push()
         if(sys_obj%amoeba) then
             ! Copy multipoles from q to q0
             sys_obj%eel%q0 = sys_obj%eel%q
@@ -230,7 +221,6 @@ module mod_mmpol
             ! performs multipoles rotation
             call rotate_multipoles(sys_obj%eel)
         end if
-        call time_pull("Amoeba magics")
 
         call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)
         call time_push()

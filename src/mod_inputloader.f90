@@ -445,22 +445,14 @@ module mod_inputloader
         ! build the connectivity up to 4th order. This is needed here to be
         ! able to assign the parameters
         
-        call time_push()
-        call time_push()
         call adj_mat_from_conn(i12, adj)
-        call time_pull('adj_mat_from_conn')
-        call time_push()
         call build_conn_upto_n(adj, 4, top%conn, .false.)
-        call time_pull('build')
 
         call mfree('mmpol_init_from_xyz [i12]', i12)
-        call time_pull('Adj matrix')
         
-        call time_push()
         if( .not. check_keyword(prm_buf)) then
             call fatal_error("PRM file cannot be completely understood")
         end if
-        call time_pull("CHK PRM")
         call time_pull("XYZ reading and topology generation")
 
         top%attype = attype
@@ -468,60 +460,28 @@ module mod_inputloader
         call mfree('mmpol_init_from_xyz [attype]', attype)
        
         call time_push()
-        call time_push()
         call ommp_message("Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
         call assign_pol(eel, prm_buf)
-        call time_pull('Assigning pol prm')
-        call time_push()
         call assign_mpoles(eel, prm_buf)
-        call time_pull('Assigning electrostatic prm')
         
-        call time_push()
         call ommp_message("Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_nonbonded(sys_obj)
         call assign_vdw(sys_obj%vdw, top, prm_buf)
-        call time_pull('Assigning non-bonded prm')
         
-        call time_push()
         call ommp_message("Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
-        call time_push()
         call mmpol_init_bonded(sys_obj)
         call check_conn_matrix(sys_obj%top, 4)
-        call time_pull('Preparing bond assignament')
-        call time_push
         call assign_bond(sys_obj%bds, prm_buf)
-        call time_pull('bond prm')
-        call time_push
         call assign_angle(sys_obj%bds, prm_buf)
-        call time_pull('angle prm')
-        call time_push
         call assign_urey(sys_obj%bds, prm_buf)
-        call time_pull('urey prm')
-        call time_push
         call assign_strbnd(sys_obj%bds, prm_buf)
-        call time_pull('strbnd prm')
-        call time_push
         call assign_opb(sys_obj%bds, prm_buf)
-        call time_pull('opb prm')
-        call time_push
         call assign_pitors(sys_obj%bds, prm_buf)
-        call time_pull('pitors prm')
-        call time_push
         call assign_torsion(sys_obj%bds, prm_buf)
-        call time_pull('torsion prm')
-        call time_push
         call assign_imptorsion(sys_obj%bds, prm_buf)
-        call time_pull('imptors prm')
-        call time_push
         call assign_tortors(sys_obj%bds, prm_buf)
-        call time_pull('torstors prm')
-        call time_push
         call assign_angtor(sys_obj%bds, prm_buf)
-        call time_pull('angtor prm')
-        call time_push
         call assign_strtor(sys_obj%bds, prm_buf)
-        call time_pull('strtor prm')
-        call time_pull('Assigning bonded prm')
         call time_pull('Total prm assignament')
 
         deallocate(prm_buf)

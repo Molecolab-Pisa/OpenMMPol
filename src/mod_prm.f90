@@ -159,6 +159,7 @@ module mod_prm
             end if
         end do
         
+        !$omp parallel do
         do i = 1, top%mm_atoms
             if(.not. top%atclass_initialized) then
                 top%atclass(i) = typeclass(top%attype(i)) 
@@ -3209,16 +3210,19 @@ module mod_prm
             call fatal_error(errstring)
         end if
         
-        if(eel%amoeba) then
-            eel%mol_frame = 0
-            eel%ix = 0
-            eel%iy = 0
-            eel%iz = 0
-            eel%q0 = 0.0
-        end if
-        eel%q = 0.0
 
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,only12,j,found13,ax_found,iax,iat,done) 
         do i=1, size(top%attype)
+            if(eel%amoeba) then
+                eel%mol_frame(i) = 0
+                eel%ix(i) = 0
+                eel%iy(i) = 0
+                eel%iz(i) = 0
+                eel%q0(:,i) = 0.0
+            end if
+            eel%q(:,i) = 0.0
+
             ! Flag to check assignament
             done = .false.
 
