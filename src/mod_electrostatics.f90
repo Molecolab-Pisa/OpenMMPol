@@ -451,7 +451,7 @@ module mod_electrostatics
 
     subroutine make_screening_lists(eel)
         use mod_memory, only: mallocate, mfree
-        use mod_adjacency_mat, only: reallocate_mat
+        use mod_adjacency_mat, only: compress_list, compress_data
         use mod_constants, only: eps_rp
         
         implicit none
@@ -462,7 +462,7 @@ module mod_electrostatics
                        ipp, jp, ns_guess_grp, pg_i, igrp, grp, ib, ie
         logical :: to_do, to_scale
         real(rp) :: scalf
-        integer(ip), allocatable :: itmp(:,:), ntmp(:), ibi(:)
+        integer(ip), allocatable :: itmp(:,:), ntmp(:)
         real(rp), allocatable :: rtmp(:,:)
 
         if(eel%screening_list_done) return
@@ -509,36 +509,14 @@ module mod_electrostatics
         end if
 
         allocate(eel%list_S_S)
-        call mallocate('make_screening_list [list_S_S%ri]', n+1, eel%list_S_S%ri)
-        eel%list_S_S%ri = 1
-        !allocate(eel%list_S_S%ci(ns_guess))
-        !eel%list_S_S%n = ns_guess
-        
         allocate(eel%list_P_P)
-        call mallocate('make_screening_list [list_P_P%ri]', npol+1, eel%list_P_P%ri)
-        eel%list_P_P%ri = 1
-        !allocate(eel%list_P_P%ci(ns_guess))
-        !eel%list_P_P%n = ns_guess
-
         allocate(eel%list_S_P_P)
-        call mallocate('make_screening_list [list_S_P_P%ri]', n+1, eel%list_S_P_P%ri)
-        eel%list_S_P_P%ri = 1
-        !allocate(eel%list_S_P_P%ci(ns_guess))
-        !eel%list_S_P_P%n = ns_guess
-        
-        if(eel%amoeba) then
-            allocate(eel%list_S_P_D)
-            call mallocate('make_screening_list [list_S_P_D%ri]', n+1, eel%list_S_P_D%ri)
-            eel%list_S_P_D%ri = 1
-            !allocate(eel%list_S_P_D%ci(ns_guess))
-            !eel%list_S_P_D%n = ns_guess
-        end if
+        if(eel%amoeba) allocate(eel%list_S_P_D)
 
         !allocate(ltmp(ns_guess))
         call mallocate('make_screening_list [rtmp]', ns_guess, n, rtmp)
         call mallocate('make_screening_list [itmp]', ns_guess, n, itmp)
         call mallocate('make_screening_list [ntmp]', n, ntmp)
-        call mallocate('make_screening_list [ibi]', n, ibi)
 
 
         ! Build S S list
@@ -560,27 +538,14 @@ module mod_electrostatics
         end do
 
         ! Compress the list
-        ibi(1) = 0
-        do i=1, n-1
-          ibi(i+1) = ntmp(i) + ibi(i)
+        call compress_list(n, itmp, ntmp, eel%list_S_S)
+        call compress_data(eel%list_S_S, rtmp, eel%scalef_S_S)
+        call mallocate('make_screening_list [todo_S_S]', &
+                       size(eel%scalef_S_S), eel%todo_S_S)
+        !$omp parallel do
+        do i=1, size(eel%scalef_S_S)
+            eel%todo_S_S(i) = (abs(eel%scalef_S_S(i)) > eps_rp)
         end do
-        ns = ibi(n)
-
-        call mallocate('make_screening_list [scalef_S_S]', ns, eel%list_S_S%ci)
-        call mallocate('make_screening_list [scalef_S_S]', ns, eel%scalef_S_S)
-        call mallocate('make_screening_list [todo_S_S]', ns, eel%todo_S_S)
-        
-        !$omp parallel do default(shared) private(i,ib,j)
-        do i=1, n
-            ib = ibi(i)
-            eel%list_S_S%ri(i) = ib + 1
-            do j=1, ntmp(i)
-                  eel%list_S_S%ci(ib+j) = itmp(j,i)
-                  eel%scalef_S_S(ib+j) = rtmp(j,i)
-                  eel%todo_S_S(ib+j) = (abs(rtmp(j,i)) > eps_rp)
-            end do
-        end do
-        eel%list_S_S%ri(n+1) = ns + 1
 
         ! Build P P list
         ntmp = 0
@@ -605,27 +570,14 @@ module mod_electrostatics
         end do
 
         ! Compress the list
-        ibi(1) = 0
-        do i=1, npol-1
-          ibi(i+1) = ntmp(i) + ibi(i)
+        call compress_list(npol, itmp, ntmp(1:npol), eel%list_P_P)
+        call compress_data(eel%list_P_P, rtmp, eel%scalef_P_P)
+        call mallocate('make_screening_list [todo_P_P]', &
+                       size(eel%scalef_P_P), eel%todo_P_P)
+        !$omp parallel do
+        do i=1, size(eel%scalef_P_P)
+            eel%todo_P_P(i) = (abs(eel%scalef_P_P(i)) > eps_rp)
         end do
-        ns = ibi(npol)
-        
-        call mallocate('make_screening_list [scalef_P_P]', ns, eel%list_P_P%ci)
-        call mallocate('make_screening_list [scalef_P_P]', ns, eel%scalef_P_P)
-        call mallocate('make_screening_list [todo_P_P]', ns, eel%todo_P_P)
-        
-        !$omp parallel do default(shared) private(i,ib,j)
-        do i=1, npol
-            ib = ibi(i)
-            eel%list_P_P%ri(i) = ib + 1
-            do j=1, ntmp(i)
-                eel%list_P_P%ci(ib+j) = itmp(j,i)
-                eel%scalef_P_P(ib+j) = rtmp(j,i)
-                eel%todo_P_P(ib+j) = (abs(rtmp(j,i) - 0.0) > eps_rp)
-            end do
-        end do
-        eel%list_P_P%ri(npol+1) = ns + 1
         
         ! Build S P lists
         !$omp parallel do schedule(dynamic) default(shared) &
@@ -649,28 +601,16 @@ module mod_electrostatics
             end do
         end do
 
-        ibi(1) = 0
-        do i=1, n-1
-          ibi(i+1) = ntmp(i) + ibi(i)
+        ! Compress the list
+        call compress_list(n, itmp, ntmp, eel%list_S_P_P)
+        call compress_data(eel%list_S_P_P, rtmp, eel%scalef_S_P_P)
+        call mallocate('make_screening_list [todo_S_P_P]', &
+                       size(eel%scalef_S_P_P), eel%todo_S_P_P)
+        !$omp parallel do
+        do i=1, size(eel%scalef_S_P_P)
+            eel%todo_S_P_P(i) = (abs(eel%scalef_S_P_P(i)) > eps_rp)
         end do
-        ns = ibi(n)
 
-        call mallocate('make_screening_list [scalef_S_P_P]', ns, eel%list_S_P_P%ci)
-        call mallocate('make_screening_list [scalef_S_P_P]', ns, eel%scalef_S_P_P)
-        call mallocate('make_screening_list [todo_S_P_P]', ns, eel%todo_S_P_P)
-        
-        !$omp parallel do default(shared) private(i,ib,j)
-        do i=1, n
-            ib = ibi(i)
-            eel%list_S_P_P%ri(i) = ib+1
-            do j=1, ntmp(i)
-                eel%list_S_P_P%ci(ib+j) = itmp(j,i)
-                eel%scalef_S_P_P(ib+j) = rtmp(j,i)
-                eel%todo_S_P_P(ib+j) = (abs(rtmp(j,i) - 0.0) > eps_rp)
-            end do
-        end do
-        eel%list_S_P_P%ri(n+1) = ns + 1
-        
         if(eel%amoeba) then
             !$omp parallel do schedule(dynamic) default(shared) &
             !$omp private(i,ineigh,ij,j,jp,scalf,pg_i,igrp,grp)
@@ -700,26 +640,15 @@ module mod_electrostatics
                 end do
             end do
 
-            ibi(1) = 0
-            do i=1, n-1
-              ibi(i+1) = ntmp(i) + ibi(i)
+            ! Compress the list
+            call compress_list(n, itmp, ntmp, eel%list_S_P_D)
+            call compress_data(eel%list_S_P_D, rtmp, eel%scalef_S_P_D)
+            call mallocate('make_screening_list [todo_S_P_D]', &
+                           size(eel%scalef_S_P_D), eel%todo_S_P_D)
+            !$omp parallel do
+            do i=1, size(eel%scalef_S_P_D)
+                eel%todo_S_P_D(i) = (abs(eel%scalef_S_P_D(i)) > eps_rp)
             end do
-            ns = ibi(n)
-
-            call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%list_S_P_D%ci)
-            call mallocate('make_screening_list [scalef_S_P_D]', ns, eel%scalef_S_P_D)
-            call mallocate('make_screening_list [todo_S_P_D]', ns, eel%todo_S_P_D)
-            !$omp parallel do default(shared) private(i,ib,j)
-            do i=1, n
-                ib = ibi(i)
-                eel%list_S_P_D%ri(i) = ib+1
-                do j=1, ntmp(i)
-                    eel%list_S_P_D%ci(ib+j) = itmp(j,i)
-                    eel%scalef_S_P_D(ib+j) = rtmp(j,i)
-                    eel%todo_S_P_D(ib+j) = (abs(rtmp(j,i) - 0.0) > eps_rp)
-                end do
-            end do
-            eel%list_S_P_D%ri(n+1) = ns + 1
         end if
         
         eel%screening_list_done = .true.
@@ -727,7 +656,6 @@ module mod_electrostatics
         call mfree('make_screening_list [rtmp]', rtmp)
         call mfree('make_screening_list [itmp]', itmp)
         call mfree('make_screening_list [ntmp]', ntmp)
-        call mfree('make_screening_list [ibi]', ibi)
     end subroutine
 
     subroutine thole_init(eel)

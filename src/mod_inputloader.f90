@@ -395,6 +395,7 @@ module mod_inputloader
             attype(i) = 0_ip
             i12(:,i) = 0_ip
             eel%polar_mm(i) = i
+            eel%pol(i) = 0.0
 
             ! First token contains an atom ID. Only sequential numbering is
             ! currently supported.

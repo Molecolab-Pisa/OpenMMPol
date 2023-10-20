@@ -11,6 +11,7 @@ module mod_link_atom
     use mod_nonbonded, only: vdw_geomgrad_inter
     use mod_bonded, only: ommp_bonded_type
     use mod_io, only: large_file_read
+    use mod_utils, only: str_to_lower, str_uncomment
 
     implicit none
     private
@@ -210,6 +211,13 @@ module mod_link_atom
                                      la%qmmmtop)
             
             call large_file_read(prmfile, prm_buf)
+            ! Remove comments from prm file
+            !$omp parallel do
+            do i=1, size(prm_buf)
+                prm_buf(i) = str_to_lower(prm_buf(i))
+                prm_buf(i) = str_uncomment(prm_buf(i), '!')
+            end do
+            
             call assign_mpoles(tmp_eel, prm_buf)
             deallocate(prm_buf) 
 
@@ -519,6 +527,12 @@ module mod_link_atom
             la%bds%top => la%qmmmtop
 
             call large_file_read(prmfile, prm_buf)
+            ! Remove comments from prm file
+            !$omp parallel do
+            do i=1, size(prm_buf)
+                prm_buf(i) = str_to_lower(prm_buf(i))
+                prm_buf(i) = str_uncomment(prm_buf(i), '!')
+            end do
             ! Bonded terms
             call assign_bond(tmp_bnd, prm_buf, la%qm2full, 2)
             if(tmp_bnd%use_bond) then
