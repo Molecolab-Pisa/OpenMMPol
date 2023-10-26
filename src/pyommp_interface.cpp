@@ -34,14 +34,14 @@ typedef typename py::array_t<double, py::array::c_style | py::array::forcecast> 
 typedef typename py::array_t<bool, py::array::c_style | py::array::forcecast> py_cbarray;
 
 int getMaxValue(py_ciarray inputArray) {
-    if(inputarray.ndim() != 1){
+    if(inputArray.ndim() != 1){
         throw py::value_error("maximum can only be computed on 1-dimensional array.");
     }
-    if (inputarray.size() == 0) {
+    if (inputArray.size() == 0) {
         throw py::value_error("input array is empty");
     }
 
-    int *ptr = inputArray.data();
+    const int *ptr = inputArray.data();
     int size = inputArray.size();
     int maxVal = ptr[0];
 
@@ -55,14 +55,14 @@ int getMaxValue(py_ciarray inputArray) {
 }
 
 int getMinValue(py_ciarray inputArray) {
-    if(inputarray.ndim() != 1){
+    if(inputArray.ndim() != 1){
         throw py::value_error("maximum can only be computed on 1-dimensional array.");
     }
-    if (inputarray.size() == 0) {
+    if (inputArray.size() == 0) {
         throw py::value_error("input array is empty");
     }
 
-    int *ptr = inputArray.data();
+    const int *ptr = inputArray.data();
     int size = inputArray.size();
     int minVal = ptr[0];
 
@@ -76,14 +76,14 @@ int getMinValue(py_ciarray inputArray) {
 }
 
 double getMaxValue(py_cdarray inputArray) {
-    if(inputarray.ndim() != 1){
+    if(inputArray.ndim() != 1){
         throw py::value_error("maximum can only be computed on 1-dimensional array.");
     }
-    if (inputarray.size() == 0) {
+    if (inputArray.size() == 0) {
         throw py::value_error("input array is empty");
     }
 
-    double *ptr = inputArray.data();
+    const double *ptr = inputArray.data();
     int size = inputArray.size();
     double maxVal = ptr[0];
 
@@ -97,14 +97,14 @@ double getMaxValue(py_cdarray inputArray) {
 }
 
 double getMinValue(py_cdarray inputArray) {
-    if(inputarray.ndim() != 1){
+    if(inputArray.ndim() != 1){
         throw py::value_error("maximum can only be computed on 1-dimensional array.");
     }
-    if (inputarray.size() == 0) {
+    if (inputArray.size() == 0) {
         throw py::value_error("input array is empty");
     }
 
-    double *ptr = inputArray.data();
+    const double *ptr = inputArray.data();
     int size = inputArray.size();
     double minVal = ptr[0];
 
@@ -917,7 +917,7 @@ class OMMPSystem{
                                  int neel_remove=OMMP_DEFAULT_LA_N_EEL_REMOVE){
             if(imm < 1 || iqm < 1 || ila < 1)
                 throw py::value_error("Atom index are 1-based, so they should all be grater than 0");
-            int nmm = self.get_mm_atoms(), nqm = qm.get_qm_atoms();
+            int nmm = get_mm_atoms(), nqm = qm.get_qm_atoms();
 
             if(iqm > nqm || ila > nqm || imm > nmm) 
                 throw py::value_error("Atom index should be inside the topology");
