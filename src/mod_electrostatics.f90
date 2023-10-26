@@ -1,6 +1,8 @@
 #include "f_cart_components.h"
 module mod_electrostatics
     use mod_io, only: fatal_error, ommp_message
+    use mod_constants, only: OMMP_VERBOSE_DEBUG
+    use mod_profiling, only: time_push, time_pull
     use mod_memory, only: ip, rp, lp
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type
@@ -775,6 +777,8 @@ module mod_electrostatics
         !! This function compute the coulomb kernel for the distance vector dr and 
         !! its derivative up to the value required by maxder.
         use mod_memory, only: ip, rp
+        use mod_io, only: fatal_error
+        use mod_constants, only: eps_rp
 
         implicit none
 
@@ -794,6 +798,12 @@ module mod_electrostatics
         end if
         
         norm2_r = sqrt(dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3))
+        if(norm2_r < eps_rp) then
+            call fatal_error("Requesting Coulomb kernel for two atoms &
+                             &placed in the same point, this could be &
+                             &an internal bug or a problem in your input &
+                             &file, please check.")
+        end if
         res(1) = 1.0_rp / norm2_r
         inv_norm_sq = res(1) * res(1)
 

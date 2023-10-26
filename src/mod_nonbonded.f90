@@ -616,6 +616,12 @@ module mod_nonbonded
                              (top%cmm(:,j) - top%cmm(:,ineigh)) * vdw%vdw_f(j)
                     endif
                     Rij = norm2(ci-cj)
+                    if(Rij < eps_rp) then
+                        call fatal_error("Requesting non-bonded potential for two atoms &
+                                         &placed in the same point, this could be &
+                                         &an internal bug or a problem in your input &
+                                         &file, please check.")
+                    end if
                     
                     vtmp = 0.0_rp
                     call vdw_func(Rij, Rij0, Eij, vtmp)
@@ -786,6 +792,12 @@ module mod_nonbonded
                     end if
 
                     call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+                    if(Rij < eps_rp) then
+                        call fatal_error("Requesting non-bonded gradients for two atoms &
+                                         &placed in the same point, this could be &
+                                         &an internal bug or a problem in your input &
+                                         &file, please check.")
+                    end if
                     call vdw_gfunc(Rij, Rij0, Eij, Rijg)
 
                     Rijg = Rijg * s
@@ -934,6 +946,12 @@ module mod_nonbonded
                          (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
                 endif
                 Rij = norm2(ci-cj)
+                if(Rij < eps_rp) then
+                    call fatal_error("Requesting inter non-bonded potential for two atoms &
+                                     &placed in the same point, this could be &
+                                     &an internal bug or a problem in your input &
+                                     &file, please check.")
+                end if
                 
                 vtmp = 0.0_rp
                 call vdw_func(Rij, Rij0, Eij, vtmp)
@@ -1040,6 +1058,12 @@ module mod_nonbonded
                 eij = get_eij_inter(vdw1, vdw2, i, j)
             
                 call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+                if(Rij < eps_rp) then
+                    call fatal_error("Requesting inter non-bonded gradients for two atoms &
+                                     &placed in the same point, this could be &
+                                     &an internal bug or a problem in your input &
+                                     &file, please check.")
+                end if
                 call vdw_grad(Rij, Rij0, Eij, Rijg)
 
                 !$omp critical
@@ -1159,6 +1183,12 @@ module mod_nonbonded
                         (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
             endif
             Rij = norm2(ci-cj)
+            if(Rij < eps_rp) then
+                call fatal_error("Requesting inter non-bonded potential for two atoms &
+                                 &placed in the same point, this could be &
+                                 &an internal bug or a problem in your input &
+                                 &file, please check.")
+            end if
             
             vtmp = 0.0_rp
             call vdw_func(Rij, Rij0, Eij, vtmp)
@@ -1269,6 +1299,12 @@ module mod_nonbonded
             eij = get_eij_inter(vdw1, vdw2, i, j) * s(ip)
             
             call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+            if(Rij < eps_rp) then
+                call fatal_error("Requesting inter non-bonded gradients for two atoms &
+                                 &placed in the same point, this could be &
+                                 &an internal bug or a problem in your input &
+                                 &file, please check.")
+            end if
             call vdw_grad(Rij, Rij0, Eij, Rijg)
 
             if(ineigh_i == 0) then
