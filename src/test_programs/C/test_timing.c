@@ -56,7 +56,8 @@ int main(int argc, char **argv){
 
     char msg[OMMP_STR_CHAR_MAX];
     
-    double t0 = omp_get_wtime();
+    ommp_time_push();
+    ommp_time_push();
 
     OMMP_SYSTEM_PRT my_system, fake_qm;
     OMMP_QM_HELPER_PRT my_qmh;
@@ -73,13 +74,15 @@ int main(int argc, char **argv){
     }
 
     // If an external field is present (this is mutally exclusive with a QM part)
-    int pol_atoms;
+    int pol_atoms, mm_atoms;
     double *electric_field, *qm_ef, **external_ef;
 
     int32_t *polar_mm = (int32_t *) ommp_get_polar_mm(my_system);
     pol_atoms = ommp_get_pol_atoms(my_system);
+    mm_atoms = ommp_get_mm_atoms(my_system);
     
     electric_field = (double *) malloc(sizeof(double) * 3 * pol_atoms);
+    double *grd = (double *) malloc(sizeof(double) * 3 * mm_atoms);
 
     if(use_external_ef){
         external_ef = read_ef(argv[3]);
@@ -93,13 +96,14 @@ int main(int argc, char **argv){
                 electric_field[j*3+k] += external_ef[polar_mm[j]][k];
         }
     
-    sprintf(msg, "> Initialization: %12.4g s \n", omp_get_wtime()-t0);
-    ommp_message(msg, OMMP_VERBOSE_LOW, "time");
-    em = ommp_get_fixedelec_energy(my_system);
-    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
-    ep = ommp_get_polelec_energy(my_system);
+    ommp_time_pull("Initialization");
+    //em = ommp_get_fixedelec_energy(my_system);
+    //ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
+    //ep = ommp_get_polelec_energy(my_system);
     
+
     ev = ommp_get_vdw_energy(my_system);
+    ommp_time_push();
     eb = ommp_get_bond_energy(my_system);
     ea = ommp_get_angle_energy(my_system);
     eba = ommp_get_strbnd_energy(my_system);
@@ -111,12 +115,28 @@ int main(int argc, char **argv){
     eat = ommp_get_angtor_energy(my_system);
     ebt = ommp_get_strtor_energy(my_system);
     eit = ommp_get_imptorsion_energy(my_system);
+    ommp_time_pull("Total energy bonded");
+
+    ommp_vdw_geomgrad(my_system, grd);
+    ommp_time_push();
+    ommp_bond_geomgrad(my_system, grd);
+    ommp_angle_geomgrad(my_system, grd);
+    ommp_strbnd_geomgrad(my_system, grd);
+    ommp_urey_geomgrad(my_system, grd);
+    ommp_torsion_geomgrad(my_system, grd);
+    ommp_imptorsion_geomgrad(my_system, grd);
+    ommp_angtor_geomgrad(my_system, grd);
+    ommp_opb_geomgrad(my_system, grd);
+    ommp_strtor_geomgrad(my_system, grd);
+    ommp_tortor_geomgrad(my_system, grd);
+    ommp_pitors_geomgrad(my_system, grd);
+
+    ommp_time_pull("Total grad bonded");
 
     free(electric_field);
     if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
     
-    sprintf(msg, "> Total exec: %12.4g s \n", omp_get_wtime()-t0);
-    ommp_message(msg, OMMP_VERBOSE_LOW, "time");
+    ommp_time_pull("Total exec");
     return 0;
 }

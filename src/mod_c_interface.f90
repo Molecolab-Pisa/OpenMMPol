@@ -108,6 +108,26 @@ module mod_ommp_C_interface
 
         end subroutine C_ommp_message
         
+        subroutine C_ommp_time_pull(c_msg) &
+                bind(c, name='ommp_time_pull')
+            implicit none
+            
+            character(kind=c_char), intent(in) :: c_msg(OMMP_STR_CHAR_MAX)
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+            
+            call c2f_string(c_msg, msg)
+            call ommp_time_pull(trim(msg))
+
+        end subroutine C_ommp_time_pull
+        
+        subroutine C_ommp_time_push() &
+                bind(c, name='ommp_time_push')
+            implicit none
+            
+            call ommp_time_push
+
+        end subroutine C_ommp_time_push
+        
         subroutine C_ommp_set_outputfile(fname) &
                 bind(c, name='ommp_set_outputfile')
             implicit none

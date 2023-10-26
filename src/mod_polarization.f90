@@ -62,7 +62,8 @@ module mod_polarization
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
                                inversion_solver
         use mod_memory, only: ip, rp, mallocate, mfree
-        use mod_io, only: print_matrix, time_pull, time_push
+        use mod_io, only: print_matrix
+        use mod_profiling, only: time_pull, time_push
         use mod_constants, only: OMMP_MATV_DIRECT, &
                                  OMMP_MATV_INCORE, &
                                  OMMP_MATV_NONE, &
@@ -327,6 +328,7 @@ module mod_polarization
         !! two polarizable sites i and j.
         !! This tensor is built according to the following rules: ... TODO
         use mod_electrostatics, only: screening_rules, damped_coulomb_kernel
+        use mod_constants, only: eps_rp
 
         implicit none
         !                      
@@ -361,9 +363,9 @@ module mod_polarization
             tens(2, 2) = 1.0_rp / eel%pol(i)
             tens(3, 3) = 1.0_rp / eel%pol(i)
         else
-            call screening_rules(eel, i, 'P', j, 'P', '-', &
-                                 to_do, to_scale, scalf)
-            if(to_do) then
+            scalf = screening_rules(eel, i, 'P', j, 'P', '-')
+
+            if(abs(scalf) > eps_rp) then
                 call damped_coulomb_kernel(eel, eel%polar_mm(i), &
                                            eel%polar_mm(j), 2, kernel, dr)
                 ! Fill the matrix elemets
@@ -377,7 +379,7 @@ module mod_polarization
                     end do
                 end do
                 ! Scale if needed
-                if(to_scale) tens = tens * scalf
+                if(abs(scalf-1.0) > eps_rp) tens = tens * scalf
             
             end if
         end if

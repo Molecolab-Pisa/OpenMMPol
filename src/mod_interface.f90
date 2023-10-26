@@ -52,11 +52,10 @@ module ommp_interface
                              ommp_qm_helper_init_vdw => qm_helper_init_vdw, &
                              ommp_prepare_qm_ele_ene => electrostatic_for_ene, &
                              ommp_prepare_qm_ele_grd => electrostatic_for_grad
-
-    use mod_io, only: time_push, time_pull
+    use mod_profiling, only: ommp_time_push => time_push, & 
+                             ommp_time_pull => time_pull
     implicit none
     
-    private :: time_push, time_pull
     character(*), parameter :: ommp_version_string = _OMMP_VERSION
 
     contains
@@ -350,7 +349,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
             
-            call time_push()
+            call ommp_time_push()
             if(sys_obj%eel%pol_atoms == 0) then
                 ene = 0.0
             else
@@ -363,7 +362,7 @@ module ommp_interface
                 ene = 0.0
                 call energy_MM_pol(sys_obj%eel, ene)
             end if
-            call time_pull('Polarizable Electrostatic energy')
+            call ommp_time_pull('Polarizable Electrostatic energy')
         end function
         
         function ommp_get_fixedelec_energy(sys_obj) result(ene)
@@ -375,10 +374,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
-            call time_push()
+            call ommp_time_push()
             ene = 0.0
             call energy_MM_MM(sys_obj%eel, ene)
-            call time_pull('Fixed Electrostatic energy')
+            call ommp_time_pull('Fixed Electrostatic energy')
 
         end function
         
@@ -402,10 +401,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: evdw
 
-            call time_push()
+            call ommp_time_push()
             evdw = 0.0
             if(sys_obj%use_nonbonded) call vdw_potential(sys_obj%vdw, evdw)
-            call time_pull('Non-bonded energy')
+            call ommp_time_pull('Non-bonded energy')
         
         end function
         
@@ -418,7 +417,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eb
             
-            call time_push()
+            call ommp_time_push()
             eb = 0.0
             if(sys_obj%use_bonded) then
                 call bond_potential(sys_obj%bds, eb)
@@ -427,7 +426,7 @@ module ommp_interface
                     call bond_potential(sys_obj%la%bds, eb)
                 endif
             end if
-            call time_pull('Bonded energy')
+            call ommp_time_pull('Bonded energy')
         
         end function
         
@@ -440,7 +439,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ea
 
-            call time_push()
+            call ommp_time_push()
             ea = 0.0
             if(sys_obj%use_bonded) then
                 call angle_potential(sys_obj%bds, ea)
@@ -449,7 +448,7 @@ module ommp_interface
                     call angle_potential(sys_obj%la%bds, ea)
                 end if
             end if
-            call time_pull('Angle energy')
+            call ommp_time_pull('Angle energy')
         
         end function
         
@@ -461,10 +460,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eba
 
-            call time_push
+            call ommp_time_push
             eba = 0.0
             if(sys_obj%use_bonded) call strbnd_potential(sys_obj%bds, eba)
-            call time_pull('Stretching-bending energy')
+            call ommp_time_pull('Stretching-bending energy')
         
         end function
         
@@ -476,10 +475,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eub
 
-            call time_push
+            call ommp_time_push
             eub = 0.0
             if(sys_obj%use_bonded) call urey_potential(sys_obj%bds, eub)
-            call time_pull('Urey-Bradley energy')
+            call ommp_time_pull('Urey-Bradley energy')
         
         end function
         
@@ -491,10 +490,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eopb
 
-            call time_push
+            call ommp_time_push
             eopb = 0.0
             if(sys_obj%use_bonded) call opb_potential(sys_obj%bds, eopb)
-            call time_pull('Out of plane energy')
+            call ommp_time_pull('Out of plane energy')
         
         end function
         
@@ -506,10 +505,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: et
 
-            call time_push
+            call ommp_time_push
             et = 0.0
             if(sys_obj%use_bonded) call imptorsion_potential(sys_obj%bds, et)
-            call time_pull('Improper torsion energy')
+            call ommp_time_pull('Improper torsion energy')
         
         end function
         
@@ -522,7 +521,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: et
 
-            call time_push
+            call ommp_time_push
             et = 0.0
             if(sys_obj%use_bonded) then
                 call torsion_potential(sys_obj%bds, et)
@@ -531,7 +530,7 @@ module ommp_interface
                     call torsion_potential(sys_obj%la%bds, et)
                 end if
             end if
-            call time_pull('Torsion energy')
+            call ommp_time_pull('Torsion energy')
         
         end function
         
@@ -543,10 +542,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ept
 
-            call time_push
+            call ommp_time_push
             ept = 0.0
             if(sys_obj%use_bonded) call pitors_potential(sys_obj%bds, ept)
-            call time_pull('Pi-system torsion energy')
+            call ommp_time_pull('Pi-system torsion energy')
         
         end function
         
@@ -558,10 +557,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: est
 
-            call time_push
+            call ommp_time_push
             est = 0.0
             if(sys_obj%use_bonded) call strtor_potential(sys_obj%bds, est)
-            call time_pull('Stretching-torsion energy')
+            call ommp_time_pull('Stretching-torsion energy')
         
         end function
 
@@ -573,10 +572,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: eat
 
-            call time_push
+            call ommp_time_push
             eat = 0.0
             if(sys_obj%use_bonded) call angtor_potential(sys_obj%bds, eat)
-            call time_pull('Bending-torsion energy')
+            call ommp_time_pull('Bending-torsion energy')
 
         end function
         
@@ -588,10 +587,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ett
 
-            call time_push
+            call ommp_time_push
             ett = 0.0
             if(sys_obj%use_bonded) call tortor_potential(sys_obj%bds, ett)
-            call time_pull('Torsion-torsion energy')
+            call ommp_time_pull('Torsion-torsion energy')
         
         end function
         
@@ -609,7 +608,7 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
             
-            call time_push
+            call ommp_time_push
             ene = 0.0
             
             if(sys_obj%use_bonded) then
@@ -633,7 +632,7 @@ module ommp_interface
                 end if
 
             end if
-            call time_pull('Total bond energy')
+            call ommp_time_pull('Total bond energy')
         end function
         
         function ommp_get_full_energy(sys_obj) result(ene)
@@ -642,12 +641,12 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: sys_obj
             real(ommp_real) :: ene
 
-            call time_push
+            call ommp_time_push
             ene = 0.0
             ene = ene + ommp_get_vdw_energy(sys_obj)
             ene = ene + ommp_get_full_ele_energy(sys_obj)
             ene = ene + ommp_get_full_bnd_energy(sys_obj)
-            call time_pull('Total energy')
+            call ommp_time_pull('Total energy')
         end function
 
         ! Functions for advanced operation and gradients
@@ -659,10 +658,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
             
-            call time_push
+            call ommp_time_push
             grd = 0.0
             call fixedelec_geomgrad(s, grd)
-            call time_pull('Fixed Elctrostatic grad')
+            call ommp_time_pull('Fixed Elctrostatic grad')
         end subroutine
         
         subroutine ommp_polelec_geomgrad(s, grd)
@@ -673,10 +672,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
             
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
-            call time_pull('Polarizable Elctrostatic grad')
+            call ommp_time_pull('Polarizable Elctrostatic grad')
         end subroutine
 
         subroutine ommp_vdw_geomgrad(s, grd)
@@ -687,10 +686,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
-            call time_pull('Non-bonded grad')
+            call ommp_time_pull('Non-bonded grad')
         end subroutine
         
         subroutine ommp_rotation_geomgrad(s, E, Egrd, grd )
@@ -700,10 +699,10 @@ module ommp_interface
             real(ommp_real), intent(in) :: E(:,:), Egrd(:,:)
             real(ommp_real), intent(out) :: grd(:,:)
             
-            call time_push
+            call ommp_time_push
             grd = 0.0
             call rotation_geomgrad(s%eel, E, Egrd, grd)
-            call time_pull('Multipole rotation grad')
+            call ommp_time_pull('Multipole rotation grad')
         end subroutine
 
         subroutine ommp_bond_geomgrad(s, grd)
@@ -718,7 +717,7 @@ module ommp_interface
 
             real(ommp_real) :: fake_qmg(3,1)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) then
                 call bond_geomgrad(s%bds, grd)
@@ -729,7 +728,7 @@ module ommp_interface
                                                 .false., .true.)
                 end if
             end if
-            call time_pull("Bonded grad")
+            call ommp_time_pull("Bonded grad")
         end subroutine
         
         subroutine ommp_angle_geomgrad(s, grd)
@@ -744,7 +743,7 @@ module ommp_interface
             
             real(ommp_real) :: fake_qmg(3,1)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) then
                 call angle_geomgrad(s%bds, grd)
@@ -755,7 +754,7 @@ module ommp_interface
                                                 .false., .true.)
                 end if
             end if
-            call time_pull("Angle grad")
+            call ommp_time_pull("Angle grad")
         end subroutine
         
         subroutine ommp_strbnd_geomgrad(s, grd)
@@ -766,10 +765,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call strbnd_geomgrad(s%bds, grd)
-            call time_pull("Stretching-bending grad")
+            call ommp_time_pull("Stretching-bending grad")
         end subroutine
         
         subroutine ommp_urey_geomgrad(s, grd)
@@ -780,10 +779,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call urey_geomgrad(s%bds, grd)
-            call time_pull("Urey-Bradley grad")
+            call ommp_time_pull("Urey-Bradley grad")
         end subroutine
         
         subroutine ommp_torsion_geomgrad(s, grd)
@@ -798,7 +797,7 @@ module ommp_interface
             
             real(ommp_real) :: fake_qmg(3,1)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) then
                 call torsion_geomgrad(s%bds, grd)
@@ -809,7 +808,7 @@ module ommp_interface
                                                     .false., .true.)
                 end if
             end if
-            call time_pull("Torsion grad")
+            call ommp_time_pull("Torsion grad")
         end subroutine
         
         subroutine ommp_imptorsion_geomgrad(s, grd)
@@ -820,10 +819,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call imptorsion_geomgrad(s%bds, grd)
-            call time_pull("Improper torsion grad")
+            call ommp_time_pull("Improper torsion grad")
         end subroutine
         
         subroutine ommp_angtor_geomgrad(s, grd)
@@ -834,10 +833,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call angtor_geomgrad(s%bds, grd)
-            call time_pull("Angle-torsion grad")
+            call ommp_time_pull("Angle-torsion grad")
         end subroutine
         
         subroutine ommp_opb_geomgrad(s, grd)
@@ -848,10 +847,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
             
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call opb_geomgrad(s%bds, grd)
-            call time_pull("Out of plane grad")
+            call ommp_time_pull("Out of plane grad")
         end subroutine
         
         subroutine ommp_strtor_geomgrad(s, grd)
@@ -862,10 +861,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call strtor_geomgrad(s%bds, grd)
-            call time_pull("Stretching-torsion grad")
+            call ommp_time_pull("Stretching-torsion grad")
         end subroutine
         
         subroutine ommp_tortor_geomgrad(s, grd)
@@ -876,10 +875,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
             
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call tortor_geomgrad(s%bds, grd)
-            call time_pull('Torsion-torsion grad')
+            call ommp_time_pull('Torsion-torsion grad')
         end subroutine
         
         subroutine ommp_pitors_geomgrad(s, grd)
@@ -890,10 +889,10 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) call pitors_geomgrad(s%bds, grd)
-            call time_pull('Pi-system torsion grad')
+            call ommp_time_pull('Pi-system torsion grad')
         end subroutine
         
         subroutine ommp_full_bnd_geomgrad(s, grd)
@@ -920,7 +919,7 @@ module ommp_interface
             
             real(ommp_real) :: fake_qmg(3,1)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             if(s%use_bonded) then
                 call bond_geomgrad(s%bds, grd)
@@ -947,7 +946,7 @@ module ommp_interface
                                                     .false., .true.)
                 end if
             end if
-            call time_pull("Total bonded grad")
+            call ommp_time_pull("Total bonded grad")
         end subroutine
         
         subroutine ommp_full_geomgrad(s, grd)
@@ -959,13 +958,13 @@ module ommp_interface
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(out) :: grd(3,s%top%mm_atoms)
 
-            call time_push
+            call ommp_time_push
             grd = 0.0
             call ommp_full_bnd_geomgrad(s, grd)
             call fixedelec_geomgrad(s, grd)
             if(s%eel%pol_atoms > 0) call polelec_geomgrad(s, grd)
             if(s%use_nonbonded) call vdw_geomgrad(s%vdw, grd)
-            call time_pull("Total grad")
+            call ommp_time_pull("Total grad")
 
         end subroutine
 
@@ -1410,6 +1409,9 @@ module ommp_interface
                            assign_strbnd, assign_opb, assign_pitors, &
                            assign_torsion, assign_tortors, assign_angtor, &
                            assign_strtor, assign_imptorsion, get_prm_ff_type
+        use mod_constants, only: OMMP_STR_CHAR_MAX
+        use mod_io, only: fatal_error, large_file_read
+        use mod_utils, only: str_to_lower, str_uncomment
         
         implicit none
 
@@ -1417,9 +1419,8 @@ module ommp_interface
         type(ommp_qm_helper), intent(in) :: qmh
         character(len=*), intent(in) :: prm_file
 
-        integer(ommp_integer) :: i
-        
-        !call time_push()
+        integer(ommp_integer) :: i, ist
+        character(len=OMMP_STR_CHAR_MAX), allocatable :: prm_buf(:)
 
         if(.not. (qmh%qm_top%attype_initialized .and. &
                   qmh%qm_top%atz_initialized)) &
@@ -1428,7 +1429,16 @@ module ommp_interface
                               &number should be set.")
 
         allocate(sys)
-        call mmpol_init(sys, get_prm_ff_type(prm_file), &
+        ! Load prm file in RAM
+        call large_file_read(prm_file, prm_buf)
+        ! Remove comments from prm file
+        !$omp parallel do
+        do i=1, size(prm_buf)
+            prm_buf(i) = str_to_lower(prm_buf(i))
+            prm_buf(i) = str_uncomment(prm_buf(i), '!')
+        end do
+
+        call mmpol_init(sys, get_prm_ff_type(prm_buf), &
                         qmh%qm_top%mm_atoms, qmh%qm_top%mm_atoms)
         
         do i=1, sys%top%mm_atoms
@@ -1449,35 +1459,38 @@ module ommp_interface
         ! Create connectivities from adjacency matrix
         call build_conn_upto_n(qmh%qm_top%conn(1), 4, sys%top%conn, .false.)
         ! Now assign parameters
-        if( .not. check_keyword(prm_file)) then
+        
+        if( .not. check_keyword(prm_buf)) then
             call ommp_fatal("PRM file cannot be completely understood")
         end if
     
         call ommp_message("QMH->SYS Assigning electrostatic parameters", OMMP_VERBOSE_DEBUG)
-        call assign_pol(sys%eel, prm_file)
-        call assign_mpoles(sys%eel, prm_file)
+        call assign_pol(sys%eel, prm_buf)
+        call assign_mpoles(sys%eel, prm_buf)
         
         call ommp_message("QMH->SYS Assigning non-bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_nonbonded(sys)
-        call assign_vdw(sys%vdw, sys%top, prm_file)
+        call assign_vdw(sys%vdw, sys%top, prm_buf)
         
         call ommp_message("QMH->SYS Assigning bonded parameters", OMMP_VERBOSE_DEBUG)
         call mmpol_init_bonded(sys)
         call check_conn_matrix(sys%top, 4)
-        call assign_bond(sys%bds, prm_file)
-        call assign_angle(sys%bds, prm_file)
-        call assign_urey(sys%bds, prm_file)
-        call assign_strbnd(sys%bds, prm_file)
-        call assign_opb(sys%bds, prm_file)
-        call assign_pitors(sys%bds, prm_file)
-        call assign_torsion(sys%bds, prm_file)
-        call assign_imptorsion(sys%bds, prm_file)
-        call assign_tortors(sys%bds, prm_file)
-        call assign_angtor(sys%bds, prm_file)
-        call assign_strtor(sys%bds, prm_file)
+        call assign_bond(sys%bds, prm_buf)
+        call assign_angle(sys%bds, prm_buf)
+        call assign_urey(sys%bds, prm_buf)
+        call assign_strbnd(sys%bds, prm_buf)
+        call assign_opb(sys%bds, prm_buf)
+        call assign_pitors(sys%bds, prm_buf)
+        call assign_torsion(sys%bds, prm_buf)
+        call assign_imptorsion(sys%bds, prm_buf)
+        call assign_tortors(sys%bds, prm_buf)
+        call assign_angtor(sys%bds, prm_buf)
+        call assign_strtor(sys%bds, prm_buf)
+        
+        deallocate(prm_buf)
 
         call mmpol_prepare(sys)
-        !call time_pull('Conversion of QMHelper to OMMP System')
+        !call ommp_time_pull('Conversion of QMHelper to OMMP System')
         call ommp_message('QMH->SYS Completed', OMMP_VERBOSE_DEBUG)
     end subroutine ommp_system_from_qm_helper
 

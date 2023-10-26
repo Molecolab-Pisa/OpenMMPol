@@ -82,7 +82,9 @@ module mod_neighbor_list
         end subroutine
 
         subroutine nl_update(nl, c)
-            use mod_io, only: ommp_message, time_push, time_pull
+            use mod_io, only: ommp_message
+            use mod_profiling, only: time_push, time_pull
+            use mod_adjacency_mat, only: reverse_grp_tab
             use mod_constants, only: OMMP_VERBOSE_LOW
             implicit none
             
@@ -125,24 +127,20 @@ module mod_neighbor_list
             end do
             
             ! Revert assignation to get neighbor list!
-            nl%c2p%n = nl%ncells
-            if(allocated(nl%c2p%ri)) call mfree('nl_update [ri]', nl%c2p%ri)
-            call mallocate('nl_update [ri]', nl%c2p%n+1, nl%c2p%ri)
-            if(.not. allocated(nl%c2p%ci)) call mallocate('nl_update [ci]', nl%n, nl%c2p%ci)
-            nl%c2p%ri(1) = 1
-            do i=1, nl%ncells
-                nl%c2p%ri(i+1) = nl%c2p%ri(i)
-                do j=1, nl%n
-                    if(nl%p2c(j) == i) then
-                        nl%c2p%ci(nl%c2p%ri(i+1)) = j
-                        nl%c2p%ri(i+1) = nl%c2p%ri(i+1) + 1
-                    end if
-                end do
-            end do
+            ! The number of cell could be different...
+            if(allocated(nl%c2p%ri)) then
+              if(size(nl%c2p%ri) /= nl%ncells+1) then
+                ! This automatically calls for the reallocation in 
+                ! reverse_grp_tab.
+                call mfree('nl_update [ri]', nl%c2p%ri)
+              end if
+            end if
+
+            call reverse_grp_tab(nl%p2c, nl%c2p, nl%ncells)
             call time_pull("Neighbor list update")
         end subroutine
 
-        subroutine get_ith_nl(nl, i, c, neigh, dist)
+        subroutine get_ith_nl(nl, i, c, neigh, dist, nn)
             !! Once that the neighbor list have been initialized and
             !! updated, this function provide a logical array for atom
             !! [[i]] with all interactions that should be computed and
@@ -155,19 +153,23 @@ module mod_neighbor_list
             !! Index of atom for which the neigbor list is required
             real(rp), intent(in) :: c(3,nl%n)
             !! Coordinates in input
-            logical(lp), intent(out) :: neigh(nl%n)
-            !! Logical array for marking neighbors
+            integer(ip), intent(out) :: neigh(nl%n)
+            !! Integer array with neighbors' indexes.
+            !! Only the first nn elements are valid
             real(rp), intent(out) :: dist(nl%n)
-            !! Array for returning distances
+            !! Array for returning distances.
+            !! Only the first nn elements are valid
+            integer(ip), intent(out) :: nn
+            !! Number of neighbors
+
 
             integer(ip) :: icell, j, jid, jp, jjp
             real(rp) :: vdist(3), d2, thr2
 
             icell = nl%p2c(i)
             thr2 = nl%cutoff * nl%cutoff
-            neigh = .false.
-            dist = 0.0
 
+            nn = 0
             do j=1, nl%nneigh
                 jid = icell + nl%neigh_offset(j)
                 if(jid > 0 .and. jid <= nl%ncells) then
@@ -176,8 +178,9 @@ module mod_neighbor_list
                         vdist = c(:,i)-c(:,jjp)
                         d2 = dot_product(vdist, vdist)
                         if(d2 < thr2) then
-                            dist(jjp) = sqrt(d2)
-                            neigh(jjp) = .true.
+                            nn = nn + 1
+                            dist(nn) = sqrt(d2)
+                            neigh(nn) = jjp
                         end if
                     end do
                 end if

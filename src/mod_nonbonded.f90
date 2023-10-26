@@ -487,7 +487,8 @@ module mod_nonbonded
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm
 
-        use mod_io, only : fatal_error, time_push, time_pull
+        use mod_io, only : fatal_error
+        use mod_profiling, only: time_push, time_pull
         use mod_constants, only: eps_rp
         use mod_memory, only: mallocate, mfree
         use mod_neighbor_list, only: get_ith_nl
@@ -498,12 +499,12 @@ module mod_nonbonded
         real(rp), intent(inout) :: V
         !! Potential, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh, nthreads, ithread
+        integer(ip) :: i, j, jc, l, ipair, ineigh, nthreads, ithread, nn
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, vtmp
         type(ommp_topology_type), pointer :: top
         procedure(vdw_term), pointer :: vdw_func
 
-        logical(lp), allocatable :: nl_neigh(:,:)
+        integer(ip), allocatable :: nl_neigh(:,:)
         real(rp), allocatable :: nl_r(:,:)
 
         integer :: omp_get_num_threads, omp_get_thread_num
@@ -526,11 +527,11 @@ module mod_nonbonded
 
         if(vdw%use_nl) then
             call mallocate('vdw_potential [rneigh]', top%mm_atoms, nthreads, nl_r)
-            allocate(nl_neigh(top%mm_atoms, nthreads))
+            call mallocate('vdw_potential [nl_neigh]', top%mm_atoms, nthreads, nl_neigh)
         end if
 
         !$omp parallel do default(shared) reduction(+:v)  schedule(dynamic) &
-        !$omp private(i,j,ineigh,ithread,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
+        !$omp private(i,j,jc,ineigh,ithread,nn,s,ci,cj,ipair,l,Eij,Rij0,Rij,vtmp)
         do i=1, top%mm_atoms
             ithread = omp_get_thread_num() + 1
             if(abs(vdw%vdw_f(i) - 1.0_rp) < eps_rp) then
@@ -552,12 +553,19 @@ module mod_nonbonded
             ! If neighbor list are enabled get the one for the current
             if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, &
                                            nl_neigh(:,ithread), &
-                                           nl_r(:,ithread))
+                                           nl_r(:,ithread), nn)
 
-            do j=i+1, top%mm_atoms
+            do jc=1, top%mm_atoms
                 ! If the two atoms aren't neighbors, just skip the loop
                 if(vdw%use_nl) then
-                    if(.not. nl_neigh(j,ithread)) then
+                    if(jc > nn) exit !! All neighbors done!
+                    j = nl_neigh(jc,ithread)
+                    if(j <= i) cycle
+                else
+                    ! Skip all iteration with j <= i
+                    if(jc > i) then
+                        j = jc
+                    else
                         cycle
                     end if
                 end if
@@ -608,6 +616,12 @@ module mod_nonbonded
                              (top%cmm(:,j) - top%cmm(:,ineigh)) * vdw%vdw_f(j)
                     endif
                     Rij = norm2(ci-cj)
+                    if(Rij < eps_rp) then
+                        call fatal_error("Requesting non-bonded potential for two atoms &
+                                         &placed in the same point, this could be &
+                                         &an internal bug or a problem in your input &
+                                         &file, please check.")
+                    end if
                     
                     vtmp = 0.0_rp
                     call vdw_func(Rij, Rij0, Eij, vtmp)
@@ -618,7 +632,7 @@ module mod_nonbonded
         
         if(vdw%use_nl) then
             call mfree('vdw_potential [rneigh]', nl_r)
-            deallocate(nl_neigh)
+            call mfree('vdw_potential [nl_neigh]', nl_neigh)
         end if
         call time_pull('VdW potential calculation')
     end subroutine vdw_potential
@@ -630,6 +644,9 @@ module mod_nonbonded
         use mod_io, only : fatal_error
         use mod_constants, only: eps_rp
         use mod_jacobian_mat, only: Rij_jacobian
+        use mod_profiling, only: time_push, time_pull
+        use mod_memory, only: mallocate, mfree
+        use mod_neighbor_list, only: get_ith_nl
         implicit none
 
         type(ommp_nonbonded_type), intent(in), target :: vdw
@@ -637,12 +654,23 @@ module mod_nonbonded
         real(rp), intent(inout) :: grad(3,vdw%top%mm_atoms)
         !! Gradients, result will be added
 
-        integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j
+        integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j, jc, &
+                       nn, ithread, nthreads
         real(rp) :: eij, rij0, rij, ci(3), cj(3), s, J_i(3), J_j(3), Rijg, &
                     f_i, f_j
         logical :: skip
         type(ommp_topology_type), pointer :: top
         procedure(vdw_gterm), pointer :: vdw_gfunc
+        
+        integer(ip), allocatable :: nl_neigh(:,:)
+        real(rp), allocatable :: nl_r(:,:)
+        
+        integer :: omp_get_num_threads, omp_get_thread_num
+        
+        call time_push()
+        !$omp parallel
+        nthreads = omp_get_num_threads()
+        !$omp end parallel
 
         top => vdw%top
         select case(vdw%vdwtype)
@@ -654,11 +682,17 @@ module mod_nonbonded
                 vdw_gfunc => vdw_buffered_7_14_Rijgrad
                 call fatal_error("Unexpected error in vdw_geomgrad")
         end select
+        
+        if(vdw%use_nl) then
+            call mallocate('vdw_geomgrad [rneigh]', top%mm_atoms, nthreads, nl_r)
+            call mallocate('vdw_geomgrad [nl_neigh]', top%mm_atoms, nthreads, nl_neigh)
+        end if
 
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,ci,cj,ineigh,ineigh_i,ineigh_j,f_i,f_j,s,ipair,l) &
-        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j,skip)
+        !$omp private(Eij,Rij0,Rijg,Rij,J_i,J_j,skip,jc,nn,ithread)
         do i=1, top%mm_atoms
+            ithread = omp_get_thread_num() + 1
             if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
                 ci = top%cmm(:,i)
                 ineigh_i = 0 ! This is needed later for force projection
@@ -678,7 +712,24 @@ module mod_nonbonded
                                             top%cmm(:,ineigh_i)) * f_i
             endif
                 
-            do j=i+1, top%mm_atoms
+            if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, &
+                                           nl_neigh(:,ithread), &
+                                           nl_r(:,ithread), nn)
+
+            do jc=1, top%mm_atoms
+                ! If the two atoms aren't neighbors, just skip the loop
+                if(vdw%use_nl) then
+                    if(jc > nn) exit !! All neighbors done!
+                    j = nl_neigh(jc,ithread)
+                    if(j <= i) cycle
+                else
+                    ! Skip all iteration with j <= i
+                    if(jc > i) then
+                        j = jc
+                    else
+                        cycle
+                    end if
+                end if
                 ! Compute the screening factor for this pair
                 s = 1.0_rp
                 do ineigh=1,4
@@ -741,40 +792,81 @@ module mod_nonbonded
                     end if
 
                     call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+                    if(Rij < eps_rp) then
+                        call fatal_error("Requesting non-bonded gradients for two atoms &
+                                         &placed in the same point, this could be &
+                                         &an internal bug or a problem in your input &
+                                         &file, please check.")
+                    end if
                     call vdw_gfunc(Rij, Rij0, Eij, Rijg)
 
                     Rijg = Rijg * s
 
-                    !$omp critical
                     if(ineigh_i == 0) then
-                        if(.not. (top%use_frozen .and. top%frozen(i))) &
-                            grad(:,i) =  grad(:,i) + J_i * Rijg
+                        if(.not. (top%use_frozen .and. top%frozen(i))) then
+                            !$omp atomic update
+                            grad(1,i) =  grad(1,i) + J_i(1) * Rijg
+                            !$omp atomic update
+                            grad(2,i) =  grad(2,i) + J_i(2) * Rijg
+                            !$omp atomic update
+                            grad(3,i) =  grad(3,i) + J_i(3) * Rijg
+                        end if
                     else
                         ! If the center is displaced, the forces should be 
                         ! projected onto the two atoms that determine the
                         ! position of the center
-                        if(.not. (top%use_frozen .and. top%frozen(i))) &
-                            grad(:,i) = grad(:,i) + J_i * Rijg * f_i
-                        if(.not. (top%use_frozen .and. top%frozen(ineigh_i))) &
-                            grad(:,ineigh_i) = grad(:,ineigh_i) + J_i * Rijg * (1-f_i)
+                        if(.not. (top%use_frozen .and. top%frozen(i))) then
+                            !$omp atomic update
+                            grad(1,i) = grad(1,i) + J_i(1) * Rijg * f_i
+                            !$omp atomic update
+                            grad(2,i) = grad(2,i) + J_i(2) * Rijg * f_i
+                            !$omp atomic update
+                            grad(3,i) = grad(3,i) + J_i(3) * Rijg * f_i
+                        end if
+                        if(.not. (top%use_frozen .and. top%frozen(ineigh_i))) then
+                            !$omp atomic update
+                            grad(1,ineigh_i) = grad(1,ineigh_i) + J_i(1) * Rijg * (1-f_i)
+                            !$omp atomic update
+                            grad(2,ineigh_i) = grad(2,ineigh_i) + J_i(2) * Rijg * (1-f_i)
+                            !$omp atomic update
+                            grad(3,ineigh_i) = grad(3,ineigh_i) + J_i(3) * Rijg * (1-f_i)
+                        end if
                     end if
 
                     if(ineigh_j == 0) then
-                        if(.not. (top%use_frozen .and. top%frozen(j))) &
-                            grad(:,j) =  grad(:,j) + J_j * Rijg
+                        if(.not. (top%use_frozen .and. top%frozen(j))) then
+                            !$omp atomic update
+                            grad(1,j) =  grad(1,j) + J_j(1) * Rijg
+                            !$omp atomic update
+                            grad(2,j) =  grad(2,j) + J_j(2) * Rijg
+                            !$omp atomic update
+                            grad(3,j) =  grad(3,j) + J_j(3) * Rijg
+                        end if
                     else
                         ! If the center is displaced, the forces should be 
                         ! projected onto the two atoms that determine the
                         ! position of the center
-                        if(.not. (top%use_frozen .and. top%frozen(j))) &
-                            grad(:,j) = grad(:,j) + J_j * Rijg * f_j
-                        if(.not. (top%use_frozen .and. top%frozen(ineigh_j))) &
-                            grad(:,ineigh_j) = grad(:,ineigh_j) + J_j * Rijg * (1-f_j)
+                        if(.not. (top%use_frozen .and. top%frozen(j))) then
+                            !$omp atomic update
+                            grad(1,j) = grad(1,j) + J_j(1) * Rijg * f_j
+                            !$omp atomic update
+                            grad(2,j) = grad(2,j) + J_j(2) * Rijg * f_j
+                            !$omp atomic update
+                            grad(3,j) = grad(3,j) + J_j(3) * Rijg * f_j
+                        end if
+                        if(.not. (top%use_frozen .and. top%frozen(ineigh_j))) then
+                            !$omp atomic update
+                            grad(1,ineigh_j) = grad(1,ineigh_j) + J_j(1) * Rijg * (1-f_j)
+                            !$omp atomic update
+                            grad(2,ineigh_j) = grad(2,ineigh_j) + J_j(2) * Rijg * (1-f_j)
+                            !$omp atomic update
+                            grad(3,ineigh_j) = grad(3,ineigh_j) + J_j(3) * Rijg * (1-f_j)
+                        end if
                     endif
-                    !$omp end critical
                 end if
             end do
         end do
+        call time_pull('VdW gradients calculation')
     end subroutine
     
     subroutine vdw_potential_inter(vdw1, vdw2, V)
@@ -854,6 +946,12 @@ module mod_nonbonded
                          (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
                 endif
                 Rij = norm2(ci-cj)
+                if(Rij < eps_rp) then
+                    call fatal_error("Requesting inter non-bonded potential for two atoms &
+                                     &placed in the same point, this could be &
+                                     &an internal bug or a problem in your input &
+                                     &file, please check.")
+                end if
                 
                 vtmp = 0.0_rp
                 call vdw_func(Rij, Rij0, Eij, vtmp)
@@ -960,6 +1058,12 @@ module mod_nonbonded
                 eij = get_eij_inter(vdw1, vdw2, i, j)
             
                 call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+                if(Rij < eps_rp) then
+                    call fatal_error("Requesting inter non-bonded gradients for two atoms &
+                                     &placed in the same point, this could be &
+                                     &an internal bug or a problem in your input &
+                                     &file, please check.")
+                end if
                 call vdw_grad(Rij, Rij0, Eij, Rijg)
 
                 !$omp critical
@@ -1079,6 +1183,12 @@ module mod_nonbonded
                         (top2%cmm(:,j) - top2%cmm(:,ineigh)) * vdw2%vdw_f(j)
             endif
             Rij = norm2(ci-cj)
+            if(Rij < eps_rp) then
+                call fatal_error("Requesting inter non-bonded potential for two atoms &
+                                 &placed in the same point, this could be &
+                                 &an internal bug or a problem in your input &
+                                 &file, please check.")
+            end if
             
             vtmp = 0.0_rp
             call vdw_func(Rij, Rij0, Eij, vtmp)
@@ -1189,6 +1299,12 @@ module mod_nonbonded
             eij = get_eij_inter(vdw1, vdw2, i, j) * s(ip)
             
             call Rij_jacobian(ci, cj, Rij, J_i, J_j)
+            if(Rij < eps_rp) then
+                call fatal_error("Requesting inter non-bonded gradients for two atoms &
+                                 &placed in the same point, this could be &
+                                 &an internal bug or a problem in your input &
+                                 &file, please check.")
+            end if
             call vdw_grad(Rij, Rij0, Eij, Rijg)
 
             if(ineigh_i == 0) then

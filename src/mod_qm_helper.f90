@@ -196,12 +196,17 @@ module mod_qm_helper
         subroutine qm_helper_init_vdw_prm(qm, prmfile)
             !! Assign vdw parameters of the QM part from attype and prm file
             use mod_prm, only: assign_vdw
-            use mod_io, only: fatal_error
+            use mod_io, only: fatal_error, large_file_read
+            use mod_constants, only: OMMP_STR_CHAR_MAX
+            use mod_utils, only: str_to_lower, str_uncomment
 
             implicit none
 
             type(ommp_qm_helper), intent(inout) :: qm
-            character(len=*) :: prmfile
+            character(len=*), intent(in) :: prmfile
+            
+            character(len=OMMP_STR_CHAR_MAX), allocatable :: prm_buf(:)
+            integer(ip) :: ist, i
             
             if(qm%use_nonbonded) then
                 call fatal_error("VdW is already initialized!")
@@ -212,9 +217,18 @@ module mod_qm_helper
                                  &requesting creation of VdW.")
             end if
             
+            call large_file_read(prmfile, prm_buf)
+            ! Remove comments from prm file
+            !$omp parallel do
+            do i=1, size(prm_buf)
+                prm_buf(i) = str_to_lower(prm_buf(i))
+                prm_buf(i) = str_uncomment(prm_buf(i), '!')
+            end do
+            
             allocate(qm%qm_vdw)
-            call assign_vdw(qm%qm_vdw, qm%qm_top, prmfile)
+            call assign_vdw(qm%qm_vdw, qm%qm_top, prm_buf)
             qm%use_nonbonded = .true.
+            deallocate(prm_buf)
         end subroutine
 
         subroutine qm_helper_vdw_energy(qm, mm, V)

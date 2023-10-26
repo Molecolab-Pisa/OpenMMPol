@@ -271,17 +271,17 @@ module mod_bonded
 
         use_cubic = (abs(bds%bond_cubic) > eps_rp)
         use_quartic = (abs(bds%bond_quartic) > eps_rp)
-        
+
         if(.not. bds%use_bond) return
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
-            !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad)& 
+            !$omp parallel do default(shared) schedule(dynamic) & 
             !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,J_a,J_b) 
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
                 ib = bds%bondat(2,i)
-                
+
                 if(bds%top%use_frozen) then
                     sk_a = bds%top%frozen(ia)
                     sk_b = bds%top%frozen(ib)
@@ -290,24 +290,40 @@ module mod_bonded
                     sk_a = .false.
                     sk_b = .false.
                 end if
-                
+
                 ca = bds%top%cmm(:,ia)
                 cb = bds%top%cmm(:,ib)
-                
+
                 call Rij_jacobian(ca, cb, l, J_a, J_b)
                 dl = l - bds%l0bond(i)
-                
+
                 g = 2 * bds%kbond(i) * dl
-                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
-                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1,ia) = grad(1,ia) + J_a(1) * g
+                    !$omp atomic update
+                    grad(2,ia) = grad(2,ia) + J_a(2) * g
+                    !$omp atomic update
+                    grad(3,ia) = grad(3,ia) + J_a(3) * g
+                end if
+
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1,ib) = grad(1,ib) + J_b(1) * g
+                    !$omp atomic update
+                    grad(2,ib) = grad(2,ib) + J_b(2) * g
+                    !$omp atomic update
+                    grad(3,ib) = grad(3,ib) + J_b(3) * g
+                end if
             end do
         else
-            !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) & 
+            !$omp parallel do default(shared) schedule(dynamic) & 
             !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,J_a,J_b) 
             do i=1, bds%nbond
                 ia = bds%bondat(1,i)
                 ib = bds%bondat(2,i)
-                
+
                 if(bds%top%use_frozen) then
                     sk_a = bds%top%frozen(ia)
                     sk_b = bds%top%frozen(ib)
@@ -316,21 +332,36 @@ module mod_bonded
                     sk_a = .false.
                     sk_b = .false.
                 end if
-                
+
                 ca = bds%top%cmm(:,ia)
                 cb = bds%top%cmm(:,ib)
-                
+
                 call Rij_jacobian(ca, cb, l, J_a, J_b)
                 dl = l - bds%l0bond(i)
-                
-                g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl&
-                                             + 2.0*bds%bond_quartic*dl**2)
 
-                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
-                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl &
+                                             + 2.0*bds%bond_quartic*dl**2)
+                
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1,ia) = grad(1,ia) + J_a(1) * g
+                    !$omp atomic update
+                    grad(2,ia) = grad(2,ia) + J_a(2) * g
+                    !$omp atomic update
+                    grad(3,ia) = grad(3,ia) + J_a(3) * g
+                end if
+
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1,ib) = grad(1,ib) + J_b(1) * g
+                    !$omp atomic update
+                    grad(2,ib) = grad(2,ib) + J_b(2) * g
+                    !$omp atomic update
+                    grad(3,ib) = grad(3,ib) + J_b(3) * g
+                end if
             end do
         end if
-        
+
     end subroutine bond_geomgrad
 
     subroutine angle_init(bds, n)
@@ -469,7 +500,7 @@ module mod_bonded
 
         if(.not. bds%use_angle) return
         
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,sk_a,sk_b,sk_c,sk_x,a,b,c,aux,thet,d_theta,g,Ja,Jb,Jc,Jx)
         do i=1, bds%nangle
             if(abs(bds%kangle(i)) < eps_rp) cycle
@@ -500,10 +531,32 @@ module mod_bonded
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
 
-                if(.not. sk_a) grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
-                if(.not. sk_b) grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
-                if(.not. sk_c) grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
-            
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1,bds%angleat(1,i)) = grad(1,bds%angleat(1,i)) + g * Ja(1)
+                    !$omp atomic update
+                    grad(2,bds%angleat(1,i)) = grad(2,bds%angleat(1,i)) + g * Ja(2)
+                    !$omp atomic update
+                    grad(3,bds%angleat(1,i)) = grad(3,bds%angleat(1,i)) + g * Ja(3)
+                end if
+
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1,bds%angleat(2,i)) = grad(1,bds%angleat(2,i)) + g * Jb(1)
+                    !$omp atomic update
+                    grad(2,bds%angleat(2,i)) = grad(2,bds%angleat(2,i)) + g * Jb(2)
+                    !$omp atomic update
+                    grad(3,bds%angleat(2,i)) = grad(3,bds%angleat(2,i)) + g * Jb(3)
+                end if
+
+                if(.not. sk_c) then
+                    !$omp atomic update
+                    grad(1,bds%angleat(3,i)) = grad(1,bds%angleat(3,i)) + g * Jc(1)
+                    !$omp atomic update
+                    grad(2,bds%angleat(3,i)) = grad(2,bds%angleat(3,i)) + g * Jc(2)
+                    !$omp atomic update
+                    grad(3,bds%angleat(3,i)) = grad(3,bds%angleat(3,i)) + g * Jc(3)
+                end if
             else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
                     bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
@@ -534,16 +587,45 @@ module mod_bonded
                                                + 4.0 * bds%angle_quartic * d_theta**2 &
                                                + 5.0 * bds%angle_pentic * d_theta**3 &
                                                + 6.0 * bds%angle_sextic * d_theta**4)
-               
-                if(.not. sk_a) grad(:,bds%angleat(1,i)) = grad(:,bds%angleat(1,i)) + g * Ja
-                if(.not. sk_b) grad(:,bds%angleat(2,i)) = grad(:,bds%angleat(2,i)) + g * Jb
-                if(.not. sk_c) grad(:,bds%angleat(3,i)) = grad(:,bds%angleat(3,i)) + g * Jc
-                if(.not. sk_x) grad(:,bds%angauxat(i)) = grad(:,bds%angauxat(i)) + g * Jx
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1,bds%angleat(1,i)) = grad(1,bds%angleat(1,i)) + g * Ja(1)
+                    !$omp atomic update
+                    grad(2,bds%angleat(1,i)) = grad(2,bds%angleat(1,i)) + g * Ja(2)
+                    !$omp atomic update
+                    grad(3,bds%angleat(1,i)) = grad(3,bds%angleat(1,i)) + g * Ja(3)
+                end if
 
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1,bds%angleat(2,i)) = grad(1,bds%angleat(2,i)) + g * Jb(1)
+                    !$omp atomic update
+                    grad(2,bds%angleat(2,i)) = grad(2,bds%angleat(2,i)) + g * Jb(2)
+                    !$omp atomic update
+                    grad(3,bds%angleat(2,i)) = grad(3,bds%angleat(2,i)) + g * Jb(3)
+                end if
+
+                if(.not. sk_c) then
+                    !$omp atomic update
+                    grad(1,bds%angleat(3,i)) = grad(1,bds%angleat(3,i)) + g * Jc(1)
+                    !$omp atomic update
+                    grad(2,bds%angleat(3,i)) = grad(2,bds%angleat(3,i)) + g * Jc(2)
+                    !$omp atomic update
+                    grad(3,bds%angleat(3,i)) = grad(3,bds%angleat(3,i)) + g * Jc(3)
+                end if
+
+                if(.not. sk_x) then
+                    !$omp atomic update
+                    grad(1,bds%angauxat(i)) = grad(1,bds%angauxat(i)) + g * Jx(1)
+                    !$omp atomic update
+                    grad(2,bds%angauxat(i)) = grad(2,bds%angauxat(i)) + g * Jx(2)
+                    !$omp atomic update
+                    grad(3,bds%angauxat(i)) = grad(3,bds%angauxat(i)) + g * Jx(3)
+                end if
             end if
         end do
     end subroutine angle_geomgrad
-   
+ 
     subroutine strbnd_init(bds, n)
         !! Initialize arrays for calculation of stretch-bend cross term 
         !! potential
@@ -634,7 +716,7 @@ module mod_bonded
         
         if(.not. bds%use_strbnd) return
 
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad)&
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,ia,ib,ic,sk_a,sk_b,sk_c,a,b,c,l1,l2,d_l1,d_l2,thet,d_thet) &
         !$omp private(J1_a,J1_b,J2_b,J2_c,J3_a,J3_b,J3_c,g1,g2,g3)
         do i=1, bds%nstrbnd
@@ -669,13 +751,36 @@ module mod_bonded
             g2 = bds%strbndk2(i) * d_thet
             g3 = bds%strbndk1(i) * d_l1 + bds%strbndk2(i) * d_l2
 
-            if(.not. sk_a) grad(:,ia) = grad(:,ia) + J1_a * g1 + J3_a * g3
-            if(.not. sk_b) grad(:,ib) = grad(:,ib) + J1_b * g1 + J2_b * g2 + J3_b * g3 
-            if(.not. sk_c) grad(:,ic) = grad(:,ic) + J2_c * g2 + J3_c * g3
+            if(.not. sk_a) then
+                !$omp atomic update
+                grad(1,ia) = grad(1,ia) + J1_a(1) * g1 + J3_a(1) * g3
+                !$omp atomic update
+                grad(2,ia) = grad(2,ia) + J1_a(2) * g1 + J3_a(2) * g3
+                !$omp atomic update
+                grad(3,ia) = grad(3,ia) + J1_a(3) * g1 + J3_a(3) * g3
+            end if
+
+            if(.not. sk_b) then
+                !$omp atomic update
+                grad(1,ib) = grad(1,ib) + J1_b(1) * g1 + J2_b(1) * g2 + J3_b(1) * g3
+                !$omp atomic update
+                grad(2,ib) = grad(2,ib) + J1_b(2) * g1 + J2_b(2) * g2 + J3_b(2) * g3
+                !$omp atomic update
+                grad(3,ib) = grad(3,ib) + J1_b(3) * g1 + J2_b(3) * g2 + J3_b(3) * g3
+            end if
+
+            if(.not. sk_c) then
+                !$omp atomic update
+                grad(1,ic) = grad(1,ic) + J2_c(1) * g2 + J3_c(1) * g3
+                !$omp atomic update
+                grad(2,ic) = grad(2,ic) + J2_c(2) * g2 + J3_c(2) * g3
+                !$omp atomic update
+                grad(3,ic) = grad(3,ic) + J2_c(3) * g2 + J3_c(3) * g3
+            end if
         end do
 
     end subroutine strbnd_geomgrad
-    
+
     subroutine urey_init(bds, n) 
         !! Initialize Urey-Bradley potential arrays
 
@@ -775,7 +880,7 @@ module mod_bonded
 
         if(.not. use_cubic .and. .not. use_quartic) then
             ! This is just a regular harmonic potential
-            !$omp parallel do default(shared)  reduction(+:grad) &
+            !$omp parallel do default(shared)  &
             !$omp private(i,ia,ib,sk_a,sk_b,l,dl,g,J_a,J_b)
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
@@ -795,11 +900,27 @@ module mod_bonded
                                   l, J_a, J_b)
                 dl = l - bds%l0urey(i)
                 g = 2 * bds%kurey(i) * dl
-                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
-                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1,ia) = grad(1,ia) + J_a(1) * g
+                    !$omp atomic update
+                    grad(2,ia) = grad(2,ia) + J_a(2) * g
+                    !$omp atomic update
+                    grad(3,ia) = grad(3,ia) + J_a(3) * g
+                end if
+
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1,ib) = grad(1,ib) + J_b(1) * g
+                    !$omp atomic update
+                    grad(2,ib) = grad(2,ib) + J_b(2) * g
+                    !$omp atomic update
+                    grad(3,ib) = grad(3,ib) + J_b(3) * g
+                end if
             end do
         else
-            !$omp parallel do default(shared)  reduction(+:grad) &
+            !$omp parallel do default(shared) &
             !$omp private(i,ia,ib,sk_a,sk_b,l,dl,g,J_a,J_b)
             do i=1, bds%nurey
                 ia = bds%ureyat(1,i)
@@ -822,8 +943,23 @@ module mod_bonded
                                              + 3.0/2.0 * bds%urey_cubic*dl &
                                              + 2.0 * bds%urey_quartic*dl**2)
 
-                if(.not. sk_a) grad(:,ia) = grad(:,ia) + J_a * g
-                if(.not. sk_b) grad(:,ib) = grad(:,ib) + J_b * g
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1,ia) = grad(1,ia) + J_a(1) * g
+                    !$omp atomic update
+                    grad(2,ia) = grad(2,ia) + J_a(2) * g
+                    !$omp atomic update
+                    grad(3,ia) = grad(3,ia) + J_a(3) * g
+                end if
+
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1,ib) = grad(1,ib) + J_b(1) * g
+                    !$omp atomic update
+                    grad(2,ib) = grad(2,ib) + J_b(2) * g
+                    !$omp atomic update
+                    grad(3,ib) = grad(3,ib) + J_b(3) * g
+                end if
             end do
         end if
     end subroutine urey_geomgrad
@@ -933,16 +1069,16 @@ module mod_bonded
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
         integer(ip) :: i, ia, ib, ic, id
         logical :: sk_a, sk_b, sk_c, sk_d
-        
+
         if(.not. bds%use_opb) return
-        
-        !$omp parallel do default(shared) reduction(+:grad) schedule(dynamic)&
+
+        !$omp parallel do default(shared) schedule(dynamic)&
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%nopb
             ia = bds%opbat(2,i)
             ib = bds%opbat(4,i)
             ic = bds%opbat(3,i)
-            id = bds%opbat(1,i) 
+            id = bds%opbat(1,i)
 
             if(bds%top%use_frozen) then
                 sk_a = bds%top%frozen(ia)
@@ -957,22 +1093,54 @@ module mod_bonded
                 sk_d = .false.
             end if
 
-            call opb_angle_jacobian(bds%top%cmm(:,ia), & 
+            call opb_angle_jacobian(bds%top%cmm(:,ia), &
                                     bds%top%cmm(:,ib), &
                                     bds%top%cmm(:,ic), &
                                     bds%top%cmm(:,id), &
                                     thet, J_a, J_b, J_c, J_d)
-            
+
             g = bds%kopb(i) * thet * (2.0 + 3.0*bds%opb_cubic*thet &
                 + 4.0*bds%opb_quartic*thet**2 + 5.0*bds%opb_pentic*thet**3 &
                 + 6.0*bds%opb_sextic*thet**4)
 
-            if(.not. sk_a) grad(:,ia) = grad(:,ia) + g * J_a
-            if(.not. sk_b) grad(:,ib) = grad(:,ib) + g * J_b
-            if(.not. sk_c) grad(:,ic) = grad(:,ic) + g * J_c
-            if(.not. sk_d) grad(:,id) = grad(:,id) + g * J_d
+            if(.not. sk_a) then
+                !$omp atomic update
+                grad(1,ia) = grad(1,ia) + J_a(1) * g
+                !$omp atomic update
+                grad(2,ia) = grad(2,ia) + J_a(2) * g
+                !$omp atomic update
+                grad(3,ia) = grad(3,ia) + J_a(3) * g
+            end if
+
+            if(.not. sk_b) then
+                !$omp atomic update
+                grad(1,ib) = grad(1,ib) + J_b(1) * g
+                !$omp atomic update
+                grad(2,ib) = grad(2,ib) + J_b(2) * g
+                !$omp atomic update
+                grad(3,ib) = grad(3,ib) + J_b(3) * g
+            end if
+
+            if(.not. sk_c) then
+                !$omp atomic update
+                grad(1,ic) = grad(1,ic) + J_c(1) * g
+                !$omp atomic update
+                grad(2,ic) = grad(2,ic) + J_c(2) * g
+                !$omp atomic update
+                grad(3,ic) = grad(3,ic) + J_c(3) * g
+            end if
+
+            if(.not. sk_d) then
+                !$omp atomic update
+                grad(1,id) = grad(1,id) + J_d(1) * g
+                !$omp atomic update
+                grad(2,id) = grad(2,id) + J_d(2) * g
+                !$omp atomic update
+                grad(3,id) = grad(3,id) + J_d(3) * g
+            end if
         end do
     end subroutine opb_geomgrad
+
     
     subroutine pitors_init(bds, n)
         !! Initialize arrays needed to compute pi-torsion potential
@@ -1092,53 +1260,101 @@ module mod_bonded
         logical :: sk_a, sk_b, sk_c, sk_d, sk_e, sk_f
 
         if(.not. bds%use_pitors) return
-        
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,ia,ib,ic,id,ie,if_,sk_a,sk_b,sk_c,sk_d,sk_e,sk_f) &
         !$omp private(J_a,J_b,J_c,J_d,J_e,J_f,g,thet)
         do i=1, bds%npitors
-            ia = bds%pitorsat(1,i)
-            ic = bds%pitorsat(2,i)
-            id = bds%pitorsat(3,i)
-            ib = bds%pitorsat(4,i)
-            ie = bds%pitorsat(5,i)
-            if_ = bds%pitorsat(6,i)
-            
-            if(bds%top%use_frozen) then
-                sk_a = bds%top%frozen(ia)
-                sk_b = bds%top%frozen(ib)
-                sk_c = bds%top%frozen(ic)
-                sk_d = bds%top%frozen(id)
-                sk_e = bds%top%frozen(ie)
-                sk_f = bds%top%frozen(if_)
-                if(sk_a .and. sk_b .and. sk_c .and. sk_d .and. sk_e .and. sk_f) cycle
-            else
-                sk_a = .false.
-                sk_b = .false.
-                sk_c = .false.
-                sk_d = .false.
-                sk_e = .false.
-                sk_f = .false.
-            end if
+	    ia = bds%pitorsat(1,i)
+	    ic = bds%pitorsat(2,i)
+	    id = bds%pitorsat(3,i)
+	    ib = bds%pitorsat(4,i)
+	    ie = bds%pitorsat(5,i)
+	    if_ = bds%pitorsat(6,i)
 
-            call pitors_angle_jacobian(bds%top%cmm(:,ia), &
-                                       bds%top%cmm(:,ib), &
-                                       bds%top%cmm(:,ic), &
-                                       bds%top%cmm(:,id), &
-                                       bds%top%cmm(:,ie), &
-                                       bds%top%cmm(:,if_), &
-                                       thet, J_a, J_b, J_c, J_d, J_e, J_f)
+	    if(bds%top%use_frozen) then
+	        sk_a = bds%top%frozen(ia)
+	        sk_b = bds%top%frozen(ib)
+	        sk_c = bds%top%frozen(ic)
+	        sk_d = bds%top%frozen(id)
+	        sk_e = bds%top%frozen(ie)
+	        sk_f = bds%top%frozen(if_)
+	        if(sk_a .and. sk_b .and. sk_c .and. sk_d .and. sk_e .and. sk_f) cycle
+	    else
+	        sk_a = .false.
+	        sk_b = .false.
+	        sk_c = .false.
+	        sk_d = .false.
+	        sk_e = .false.
+	        sk_f = .false.
+	    end if
 
-            g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
+	    call pitors_angle_jacobian(bds%top%cmm(:,ia), &
+		                       bds%top%cmm(:,ib), &
+		                       bds%top%cmm(:,ic), &
+		                       bds%top%cmm(:,id), &
+		                       bds%top%cmm(:,ie), &
+		                       bds%top%cmm(:,if_), &
+		                       thet, J_a, J_b, J_c, J_d, J_e, J_f)
 
-            if(.not. sk_a) grad(:,ia) = grad(:,ia) + g * J_a
-            if(.not. sk_b) grad(:,ib) = grad(:,ib) + g * J_b
-            if(.not. sk_c) grad(:,ic) = grad(:,ic) + g * J_c
-            if(.not. sk_d) grad(:,id) = grad(:,id) + g * J_d
-            if(.not. sk_e) grad(:,ie) = grad(:,ie) + g * J_e
-            if(.not. sk_f) grad(:,if_) = grad(:,if_) + g * J_f
+	    g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
+
+	    if(.not. sk_a) then
+	        !$omp atomic update
+	        grad(1,ia) = grad(1,ia) + g * J_a(1)
+	        !$omp atomic update
+	        grad(2,ia) = grad(2,ia) + g * J_a(2)
+	        !$omp atomic update
+	        grad(3,ia) = grad(3,ia) + g * J_a(3)
+	    end if
+
+	    if(.not. sk_b) then
+	        !$omp atomic update
+	        grad(1,ib) = grad(1,ib) + g * J_b(1)
+	        !$omp atomic update
+	        grad(2,ib) = grad(2,ib) + g * J_b(2)
+	        !$omp atomic update
+	        grad(3,ib) = grad(3,ib) + g * J_b(3)
+	    end if
+
+	    if(.not. sk_c) then
+	        !$omp atomic update
+	        grad(1,ic) = grad(1,ic) + g * J_c(1)
+	        !$omp atomic update
+	        grad(2,ic) = grad(2,ic) + g * J_c(2)
+	        !$omp atomic update
+	        grad(3,ic) = grad(3,ic) + g * J_c(3)
+	    end if
+
+	    if(.not. sk_d) then
+	        !$omp atomic update
+	        grad(1,id) = grad(1,id) + g * J_d(1)
+	        !$omp atomic update
+	        grad(2,id) = grad(2,id) + g * J_d(2)
+	        !$omp atomic update
+	        grad(3,id) = grad(3,id) + g * J_d(3)
+	    end if
+
+	    if(.not. sk_e) then
+	        !$omp atomic update
+	        grad(1,ie) = grad(1,ie) + g * J_e(1)
+	        !$omp atomic update
+	        grad(2,ie) = grad(2,ie) + g * J_e(2)
+	        !$omp atomic update
+	        grad(3,ie) = grad(3,ie) + g * J_e(3)
+	    end if
+
+	    if(.not. sk_f) then
+	        !$omp atomic update
+	        grad(1,if_) = grad(1,if_) + g * J_f(1)
+	        !$omp atomic update
+	        grad(2,if_) = grad(2,if_) + g * J_f(2)
+	        !$omp atomic update
+	        grad(3,if_) = grad(3,if_) + g * J_f(3)
+	    end if
         end do
     end subroutine pitors_geomgrad
+
     
     subroutine torsion_init(bds, n)
         !! Initialize torsion potential arrays
@@ -1219,7 +1435,7 @@ module mod_bonded
         
         if(.not. bds%use_torsion) return
 
-        !$omp parallel do default(shared) reduction(+:grad)&
+        !$omp parallel do default(shared) &
         !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,thet,J_a,J_b,J_c,J_d,g)
         do i=1, bds%ntorsion
             ia = bds%torsionat(1,i)
@@ -1251,10 +1467,38 @@ module mod_bonded
                 g = -real(bds%torsn(j,i)) * sin(real(bds%torsn(j,i))* thet &
                                                 - bds%torsphase(j,i)) &
                     * bds%torsamp(j,i)
-                if(.not. sk_a) grad(:, ia) = grad(:, ia) + J_a * g
-                if(.not. sk_b) grad(:, ib) = grad(:, ib) + J_b * g
-                if(.not. sk_c) grad(:, ic) = grad(:, ic) + J_c * g
-                if(.not. sk_d) grad(:, id) = grad(:, id) + J_d * g
+                if(.not. sk_a) then
+                    !$omp atomic update
+                    grad(1, ia) = grad(1, ia) + J_a(1) * g
+                    !$omp atomic update
+                    grad(2, ia) = grad(2, ia) + J_a(2) * g
+                    !$omp atomic update
+                    grad(3, ia) = grad(3, ia) + J_a(3) * g
+                end if
+                if(.not. sk_b) then
+                    !$omp atomic update
+                    grad(1, ib) = grad(1, ib) + J_b(1) * g
+                    !$omp atomic update
+                    grad(2, ib) = grad(2, ib) + J_b(2) * g
+                    !$omp atomic update
+                    grad(3, ib) = grad(3, ib) + J_b(3) * g
+                end if
+                if(.not. sk_c) then
+                    !$omp atomic update
+                    grad(1, ic) = grad(1, ic) + J_c(1) * g
+                    !$omp atomic update
+                    grad(2, ic) = grad(2, ic) + J_c(2) * g
+                    !$omp atomic update
+                    grad(3, ic) = grad(3, ic) + J_c(3) * g
+                end if
+                if(.not. sk_d) then
+                    !$omp atomic update
+                    grad(1, id) = grad(1, id) + J_d(1) * g
+                    !$omp atomic update
+                    grad(2, id) = grad(2, id) + J_d(2) * g
+                    !$omp atomic update
+                    grad(3, id) = grad(3, id) + J_d(3) * g
+                end if
             end do
         end do
 
@@ -1302,29 +1546,29 @@ module mod_bonded
 
         type(ommp_bonded_type), intent(in) :: bds
         ! Bonded potential data structure
-        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        real(rp), intent(inout) :: grad(3, bds%top%mm_atoms)
         !! improper torsion potential, result will be added to V
         real(rp) :: thet, g, J_a(3), J_b(3), J_c(3), J_d(3)
         integer(ip) :: i, j, ia, ib, ic, id
         logical :: sk_a, sk_b, sk_c, sk_d
-        
-        if(.not. bds%use_imptorsion) return
-        
-        !$omp parallel do default(shared) reduction(+:grad) &
-        !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,thet,J_a,J_b,J_c,J_d,g)
-        do i=1, bds%nimptorsion
-            ! Atoms that defines the dihedral angle
-            ia = bds%imptorsionat(1,i)
-            ib = bds%imptorsionat(2,i)
-            ic = bds%imptorsionat(3,i)
-            id = bds%imptorsionat(4,i) 
-            
-            if(bds%top%use_frozen) then
+
+        if (.not. bds%use_imptorsion) return
+
+        !$omp parallel do default(shared) &
+        !$omp private(i, ia, ib, ic, id, sk_a, sk_b, sk_c, sk_d, j, thet, J_a, J_b, J_c, J_d, g)
+        do i = 1, bds%nimptorsion
+            ! Atoms that define the dihedral angle
+            ia = bds%imptorsionat(1, i)
+            ib = bds%imptorsionat(2, i)
+            ic = bds%imptorsionat(3, i)
+            id = bds%imptorsionat(4, i)
+
+            if (bds%top%use_frozen) then
                 sk_a = bds%top%frozen(ia)
                 sk_b = bds%top%frozen(ib)
                 sk_c = bds%top%frozen(ic)
                 sk_d = bds%top%frozen(id)
-                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
+                if (sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
             else
                 sk_a = .false.
                 sk_b = .false.
@@ -1332,24 +1576,51 @@ module mod_bonded
                 sk_d = .false.
             end if
 
-            call torsion_angle_jacobian(bds%top%cmm(:,ia), &
-                                        bds%top%cmm(:,ib), &
-                                        bds%top%cmm(:,ic), &
-                                        bds%top%cmm(:,id), &
+            call torsion_angle_jacobian(bds%top%cmm(:, ia), &
+                                        bds%top%cmm(:, ib), &
+                                        bds%top%cmm(:, ic), &
+                                        bds%top%cmm(:, id), &
                                         thet, J_a, J_b, J_c, J_d)
-            
-            do j=1, 3
-                if(bds%imptorsn(j,i) < 1) exit
-                g = -real(bds%imptorsn(j,i)) * sin(real(bds%imptorsn(j,i))* thet &
-                                                   - bds%imptorsphase(j,i)) &
-                                             * bds%imptorsamp(j,i)
-                if(.not. sk_a) grad(:, ia) = grad(:, ia) + J_a * g
-                if(.not. sk_b) grad(:, ib) = grad(:, ib) + J_b * g
-                if(.not. sk_c) grad(:, ic) = grad(:, ic) + J_c * g
-                if(.not. sk_d) grad(:, id) = grad(:, id) + J_d * g
+
+            do j = 1, 3
+                if (bds%imptorsn(j, i) < 1) exit
+                g = -real(bds%imptorsn(j, i)) * sin(real(bds%imptorsn(j, i)) * thet &
+                                                    - bds%imptorsphase(j, i)) &
+                                                * bds%imptorsamp(j, i)
+                if (.not. sk_a) then
+                    !$omp atomic update
+                    grad(1, ia) = grad(1, ia) + J_a(1) * g
+                    !$omp atomic update
+                    grad(2, ia) = grad(2, ia) + J_a(2) * g
+                    !$omp atomic update
+                    grad(3, ia) = grad(3, ia) + J_a(3) * g
+                end if
+                if (.not. sk_b) then
+                    !$omp atomic update
+                    grad(1, ib) = grad(1, ib) + J_b(1) * g
+                    !$omp atomic update
+                    grad(2, ib) = grad(2, ib) + J_b(2) * g
+                    !$omp atomic update
+                    grad(3, ib) = grad(3, ib) + J_b(3) * g
+                end if
+                if (.not. sk_c) then
+                    !$omp atomic update
+                    grad(1, ic) = grad(1, ic) + J_c(1) * g
+                    !$omp atomic update
+                    grad(2, ic) = grad(2, ic) + J_c(2) * g
+                    !$omp atomic update
+                    grad(3, ic) = grad(3, ic) + J_c(3) * g
+                end if
+                if (.not. sk_d) then
+                    !$omp atomic update
+                    grad(1, id) = grad(1, id) + J_d(1) * g
+                    !$omp atomic update
+                    grad(2, id) = grad(2, id) + J_d(2) * g
+                    !$omp atomic update
+                    grad(3, id) = grad(3, id) + J_d(3) * g
+                end if
             end do
         end do
-
     end subroutine imptorsion_geomgrad
     
     subroutine imptorsion_init(bds, n)
@@ -1489,7 +1760,7 @@ module mod_bonded
         ! Bonded potential data structure
         real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
         !! improper torsion potential, result will be added to V
-        real(rp) :: thet, gt(3), dihef(3), da1, da2, angle1, angle2, &
+        real(rp) :: thet, gt(3), dihef(3), da1, da2, angle1, angle2, f1, f2, f3, &
                     Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
                     Ja1_a(3), Ja1_b(3), Ja1_c(3), &
                     Ja2_a(3), Ja2_b(3), Ja2_c(3)
@@ -1501,45 +1772,46 @@ module mod_bonded
         logical :: sk_ta, sk_tb, sk_tc, sk_td, &
                    sk_1a, sk_1b, sk_1c, &
                    sk_2a, sk_2b, sk_2c
-        
+
         if(.not. bds%use_angtor) return
 
-        !$omp parallel do default(shared) reduction(+:grad) &
-        !$omp private(thet, gt, dihef, da1, da2, angle1, angle2, Jt_a, Jt_b) &
+        !$omp parallel do default(shared) &
+        !$omp private(thet, gt, dihef, da1, da2, angle1, angle2, f1, f2, f3, Jt_a, Jt_b) &
         !$omp private(Jt_c, Jt_d, Ja1_a, Ja1_b, Ja1_c) &
         !$omp private(Ja2_a, Ja2_b, Ja2_c, i, j, k, ia1, ia2) &
         !$omp private(it_a, it_b, it_c, it_d, ia1_a, ia1_b, ia1_c, ia2_a, ia2_b, ia2_c) &
         !$omp private(sk_ta, sk_tb, sk_tc, sk_td, sk_1a, sk_1b, sk_1c, sk_2a, sk_2b, sk_2c)
         do i=1, bds%nangtor
-            ! Atoms that defines the dihedral angle
+            ! Atoms that define the dihedral angle
             it_a = bds%angtorat(1,i)
             it_b = bds%angtorat(2,i)
             it_c = bds%angtorat(3,i)
-            it_d = bds%angtorat(4,i) 
+            it_d = bds%angtorat(4,i)
 
             ia1 = bds%angtor_a(1,i)
             ia1_a = bds%angleat(1,ia1)
             ia1_b = bds%angleat(2,ia1)
             ia1_c = bds%angleat(3,ia1)
-            
+
             ia2 = bds%angtor_a(2,i)
             ia2_a = bds%angleat(1,ia2)
             ia2_b = bds%angleat(2,ia2)
             ia2_c = bds%angleat(3,ia2)
-            
+
             if(bds%top%use_frozen) then
                 sk_ta = bds%top%frozen(it_a)
                 sk_tb = bds%top%frozen(it_b)
                 sk_tc = bds%top%frozen(it_c)
                 sk_td = bds%top%frozen(it_d)
-                
+
                 sk_1a = bds%top%frozen(ia1_a)
                 sk_1b = bds%top%frozen(ia1_b)
                 sk_1c = bds%top%frozen(ia1_c)
-                
+
                 sk_2a = bds%top%frozen(ia2_a)
                 sk_2b = bds%top%frozen(ia2_b)
                 sk_2c = bds%top%frozen(ia2_c)
+
                 if(sk_ta .and. sk_tb .and. sk_tc .and. sk_td .and. &
                    sk_1a .and. sk_1b .and. sk_1c .and. &
                    sk_2a .and. sk_2b .and. sk_2c) cycle
@@ -1570,7 +1842,7 @@ module mod_bonded
                                        bds%top%cmm(:,ia1_b), &
                                        bds%top%cmm(:,ia1_c), &
                                        angle1, Ja1_a, Ja1_b, Ja1_c)
-            
+
             call simple_angle_jacobian(bds%top%cmm(:,ia2_a), &
                                        bds%top%cmm(:,ia2_b), &
                                        bds%top%cmm(:,ia2_c), &
@@ -1578,25 +1850,98 @@ module mod_bonded
 
             da1 = angle1 - bds%eqangle(ia1)
             da2 = angle2 - bds%eqangle(ia2)
+ 
+            do k = 1, 3
+                if(.not.(sk_ta .and. sk_tb .and. sk_tc .and. sk_td)) &
+                    f1 = (bds%angtork(k, i) * da1 + bds%angtork(3+k,i) * da2) * gt(k)
+                if(.not.(sk_1a .and. sk_1b .and. sk_1c)) &
+                    f2 = bds%angtork(k, i) * dihef(k)
+                if(.not.(sk_2a .and. sk_2b .and. sk_2c)) &
+                    f3 = bds%angtork(3+k, i) * dihef(k)
 
-            do k=1, 3
-                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%angtork(k,i) * da1 * gt(k) * Jt_a
-                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%angtork(k,i) * da1 * gt(k) * Jt_b
-                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%angtork(k,i) * da1 * gt(k) * Jt_c
-                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%angtork(k,i) * da1 * gt(k) * Jt_d
+                if (.not. sk_ta) then
+                    !$omp atomic update
+                    grad(1, it_a) = grad(1, it_a) + f1 * Jt_a(1)
+                    !$omp atomic update
+                    grad(2, it_a) = grad(2, it_a) + f1 * Jt_a(2)
+                    !$omp atomic update
+                    grad(3, it_a) = grad(3, it_a) + f1 * Jt_a(3)
+                end if
                 
-                if(.not. sk_1a) grad(:,ia1_a) = grad(:,ia1_a) + bds%angtork(k,i) * dihef(k) * Ja1_a
-                if(.not. sk_1b) grad(:,ia1_b) = grad(:,ia1_b) + bds%angtork(k,i) * dihef(k) * Ja1_b
-                if(.not. sk_1c) grad(:,ia1_c) = grad(:,ia1_c) + bds%angtork(k,i) * dihef(k) * Ja1_c
-                
-                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_a
-                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_b
-                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_c
-                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%angtork(3+k,i) * da2 * gt(k) * Jt_d
-                
-                if(.not. sk_2a) grad(:,ia2_a) = grad(:,ia2_a) + bds%angtork(3+k,i) * dihef(k) * Ja2_a
-                if(.not. sk_2b) grad(:,ia2_b) = grad(:,ia2_b) + bds%angtork(3+k,i) * dihef(k) * Ja2_b
-                if(.not. sk_2c) grad(:,ia2_c) = grad(:,ia2_c) + bds%angtork(3+k,i) * dihef(k) * Ja2_c
+                if (.not. sk_tb) then
+                    !$omp atomic update
+                    grad(1, it_b) = grad(1, it_b) + f1 * Jt_b(1)
+                    !$omp atomic update
+                    grad(2, it_b) = grad(2, it_b) + f1 * Jt_b(2)
+                    !$omp atomic update
+                    grad(3, it_b) = grad(3, it_b) + f1 * Jt_b(3)
+                end if
+                if (.not. sk_tc) then
+                    !$omp atomic update
+                    grad(1, it_c) = grad(1, it_c) + f1 * Jt_c(1)
+                    !$omp atomic update
+                    grad(2, it_c) = grad(2, it_c) + f1 * Jt_c(2)
+                    !$omp atomic update
+                    grad(3, it_c) = grad(3, it_c) + f1 * Jt_c(3)
+                end if
+                if (.not. sk_td) then
+                    !$omp atomic update
+                    grad(1, it_d) = grad(1, it_d) + f1 * Jt_d(1)
+                    !$omp atomic update
+                    grad(2, it_d) = grad(2, it_d) + f1 * Jt_d(2)
+                    !$omp atomic update
+                    grad(3, it_d) = grad(3, it_d) + f1 * Jt_d(3)
+                end if
+
+                if (.not. sk_1a) then
+                    !$omp atomic update
+                    grad(1, ia1_a) = grad(1, ia1_a) + f2 * Ja1_a(1)
+                    !$omp atomic update
+                    grad(2, ia1_a) = grad(2, ia1_a) + f2 * Ja1_a(2)
+                    !$omp atomic update
+                    grad(3, ia1_a) = grad(3, ia1_a) + f2 * Ja1_a(3)
+                end if
+                if (.not. sk_1b) then
+                    !$omp atomic update
+                    grad(1, ia1_b) = grad(1, ia1_b) + f2 * Ja1_b(1)
+                    !$omp atomic update
+                    grad(2, ia1_b) = grad(2, ia1_b) + f2 * Ja1_b(2)
+                    !$omp atomic update
+                    grad(3, ia1_b) = grad(3, ia1_b) + f2 * Ja1_b(3)
+                end if
+                if (.not. sk_1c) then
+                    !$omp atomic update
+                    grad(1, ia1_c) = grad(1, ia1_c) + f2 * Ja1_c(1)
+                    !$omp atomic update
+                    grad(2, ia1_c) = grad(2, ia1_c) + f2 * Ja1_c(2)
+                    !$omp atomic update
+                    grad(3, ia1_c) = grad(3, ia1_c) + f2 * Ja1_c(3)
+                end if
+
+                if (.not. sk_2a) then
+                    !$omp atomic update
+                    grad(1, ia2_a) = grad(1, ia2_a) + f3 * Ja2_a(1)
+                    !$omp atomic update
+                    grad(2, ia2_a) = grad(2, ia2_a) + f3 * Ja2_a(2)
+                    !$omp atomic update
+                    grad(3, ia2_a) = grad(3, ia2_a) + f3 * Ja2_a(3)
+                end if
+                if (.not. sk_2b) then
+                    !$omp atomic update
+                    grad(1, ia2_b) = grad(1, ia2_b) + f3 * Ja2_b(1)
+                    !$omp atomic update
+                    grad(2, ia2_b) = grad(2, ia2_b) + f3 * Ja2_b(2)
+                    !$omp atomic update
+                    grad(3, ia2_b) = grad(3, ia2_b) + f3 * Ja2_b(3)
+                end if
+                if (.not. sk_2c) then
+                    !$omp atomic update
+                    grad(1, ia2_c) = grad(1, ia2_c) + f3 * Ja2_c(1)
+                    !$omp atomic update
+                    grad(2, ia2_c) = grad(2, ia2_c) + f3 * Ja2_c(2)
+                    !$omp atomic update
+                    grad(3, ia2_c) = grad(3, ia2_c) + f3 * Ja2_c(3)
+                end if
             end do
         end do
     end subroutine angtor_geomgrad
@@ -1647,7 +1992,7 @@ module mod_bonded
         end do
 
     end subroutine strtor_potential
-    
+
     subroutine strtor_geomgrad(bds, grad)
         use mod_jacobian_mat, only: Rij_jacobian, torsion_angle_jacobian
 
@@ -1655,10 +2000,10 @@ module mod_bonded
 
         type(ommp_bonded_type), intent(in) :: bds
         ! Bonded potential data structure
-        real(rp), intent(inout) :: grad(3,bds%top%mm_atoms)
+        real(rp), intent(inout) :: grad(3, bds%top%mm_atoms)
         !! improper torsion potential, result will be added to V
-        
-        real(rp) :: thet, gt(3), dihef(3), dr1, dr2,  dr3, r1, r2, r3, &
+
+        real(rp) :: thet, gt(3), dihef(3), dr1, dr2, dr3, r1, r2, r3, &
                     Jt_a(3), Jt_b(3), Jt_c(3), Jt_d(3), &
                     Jb1_a(3), Jb1_b(3), &
                     Jb2_a(3), Jb2_b(3), &
@@ -1674,53 +2019,52 @@ module mod_bonded
                    sk_2a, sk_2b, &
                    sk_3a, sk_3b
 
-        
-        if(.not. bds%use_strtor) return
+        if (.not. bds%use_strtor) return
 
-        !$omp parallel do default(shared) reduction(+:grad) &
-        !$omp private(thet, gt, dihef, dr1, dr2,  dr3, r1, r2, r3) &
+        !$omp parallel do default(shared) &
+        !$omp private(thet, gt, dihef, dr1, dr2, dr3, r1, r2, r3) &
         !$omp private(Jt_a, Jt_b, Jt_c, Jt_d, Jb1_a, Jb1_b, Jb2_a, Jb2_b) &
         !$omp private(Jb3_a, Jb3_b, i, j, k, ib1, ib2, ib3, it_a, it_b, it_c, it_d) &
         !$omp private(ib1_a, ib1_b, ib2_a, ib2_b, ib3_a, ib3_b, sk_ta, sk_tb, sk_tc, sk_td) &
         !$omp private(sk_1a, sk_1b, sk_2a, sk_2b, sk_3a, sk_3b)
-        do i=1, bds%nstrtor
-            ! Atoms that defines the dihedral angle
-            it_a = bds%strtorat(1,i)
-            it_b = bds%strtorat(2,i)
-            it_c = bds%strtorat(3,i)
-            it_d = bds%strtorat(4,i) 
+        do i = 1, bds%nstrtor
+            ! Atoms that define the dihedral angle
+            it_a = bds%strtorat(1, i)
+            it_b = bds%strtorat(2, i)
+            it_c = bds%strtorat(3, i)
+            it_d = bds%strtorat(4, i)
 
-            ib1 = bds%strtor_b(1,i)
-            ib1_a = bds%bondat(1,ib1)
-            ib1_b = bds%bondat(2,ib1)
-            
-            ib2 = bds%strtor_b(2,i)
-            ib2_a = bds%bondat(1,ib2)
-            ib2_b = bds%bondat(2,ib2)
-            
-            ib3 = bds%strtor_b(3,i)
-            ib3_a = bds%bondat(1,ib3)
-            ib3_b = bds%bondat(2,ib3)
-            
-            if(bds%top%use_frozen) then
+            ib1 = bds%strtor_b(1, i)
+            ib1_a = bds%bondat(1, ib1)
+            ib1_b = bds%bondat(2, ib1)
+
+            ib2 = bds%strtor_b(2, i)
+            ib2_a = bds%bondat(1, ib2)
+            ib2_b = bds%bondat(2, ib2)
+
+            ib3 = bds%strtor_b(3, i)
+            ib3_a = bds%bondat(1, ib3)
+            ib3_b = bds%bondat(2, ib3)
+
+            if (bds%top%use_frozen) then
                 sk_ta = bds%top%frozen(it_a)
                 sk_tb = bds%top%frozen(it_b)
                 sk_tc = bds%top%frozen(it_c)
                 sk_td = bds%top%frozen(it_d)
-                
+
                 sk_1a = bds%top%frozen(ib1_a)
                 sk_1b = bds%top%frozen(ib1_b)
-                
+
                 sk_2a = bds%top%frozen(ib2_a)
                 sk_2b = bds%top%frozen(ib2_b)
 
                 sk_3a = bds%top%frozen(ib3_a)
                 sk_3b = bds%top%frozen(ib3_b)
 
-                if(sk_ta .and. sk_tb .and. sk_tc .and. sk_td .and. &
-                   sk_1a .and. sk_1b .and. &
-                   sk_2a .and. sk_2b .and. &
-                   sk_3a .and. sk_3b) cycle
+                if (sk_ta .and. sk_tb .and. sk_tc .and. sk_td .and. &
+                    sk_1a .and. sk_1b .and. &
+                    sk_2a .and. sk_2b .and. &
+                    sk_3a .and. sk_3b) cycle
             else
                 sk_ta = .false.
                 sk_tb = .false.
@@ -1734,58 +2078,180 @@ module mod_bonded
                 sk_3b = .false.
             end if
 
-            call torsion_angle_jacobian(bds%top%cmm(:,it_a), &
-                                        bds%top%cmm(:,it_b), &
-                                        bds%top%cmm(:,it_c), &
-                                        bds%top%cmm(:,it_d), &
+            call torsion_angle_jacobian(bds%top%cmm(:, it_a), &
+                                        bds%top%cmm(:, it_b), &
+                                        bds%top%cmm(:, it_c), &
+                                        bds%top%cmm(:, it_d), &
                                         thet, Jt_a, Jt_b, Jt_c, Jt_d)
-            do j=1, 3
-                gt(j) = -real(j) * sin(j*thet+bds%torsphase(j,bds%angtor_t(i)))
-                dihef(j) = 1.0 + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            do j = 1, 3
+                gt(j) = -real(j) * sin(j * thet + bds%torsphase(j, bds%angtor_t(i)))
+                dihef(j) = 1.0 + cos(j * thet + bds%torsphase(j, bds%angtor_t(i)))
             end do
 
-            call Rij_jacobian(bds%top%cmm(:,ib1_a), &
-                              bds%top%cmm(:,ib1_b), &
-                              r1, Jb1_a, Jb1_b) 
-            dr1 = r1 - bds%l0bond(ib1)  
-            
-            call Rij_jacobian(bds%top%cmm(:,ib2_a), &
-                              bds%top%cmm(:,ib2_b), &
-                              r2, Jb2_a, Jb2_b) 
-            dr2 = r2 - bds%l0bond(ib2)  
-            
-            call Rij_jacobian(bds%top%cmm(:,ib3_a), &
-                              bds%top%cmm(:,ib3_b), &
-                              r3, Jb3_a, Jb3_b) 
-            dr3 = r3 - bds%l0bond(ib3)  
-            
-            do k=1, 3
-                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(k,i) * dr1 * gt(k) * Jt_a
-                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(k,i) * dr1 * gt(k) * Jt_b
-                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%strtork(k,i) * dr1 * gt(k) * Jt_c
-                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%strtork(k,i) * dr1 * gt(k) * Jt_d
-                
-                if(.not. sk_1a) grad(:,ib1_a) = grad(:,ib1_a) + bds%strtork(k,i) * dihef(k) * Jb1_a
-                if(.not. sk_1b) grad(:,ib1_b) = grad(:,ib1_b) + bds%strtork(k,i) * dihef(k) * Jb1_b
-                
-                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_a
-                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_b
-                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_c
-                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%strtork(3+k,i) * dr2 * gt(k) * Jt_d
-                
-                if(.not. sk_2a) grad(:,ib2_a) = grad(:,ib2_a) + bds%strtork(3+k,i) * dihef(k) * Jb2_a
-                if(.not. sk_2b) grad(:,ib2_b) = grad(:,ib2_b) + bds%strtork(3+k,i) * dihef(k) * Jb2_b
+            call Rij_jacobian(bds%top%cmm(:, ib1_a), &
+                              bds%top%cmm(:, ib1_b), &
+                              r1, Jb1_a, Jb1_b)
+            dr1 = r1 - bds%l0bond(ib1)
 
-                if(.not. sk_ta) grad(:,it_a) = grad(:,it_a) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_a
-                if(.not. sk_tb) grad(:,it_b) = grad(:,it_b) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_b
-                if(.not. sk_tc) grad(:,it_c) = grad(:,it_c) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_c
-                if(.not. sk_td) grad(:,it_d) = grad(:,it_d) + bds%strtork(6+k,i) * dr3 * gt(k) * Jt_d
-                
-                if(.not. sk_3a) grad(:,ib3_a) = grad(:,ib3_a) + bds%strtork(6+k,i) * dihef(k) * Jb3_a
-                if(.not. sk_3b) grad(:,ib3_b) = grad(:,ib3_b) + bds%strtork(6+k,i) * dihef(k) * Jb3_b
+            call Rij_jacobian(bds%top%cmm(:, ib2_a), &
+                              bds%top%cmm(:, ib2_b), &
+                              r2, Jb2_a, Jb2_b)
+            dr2 = r2 - bds%l0bond(ib2)
+
+            call Rij_jacobian(bds%top%cmm(:, ib3_a), &
+                              bds%top%cmm(:, ib3_b), &
+                              r3, Jb3_a, Jb3_b)
+            dr3 = r3 - bds%l0bond(ib3)
+        
+            do k = 1, 3
+                if (.not. sk_ta) then
+                    !$omp atomic update
+                    grad(1, it_a) = grad(1, it_a) + bds%strtork(k, i) * dr1 * gt(k) * Jt_a(1)
+                    !$omp atomic update
+                    grad(2, it_a) = grad(2, it_a) + bds%strtork(k, i) * dr1 * gt(k) * Jt_a(2)
+                    !$omp atomic update
+                    grad(3, it_a) = grad(3, it_a) + bds%strtork(k, i) * dr1 * gt(k) * Jt_a(3)
+                end if
+                if (.not. sk_tb) then
+                    !$omp atomic update
+                    grad(1, it_b) = grad(1, it_b) + bds%strtork(k, i) * dr1 * gt(k) * Jt_b(1)
+                    !$omp atomic update
+                    grad(2, it_b) = grad(2, it_b) + bds%strtork(k, i) * dr1 * gt(k) * Jt_b(2)
+                    !$omp atomic update
+                    grad(3, it_b) = grad(3, it_b) + bds%strtork(k, i) * dr1 * gt(k) * Jt_b(3)
+                end if
+                if (.not. sk_tc) then
+                    !$omp atomic update
+                    grad(1, it_c) = grad(1, it_c) + bds%strtork(k, i) * dr1 * gt(k) * Jt_c(1)
+                    !$omp atomic update
+                    grad(2, it_c) = grad(2, it_c) + bds%strtork(k, i) * dr1 * gt(k) * Jt_c(2)
+                    !$omp atomic update
+                    grad(3, it_c) = grad(3, it_c) + bds%strtork(k, i) * dr1 * gt(k) * Jt_c(3)
+                end if
+                if (.not. sk_td) then
+                    !$omp atomic update
+                    grad(1, it_d) = grad(1, it_d) + bds%strtork(k, i) * dr1 * gt(k) * Jt_d(1)
+                    !$omp atomic update
+                    grad(2, it_d) = grad(2, it_d) + bds%strtork(k, i) * dr1 * gt(k) * Jt_d(2)
+                    !$omp atomic update
+                    grad(3, it_d) = grad(3, it_d) + bds%strtork(k, i) * dr1 * gt(k) * Jt_d(3)
+                end if
+                if (.not. sk_1a) then
+                    !$omp atomic update
+                    grad(1, ib1_a) = grad(1, ib1_a) + bds%strtork(k, i) * dihef(k) * Jb1_a(1)
+                    !$omp atomic update
+                    grad(2, ib1_a) = grad(2, ib1_a) + bds%strtork(k, i) * dihef(k) * Jb1_a(2)
+                    !$omp atomic update
+                    grad(3, ib1_a) = grad(3, ib1_a) + bds%strtork(k, i) * dihef(k) * Jb1_a(3)
+                end if
+                if (.not. sk_1b) then
+                    !$omp atomic update
+                    grad(1, ib1_b) = grad(1, ib1_b) + bds%strtork(k, i) * dihef(k) * Jb1_b(1)
+                    !$omp atomic update
+                    grad(2, ib1_b) = grad(2, ib1_b) + bds%strtork(k, i) * dihef(k) * Jb1_b(2)
+                    !$omp atomic update
+                    grad(3, ib1_b) = grad(3, ib1_b) + bds%strtork(k, i) * dihef(k) * Jb1_b(3)
+                end if
+                if (.not. sk_ta) then
+                    !$omp atomic update
+                    grad(1, it_a) = grad(1, it_a) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_a(1)
+                    !$omp atomic update
+                    grad(2, it_a) = grad(2, it_a) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_a(2)
+                    !$omp atomic update
+                    grad(3, it_a) = grad(3, it_a) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_a(3)
+                end if
+                if (.not. sk_tb) then
+                    !$omp atomic update
+                    grad(1, it_b) = grad(1, it_b) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_b(1)
+                    !$omp atomic update
+                    grad(2, it_b) = grad(2, it_b) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_b(2)
+                    !$omp atomic update
+                    grad(3, it_b) = grad(3, it_b) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_b(3)
+                end if
+                if (.not. sk_tc) then
+                    !$omp atomic update
+                    grad(1, it_c) = grad(1, it_c) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_c(1)
+                    !$omp atomic update
+                    grad(2, it_c) = grad(2, it_c) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_c(2)
+                    !$omp atomic update
+                    grad(3, it_c) = grad(3, it_c) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_c(3)
+                end if
+                if (.not. sk_td) then
+                    !$omp atomic update
+                    grad(1, it_d) = grad(1, it_d) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_d(1)
+                    !$omp atomic update
+                    grad(2, it_d) = grad(2, it_d) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_d(2)
+                    !$omp atomic update
+                    grad(3, it_d) = grad(3, it_d) + bds%strtork(3 + k, i) * dr2 * gt(k) * Jt_d(3)
+                end if
+                if (.not. sk_2a) then
+                    !$omp atomic update
+                    grad(1, ib2_a) = grad(1, ib2_a) + bds%strtork(3 + k, i) * dihef(k) * Jb2_a(1)
+                    !$omp atomic update
+                    grad(2, ib2_a) = grad(2, ib2_a) + bds%strtork(3 + k, i) * dihef(k) * Jb2_a(2)
+                    !$omp atomic update
+                    grad(3, ib2_a) = grad(3, ib2_a) + bds%strtork(3 + k, i) * dihef(k) * Jb2_a(3)
+                end if
+                if (.not. sk_2b) then
+                    !$omp atomic update
+                    grad(1, ib2_b) = grad(1, ib2_b) + bds%strtork(3 + k, i) * dihef(k) * Jb2_b(1)
+                    !$omp atomic update
+                    grad(2, ib2_b) = grad(2, ib2_b) + bds%strtork(3 + k, i) * dihef(k) * Jb2_b(2)
+                    !$omp atomic update
+                    grad(3, ib2_b) = grad(3, ib2_b) + bds%strtork(3 + k, i) * dihef(k) * Jb2_b(3)
+                end if
+                if (.not. sk_ta) then
+                    !$omp atomic update
+                    grad(1, it_a) = grad(1, it_a) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_a(1)
+                    !$omp atomic update
+                    grad(2, it_a) = grad(2, it_a) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_a(2)
+                    !$omp atomic update
+                    grad(3, it_a) = grad(3, it_a) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_a(3)
+                end if
+                if (.not. sk_tb) then
+                    !$omp atomic update
+                    grad(1, it_b) = grad(1, it_b) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_b(1)
+                    !$omp atomic update
+                    grad(2, it_b) = grad(2, it_b) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_b(2)
+                    !$omp atomic update
+                    grad(3, it_b) = grad(3, it_b) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_b(3)
+                end if
+                if (.not. sk_tc) then
+                    !$omp atomic update
+                    grad(1, it_c) = grad(1, it_c) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_c(1)
+                    !$omp atomic update
+                    grad(2, it_c) = grad(2, it_c) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_c(2)
+                    !$omp atomic update
+                    grad(3, it_c) = grad(3, it_c) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_c(3)
+                end if
+                if (.not. sk_td) then
+                    !$omp atomic update
+                    grad(1, it_d) = grad(1, it_d) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_d(1)
+                    !$omp atomic update
+                    grad(2, it_d) = grad(2, it_d) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_d(2)
+                    !$omp atomic update
+                    grad(3, it_d) = grad(3, it_d) + bds%strtork(6 + k, i) * dr3 * gt(k) * Jt_d(3)
+                end if
+                if (.not. sk_3a) then
+                    !$omp atomic update
+                    grad(1, ib3_a) = grad(1, ib3_a) + bds%strtork(6 + k, i) * dihef(k) * Jb3_a(1)
+                    !$omp atomic update
+                    grad(2, ib3_a) = grad(2, ib3_a) + bds%strtork(6 + k, i) * dihef(k) * Jb3_a(2)
+                    !$omp atomic update
+                    grad(3, ib3_a) = grad(3, ib3_a) + bds%strtork(6 + k, i) * dihef(k) * Jb3_a(3)
+                end if
+                if (.not. sk_3b) then
+                    !$omp atomic update
+                    grad(1, ib3_b) = grad(1, ib3_b) + bds%strtork(6 + k, i) * dihef(k) * Jb3_b(1)
+                    !$omp atomic update
+                    grad(2, ib3_b) = grad(2, ib3_b) + bds%strtork(6 + k, i) * dihef(k) * Jb3_b(2)
+                    !$omp atomic update
+                    grad(3, ib3_b) = grad(3, ib3_b) + bds%strtork(6 + k, i) * dihef(k) * Jb3_b(3)
+                end if
             end do
         end do
     end subroutine strtor_geomgrad
+
     
     subroutine tortor_init(bds, n)
         !! Initialize torsion-torsion correction potential arrays
@@ -2043,8 +2509,8 @@ module mod_bonded
         logical :: sk_a, sk_b, sk_c, sk_d, sk_e
 
         if(.not. bds%use_tortor) return
-        
-        !$omp parallel do default(shared) schedule(dynamic) reduction(+:grad) &
+
+        !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,iprm,ibeg,j,iend,ia,ib,ic,id,ie,sk_a,sk_b,sk_c,sk_d,sk_e) &
         !$omp private(thetx,thety,J1_a,J1_b,J1_c,J1_d,J2_b,J2_c,J2_d,J2_e,vtt,dvttdx,dvttdy)
         do i=1, bds%ntortor
@@ -2055,13 +2521,13 @@ module mod_bonded
                 ibeg = ibeg + bds%ttmap_shape(1,j)*bds%ttmap_shape(2,j)
             end do
             iend = ibeg + bds%ttmap_shape(1,iprm)*bds%ttmap_shape(2,iprm) - 1
-            
+
             ia = bds%tortorat(1,i)
             ib = bds%tortorat(2,i)
             ic = bds%tortorat(3,i)
             id = bds%tortorat(4,i)
             ie = bds%tortorat(5,i)
-            
+
             if(bds%top%use_frozen) then
                 sk_a = bds%top%frozen(ia)
                 sk_b = bds%top%frozen(ib)
@@ -2084,7 +2550,7 @@ module mod_bonded
                                         thetx, &
                                         J1_a, J1_b, J1_c, J1_d)
             thetx = ang_torsion(bds%top, bds%tortorat(1:4,i))
-            
+
             call torsion_angle_jacobian(bds%top%cmm(:,ib), &
                                         bds%top%cmm(:,ic), &
                                         bds%top%cmm(:,id), &
@@ -2104,11 +2570,47 @@ module mod_bonded
                                         bds%ttmap_vy(ibeg:iend), &
                                         bds%ttmap_vxy(ibeg:iend))
 
-            if(.not. sk_a) grad(:,ia) = grad(:,ia) + J1_a * dvttdx
-            if(.not. sk_b) grad(:,ib) = grad(:,ib) + J1_b * dvttdx + J2_b * dvttdy
-            if(.not. sk_c) grad(:,ic) = grad(:,ic) + J1_c * dvttdx + J2_c * dvttdy
-            if(.not. sk_d) grad(:,id) = grad(:,id) + J1_d * dvttdx + J2_d * dvttdy
-            if(.not. sk_e) grad(:,ie) = grad(:,ie) + J2_e * dvttdy
+
+            if(.not. sk_a) then
+                !$omp atomic update
+                grad(1,ia) = grad(1,ia) + J1_a(1) * dvttdx
+                !$omp atomic update
+                grad(2,ia) = grad(2,ia) + J1_a(2) * dvttdx
+                !$omp atomic update
+                grad(3,ia) = grad(3,ia) + J1_a(3) * dvttdx
+            end if
+            if(.not. sk_b) then
+                !$omp atomic update
+                grad(1,ib) = grad(1,ib) + J1_b(1) * dvttdx + J2_b(1) * dvttdy
+                !$omp atomic update
+                grad(2,ib) = grad(2,ib) + J1_b(2) * dvttdx + J2_b(2) * dvttdy
+                !$omp atomic update
+                grad(3,ib) = grad(3,ib) + J1_b(3) * dvttdx + J2_b(3) * dvttdy
+            end if
+            if(.not. sk_c) then
+                !$omp atomic update
+                grad(1,ic) = grad(1,ic) + J1_c(1) * dvttdx + J2_c(1) * dvttdy
+                !$omp atomic update
+                grad(2,ic) = grad(2,ic) + J1_c(2) * dvttdx + J2_c(2) * dvttdy
+                !$omp atomic update
+                grad(3,ic) = grad(3,ic) + J1_c(3) * dvttdx + J2_c(3) * dvttdy
+            end if
+            if(.not. sk_d) then
+                !$omp atomic update
+                grad(1,id) = grad(1,id) + J1_d(1) * dvttdx + J2_d(1) * dvttdy
+                !$omp atomic update
+                grad(2,id) = grad(2,id) + J1_d(2) * dvttdx + J2_d(2) * dvttdy
+                !$omp atomic update
+                grad(3,id) = grad(3,id) + J1_d(3) * dvttdx + J2_d(3) * dvttdy
+            end if
+            if(.not. sk_e) then
+                !$omp atomic update
+                grad(1,ie) = grad(1,ie) + J2_e(1) * dvttdy
+                !$omp atomic update
+                grad(2,ie) = grad(2,ie) + J2_e(2) * dvttdy
+                !$omp atomic update
+                grad(3,ie) = grad(3,ie) + J2_e(3) * dvttdy
+            end if
         end do
 
     end subroutine tortor_geomgrad

@@ -1,5 +1,4 @@
 #include "version.h"
-#define OMMP_TIMING
 
 module mod_io
     !! Unified Input/Output handling across the code.
@@ -20,17 +19,12 @@ module mod_io
     integer(ip), protected :: verbose = OMMP_VERBOSE_DEFAULT
     !! verbosity flag, allowed range 0 (no printing at all) -- 
     !! 3 (debug printing)
-#ifdef OMMP_TIMING
-    integer(ip), parameter :: ntimes = 128
-    integer(ip) :: tcnt = 1
-    real(rp) :: times(ntimes)
-#endif
 
-    public :: time_pull, time_push
     public :: iof_mmpol, iof_mmpinp
     public :: set_iof_mmpol, close_output
     public :: set_verbosity, ommp_message, fatal_error, ommp_version
     public :: print_matrix, print_int_vec
+    public :: large_file_read
 
     interface print_matrix
         !! Interface for matrix printing function
@@ -344,40 +338,81 @@ module mod_io
         write(out_unit,'(t5, 10i8)') vec(ib:ie)
 
     end subroutine print_int_vec
-
-    subroutine time_push()
-        implicit none
-#ifdef OMMP_TIMING
-        real(rp) :: omp_get_wtime
-        
-        if(tcnt <= ntimes) then
-            times(tcnt) = omp_get_wtime()
-            tcnt = tcnt + 1
-        else
-            call fatal_error('time_push Cannot push another time in the buffer.')
-        end if
-#endif
-    end subroutine
-
-    subroutine time_pull(s)
+    
+    subroutine  large_file_read(fname, outstr)
+        !! This function attempt some magic to speed up the read of a
+        !! large text file in order to transfer it to memory.
         use mod_constants, only: OMMP_STR_CHAR_MAX
-        implicit none
+        implicit none 
 
-        character(len=*), intent(in) :: s
-#ifdef OMMP_TIMING
-        real(rp) :: elap
-        character(len=OMMP_STR_CHAR_MAX) :: msg
+        character(len=*), intent(in) :: fname
+        !! File to be read
+        character(len=OMMP_STR_CHAR_MAX), allocatable, intent(out) :: outstr(:)
+        !! Data structure to be filled with the data from file
 
-        real(rp) :: omp_get_wtime
+        character(len=:), allocatable :: buf
+        character :: nlc
 
-        if(tcnt > 1) then
-            elap = omp_get_wtime() - times(tcnt-1)
-            tcnt = tcnt - 1
-            write(msg, "(3a, ': ', e8.2, ' s')") repeat('-', tcnt), '> ', s, elap
-            call ommp_message(msg, OMMP_VERBOSE_HIGH, 'time')
-        else
-            call fatal_error('time_pull Cannot pull any value.')
+        integer(ip) :: inu, i, nline
+        integer(ip), allocatable :: lineidx(:)
+        integer(8) :: fs
+        integer(ip) :: err_r, ierr
+
+        err_r = 0
+
+        inquire(file = fname, size = fs, iostat = ierr)
+        if(fs < 0 .or. ierr > 0) then
+          call fatal_error("Error while checking size of file '"//fname//"'. Cannot continue.")
         end if
-#endif
+
+        if(allocated(outstr)) then
+          deallocate(outstr)
+        end if
+
+        allocate(character(len=fs) :: buf)
+
+        open(newunit=inu, & 
+             file=fname, &
+             form='unformatted', &
+             action='read', &
+             access='stream', &
+             status='old')
+
+        read(inu,pos=1,iostat=err_r) buf
+        close(inu)
+
+        if(err_r /= 0) call fatal_error("Error while reading file '"//fname//"'. Cannot continue.")
+        nlc = new_line(buf(1:1))
+
+        !nline = 1
+        !do i=1, fs
+        !    if(buf(i:i) == nlc) then
+        !      nline = nline + 1
+        !    end if
+        !end do
+
+        ! I think it's just faster to allocate the maximum number of lines
+        ! that could possibly be there...
+        allocate(lineidx(fs))
+
+        nline = 2
+        lineidx(1) = 0
+        do i=1, fs
+            if(buf(i:i) == nlc) then
+              lineidx(nline) = i
+              nline = nline + 1
+            end if
+        end do
+        lineidx(nline) = fs
+
+        allocate(outstr(nline-1))
+
+        do i=1, nline-1
+            outstr(i) = buf(lineidx(i)+1:lineidx(i+1)-1)
+        end do
+
+        deallocate(lineidx)
+        deallocate(buf)
     end subroutine
+
 end module mod_io

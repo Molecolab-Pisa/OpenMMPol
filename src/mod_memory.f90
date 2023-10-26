@@ -12,8 +12,9 @@ module mod_memory
 
     integer(ip), parameter :: iof_memory = 6
     !! Unit file for memory errors, warning and debug
-    integer(ip) :: maxmem !! Max memory that can be allocated in bytes
-    integer(ip) :: usedmem !! Memory that is currently used by the code
+    real(rp) :: maxmem !! Max memory that can be allocated in GB
+    real(rp) :: usedmem !! Memory that is currently used by the code in GB
+    real(rp) :: max_used !! Maximum memory used since last reset through mem_stat
     integer(ip) :: size_of_int !! Number of bytes for an integer
     integer(ip) :: size_of_real !! Number of bytes for a real
     integer(ip) :: size_of_logical !! Number of bytes for a logical (?)
@@ -21,7 +22,7 @@ module mod_memory
     logical :: do_chk_limit !! Decide if the soft memory limit is on
 
     public :: rp, ip, lp
-    public :: mallocate, mfree, memory_init
+    public :: mallocate, mfree, memory_init, mem_stat
     public :: use_8bytes_int 
     
     interface mallocate
@@ -66,13 +67,13 @@ module mod_memory
 #endif
     end function use_8bytes_int
 
-    subroutine memory_init(do_chk, max_bytes)
+    subroutine memory_init(do_chk, max_Gbytes)
         !! Routine used to initialize the memory module. It should
         !! be called during the module initialization.
         implicit none
 
         logical :: do_chk !! Switch for memory soft limit 
-        integer(ip), intent(in) :: max_bytes !! Amount of memory available in bytes
+        real(rp), intent(in) :: max_Gbytes !! Amount of memory available in bytes
         integer(ip) :: my_int !! Integer used only as target for sizeof
         real(rp) :: my_real !! Real used only as target for sizeof
         logical(lp) :: my_bool
@@ -80,14 +81,34 @@ module mod_memory
 
         if(.not. is_init) then
             do_chk_limit = do_chk
-            maxmem = max_bytes
-            usedmem = 0
+            maxmem = max_Gbytes
+            usedmem = 0.0
+            max_used = 0.0
             size_of_real = sizeof(my_real)
             size_of_int = sizeof(my_int)
             size_of_logical = sizeof(my_bool)
             is_init = .true.
         end if
     end subroutine memory_init
+
+    function mem_stat(pv) result(mm)
+        !! Return the current value of maximum used memory, if an
+        !! argument is present set max_used to that value, otherwise
+        !! max_used is reset to -1
+        implicit none
+
+        real(rp), intent(in), optional :: pv
+        real(rp) :: mm
+
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
+        
+        mm = max_used
+        if(present(pv)) then
+          if(max_used < pv) max_used = pv
+        else
+          max_used = usedmem
+        end if
+    end function
     
     subroutine r_alloc1(string, len1, v)
         !! Allocate a 1-dimensional array of reals
@@ -103,7 +124,7 @@ module mod_memory
 
         integer(ip) :: istat
  
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1), stat=istat)
         call chk_alloc(string, len1*size_of_real, istat)
     end subroutine r_alloc1
@@ -122,7 +143,7 @@ module mod_memory
 
         integer(ip) :: istat
 
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1, len2), stat=istat)
         call chk_alloc(string, len1*len2*size_of_real, istat)
     end subroutine r_alloc2
@@ -141,7 +162,7 @@ module mod_memory
         
         integer(ip) :: istat
 
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_real, istat)
     end subroutine r_alloc3
@@ -160,7 +181,7 @@ module mod_memory
 
         integer(ip) :: istat 
 
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1), stat=istat)
         call chk_alloc(string, len1*size_of_int, istat)
     end subroutine i_alloc1
@@ -179,7 +200,7 @@ module mod_memory
  
         integer(ip) :: istat 
 
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1, len2), stat=istat)
         call chk_alloc(string, len1*len2*size_of_int, istat)
     end subroutine i_alloc2
@@ -198,7 +219,7 @@ module mod_memory
 
         integer(ip) :: istat
 
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_int, istat)
     end subroutine i_alloc3
@@ -217,7 +238,7 @@ module mod_memory
 
         integer(ip) :: istat
  
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1), stat=istat)
         call chk_alloc(string, len1*size_of_logical, istat)
     end subroutine l_alloc1
@@ -236,7 +257,7 @@ module mod_memory
 
         integer(ip) :: istat
 
-        if(.not. is_init) call memory_init(.false., 0)
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
         allocate(v(len1, len2), stat=istat)
         call chk_alloc(string, len1*len2*size_of_logical, istat)
     end subroutine l_alloc2
@@ -256,16 +277,22 @@ module mod_memory
 
         character(len=OMMP_STR_CHAR_MAX) :: msg
         !! Message string for errors
+
+        real(rp) :: lall_gb
+        !! memory allocated in gb
+
+        lall_gb = lall / 1e9
         
         if(istat /= 0) then
             write(msg, "('Allocation error in subroutine ', a ,'. stat= ', i5)") string, istat
             call fatal_error(msg)
-        else if(do_chk_limit .and. usedmem+lall > maxmem) then
+        else if(do_chk_limit .and. usedmem+lall_gb > maxmem) then
             write(msg, "('Allocation error in subroutine ', a ,'. Not enough memory (internal limit ', i8, ' W).')") string, maxmem
             call fatal_error(msg)
         else
-            usedmem = usedmem + lall
+            usedmem = usedmem + lall_gb
         end if
+        if(usedmem > max_used) max_used = usedmem
     end subroutine chk_alloc
 
     subroutine r_free1(string, v)
@@ -427,12 +454,17 @@ module mod_memory
         
         character(len=OMMP_STR_CHAR_MAX) :: msg
         !! Message string for errors
+        
+        real(rp) :: lfree_gb
+        !! memory allocated in gb
+
+        lfree_gb = lfree / 1e9
 
         if(istat /= 0)then
             write(msg, "('Deallocation error in subroutine ', a ,'. stat= ', i5)") string, istat
             call fatal_error(msg)
         else
-            usedmem = usedmem - lfree
+            usedmem = usedmem - lfree_gb
         end if
 
     end subroutine chk_free

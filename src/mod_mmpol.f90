@@ -52,7 +52,8 @@ module mod_mmpol
         
         use mod_constants, only: OMMP_FF_AMBER, OMMP_FF_AMOEBA, OMMP_FF_UNKNOWN
         use mod_electrostatics, only: electrostatics_init
-        use mod_io, only: print_matrix, fatal_error, time_pull, time_push
+        use mod_io, only: print_matrix, fatal_error
+        use mod_profiling, only: time_push, time_pull
 
         implicit none
 
@@ -150,8 +151,9 @@ module mod_mmpol
         !!   * Build list for polarization groups, compute groups connectivity   
         !!   * performs multipoles rotation   
 
-        use mod_adjacency_mat, only: build_conn_upto_n, matcpy
-        use mod_io, only: ommp_message, time_push, time_pull
+        use mod_adjacency_mat, only: build_conn_upto_n, matcpy, reverse_grp_tab
+        use mod_io, only: ommp_message
+        use mod_profiling, only: time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
         use mod_electrostatics, only: thole_init, remove_null_pol, &
                                       make_screening_lists
@@ -211,8 +213,8 @@ module mod_mmpol
             sys_obj%eel%q0(5:10,:) = sys_obj%eel%q0(5:10,:) / 3.0_rp
 
             ! polarization groups connectivity list
-            call reverse_polgrp_tab(sys_obj%eel%mmat_polgrp, &
-                                    sys_obj%eel%polgrp_mmat)
+            call reverse_grp_tab(sys_obj%eel%mmat_polgrp, &
+                                 sys_obj%eel%polgrp_mmat)
             call build_pg_adjacency_matrix(sys_obj%eel, pg_adj)
             call build_conn_upto_n(pg_adj, 3, sys_obj%eel%pg_conn, .true.)
 
@@ -221,7 +223,9 @@ module mod_mmpol
         end if
 
         call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)
+        call time_push()
         call make_screening_lists(sys_obj%eel)
+        call time_pull("Preparing screening lists")
         call ommp_message("MMPol initialization (mmpol_prepare) completed.", OMMP_VERBOSE_DEBUG)
         call time_pull('MMPol object initialization (mmpol_prepare)')
     end subroutine mmpol_prepare
@@ -258,44 +262,6 @@ module mod_mmpol
 
     end subroutine mmpol_terminate
     
-
-    ! TODO Move to eel module
-    subroutine reverse_polgrp_tab(mm2pg, pg2mm)
-        !! Takes as argument an array of polarization group index for each
-        !! atom, and create a list of atms in each group using the boolean
-        !! sparse matrix format (saved as Yale format).
-        
-        implicit none
-
-        integer(ip), intent(in) :: mm2pg(:)
-        !! Index of polarization group for each MM atom
-        type(yale_sparse), intent(out) :: pg2mm
-        !! Indices of atoms included in each polarization group;
-        !! Atom indeces for the n-th group are found at 
-        !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
-
-        integer(ip) :: i, j, mm_atoms
-
-        mm_atoms = size(mm2pg)
-
-        ! Allocation of Yale fmt sparse matrix
-        pg2mm%n = maxval(mm2pg)
-        allocate(pg2mm%ri(pg2mm%n+1))
-        allocate(pg2mm%ci(mm_atoms))
-        pg2mm%ri(1) = 1
-
-        do i=1, pg2mm%n
-            pg2mm%ri(i+1) = pg2mm%ri(i)
-            
-            do j=1, mm_atoms
-                if(mm2pg(j) /= i) cycle
-                
-                pg2mm%ci(pg2mm%ri(i+1)) = j
-                pg2mm%ri(i+1) = pg2mm%ri(i+1) + 1
-            end do
-        end do
-    end subroutine reverse_polgrp_tab
-
     !TODO move to eel module
     subroutine build_pg_adjacency_matrix(eel, adj)
         !! Builds the adjacency matrix of polarization groups starting from

@@ -39,7 +39,8 @@ module mod_adjacency_mat
 
     public :: yale_sparse
     public :: adj_mat_from_conn, build_conn_upto_n, matfree, matcpy, &
-              reallocate_mat
+              reallocate_mat, reverse_grp_tab, &
+              compress_list, compress_data
 
     contains
 
@@ -76,36 +77,39 @@ module mod_adjacency_mat
             !! format: i12(0:n(j),j) contains the index of all the atoms connected
             !! to atom with index j.
 
-            use mod_utils, only: sort_ivec
+            use mod_utils, only: sort_ivec_inplace
+            use mod_memory, only: mallocate, mfree
             implicit none
 
-            integer(ip), intent(in) :: i12(:,:)
+            integer(ip), intent(inout) :: i12(:,:)
             !! Indices of connected atoms for each atom in the molecule
             type(yale_sparse), intent(out) :: sparse
             !! Adjacency matrix in Yale format (\(\mathbb C_1\))
 
-            integer(ip) :: i, j, nnz
-            integer(ip), allocatable :: tmp(:)
+            integer(ip) :: i, j, n, m
+            integer(ip), allocatable :: nnz(:)
 
-            sparse%n = size(i12, 2)
-            nnz = count(i12 /= 0)
+            n = size(i12, 2)
+            m = size(i12, 1)
+            call mallocate('adj_mat_from_conn [nnz]', n, nnz)
 
-            allocate(sparse%ri(sparse%n+1))
-            allocate(sparse%ci(nnz))
-
-            ! Compress adjacency matrix
-            sparse%ri(1) = 1
-            do i = 1, sparse%n
-                sparse%ri(i+1) = sparse%ri(i)
-                call sort_ivec(i12(:,i), tmp)
-
-                do j = 1, size(tmp, 1)
-                    if(tmp(j) /= 0) then
-                        sparse%ci(sparse%ri(i+1)) = tmp(j)
-                        sparse%ri(i+1) = sparse%ri(i+1) + 1
+            !$omp parallel do default(shared) &
+            !$omp private(j,i)
+            do i=1, n
+                ! Count the number of non-zero elements and move them to the left
+                nnz(i) = 0
+                do j=1, m
+                    if(i12(j,i) /= 0) then
+                        nnz(i) = nnz(i) + 1
+                        i12(nnz(i),i) = i12(j,i)
                     end if
                 end do
+                call sort_ivec_inplace(i12(1:nnz(i),i))
             end do
+
+            call compress_list(n, i12, nnz, sparse)
+            
+            call mfree('adj_mat_from_conn [nnz]', nnz)
 
         end subroutine adj_mat_from_conn
 
@@ -299,7 +303,7 @@ module mod_adjacency_mat
             allocate(res%ci(res%n))
             allocate(res%ri(res%n+1))
             
-
+            !$omp parallel do
             do i = 1, n
                 res%ci(i) = i
                 res%ri(i) = i
@@ -364,5 +368,170 @@ module mod_adjacency_mat
             end do
             call matfree(tmp)
         end subroutine build_conn_upto_n
+        
+        subroutine reverse_grp_tab(a2g, g2a, ng_in)
+            use mod_memory, only: mallocate, mfree
+            !! Takes as argument an array of  group index for each
+            !! atom, and create a list of atms in each group using the
+            !! sparse matrix format (saved as Yale format).
+            !! This is used by cell lists, polarization group etc.
+            
+            implicit none
+
+            integer(ip), intent(in) :: a2g(:)
+            !! Index of polarization group for each MM atom
+            type(yale_sparse), intent(out) :: g2a
+            !! Indices of atoms included in each polarization group;
+            !! Atom indeces for the n-th group are found at 
+            !! pg2mm%ci(pg2mm%ri(n):pg2mm%ri(n+1)-1)
+            integer(ip), intent(in), optional :: ng_in
+            !! Number of groups if it is not provided in input it is
+            !! assumed that the number of group equals the largest group
+            !! index, that is no empty groups are present after the one
+            !! with the largest index.
+
+            integer(ip) :: i, j, na, ng, ig
+            integer(ip), allocatable :: uc_data(:, :), g_dim(:)
+
+            na = size(a2g)
+            if(present(ng_in)) then
+                ng = ng_in
+            else
+                ng = maxval(a2g)
+            end if
+
+            ! Find largest group
+            call mallocate('reverse_grp_tab [g_dim]', ng, g_dim)
+            g_dim = 0
+
+            
+            do i=1, na
+                g_dim(a2g(i)) = g_dim(a2g(i)) + 1
+            end do
+
+            ! Struct for uncompressed data
+            call mallocate('reverse_grp_tab [uc_data]', maxval(g_dim), ng, uc_data)
+            ! First invert in an uncompressed structure
+            uc_data = 0
+            g_dim = 0
+
+            do i=1, na
+                ig = a2g(i)
+                g_dim(ig) = g_dim(ig) + 1
+                uc_data(g_dim(ig),ig) = i
+            end do
+            
+            ! Compress the list
+            !g2a%n = ng
+            !if(.not. allocated(g2a%ri)) &
+            !    call mallocate('reverse_grp_tab [ri]', ng+1, g2a%ri)
+            !if(.not. allocated(g2a%ci)) &
+            !    call mallocate('reverse_grp_tab [ci]', na, g2a%ci)
+            !g2a%ri(1) = 1
+            !do i=1, ng
+            !    g2a%ri(i+1) = g2a%ri(i) + g_dim(i) - 1
+            !    g2a%ci(g2a%ri(i):g2a%ri(i+1)-1) = uc_data(1:g_dim(i)-1,i)
+            !end do
+            call compress_list(ng, uc_data, g_dim, g2a)
+
+            ! Free temporary mem
+            call mfree('reverse_grp_tab [uc_data]', uc_data)
+            call mfree('reverse_grp_tab [g_dim]', g_dim)
+
+        end subroutine reverse_grp_tab
+
+        subroutine compress_list(n, uc_list, nit, s)
+            !! This subroutine takes as input a sparse matrix (rank [n]) in an 
+            !! uncompressed yale format [uc_list], as a rectangular 
+            !! matrix ([n] x max_el_per_row) and the actual number of items 
+            !! [nit] for each row (remaining
+            !! elements are not considered) and compress in a Yale format
+            !! sparse matrix [s].
+            !! The task is parallelized to handle large matrices.
+            
+            use mod_memory, only: mallocate, mfree
+
+            implicit none
+
+            integer(ip), intent(in) :: n
+            !! Rank of matrix
+            integer(ip), intent(in) :: uc_list(:,:)
+            !! Uncompressed list/boolean sparse matrix
+            integer(ip), intent(in) :: nit(n)
+            !! Number of elements for each row of [uc_list]
+            type(yale_sparse), intent(out) :: s
+            !! Output sparse matrix
+
+            integer(ip), allocatable :: idx(:)
+            !! Indices where a certain row begins (RI)
+            integer(ip) :: nnz
+            !! Number of non-zero elements
+
+            integer(ip) :: i, j
+
+            if(n == 0) then
+                s%n = 0
+                if(allocated(s%ri)) call mfree('compress_list [ri]', s%ri)
+                call mallocate('compress_list [ri]', 1, s%ri)
+                s%ri = 1
+                if(allocated(s%ci)) call mfree('compress_list [ci]', s%ci)
+                call mallocate('compress_list [ci]', 0, s%ci)
+                return
+            end if
+
+            call mallocate('compress_list [idx]', n, idx)
+            idx(1) = 1
+            do i=1, n-1
+                idx(i+1) = idx(i) + nit(i)
+            end do
+            nnz = idx(n) + nit(n)
+
+            s%n = n
+            if(allocated(s%ri)) call mfree('compress_list [ri]', s%ri)
+            call mallocate('compress_list [ri]', n+1, s%ri)
+            if(allocated(s%ci)) call mfree('compress_list [ci]', s%ci)
+            call mallocate('compress_list [ci]', nnz-1, s%ci)
+
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j)
+            do i=1, n
+                s%ri(i)=idx(i)
+                do j=0, nit(i)-1
+                    s%ci(idx(i)+j) = uc_list(j+1,i)
+                end do
+            end do
+            s%ri(n+1) = nnz
+        end subroutine
+
+        subroutine compress_data(s, uc_data, c_data)
+            !! Compress the data in uc_data to the same Yale sparse
+            !! format described in s
+
+            use mod_memory, only: mallocate, rp
+
+            implicit none
+
+            type(yale_sparse), intent(in) :: s
+            !! Input Yale format binary matrix/sparse list
+            real(rp), intent(in) :: uc_data(:,:)
+            !! Uncompressed data in input
+            real(rp), allocatable, intent(out) :: c_data(:)
+            !! Compressed data in output
+            
+            integer(ip) :: nnz, n, i, j0, j
+
+            n = s%n
+            nnz = size(s%ci)
+            call mallocate('compress_data [c_data]', nnz, c_data)
+
+            !$omp parallel do default(shared) schedule(dynamic) & 
+            !$omp private(i,j,j0)
+            do i=1, s%n
+                j0 = s%ri(i) - 1
+                do j=s%ri(i), s%ri(i+1)-1
+                    c_data(j) = uc_data(j-j0, i)
+                end do
+            end do
+        end subroutine
 
 end module mod_adjacency_mat

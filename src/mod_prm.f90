@@ -31,7 +31,7 @@ module mod_prm
     
 #include "prm_keywords.f90"
 
-    function get_prm_ff_type(prm_file) result(ff_type)
+    function get_prm_ff_type(prm_buf) result(ff_type)
         !! This function is intended to check if the ff described by prm_type
         !! is AMOEBA (or amoeba-like) or AMBER or FF of another kind.
         !! A FF is considered to be AMOEBA if: it contains multipole keywords 
@@ -45,34 +45,18 @@ module mod_prm
         
         implicit none
         
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, nmultipole, ncharge, tokb, toke, ff_type
+        integer(ip) :: il, nmultipole, ncharge, tokb, toke, ff_type
         character(len=OMMP_STR_CHAR_MAX) :: line, polarization
         
-        ! open tinker prm file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
-        ist = 0
         nmultipole = 0
         ncharge = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:7) == 'charge ') ncharge = ncharge + 1
             if(line(:10) == 'multipole ') nmultipole = nmultipole + 1
             if(line(:13) == 'polarization ') then
@@ -81,8 +65,6 @@ module mod_prm
                 read(line(tokb:toke), '(A)') polarization
             end if
         end do
-
-        close(iof_prminp)
 
         if(nmultipole > 0 .and. &
            ncharge == 0 .and. &
@@ -96,7 +78,7 @@ module mod_prm
         end if
     end function
 
-    subroutine read_atom_cards(top, prm_file)
+    subroutine read_atom_cards(top, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         
@@ -104,11 +86,9 @@ module mod_prm
         
         type(ommp_topology_type), intent(inout) :: top
         !! Topology object
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: i, ist, iat, toke, tokb, tokb1, nquote
+        integer(ip) :: i, il, lc, iat, toke, tokb, tokb1, nquote
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip) :: natype
         integer(ip), allocatable, dimension(:) :: typez, typeclass
@@ -119,26 +99,11 @@ module mod_prm
                             & before performing atomclass asignament.")
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
-        ist = 0
         natype = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:5) == 'atom ') then
                 tokb = 6
                 toke = tokenize(line, tokb)
@@ -157,12 +122,8 @@ module mod_prm
         typez = 0
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:5) == 'atom ') then
                 tokb = 6
@@ -197,8 +158,8 @@ module mod_prm
                 ! Only partial reading of ATOM card is needed for now.
             end if
         end do
-        close(iof_prminp)
-
+        
+        !$omp parallel do
         do i = 1, top%mm_atoms
             if(.not. top%atclass_initialized) then
                 top%atclass(i) = typeclass(top%attype(i)) 
@@ -217,7 +178,7 @@ module mod_prm
 
     end subroutine read_atom_cards
 
-    subroutine assign_bond(bds, prm_file, exclude_list, nexc_in)
+    subroutine assign_bond(bds, prm_buf, exclude_list, nexc_in)
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         use mod_bonded, only: bond_init, ommp_bonded_type
@@ -227,15 +188,14 @@ module mod_prm
 
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
         integer(ip), dimension(:), intent(in), optional :: exclude_list
         !! List of atoms for which interactions should not be computed
         integer(ip), intent(in), optional :: nexc_in
         !! Number of atom in excluded list needed to skip a parameter
 
-        integer(ip), parameter :: iof_prminp = 201, nexc_default = 2
-        integer(ip) :: ist, i, j, l, jat, tokb, toke, ibnd, nbnd, &
+        integer(ip), parameter ::  nexc_default = 2
+        integer(ip) :: il, i, j, l, jat, tokb, toke, ibnd, nbnd, &
                        cla, clb, nexc, iexc
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:)
@@ -255,7 +215,7 @@ module mod_prm
         end if
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
         ! We assume that all pair of bonded atoms have a bonded 
@@ -280,26 +240,11 @@ module mod_prm
             end do
         end do
 
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
-        ist = 0
         nbnd = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:5) == 'bond ') nbnd = nbnd + 1
         end do
 
@@ -309,14 +254,10 @@ module mod_prm
         call mallocate('assign_bond [kbnd]', nbnd, kbnd)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         ibnd = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:11) == 'bond-cubic ') then
                 tokb = 12
@@ -376,7 +317,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
         
         do i=1, size(bds%bondat,2)
             ! Atom class for current pair
@@ -420,7 +360,7 @@ module mod_prm
     
     end subroutine assign_bond
     
-    subroutine assign_urey(bds, prm_file)
+    subroutine assign_urey(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: urey_init
         use mod_constants, only: angstrom2au, kcalmol2au
@@ -430,11 +370,9 @@ module mod_prm
 
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, iub, nub, &
+        integer(ip) :: il, i, j, tokb, toke, iub, nub, &
                        cla, clb, clc, maxub, a, b, c, jc, jb 
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), ubtmp(:)
@@ -445,29 +383,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nub = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:9) == 'ureybrad ') nub = nub + 1
         end do
 
@@ -481,14 +404,10 @@ module mod_prm
         call mallocate('assign_urey [ubtmp]', maxub, ubtmp)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         iub = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:11) == 'urey-cubic ') then
                 tokb = 12
@@ -556,7 +475,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
         
         ubtmp = -1
         do a=1, top%mm_atoms
@@ -618,7 +536,7 @@ module mod_prm
         
     end subroutine assign_urey
     
-    subroutine assign_strbnd(bds, prm_file)
+    subroutine assign_strbnd(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: strbnd_init 
         use mod_constants, only: kcalmol2au, angstrom2au
@@ -627,11 +545,10 @@ module mod_prm
        
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, isb, nstrbnd, &
+        integer(ip) :: il, i, j, tokb, toke, isb, nstrbnd, &
                        cla, clb, clc, a, b, c, jc, jb, maxsb, &
                        l1a, l1b, l2a, l2b
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
@@ -644,29 +561,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nstrbnd = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:7) == 'strbnd ') nstrbnd = nstrbnd + 1
         end do
 
@@ -682,14 +584,10 @@ module mod_prm
         call mallocate('assign_strbnd [at2ang]', top%mm_atoms, at2ang)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         isb = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:7) == 'strbnd ') then
                 tokb = 8
@@ -736,7 +634,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
         
         isb = 1
         do a=1, top%mm_atoms
@@ -861,7 +758,7 @@ module mod_prm
     
     end subroutine assign_strbnd
     
-    subroutine assign_opb(bds, prm_file)
+    subroutine assign_opb(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: opb_init
 
@@ -871,11 +768,9 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, tokb, toke, iopb, nopb, &
+        integer(ip) :: il, i, tokb, toke, iopb, nopb, &
                        cla, clb, clc, cld, maxopb, a, b, c, d, jc, jb, iprm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring, opb_type
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
@@ -886,32 +781,17 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
 
         ! Tinker manual default
         opb_type = "w-d-c"
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nopb = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:7) == 'opbend ') nopb = nopb + 1
         end do
 
@@ -930,14 +810,10 @@ module mod_prm
         call mallocate('assign_opb [tmpk]', maxopb, tmpk)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         iopb = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:11) == 'opbendtype ') then
                 tokb = 12
@@ -1029,7 +905,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
        
         iopb = 1
         do a=1, top%mm_atoms
@@ -1098,7 +973,7 @@ module mod_prm
     
     end subroutine assign_opb
     
-    subroutine assign_pitors(bds, prm_file)
+    subroutine assign_pitors(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: pitors_init
         use mod_constants, only: kcalmol2au
@@ -1107,11 +982,9 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, tokb, toke, ipitors, npitors, &
+        integer(ip) :: il, i, tokb, toke, ipitors, npitors, &
                        cla, clb, maxpi, a, b, c, jb, iprm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), tmpat(:,:)
@@ -1121,29 +994,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         npitors = 1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:7) == 'pitors ') npitors = npitors + 1
         end do
 
@@ -1156,14 +1014,10 @@ module mod_prm
         call mallocate('assign_pitors [tmpk]', maxpi, tmpk)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         ipitors = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:7) == 'pitors ') then
                 tokb = 8
@@ -1194,7 +1048,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
        
         ipitors = 1
         do a=1, top%mm_atoms
@@ -1271,7 +1124,7 @@ module mod_prm
     
     end subroutine assign_pitors
     
-    subroutine assign_torsion(bds, prm_file)
+    subroutine assign_torsion(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: torsion_init
         use mod_constants, only: kcalmol2au, deg2rad, eps_rp
@@ -1280,11 +1133,9 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+        integer(ip) :: il, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
@@ -1296,29 +1147,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nt = 1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
 
@@ -1336,14 +1172,10 @@ module mod_prm
         t_pha = 0.0
         t_n = 1
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         it = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:12) == 'torsionunit ') then
                 tokb = 13
@@ -1433,7 +1265,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
 
         it = 1
         do a=1, top%mm_atoms
@@ -1492,7 +1323,7 @@ module mod_prm
        
     end subroutine assign_torsion
 
-    subroutine assign_imptorsion(bds, prm_file)
+    subroutine assign_imptorsion(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: imptorsion_init
         use mod_constants, only: kcalmol2au, deg2rad, eps_rp
@@ -1501,11 +1332,9 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+        integer(ip) :: il, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
@@ -1517,29 +1346,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nt = 1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:8) == 'imptors ') nt = nt + 1
         end do
 
@@ -1557,14 +1371,10 @@ module mod_prm
         t_pha = 0.0
         t_n = 1
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         it = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
                               
             if(line(:12) == 'imptorsunit ') then
                 tokb = 13
@@ -1654,7 +1464,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
 
         it = 1
         tmpat = 0
@@ -1765,7 +1574,7 @@ module mod_prm
        
     end subroutine assign_imptorsion
     
-    subroutine assign_strtor(bds, prm_file)
+    subroutine assign_strtor(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: strtor_init
         use mod_constants, only: kcalmol2au, angstrom2au
@@ -1774,11 +1583,9 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+        integer(ip) :: il, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
@@ -1790,30 +1597,15 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nt = 1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:8) == 'strtors ') nt = nt + 1
         end do
 
@@ -1827,14 +1619,10 @@ module mod_prm
         call mallocate('assign_strtor [tmpprm]', maxt, tmpprm)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         it = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:8) == 'strtors ') then
                 tokb = 9
@@ -1884,7 +1672,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
 
         it = 1
         do a=1, top%mm_atoms
@@ -1979,7 +1766,7 @@ module mod_prm
        
     end subroutine assign_strtor
 
-    subroutine assign_angtor(bds, prm_file)
+    subroutine assign_angtor(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: angtor_init
         use mod_constants, only: kcalmol2au
@@ -1988,11 +1775,9 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, it, nt, &
+        integer(ip) :: il, i, j, tokb, toke, it, nt, &
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
@@ -2004,29 +1789,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, & 
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nt = 1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:8) == 'angtors ') nt = nt + 1
         end do
 
@@ -2040,14 +1810,10 @@ module mod_prm
         call mallocate('assign_angtor [tmpprm]', maxt, tmpprm)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         it = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:8) == 'angtors ') then
                 tokb = 9
@@ -2097,7 +1863,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
 
         it = 1
         do a=1, top%mm_atoms
@@ -2186,7 +1951,7 @@ module mod_prm
        
     end subroutine assign_angtor
     
-    subroutine assign_angle(bds, prm_file, exclude_list, nexc_in)
+    subroutine assign_angle(bds, prm_buf, exclude_list, nexc_in)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: OMMP_ANG_SIMPLE, &
                               OMMP_ANG_H0, &
@@ -2202,15 +1967,15 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
         integer(ip), dimension(:), intent(in), optional :: exclude_list
         !! List of atoms for which interactions should not be computed
         integer(ip), intent(in), optional :: nexc_in
         !! Number of atom in excluded list needed to skip a parameter
 
-        integer(ip), parameter :: iof_prminp = 201, nexc_default = 3
-        integer(ip) :: ist, i, j, tokb, toke, iang, nang, &
+        integer(ip), parameter :: nexc_default = 3
+        integer(ip) :: il, i, j, tokb, toke, iang, nang, &
                        cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv, &
                        iexc, nexc
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
@@ -2231,29 +1996,14 @@ module mod_prm
         end if
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         nang = 1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:6) == 'angle ') nang = nang + 3 
             ! One angle keyourd could stand for 3 parameters for different H-env
             if(line(:7) == 'anglep ') nang = nang + 2
@@ -2270,14 +2020,10 @@ module mod_prm
         call angle_init(bds, maxang)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         iang = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:12) == 'angle-cubic ') then
                 tokb = 13
@@ -2473,7 +2219,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
         nang = iang
         
         iang = 1
@@ -2600,7 +2345,7 @@ module mod_prm
     
     end subroutine assign_angle
 
-    subroutine assign_vdw(vdw, top, prm_file)
+    subroutine assign_vdw(vdw, top, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         use mod_nonbonded, only: ommp_nonbonded_type, vdw_init, vdw_set_pair
@@ -2612,11 +2357,10 @@ module mod_prm
         !! Non-bonded structure to be initialized
         type(ommp_topology_type), intent(inout) :: top
         !! Topology structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, l, tokb, toke
+        integer(ip) :: il, i, j, l, tokb, toke
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         character(len=20) :: radrule, radsize, radtype, vdwtype, epsrule
         integer(ip), allocatable :: vdwat(:), vdwpr_a(:), vdwpr_b(:)
@@ -2627,30 +2371,15 @@ module mod_prm
         logical(lp), allocatable :: maska(:), maskb(:)
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
-        ist = 0
         nvdw = 0
         nvdwpr = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:4) == 'vdw ') nvdw = nvdw + 1
             if(line(:6) == 'vdwpr ' .or. line(:8) == 'vdwpair ') &
                 nvdwpr = nvdwpr + 1
@@ -2682,13 +2411,9 @@ module mod_prm
         vdw%vdw_screening = [0.0, 0.0, 1.0, 1.0]
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:13) == 'vdw-12-scale ') then
                 tokb = 14
@@ -2836,9 +2561,9 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
         
-        call vdw_init(vdw, top, vdwtype, radrule, radsize, radtype, epsrule, OMMP_DEFAULT_NL_CUTOFF)
+        call vdw_init(vdw, top, vdwtype, radrule, radsize, &
+                      radtype, epsrule, OMMP_DEFAULT_NL_CUTOFF)
         
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,atc,done)
@@ -2883,7 +2608,7 @@ module mod_prm
     
     end subroutine assign_vdw
     
-    subroutine assign_pol(eel, prm_file)
+    subroutine assign_pol(eel, prm_buf)
         use mod_memory, only: mallocate, mfree, ip, rp
         use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: angstrom2au
@@ -2892,11 +2617,10 @@ module mod_prm
         
         type(ommp_electrostatics_type), intent(inout), target :: eel
         !! Electrostatics data structure to be initialized
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, k, l, iat, tokb, toke
+        integer(ip) :: il, i, j, k, l, iat, tokb, toke, ipg
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         
         integer(ip), allocatable :: polat(:), pgspec(:,:) 
@@ -2914,26 +2638,11 @@ module mod_prm
                             & before performing polarization asignament.")
         end if
 
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
-        ist = 0
         npolarize = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:9) == 'polarize ') npolarize = npolarize + 1
         end do
         
@@ -2945,13 +2654,9 @@ module mod_prm
         ipolarize = 1
         
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
           
             if(line(:13) == 'polarization ') then
                 tokb = 14
@@ -3167,7 +2872,6 @@ module mod_prm
             end if
             i = i+1
         end do
-        close(iof_prminp)
        
         if(eel%amoeba) then
             call set_screening_parameters(eel, eel%mscale, psc, dsc, usc, pisc)
@@ -3176,7 +2880,7 @@ module mod_prm
             call set_screening_parameters(eel, eel%mscale, psc, dsc, usc)
         end if
 
-
+        ipg = 0
         ! Now assign the parameters to the atoms
         do i=1, size(top%attype)
             ! Polarization
@@ -3185,8 +2889,10 @@ module mod_prm
                     eel%pol(i) = isopol(j) * angstrom2au**3
                     !TODO Thole factors.
                     ! Assign a polgroup label to each atom
-                    if(eel%mmat_polgrp(i) == 0) &
-                        eel%mmat_polgrp(i) = maxval(eel%mmat_polgrp) + 1
+                    if(eel%mmat_polgrp(i) == 0) then
+                        ipg = ipg+1
+                        eel%mmat_polgrp(i) = ipg
+                    end if
                     
                     ! loop over the atoms connected to ith atom
                     do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
@@ -3224,7 +2930,7 @@ module mod_prm
     
     end subroutine assign_pol
     
-    subroutine assign_mpoles(eel, prm_file)
+    subroutine assign_mpoles(eel, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_electrostatics, only: set_screening_parameters
         use mod_constants, only: AMOEBA_ROT_NONE, &
@@ -3240,11 +2946,10 @@ module mod_prm
         
         type(ommp_electrostatics_type), intent(inout) :: eel
         !! The electrostatic object to be initialized
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, k, iat, tokb, toke
+        integer(ip) :: il, i, j, k, iat, tokb, toke
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: multat(:), multax(:,:), multframe(:)
         real(rp), allocatable :: cmult(:,:)
@@ -3264,27 +2969,12 @@ module mod_prm
                             & before performing multipoles asignament.")
         end if
 
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated 
-        ist = 0
         nmult = 0
         nchg = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:11) == 'multipole ') nmult = nmult + 1
             if(line(:7) == 'charge ') nchg = nchg + 1
         end do
@@ -3303,12 +2993,8 @@ module mod_prm
         eel_scale = 1.0
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             
             if(line(:13) == 'chg-12-scale ') then
                 tokb = 14
@@ -3503,22 +3189,15 @@ module mod_prm
 
                 read(line(tokb:toke), *) cmult(1, imult)
 
-                read(iof_prminp, '(A)', iostat=ist) line
-                read(line, *) cmult(2:4, imult)
+                read(prm_buf(il+1), *) cmult(2:4, imult)
+                read(prm_buf(il+2), *) cmult(5, imult)
+                read(prm_buf(il+3), *) cmult(6:7, imult)
+                read(prm_buf(il+4), *) cmult(8:10, imult)
+                !il = il+4
                 
-                read(iof_prminp, '(A)', iostat=ist) line
-                read(line, *) cmult(5, imult)
-                
-                read(iof_prminp, '(A)', iostat=ist) line
-                read(line, *) cmult(6:7, imult)
-
-                read(iof_prminp, '(A)', iostat=ist) line
-                read(line, *) cmult(8:10, imult)
-
                 imult = imult + 1
             end if
         end do
-        close(iof_prminp)
         
         if(nmult > 0 .and. nchg == 0) then
             call set_screening_parameters(eel, msc, eel%pscale, eel%dscale, &
@@ -3531,16 +3210,19 @@ module mod_prm
             call fatal_error(errstring)
         end if
         
-        if(eel%amoeba) then
-            eel%mol_frame = 0
-            eel%ix = 0
-            eel%iy = 0
-            eel%iz = 0
-            eel%q0 = 0.0
-        end if
-        eel%q = 0.0
 
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,only12,j,found13,ax_found,iax,iat,done) 
         do i=1, size(top%attype)
+            if(eel%amoeba) then
+                eel%mol_frame(i) = 0
+                eel%ix(i) = 0
+                eel%iy(i) = 0
+                eel%iz(i) = 0
+                eel%q0(:,i) = 0.0
+            end if
+            eel%q(:,i) = 0.0
+
             ! Flag to check assignament
             done = .false.
 
@@ -3671,7 +3353,7 @@ module mod_prm
     
     end subroutine assign_mpoles
     
-    subroutine assign_tortors(bds, prm_file)
+    subroutine assign_tortors(bds, prm_buf)
         use mod_memory, only: mallocate, mfree
         use mod_bonded, only: tortor_newmap, tortor_init
         use mod_constants, only: deg2rad, kcalmol2au
@@ -3680,11 +3362,10 @@ module mod_prm
         
         type(ommp_bonded_type), intent(inout) :: bds
         !! Bonded potential data structure
-        character(len=*), intent(in) :: prm_file
-        !! name of the input PRM file
+        character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
+        !! Char buffer containing the prm file loaded in RAM
 
-        integer(ip), parameter :: iof_prminp = 201
-        integer(ip) :: ist, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
+        integer(ip) :: il, i, j, tokb, toke, iprm, jd, je, e, d, cle,it,cld,&
                        cla, clb, clc, a, b, c, jc, jb, itt, ndata, ntt, ibeg, iend, maxtt
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classx(:,:), map_dimension(:,:), tmpat(:,:), tmpprm(:), savedmap(:)
@@ -3694,29 +3375,14 @@ module mod_prm
         top => bds%top
 
         if(.not. top%atclass_initialized .or. .not. top%atz_initialized) then
-            call read_atom_cards(top, prm_file)
+            call read_atom_cards(top, prm_buf)
         end if
         
-        ! open tinker xyz file
-        open(unit=iof_prminp, &
-             file=prm_file(1:len(trim(prm_file))), &
-             form='formatted', &
-             access='sequential', &
-             iostat=ist, &
-             action='read')
-        
-        if(ist /= 0) then
-           call fatal_error('Error while opening PRM input file')
-        end if
-
         ! Read all the lines of file just to count how large vector should be 
         ! allocated
-        ist = 0
         ntt = 0
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
             if(line(:8) == 'tortors ') ntt = ntt + 1
         end do
 
@@ -3728,14 +3394,10 @@ module mod_prm
         call mallocate('assign_tortors [tmpprm]', maxtt, tmpprm)
 
         ! Restart the reading from the beginning to actually save the parameters
-        rewind(iof_prminp)
-        ist = 0
         itt = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:8) == 'tortors ') then
                 tokb = 9
@@ -3804,19 +3466,15 @@ module mod_prm
         call mallocate('assign_tortors [data_map]', ndata, data_map)
         call mallocate('assign_tortors [ang_map]', 2, ndata, ang_map)
         
-        rewind(iof_prminp)
-        ist = 0
         itt = 1
         i=1
-        do while(ist == 0) 
-            read(iof_prminp, '(A)', iostat=ist) line
-            line = str_to_lower(line)
-            line = str_uncomment(line, '!')
+        do il=1, size(prm_buf) 
+            line = prm_buf(il)
            
             if(line(:8) == 'tortors ') then
                 ndata = map_dimension(1,itt)*map_dimension(2,itt)
                 do j=1, ndata
-                    read(iof_prminp, '(A)', iostat=ist) line
+                    line = prm_buf(il+j)
                     
                     tokb = tokenize(line)
                     toke = tokenize(line, tokb)
@@ -3846,7 +3504,6 @@ module mod_prm
                 itt = itt + 1
             end if
         end do
-        close(iof_prminp)
         
         it = 1
         do a=1, top%mm_atoms
