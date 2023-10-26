@@ -97,9 +97,9 @@ int main(int argc, char **argv){
         }
     
     ommp_time_pull("Initialization");
-    //em = ommp_get_fixedelec_energy(my_system);
-    //ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
-    //ep = ommp_get_polelec_energy(my_system);
+    em = ommp_get_fixedelec_energy(my_system);
+    ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
+    ep = ommp_get_polelec_energy(my_system);
     
 
     ev = ommp_get_vdw_energy(my_system);
@@ -116,6 +116,9 @@ int main(int argc, char **argv){
     ebt = ommp_get_strtor_energy(my_system);
     eit = ommp_get_imptorsion_energy(my_system);
     ommp_time_pull("Total energy bonded");
+
+    ommp_fixedelec_geomgrad(my_system, grd);
+    ommp_polelec_geomgrad(my_system, grd);
 
     ommp_vdw_geomgrad(my_system, grd);
     ommp_time_push();
