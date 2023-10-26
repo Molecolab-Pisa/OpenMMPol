@@ -31,6 +31,7 @@ module mod_geomgrad
             call prepare_fixedelec(eel, .true.)
 
             if(eel%amoeba) then
+                !$omp parallel do 
                 do i=1, s%top%mm_atoms
                     ! If the atom is frozen, there are no contribution to compute
                     if(s%top%use_frozen) then
@@ -81,6 +82,7 @@ module mod_geomgrad
                 ! Torque forces from multipoles rotation
                 call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
             else
+                !$omp parallel do 
                 do i=1, s%top%mm_atoms
                     ! Skip frozen atoms contributions
                     if(s%top%use_frozen) then
@@ -124,6 +126,7 @@ module mod_geomgrad
             call prepare_polelec(eel, .true.)
 
             if(eel%amoeba) then
+                !$omp parallel do 
                 do i=1, eel%top%mm_atoms
                     ! Skip frozen atoms contributions
                     if(s%top%use_frozen) then
@@ -171,6 +174,7 @@ module mod_geomgrad
                                   +    eel%q(4+_yz_,i) * eel%EHes_D2M(_yzz_,i))
                 end do
               
+                !$omp parallel do 
                 do i=1, eel%pol_atoms
                     ! Skip frozen atoms contributions
                     if(s%top%use_frozen) then
