@@ -902,7 +902,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_grdE, do_HE
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(out) :: V, E(3), grdE(6), HE(10)
+        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10)
         !! Electric potential
         
         if(do_V) then
@@ -977,7 +977,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_grdE, do_HE
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(out) :: V, E(3), grdE(6), HE(10)
+        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10)
         !! Electric potential
         
         real(rp) :: mu_dot_dr
@@ -1085,7 +1085,7 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_grdE, do_HE
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(out) :: V, E(3), grdE(6), HE(10)
+        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10)
         !! Electric potential
         
         real(rp) :: quadxr(3), quadxr_dot_r
