@@ -6,6 +6,15 @@ enable_testing()
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+set(DEFAULT_BUILD_TYPE "RELEASE")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "${DEFAULT_BUILD_TYPE}" CACHE
+      STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+                "DEBUG" "RELEASE")
+endif()
+
 add_compile_options($<$<CONFIG:RELEASE>:-O3>
                     $<$<CONFIG:DEBUG>:-g>
                     $<$<CONFIG:COVERAGE>:-O0>)
