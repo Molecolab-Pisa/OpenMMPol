@@ -200,6 +200,8 @@ module mod_mmpol
             call ommp_message("Setting Thole factors", OMMP_VERBOSE_DEBUG)
             ! compute factors for thole damping
             call thole_init(sys_obj%eel)
+        else
+            sys_obj%eel%thole = 0.0
         end if
 
         if(sys_obj%amoeba) then
