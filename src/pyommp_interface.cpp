@@ -1288,6 +1288,14 @@ void set_verbose(int32_t v){
     ommp_set_verbose(v);
 }
 
+void time_push(void){
+    ommp_time_push();
+}
+
+void time_pull(std::string s){
+    ommp_time_pull(s.c_str());
+}
+
 void set_outputfile(std::string of){
     ommp_set_outputfile(of.c_str());
 }
@@ -1325,6 +1333,8 @@ py::list smartinput(std::string json_file){
 
 PYBIND11_MODULE(pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
+    m.def("time_push", &time_push);
+    m.def("time_pull", &time_pull);
     m.def("set_outputfile", &set_outputfile);
     m.def("close_outputfile", &close_outputfile);
     m.def("message", &message);
