@@ -375,6 +375,16 @@ if __name__ == "__main__":
             print("Since no prm file has been provide in input, please add it in the JSON file")
         if len(qm_frozen) > 0:
             json_si_data['qm']['qm_frozen_atoms'] = qm_frozen
+    if len(linkatoms) > 0:
+        json_si_data['link_atoms'] = []
+        for la in linkatoms:
+            json_si_data['link_atoms'] += [{'MM_id': int(la['mm']),
+                                            'QM_id': int(la['qm']),
+                                            'LA_id': int(la['la'])}]
+            if la['la_dist'] is not None:
+                json_si_data['link_atoms'][-1]['bond_length'] = float(la['la_dist'])
+            #if ...:
+            #     json_si_data['link_atoms'][-1]['eel_remove'] =
 
     # Write on file
     with open(json_si_path, 'w+') as f:
