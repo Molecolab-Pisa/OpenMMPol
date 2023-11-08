@@ -27,9 +27,6 @@ def match_atoms(uni1, uni2):
     
     distmatrix = cdist(uniS.atoms.positions, 
                        uniL.atoms.positions)
-    plt.matshow(distmatrix, vmin=0.0, vmax=1.0)
-    plt.savefig('provola.svg', dpi=300)
-
     matchlist = {}
     for i, at in enumerate(uniS.atoms):
         mindist = np.min(distmatrix[i,:])
