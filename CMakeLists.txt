@@ -85,67 +85,70 @@ set(LIBRARY_SRC
     src/mod_utils.f90
     src/rotate_multipoles.f90
     src/smartinput.c)
-
-
-add_library(openmmpol SHARED ${LIBRARY_SRC}) 
-
-# LAPACK
-find_package(LAPACK REQUIRED COMPONENTS Fortran)
-target_link_libraries(openmmpol ${LAPACK_LIBRARIES})
-# cmake 3.22 exposes BLA_SIZEOF_INTEGER
-
-#OpenMP
-find_package(OpenMP REQUIRED COMPONENTS Fortran)
-if(OpenMP_Fortran_FOUND)
-    include_directories(SYSTEM ${OpenMP_Fortran_INCLUDE_DIRS})
-    target_link_libraries(openmmpol OpenMP::OpenMP_Fortran)
-endif()
-
-# HDF5
-find_package(HDF5 COMPONENTS Fortran)
-if (HDF5_FOUND)
-    include_directories( SYSTEM ${HDF5_INCLUDE_DIRS})
-    target_link_libraries(openmmpol ${HDF5_Fortran_LIBRARIES})
-    set(CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIRS})
-    set(CMAKE_REQUIRED_LIBRARIES ${HDF5_Fortran_LIBRARIES})
-    include(CheckFortranSourceCompiles)
-    check_fortran_source_compiles("program test_hdf5; use hdf5; integer(hid_t) :: test; integer(kind=4) :: eflag; call h5open_f(eflag); end"
-                                  HDF5_WORKS SRC_EXT .f90)
-    if (HDF5_WORKS)
-        add_definitions(-DUSE_HDF5)
-    endif() 
-endif()
-
-# cJSON
-find_package(cJSON REQUIRED)
-if(cJSON_FOUND)
-    include_directories( SYSTEM ${CJSON_INCLUDE_DIR})
-    target_link_libraries(openmmpol ${CJSON_LIBRARIES})
-endif()
-
-# openssl
-find_package(OpenSSL REQUIRED)
-if(OpenSSL_FOUND)
-    include_directories( SYSTEM ${OPENSSL_INCLUDE_DIR})
-    target_link_libraries(openmmpol ${OPENSSL_LIBRARIES})
-endif()
-
+    
 # Enable preprocessor for Fortran
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
-# cmake 3.18 is needed for this
-#set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
 
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2008ts -fno-realloc-lhs -fall-intrinsics")
-    target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
-    #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
-    target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
-    if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
-        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
+find_package(LAPACK REQUIRED COMPONENTS Fortran)
+find_package(OpenMP REQUIRED COMPONENTS Fortran)
+find_package(HDF5 COMPONENTS Fortran)
+find_package(cJSON REQUIRED)
+find_package(OpenSSL REQUIRED)
+
+if(NOT PYTHON)
+    add_library(openmmpol SHARED ${LIBRARY_SRC}) 
+
+    # LAPACK
+    target_link_libraries(openmmpol ${LAPACK_LIBRARIES})
+    # cmake 3.22 exposes BLA_SIZEOF_INTEGER
+
+    #OpenMP
+    if(OpenMP_Fortran_FOUND)
+        include_directories(SYSTEM ${OpenMP_Fortran_INCLUDE_DIRS})
+        target_link_libraries(openmmpol OpenMP::OpenMP_Fortran)
     endif()
-    target_link_libraries(openmmpol stdc++)
+
+    # HDF5
+    if (HDF5_FOUND)
+        include_directories( SYSTEM ${HDF5_INCLUDE_DIRS})
+        target_link_libraries(openmmpol ${HDF5_Fortran_LIBRARIES})
+        set(CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIRS})
+        set(CMAKE_REQUIRED_LIBRARIES ${HDF5_Fortran_LIBRARIES})
+        include(CheckFortranSourceCompiles)
+        check_fortran_source_compiles("program test_hdf5; use hdf5; integer(hid_t) :: test; integer(kind=4) :: eflag; call h5open_f(eflag); end"
+                                      HDF5_WORKS SRC_EXT .f90)
+        if (HDF5_WORKS)
+            add_definitions(-DUSE_HDF5)
+        endif() 
+    endif()
+
+    # cJSON
+    if(cJSON_FOUND)
+        include_directories( SYSTEM ${CJSON_INCLUDE_DIR})
+        target_link_libraries(openmmpol ${CJSON_LIBRARIES})
+    endif()
+
+    # openssl
+    if(OpenSSL_FOUND)
+        include_directories( SYSTEM ${OPENSSL_INCLUDE_DIR})
+        target_link_libraries(openmmpol ${OPENSSL_LIBRARIES})
+    endif()
+
+
+    # cmake 3.18 is needed for this
+    #set_source_files_properties(src/mod_interface.f90 src/mod_io.f90 src/mod_memory.f90 PROPERTIES Fortran_PREPROCESS ON)
+    if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2008ts -fno-realloc-lhs -fall-intrinsics")
+        target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
+        #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
+        target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
+        if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
+            set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
+        endif()
+        target_link_libraries(openmmpol stdc++)
+    endif()
+    target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 endif()
-target_compile_options(openmmpol PRIVATE -fPIC) # Generate position independent code, for library
 
 set(TEST_PROGRAMS
     test_timing
@@ -227,7 +230,8 @@ if (PYTHON)
         target_compile_options(openmmpol_static PRIVATE -Wall -Wextra -pedantic -std=f2008ts -fno-realloc-lhs)
         target_compile_options(openmmpol_static PRIVATE -fall-intrinsics) # This is only needed for a sizeof function
     endif()
-    target_compile_options(openmmpol_static PRIVATE -fPIC -cpp)
+    #set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
+    target_compile_options(openmmpol_static PRIVATE -fPIC)
     target_link_libraries(openmmpol_static OpenMP::OpenMP_Fortran)
     target_link_libraries(openmmpol_static ${LAPACK_LIBRARIES})
     if (HDF5_WORKS)
@@ -245,21 +249,23 @@ if (PYTHON)
     set_target_properties(pyopenmmpol PROPERTIES OUTPUT_NAME pyopenmmpol)
 endif()
 
-include(GNUInstallDirs)
-install(TARGETS openmmpol ${UTILITY_EXE}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/openMMPol-${OMMP_VERSION})
-install(TARGETS ${UTILITY_EXE})
-install(FILES ${CMAKE_BINARY_DIR}/include/openmmpol.h ${CMAKE_BINARY_DIR}/mod/ommp_interface.mod
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openMMPol-${OMMP_VERSION})
+if(NOT PYTHON)
+    include(GNUInstallDirs)
+    install(TARGETS openmmpol ${UTILITY_EXE}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/openMMPol-${OMMP_VERSION})
+    install(TARGETS ${UTILITY_EXE})
+    install(FILES ${CMAKE_BINARY_DIR}/include/openmmpol.h ${CMAKE_BINARY_DIR}/mod/ommp_interface.mod
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openMMPol-${OMMP_VERSION})
 
-configure_file(${CMAKE_SOURCE_DIR}/cmake/openmmpol-config.cmake.in 
-               ${CMAKE_BINARY_DIR}/cmake/openmmpol-config.cmake @ONLY)
-configure_file(${CMAKE_SOURCE_DIR}/cmake/openmmpol-config-version.cmake.in 
-               ${CMAKE_BINARY_DIR}/cmake/openmmpol-config-version.cmake @ONLY)
+    configure_file(${CMAKE_SOURCE_DIR}/cmake/openmmpol-config.cmake.in 
+                   ${CMAKE_BINARY_DIR}/cmake/openmmpol-config.cmake @ONLY)
+    configure_file(${CMAKE_SOURCE_DIR}/cmake/openmmpol-config-version.cmake.in 
+                   ${CMAKE_BINARY_DIR}/cmake/openmmpol-config-version.cmake @ONLY)
 
-install(FILES ${CMAKE_BINARY_DIR}/cmake/openmmpol-config.cmake
-              ${CMAKE_BINARY_DIR}/cmake/openmmpol-config-version.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION})
+    install(FILES ${CMAKE_BINARY_DIR}/cmake/openmmpol-config.cmake
+                  ${CMAKE_BINARY_DIR}/cmake/openmmpol-config-version.cmake
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/openMMPol-${OMMP_VERSION})
+endif()
 # Tests
 include(tests/CMakeLists.txt)
