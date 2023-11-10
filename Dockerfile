@@ -1,5 +1,5 @@
-FROM opensuse/leap:15.4
-LABEL version="1.6.6"
+FROM opensuse/leap:15.5
+LABEL version="1.7"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive install \
                                 cJSON-devel \
@@ -36,7 +36,7 @@ RUN pip install -Iv ford==6.1.11
 RUN sed -i -e 's/subprocess.run(command, check=True, capture_output=True, text=True)/subprocess.run(command, check=True)/g' /usr/lib/python3.6/site-packages/ford/__init__.py
 #Intel Compilers suite
 RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
-RUN curl https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB > intel.key
+RUN curl https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB > intel.key
 RUN rpm --import intel.key
 RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
                                                             intel-hpckit
