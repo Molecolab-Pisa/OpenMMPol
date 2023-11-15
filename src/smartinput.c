@@ -561,6 +561,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         else{
             ommp_message("Since qm_atom_types is present but prm_file is not, atom types are set, while VdW are not.", OMMP_VERBOSE_LOW, "SI QMH");
         }
+        free(qmt);
     }
     else if(prm_path != NULL){
         ommp_message("prm_file is only needed when qm_atom_types is set, your config does not make any sense.", OMMP_VERBOSE_LOW, "SI QMH");
@@ -596,11 +597,10 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     for(fsize = 0; getc(fp) != EOF; fsize++);
     rewind(fp);
 
-    char *file_content = malloc(fsize * sizeof(char));
+    char *file_content = (char *) malloc(fsize * sizeof(char));
     fread(file_content, sizeof(char), fsize, fp);
-    
     // Parse the input json
-    cJSON *input_json = cJSON_Parse(file_content);
+    cJSON *input_json = cJSON_ParseWithLength(file_content, fsize);
     free(file_content);
     if(input_json == NULL){
         const char *err = cJSON_GetErrorPtr();
@@ -951,7 +951,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         free(la_bl);
         free(la_ner);
     }
-
+    cJSON_Delete(input_json);
     return;
 }
 
@@ -974,7 +974,7 @@ void *c_json_cherrypick(const char *json_file, char *path, char type){
     fread(file_content, sizeof(char), fsize, fp);
     
     // Parse the input json
-    cJSON *input_json = cJSON_Parse(file_content);
+    cJSON *input_json = cJSON_ParseWithLength(file_content, fsize);
     free(file_content);
     if(input_json == NULL){
         const char *err = cJSON_GetErrorPtr();
@@ -1025,6 +1025,7 @@ void *c_json_cherrypick(const char *json_file, char *path, char type){
                         if(cJSON_IsNumber(cur)){
                             outi = (int32_t *) malloc(sizeof(int32_t));
                             *outi = cur->valueint;
+                            cJSON_Delete(input_json);
                             return (void *) outi;
                         }
                         break;
@@ -1032,24 +1033,28 @@ void *c_json_cherrypick(const char *json_file, char *path, char type){
                         if(cJSON_IsNumber(cur)){
                             outd = (double *) malloc(sizeof(double));
                             *outd = cur->valuedouble;
+                            cJSON_Delete(input_json);
                             return (void *) outd;
                         }
                         break;
                     case 's':
                         if(cJSON_IsString(cur)){
-                            outs = (char *) malloc(sizeof(char) * strlen(cur->valuestring));
+                            outs = (char *) malloc(sizeof(char) * (strlen(cur->valuestring)+1));
                             strcpy(outs, cur->valuestring);
+                            cJSON_Delete(input_json);
                             return (void *) outs;
                         }
                         break;
                     default:
                         break;
                 }
+                cJSON_Delete(input_json);
                 return NULL;
             }
             else{
                 ommp_message("Path not found!",
                              OMMP_VERBOSE_LOW, "SI");
+                cJSON_Delete(input_json);
                 return NULL;
             }
         }

@@ -179,11 +179,11 @@ module mod_mmpol
 
         call remove_null_pol(sys_obj%eel)
        
+        ! invert mm_polar list creating mm_polar
+        sys_obj%eel%mm_polar(:) = 0
         if(sys_obj%eel%pol_atoms > 0) then
             call ommp_message("Creating MM->polar and polar->MM lists", &
                               OMMP_VERBOSE_DEBUG)
-            ! invert mm_polar list creating mm_polar
-            sys_obj%eel%mm_polar(:) = 0
             !$omp parallel do default(shared) private(i)
             do i = 1, sys_obj%eel%pol_atoms
                 sys_obj%eel%mm_polar(sys_obj%eel%polar_mm(i)) = i

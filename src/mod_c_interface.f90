@@ -218,12 +218,12 @@ module mod_ommp_C_interface
            !! Initalize OMMP System Object from .mmp file  
             implicit none
 
-            type(ommp_system), pointer :: s
+            type(ommp_system), pointer, save :: s
             character(kind=c_char), intent(in) :: filename(OMMP_STR_CHAR_MAX)
             character(len=OMMP_STR_CHAR_MAX) :: input_file
             type(c_ptr) :: c_prt
             
-            allocate(s)
+            !allocate(s)
             
             call c2f_string(filename, input_file)
             call ommp_init_mmp(s, input_file)
@@ -235,13 +235,13 @@ module mod_ommp_C_interface
             !! Initialize the library using a Tinker xyz and a Tinker prm
             implicit none
             
-            type(ommp_system), pointer :: s
+            type(ommp_system), pointer, save :: s
             character(kind=c_char), intent(in) :: xyzfile(OMMP_STR_CHAR_MAX), & 
                                                   prmfile(OMMP_STR_CHAR_MAX)
             character(len=OMMP_STR_CHAR_MAX) :: xyz_file, prm_file
             type(c_ptr) :: c_prt
 
-            allocate(s)
+            !allocate(s)
             
             call c2f_string(prmfile, prm_file)
             call c2f_string(xyzfile, xyz_file)
@@ -1732,7 +1732,7 @@ module mod_ommp_C_interface
             
             type(c_ptr), value, intent(in) :: cqmh
 
-            type(ommp_system), pointer :: s
+            type(ommp_system), pointer, save :: s
             type(ommp_qm_helper), pointer :: qm
             type(c_ptr) :: csys
 
@@ -1742,7 +1742,7 @@ module mod_ommp_C_interface
             call c2f_string(cprm_file, prm_file)
             call c_f_pointer(cqmh, qm)
             
-            allocate(s)
+            !allocate(s)
 
             call ommp_system_from_qm_helper(qm, prm_file, s)
             csys = c_loc(s)

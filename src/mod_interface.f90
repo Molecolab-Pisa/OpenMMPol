@@ -1385,10 +1385,12 @@ module ommp_interface
         call c_smartinput_cpstr(c_json_fname_p, c_path_p, c_outs)
         ! Put everything back in Fortran pointers
         call c_f_pointer(c_outs, tmp, shape=[OMMP_STR_CHAR_MAX])
+        
         do i=1, OMMP_STR_CHAR_MAX
             if(tmp(i) == c_null_char .or. tmp(i) == c_new_line) exit
             outs(i:i) = tmp(i)
         end do
+        deallocate(tmp)
 
         deallocate(c_json_filename, c_path)
     end subroutine

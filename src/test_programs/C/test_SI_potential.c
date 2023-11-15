@@ -123,7 +123,12 @@ int main(int argc, char **argv){
             if(use_fake_qm && qm_ef != NULL)
                 electric_field[j*3+k] += qm_ef[j*3+k];
         }
-    
+    if(use_external_ef){
+        for(int j=0; j < ommp_get_mm_atoms(my_system); j++)
+            free(external_ef[j]);
+        free(external_ef);
+    }
+
     em = ommp_get_fixedelec_energy(my_system);
     ommp_set_external_field(my_system, electric_field, OMMP_SOLVER_NONE, OMMP_MATV_NONE);
     ep = ommp_get_polelec_energy(my_system);

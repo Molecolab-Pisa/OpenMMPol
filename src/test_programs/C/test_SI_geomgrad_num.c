@@ -122,6 +122,8 @@ void num_geomgrad(OMMP_SYSTEM_PRT qm_sys,
             }
         }
     }
+    free(new_c_mm);
+    if(use_qm) free(new_c_qm);
 }
 
 void num_grd_print(OMMP_SYSTEM_PRT qm_sys,
@@ -150,6 +152,8 @@ void num_grd_print(OMMP_SYSTEM_PRT qm_sys,
     
     num_geomgrad(qm_sys, qmh, mm_sys, ene_f, gqm, gmm, 1e-6);
     print_qmmm_grad(name, nmm, nqm, gmm, gqm);
+    free(gmm);
+    if(use_qm) free(gqm);
 }
 
 double ommptest_etotqmmm_ene(OMMP_SYSTEM_PRT fakeqm, OMMP_QM_HELPER_PRT qmh, OMMP_SYSTEM_PRT sys){
@@ -296,6 +300,7 @@ int main(int argc, char **argv){
             nopol[j] = j+1;
         ommp_turn_pol_off(fake_qm, natm, nopol);
         free(nopol);
+        free(prm_file);
     }
 
     num_grd_print(fake_qm, NULL, my_system, ommptest_em_ene, "EM");

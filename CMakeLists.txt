@@ -21,10 +21,12 @@ add_compile_options($<$<CONFIG:RELEASE>:-O3>
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     add_compile_options($<$<CONFIG:RELEASE>:>
                         $<$<CONFIG:DEBUG>:-Og>
+                        $<$<CONFIG:DEBUG>:-fsanitize=address>
                         $<$<CONFIG:COVERAGE>:-pg>
                         $<$<CONFIG:COVERAGE>:-fprofile-arcs>
                         $<$<CONFIG:COVERAGE>:-ftest-coverage>)
-    add_link_options($<$<CONFIG:COVERAGE>:-coverage>)
+    add_link_options($<$<CONFIG:COVERAGE>:-coverage>
+                     $<$<CONFIG:DEBUG>:-fsanitize=address>)
 endif()
 
 include_directories(include) # Directory for .h files

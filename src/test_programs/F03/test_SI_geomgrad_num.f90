@@ -290,7 +290,7 @@ program test_SI_geomgrad_num
         !    gt => ommp_get_full_geomgrad
         !    call num_grd_print(my_system, gt, "ETOT")
         !end if
-
+        if(associated(fake_qm)) call ommp_terminate(fake_qm)
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)
     end if

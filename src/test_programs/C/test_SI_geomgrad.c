@@ -48,6 +48,8 @@ void ana_grd_print(OMMP_SYSTEM_PRT sys,
     grad_f(sys, _grad_ana);
    
     print_qmmm_grad(name, mm_atoms, 0, _grad_ana, NULL);
+    free(_grad_ana);
+    free(grad_ana);    
 }
 
 void ana_grd_print_qmmm(OMMP_SYSTEM_PRT sys,
@@ -80,6 +82,10 @@ void ana_grd_print_qmmm(OMMP_SYSTEM_PRT sys,
     grad_f(sys, qmh, qm_fake, _grad_ana_mm, _grad_ana_qm);
    
     print_qmmm_grad(name, mm_atoms, qm_atoms, _grad_ana_mm, _grad_ana_qm);
+    free(_grad_ana_mm);
+    free(grad_ana_mm);
+    free(_grad_ana_qm);
+    free(grad_ana_qm);
 }
 
 void ommptest_qm_helper_vdw_geomgrad(OMMP_SYSTEM_PRT sys, OMMP_QM_HELPER_PRT qmh,
@@ -171,6 +177,7 @@ int main(int argc, char **argv){
         ommp_smartinput_cpstr(argv[1], addr, &prm_file);
         //Create the fake qm system
         fake_qm = ommp_system_from_qm_helper(my_qmh, prm_file);
+        free(prm_file);
         // In order to make a safe interaction, remove all the polarizabilities
         // on the fake qm system
         int natm = ommp_get_pol_atoms(fake_qm);
