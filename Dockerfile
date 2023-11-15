@@ -26,7 +26,6 @@ RUN zypper --non-interactive install \
                                 python3-pybind11-devel \
                                 python3 \
                                 tar \
-                                valgrind \
                                 wget \
                                 zlib-devel
 # lcov_cobertura needed to convert lcov output to cobertura format (needed by gitlab)
