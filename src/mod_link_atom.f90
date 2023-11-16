@@ -175,7 +175,7 @@ module mod_link_atom
             type(ommp_electrostatics_type), intent(inout) :: eel
             character(len=*), intent(in) :: prmfile
 
-            real(rp) :: removed_charge, qred, old_q
+            real(rp) :: removed_charge, qred, old_q, lastq
             integer(ip) :: n_eel_remove = default_link_atom_n_eel_remove
             integer(ip) :: ist, i, j, idx, ii
             type(ommp_electrostatics_type) :: tmp_eel
@@ -221,7 +221,6 @@ module mod_link_atom
             call assign_mpoles(tmp_eel, prm_buf)
             deallocate(prm_buf) 
 
-            old_q = sum(eel%q(1,:))
             do i=1, size(attocheck)
                 j = attocheck(i)
                     if(abs(tmp_eel%q(1,la%mm2full(j)) - eel%q(1,j)) > eps_rp) then
@@ -253,6 +252,11 @@ module mod_link_atom
                                     &1,3 neighbour of linked QM atom")
                 end if
 
+                if(eel%amoeba) then
+                    old_q = sum(eel%q0(1,:))
+                else
+                    old_q = sum(eel%q(1,:))
+                end if
                 removed_charge = 0.0
                 
                 if(n_eel_remove > size(la%mmtop%conn)) then
@@ -262,32 +266,38 @@ module mod_link_atom
                 ! Remove charges, multipoles and polarizabilities
                 if(eel%amoeba) then
                     removed_charge = removed_charge + eel%q0(1,imm)
+                    lastq = eel%q0(1,imm)
                     eel%q0(:,imm) = 0.0
                     if(eel%mm_polar(imm) > 0) &
                         eel%pol(eel%mm_polar(imm)) = 0.0
                 else
                     removed_charge = removed_charge + eel%q(1,imm)
+                    lastq = eel%q(1,imm)
                     eel%q(:,imm) = 0.0
 
                     if(eel%mm_polar(imm) > 0) &
                         eel%pol(eel%mm_polar(imm)) = 0.0
                 end if
+                write(msg, '("Removed charge, multipoles and polarizabilities on atom ", I0, "[q=", F6.3, "]")') imm, lastq
+                call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
                 
                 do i=1, n_eel_remove-1
                     do j=eel%top%conn(i)%ri(imm), eel%top%conn(i)%ri(imm+1)-1
                         idx = eel%top%conn(i)%ci(j)
                         if(eel%amoeba) then
                             removed_charge = removed_charge + eel%q0(1,idx)
+                            lastq = eel%q0(1,idx)
                             eel%q0(:,idx) = 0.0
                             if(eel%mm_polar(idx) > 0) &
                                 eel%pol(eel%mm_polar(idx)) = 0.0
                         else
                             removed_charge = removed_charge + eel%q(1,idx)
+                            lastq = eel%q(1,idx)
                             eel%q(:,idx) = 0.0
                             if(eel%mm_polar(idx) > 0) &
                                 eel%pol(eel%mm_polar(idx)) = 0.0
                         end if
-                        write(msg, '("Removed charge, multipoles and polarizabilities on atom ", I0)') idx
+                        write(msg, '("Removed charge, multipoles and polarizabilities on atom ", I0, "[q=", F6.3, "]")') idx, lastq
                         call ommp_message(msg, OMMP_VERBOSE_LOW, 'linkatom')
                     end do
                 end do
