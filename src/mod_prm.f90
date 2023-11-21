@@ -676,7 +676,11 @@ module mod_prm
         end do
 
         call strbnd_init(bds, isb-1)
-        
+        if(isb-1 < 1) then
+            !! No parameters are defined, nothing to do.
+            return
+        end if
+
         at2bnd(1) = 1
         do i=1, top%mm_atoms-1
             at2bnd(i+1) = at2bnd(i)
