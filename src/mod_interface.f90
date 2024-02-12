@@ -1296,7 +1296,7 @@ module ommp_interface
                 cnew(:,ila) = crd
             end do
             
-            call qm_helper_update_coord(qm, cnew, logical(.true., ommp_logical))
+            call qm_helper_update_coord(qm, cnew)
             deallocate(cnew)
         end if
     end subroutine
