@@ -379,8 +379,8 @@ module mod_link_atom
                 call mallocate('check_vdw_pairs [vdw_screening_pairs]', 2, nnew, la%vdw_screening_pairs)
                 call mallocate('check_vdw_pairs [vdw_screening_f]', nnew, la%vdw_screening_f)
 
-                la%vdw_screening_pairs = itmp
-                la%vdw_screening_f = rtmp
+                la%vdw_screening_pairs(:,:nold) = itmp
+                la%vdw_screening_f(:nold) = rtmp
 
                 call mfree('check_vdw_pairs [itmp]', itmp)
                 call mfree('check_vdw_pairs [rtmp]', rtmp)
