@@ -2512,7 +2512,7 @@ module mod_electrostatics
                 if(j == i) cycle
                 j_node = t%particle_to_node(j)
                 ! Far field only
-                !if(any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
+                if(any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
 
                 dr = top%cmm(:,i) - top%cmm(:,j)
                 call coulomb_kernel(dr, 3, kernel) 
@@ -2526,7 +2526,7 @@ module mod_electrostatics
             write(*, *) "== PARTICLE ", i, "=="
             write(*, *) "V DBL", v
             v = 0.0
-            call cart_prop_at_ipart(fmm_obj, i, .true., v, &
+            call cart_propfar_at_ipart(fmm_obj, i, .true., v, &
                                                 .false., e, &
                                                 .false., g, &
                                                 .false., h)
@@ -2534,7 +2534,7 @@ module mod_electrostatics
             
             write(*, *) "E DBL", e
             e = 0.0
-            call cart_prop_at_ipart(fmm_obj, i, .false., v, &
+            call cart_propfar_at_ipart(fmm_obj, i, .false., v, &
                                                 .true., e, &
                                                 .false., g, &
                                                 .false., h)
@@ -2542,11 +2542,19 @@ module mod_electrostatics
             
             write(*, *) "G DBL", g
             g = 0.0
-            call cart_prop_at_ipart(fmm_obj, i, .false., v, &
+            call cart_propfar_at_ipart(fmm_obj, i, .false., v, &
                                                 .false., e, &
                                                 .true., g, &
                                                 .false., h)
             write(*, *) "G FMM", g
+            
+            write(*, *) "H DBL", h
+            h = 0.0
+            call cart_propfar_at_ipart(fmm_obj, i, .false., v, &
+                                                .false., e, &
+                                                .false., g, &
+                                                .true., h)
+            write(*, *) "H FMM", h
             
         end do
         
