@@ -2472,6 +2472,7 @@ module mod_electrostatics
 
     subroutine test_fmm_electrostatics(eel)
         use mod_memory, only: mallocate
+        use mod_constants, only: pi
         use fmmlib_interface
 
         implicit none
@@ -2481,13 +2482,74 @@ module mod_electrostatics
         type(fmm_type) :: fmm_obj
         type(fmm_tree_type) :: t
 
-        integer(ip) :: mm_atoms
-        logical :: do_gg
+        integer(ip) :: mm_atoms, i, j, i_node, j_node
+        real(rp) :: v, e(3), g(6), h(10), kernel(6), dr(3)
+        real(rp), allocatable :: multipoles_sphe(:, :)
 
-        mm_atoms = eel%top%mm_atoms
+        type(ommp_topology_type), pointer :: top
+
+        top => eel%top
+        mm_atoms = top%mm_atoms
+
+        allocate(multipoles_sphe(1,mm_atoms))
+        multipoles_sphe(1,:) = eel%q(1,:) / sqrt(4.0 * pi)
 
         call init_as_rib_tree(t, eel%top%cmm)
         call fmm_init(fmm_obj, 13, t)
+        call tree_p2m(fmm_obj, multipoles_sphe, 0)
+        deallocate(multipoles_sphe)
+        call fmm_solve(fmm_obj)
+
+        do i=1, mm_atoms
+            v = 0.0
+            e = 0.0
+            g = 0.0
+            h = 0.0
+            i_node = t%particle_to_node(i)
+
+            ! Do double loop
+            do j=1, mm_atoms
+                if(j == i) cycle
+                j_node = t%particle_to_node(j)
+                ! Far field only
+                !if(any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
+
+                dr = top%cmm(:,i) - top%cmm(:,j)
+                call coulomb_kernel(dr, 3, kernel) 
+                
+                call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                 .true., v, &
+                                 .true., e, &
+                                 .true., g, &
+                                 .true., h)
+            end do
+            write(*, *) "== PARTICLE ", i, "=="
+            write(*, *) "V DBL", v
+            v = 0.0
+            call cart_prop_at_ipart(fmm_obj, i, .true., v, &
+                                                .false., e, &
+                                                .false., g, &
+                                                .false., h)
+            write(*, *) "V FMM", v
+            
+            write(*, *) "E DBL", e
+            e = 0.0
+            call cart_prop_at_ipart(fmm_obj, i, .false., v, &
+                                                .true., e, &
+                                                .false., g, &
+                                                .false., h)
+            write(*, *) "E FMM", e
+            
+            write(*, *) "G DBL", g
+            g = 0.0
+            call cart_prop_at_ipart(fmm_obj, i, .false., v, &
+                                                .false., e, &
+                                                .true., g, &
+                                                .false., h)
+            write(*, *) "G FMM", g
+            
+        end do
+        
         call free_fmm(fmm_obj)
 
     end subroutine
