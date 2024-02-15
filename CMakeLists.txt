@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.17)
 project(openMMPol)
 enable_language(Fortran)
 enable_testing()
+include(ExternalProject)
 
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -97,8 +98,21 @@ find_package(HDF5 COMPONENTS Fortran)
 find_package(cJSON REQUIRED)
 find_package(OpenSSL REQUIRED)
 
+set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
+
+ExternalProject_Add(fmm_lib
+                    GIT_REPOSITORY git@molimen1.dcci.unipi.it:molecolab/fmm-lib.git
+                    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
+)
+
+include_directories(${EXTERNAL_INSTALL_LOCATION}/include/libfmm)
+link_directories(${EXTERNAL_INSTALL_LOCATION}/lib64/libfmm)
+
 if(NOT PYTHON)
     add_library(openmmpol SHARED ${LIBRARY_SRC}) 
+
+    # FMM Library
+    target_link_libraries(openmmpol ${EXTERNAL_INSTALL_LOCATION}/lib64/libfmm/libfmm_lib.so)
 
     # LAPACK
     target_link_libraries(openmmpol ${LAPACK_LIBRARIES})
@@ -155,6 +169,7 @@ endif()
 set(TEST_PROGRAMS
     test_timing
     test_SI_init
+    test_SI_fmm
     test_SI_potential
     test_SI_geomgrad
     test_SI_geomgrad_num)

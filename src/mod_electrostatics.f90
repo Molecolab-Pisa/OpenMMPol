@@ -201,6 +201,7 @@ module mod_electrostatics
     public :: q_elec_prop, coulomb_kernel
     public :: potential_M2E, potential_D2E
     public :: field_M2E, field_D2E
+    public :: test_fmm_electrostatics
 
     contains
 
@@ -2468,5 +2469,27 @@ module mod_electrostatics
         end if
 
     end function screening_rules
+
+    subroutine test_fmm_electrostatics(eel)
+        use mod_memory, only: mallocate
+        use fmmlib_interface
+
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+
+        type(fmm_type) :: fmm_obj
+        type(fmm_tree_type) :: t
+
+        integer(ip) :: mm_atoms
+        logical :: do_gg
+
+        mm_atoms = eel%top%mm_atoms
+
+        call init_as_rib_tree(t, eel%top%cmm)
+        call fmm_init(fmm_obj, 13, t)
+        call free_fmm(fmm_obj)
+
+    end subroutine
 
 end module mod_electrostatics
