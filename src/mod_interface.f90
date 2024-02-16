@@ -1492,7 +1492,6 @@ module ommp_interface
         deallocate(prm_buf)
 
         call mmpol_prepare(sys)
-        !call ommp_time_pull('Conversion of QMHelper to OMMP System')
         call ommp_message('QMH->SYS Completed', OMMP_VERBOSE_DEBUG)
     end subroutine ommp_system_from_qm_helper
 

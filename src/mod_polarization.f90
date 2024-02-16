@@ -135,6 +135,7 @@ module mod_polarization
 
         if(eel%pol_atoms == 0) then
             ! If the system is not polarizable, there is nothing to do.
+            call time_pull('Polarization routine')
             return
         end if
 
