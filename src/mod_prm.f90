@@ -721,7 +721,7 @@ module mod_prm
             l2_done = .false.
             thet_done = .false.
 
-            do j=at2bnd(l1a), size(bds%angleat, 2)
+            do j=at2bnd(l1a), size(bds%bondat, 2)
                 if(l1a == bds%bondat(1,j) .and. l1b == bds%bondat(2,j)) then
                     l1_done = .true.
                     bds%strbndl10(i) = bds%l0bond(j)
@@ -729,7 +729,7 @@ module mod_prm
                 end if
             end do
 
-            do j=at2bnd(l2a), size(bds%angleat, 2)
+            do j=at2bnd(l2a), size(bds%bondat, 2)
                 if(l2a == bds%bondat(1,j) .and. l2b == bds%bondat(2,j)) then
                     l2_done = .true.
                     bds%strbndl20(i) = bds%l0bond(j)
