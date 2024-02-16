@@ -1143,7 +1143,7 @@ module mod_prm
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-                                    t_n(:,:), tmpat(:,:), tmpprm(:)
+                                    t_n(:,:), tmpat(:,:), tmpprm(:), tmpbuf(:,:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
         real(rp) :: amp, phase, torsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
@@ -1161,7 +1161,7 @@ module mod_prm
             line = prm_buf(il)
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
-
+        
         maxt = top%conn(3)%ri(top%mm_atoms+1)-1
         call mallocate('assign_torsion [classa]', nt, classa)
         call mallocate('assign_torsion [classb]', nt, classb)
@@ -1296,6 +1296,26 @@ module mod_prm
                                 classc(iprm) == clb .and. &
                                  classd(iprm) == cla)) then
                                 ! The parameter is ok
+                                
+                                ! Extrem check to avoid memory errors.
+                                if(it > maxt) then
+                                    call mallocate('assign_torsion [tmpbuf]', 4, maxt, tmpbuf)
+                                    tmpbuf(:,:) = tmpat(:,:)
+                                    call mfree('assign_torsion [tmpat]', tmpat)
+                                    call mallocate('assign_torsion [tmpat]', 4, maxt+maxt+1, tmpat)
+                                    tmpat(:,1:maxt) = tmpbuf(:,:)
+                                    call mfree('assign_torsion [tmpbuf]', tmpbuf)
+
+                                    call mallocate('assign_torsion [tmpbuf]', 1, maxt, tmpbuf)
+                                    tmpbuf(1,:) = tmpprm(:)
+                                    call mfree('assign_torsion [tmpprm]', tmpprm)
+                                    call mallocate('assign_torsion [tmpprm]', maxt+maxt+1, tmpprm)
+                                    tmpprm(1:maxt) = tmpbuf(1,:)
+                                    call mfree('assign_torsion [tmpbuf]', tmpbuf)
+
+                                    maxt = 2*maxt + 1
+                                end if
+
                                 tmpat(:,it) = [a, b, c, d]
                                 tmpprm(it) = iprm
                                 it = it+1
