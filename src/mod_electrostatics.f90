@@ -2486,21 +2486,28 @@ module mod_electrostatics
         real(rp) :: v, e(3), g(6), h(10), kernel(6), dr(3)
         real(rp), allocatable :: multipoles_sphe(:, :)
 
+
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
         mm_atoms = top%mm_atoms
 
-        allocate(multipoles_sphe(1,mm_atoms))
+        allocate(multipoles_sphe(4,top%mm_atoms))
+        multipoles_sphe = 0.0
+        
         multipoles_sphe(1,:) = eel%q(1,:) / sqrt(4.0 * pi)
+        multipoles_sphe(2,:) = eel%q(3,:) / sqrt(4.0 * pi / 3.0)
+        multipoles_sphe(3,:) = eel%q(4,:) / sqrt(4.0 * pi / 3.0)
+        multipoles_sphe(4,:) = eel%q(2,:) / sqrt(4.0 * pi / 3.0)
 
-        call init_as_rib_tree(t, eel%top%cmm)
-        call fmm_init(fmm_obj, 13, t)
-        call tree_p2m(fmm_obj, multipoles_sphe, 0)
+        call init_as_rib_tree(t, top%cmm)
+        call fmm_init(fmm_obj, 10, t)
+        call tree_p2m(fmm_obj, multipoles_sphe, 1)
         deallocate(multipoles_sphe)
+        
         call fmm_solve(fmm_obj)
 
-        do i=1, mm_atoms
+        do i=1, top%mm_atoms
             v = 0.0
             e = 0.0
             g = 0.0
@@ -2508,22 +2515,27 @@ module mod_electrostatics
             i_node = t%particle_to_node(i)
 
             ! Do double loop
-            do j=1, mm_atoms
+            do j=1, top%mm_atoms
                 if(j == i) cycle
                 j_node = t%particle_to_node(j)
                 ! Far field only
-                !if(any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
+                ! if(.not. any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
 
                 dr = top%cmm(:,i) - top%cmm(:,j)
-                call coulomb_kernel(dr, 3, kernel) 
-                
+                call coulomb_kernel(dr, 5, kernel) 
+               
                 call q_elec_prop(eel%q(1,j), dr, kernel, &
                                  .true., v, &
                                  .true., e, &
                                  .true., g, &
                                  .true., h)
+                call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                  .true., v, &
+                                  .true., e, &
+                                  .true., g, &
+                                  .true., h)
             end do
-            write(*, *) "== PARTICLE ", i, "=="
+            write(*, *) "== PARTICLE ", i, "NODE", i_node, "=="
             write(*, *) "V DBL", v
             v = 0.0
             call cart_prop_at_ipart(fmm_obj, i, .true., v, &
@@ -2557,7 +2569,7 @@ module mod_electrostatics
             write(*, *) "H FMM", h
             
         end do
-        
+       
         call free_fmm(fmm_obj)
 
     end subroutine
