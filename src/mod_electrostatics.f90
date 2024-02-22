@@ -2492,19 +2492,26 @@ module mod_electrostatics
         top => eel%top
         mm_atoms = top%mm_atoms
 
-        allocate(multipoles_sphe(4,top%mm_atoms))
+        allocate(multipoles_sphe(9,top%mm_atoms))
         multipoles_sphe = 0.0
         
         multipoles_sphe(1,:) = eel%q(1,:) / sqrt(4.0 * pi)
+        
         multipoles_sphe(2,:) = eel%q(3,:) / sqrt(4.0 * pi / 3.0)
         multipoles_sphe(3,:) = eel%q(4,:) / sqrt(4.0 * pi / 3.0)
         multipoles_sphe(4,:) = eel%q(2,:) / sqrt(4.0 * pi / 3.0)
-
+        
+        multipoles_sphe(5,:) = 2.0 * eel%q(4+_xy_,:) * sqrt(15.0 / (4.0 * pi))
+        multipoles_sphe(6,:) = 2.0 *eel%q(4+_yz_,:) * sqrt(15.0 / (4.0 * pi))
+        multipoles_sphe(7,:) = 6.0 / 2.0 * eel%q(4+_zz_,:) * sqrt(5.0/(4.0*pi))
+        multipoles_sphe(8,:) = 2.0 * eel%q(4+_xz_,:) * sqrt(15.0 / (4.0 * pi))
+        multipoles_sphe(9,:) = (eel%q(4+_xx_,:) - eel%q(4+_yy_,:)) * sqrt(15.0/(4.0*pi))
+        
         call init_as_rib_tree(t, top%cmm)
         call fmm_init(fmm_obj, 10, t)
-        call tree_p2m(fmm_obj, multipoles_sphe, 1)
+        call tree_p2m(fmm_obj, multipoles_sphe, 2)
         deallocate(multipoles_sphe)
-        
+
         call fmm_solve(fmm_obj)
 
         do i=1, top%mm_atoms
@@ -2518,8 +2525,6 @@ module mod_electrostatics
             do j=1, top%mm_atoms
                 if(j == i) cycle
                 j_node = t%particle_to_node(j)
-                ! Far field only
-                ! if(.not. any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
 
                 dr = top%cmm(:,i) - top%cmm(:,j)
                 call coulomb_kernel(dr, 5, kernel) 
@@ -2534,6 +2539,11 @@ module mod_electrostatics
                                   .true., e, &
                                   .true., g, &
                                   .true., h)
+                call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                    .true., v, &
+                                    .true., e, &
+                                    .true., g, &
+                                    .true., h)
             end do
             write(*, *) "== PARTICLE ", i, "NODE", i_node, "=="
             write(*, *) "V DBL", v
