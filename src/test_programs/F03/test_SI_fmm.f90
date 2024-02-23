@@ -16,7 +16,7 @@ program test_SI_init
         call get_command_argument(1, args(1))
         call ommp_smartinput(trim(args(1)), my_system, my_qmh)
         
-        call test_fmm_electrostatics(my_system%eel)
+        call test_fmm_electrostatics(my_system%eel, 12, 1e-5_ommp_real)
 
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)

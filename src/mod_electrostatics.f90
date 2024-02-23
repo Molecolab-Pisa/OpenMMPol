@@ -2540,7 +2540,7 @@ module mod_electrostatics
         call time_pull("FMM Solution")
         call time_pull("Total FMM")
 
-        !!$omp parallel do private(i,j, v, e, g, h, i_node, j_node, kernel, dr)
+        !omp parallel do private(i,j, v, e, g, h, i_node, j_node, kernel, dr)
         do i=1, top%mm_atoms
             v = 0.0
             e = 0.0
@@ -2557,7 +2557,11 @@ module mod_electrostatics
             ! Do double loop
             do j=1, top%mm_atoms
                 if(j == i) cycle
+
                 j_node = t%particle_to_node(j)
+                
+                ! Far field only w/o not
+                !if(.not. any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
 
                 dr = top%cmm(:,i) - top%cmm(:,j)
                 call coulomb_kernel(dr, 5, kernel) 
@@ -2598,13 +2602,10 @@ module mod_electrostatics
                 call ommp_fatal(message)
             end if
             
-            !write(*, *) h_fmm
-            !write(*, *) h
-            !write(*, *) abs(h_fmm - h)
-            !if(any(abs(h_fmm-h) > thr)) then
-            !    write(message, *) "H difference for atom", i, "is larger than ", thr, maxval(abs(h_fmm-h))
-            !    call ommp_fatal(message)
-            !end if
+            if(any(abs(h_fmm-h) > thr)) then
+                write(message, *) "H difference for atom", i, "is larger than ", thr, maxval(abs(h_fmm-h))
+                call ommp_fatal(message)
+            end if
         end do
        
         call free_fmm(fmm_obj)
