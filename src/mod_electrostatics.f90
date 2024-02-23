@@ -2470,22 +2470,28 @@ module mod_electrostatics
 
     end function screening_rules
 
-    subroutine test_fmm_electrostatics(eel)
+    subroutine test_fmm_electrostatics(eel, pmax, thr)
         use mod_memory, only: mallocate
-        use mod_constants, only: pi
+        use mod_constants, only: pi, OMMP_STR_CHAR_MAX
         use fmmlib_interface
         use mod_profiling, only: time_pull, time_push
+        use mod_io, only: ommp_fatal => fatal_error
 
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
+        integer(ip), intent(in) :: pmax
+        real(rp), intent(in) :: thr
 
         type(fmm_type) :: fmm_obj
         type(fmm_tree_type) :: t
 
         integer(ip) :: mm_atoms, i, j, i_node, j_node
-        real(rp) :: v, e(3), g(6), h(10), kernel(6), dr(3)
+        real(rp) :: v, e(3), g(6), h(10), v_fmm, &
+                    e_fmm(3), g_fmm(6), h_fmm(10), &
+                    kernel(6), dr(3)
         real(rp), allocatable :: multipoles_sphe(:, :)
+        character(len=OMMP_STR_CHAR_MAX) :: message
 
 
         type(ommp_topology_type), pointer :: top
@@ -2513,7 +2519,7 @@ module mod_electrostatics
         call init_as_rib_tree(t, top%cmm)
         call time_pull("Tree initialization")
         call time_push()
-        call fmm_init(fmm_obj, 10, t)
+        call fmm_init(fmm_obj, pmax, t)
         call time_pull("FMM initialization")
         call time_push()
         call tree_p2m(fmm_obj, multipoles_sphe, 2)
@@ -2532,82 +2538,74 @@ module mod_electrostatics
         call tree_l2l(fmm_obj)
         call time_pull("L2L")
         call time_pull("FMM Solution")
-        call time_push
-        do i=1, mm_atoms
+        call time_pull("Total FMM")
+
+        !!$omp parallel do private(i,j, v, e, g, h, i_node, j_node, kernel, dr)
+        do i=1, top%mm_atoms
             v = 0.0
             e = 0.0
             g = 0.0
             h = 0.0
-            call cart_prop_at_ipart(fmm_obj, i, .true., v, &
-                                                .true., e, &
-                                                .true., g, &
-                                                .true., h)
+            
+            v_fmm = 0.0
+            e_fmm = 0.0
+            g_fmm = 0.0
+            h_fmm = 0.0
+            
+            i_node = t%particle_to_node(i)
+
+            ! Do double loop
+            do j=1, top%mm_atoms
+                if(j == i) cycle
+                j_node = t%particle_to_node(j)
+
+                dr = top%cmm(:,i) - top%cmm(:,j)
+                call coulomb_kernel(dr, 5, kernel) 
+               
+                call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                 .true., v, &
+                                 .true., e, &
+                                 .true., g, &
+                                 .true., h)
+                call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                  .true., v, &
+                                  .true., e, &
+                                  .true., g, &
+                                  .true., h)
+                call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                    .true., v, &
+                                    .true., e, &
+                                    .true., g, &
+                                    .true., h)
+            end do
+
+            call cart_prop_at_ipart(fmm_obj, i, .true., v_fmm, &
+                                                .true., e_fmm, &
+                                                .true., g_fmm, &
+                                                .true., h_fmm)
+            if(abs(v_fmm-v) > thr) then
+                write(message, *) "V difference for atom", i, "is larger than ", thr, abs(v_fmm-v)
+                call ommp_fatal(message)
+            end if
+            
+            if(any(abs(e_fmm-e) > thr)) then
+                write(message, *) "E difference for atom", i, "is larger than ", thr, maxval(abs(e_fmm-e))
+                call ommp_fatal(message)
+            end if
+            
+            if(any(abs(g_fmm-g) > thr)) then
+                write(message, *) "G difference for atom", i, "is larger than ", thr, maxval(abs(g_fmm-g))
+                call ommp_fatal(message)
+            end if
+            
+            !write(*, *) h_fmm
+            !write(*, *) h
+            !write(*, *) abs(h_fmm - h)
+            !if(any(abs(h_fmm-h) > thr)) then
+            !    write(message, *) "H difference for atom", i, "is larger than ", thr, maxval(abs(h_fmm-h))
+            !    call ommp_fatal(message)
+            !end if
         end do
-        call time_pull("Properties")
-        call time_pull("Total FMM")
-        call time_push
-        !!$omp parallel do private(i,j, v, e, g, h, i_node, j_node, kernel, dr)
-        !do i=1, top%mm_atoms
-        !    v = 0.0
-        !    e = 0.0
-        !    g = 0.0
-        !    h = 0.0
-        !    i_node = t%particle_to_node(i)
-
-        !    ! Do double loop
-        !    do j=1, top%mm_atoms
-        !        if(j == i) cycle
-        !        j_node = t%particle_to_node(j)
-
-        !        dr = top%cmm(:,i) - top%cmm(:,j)
-        !        call coulomb_kernel(dr, 5, kernel) 
-        !       
-        !        call q_elec_prop(eel%q(1,j), dr, kernel, &
-        !                         .true., v, &
-        !                         .true., e, &
-        !                         .true., g, &
-        !                         .true., h)
-        !        call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
-        !                          .true., v, &
-        !                          .true., e, &
-        !                          .true., g, &
-        !                          .true., h)
-        !        call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
-        !                            .true., v, &
-        !                            .true., e, &
-        !                            .true., g, &
-        !                            .true., h)
-        !    end do
-        !!    write(*, *) "== PARTICLE ", i, "NODE", i_node, "=="
-        !!    write(*, *) "V DBL", v
-        !!    write(*, *) "V FMM", v
-        !!    
-        !!    write(*, *) "E DBL", e
-        !!    e = 0.0
-        !!    call cart_prop_at_ipart(fmm_obj, i, .false., v, &
-        !!                                        .true., e, &
-        !!                                        .false., g, &
-        !!                                        .false., h)
-        !!    write(*, *) "E FMM", e
-        !!    
-        !!    write(*, *) "G DBL", g
-        !!    g = 0.0
-        !!    call cart_prop_at_ipart(fmm_obj, i, .false., v, &
-        !!                                        .false., e, &
-        !!                                        .true., g, &
-        !!                                        .false., h)
-        !!    write(*, *) "G FMM", g
-        !!    
-        !!    write(*, *) "H DBL", h
-        !!    h = 0.0
-        !!    call cart_prop_at_ipart(fmm_obj, i, .false., v, &
-        !!                                        .false., e, &
-        !!                                        .false., g, &
-        !!                                        .true., h)
-        !!    write(*, *) "H FMM", h
-        !!    
-        !end do
-        !call time_pull("Double loop")
        
         call free_fmm(fmm_obj)
 
