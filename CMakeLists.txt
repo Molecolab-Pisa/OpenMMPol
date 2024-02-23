@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.24)
 project(openMMPol)
 enable_language(Fortran)
 enable_testing()
@@ -103,6 +103,8 @@ set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
 ExternalProject_Add(fmm_lib
                     GIT_REPOSITORY git@molimen1.dcci.unipi.it:molecolab/fmm-lib.git
                     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
+                               -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+                               -DCMAKE_Fortan_FLAGS=${CMAKE_Fortran_FLAGS}
 )
 
 include_directories(${EXTERNAL_INSTALL_LOCATION}/include/libfmm)
