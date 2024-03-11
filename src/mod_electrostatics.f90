@@ -6,6 +6,7 @@ module mod_electrostatics
     use mod_memory, only: ip, rp, lp
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type
+    use fmmlib_interface
 
     !! TODO Check the signs in electrostatic elemental functions
     !! TODO [OPT] Use Laplace equation to simplify the calculations:
@@ -121,7 +122,17 @@ module mod_electrostatics
 
         integer(ip), allocatable :: ix(:), iy(:), iz(:)
         !! neighboring atoms used to define the axes of the molecular frame
-        
+
+        !- FMM quantities here
+        logical(lp) :: use_fmm = .false.
+        !! flag to use fast multipoles
+        integer(ip) :: fmm_maxl = 0
+        !! Maximum angular moment used in fast multipoles
+        type(fmm_type) :: fmm
+        !! Fast multipoles object
+        type(fmm_tree_type) :: tree
+        !! Tree object
+    
         !- Intermediate data allocate here -!
         logical(lp) :: M2M_done = .false.
         !! flag to set when M2M electrostatic quantities are computed.
@@ -201,13 +212,15 @@ module mod_electrostatics
     public :: q_elec_prop, coulomb_kernel
     public :: potential_M2E, potential_D2E
     public :: field_M2E, field_D2E
+    public :: fmm_coordinates_update
     public :: test_fmm_electrostatics
 
     contains
 
     subroutine electrostatics_init(eel_obj, amoeba, pol_atoms, top_obj)
         use mod_memory, only: mallocate
-        use mod_constants, only: OMMP_MATV_DEFAULT, OMMP_SOLVER_DEFAULT
+        use mod_constants, only: OMMP_MATV_DEFAULT, OMMP_SOLVER_DEFAULT, &
+                                 OMMP_FMM_DEFAULT_MAXL, OMMP_FMM_ENABLE_THR
 
         implicit none 
 
@@ -234,6 +247,11 @@ module mod_electrostatics
             eel_obj%ld_cder = 3_ip
             eel_obj%n_ipd = 1_ip
         endif
+
+        if(mm_atoms > OMMP_FMM_ENABLE_THR) then
+            eel_obj%use_fmm = .true.
+            eel_obj%fmm_maxl = OMMP_FMM_DEFAULT_MAXL
+        end if
 
         call mallocate('electrostatics_init [q]', eel_obj%ld_cart, &
                        mm_atoms, eel_obj%q)
@@ -323,6 +341,11 @@ module mod_electrostatics
         if(allocated(eel_obj%list_P_P)) then
             call matfree(eel_obj%list_P_P)
             deallocate(eel_obj%list_P_P)
+        end if
+
+        if(eel_obj%use_fmm) then
+            call free_fmm(eel_obj%fmm)
+            call free_tree(eel_obj%tree)
         end if
 
     end subroutine electrostatics_terminate
@@ -450,6 +473,20 @@ module mod_electrostatics
             call mfree('remove_null_pol [idx]', idx)
         end if
 
+    end subroutine
+
+    subroutine fmm_coordinates_update(eel)
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        
+        call time_push()
+        call init_as_rib_tree(eel%tree, eel%top%cmm)
+        call time_pull("Tree initialization")
+        
+        call time_push()
+        call fmm_init(eel%fmm, eel%fmm_maxl, eel%tree)
+        call time_pull("FMM initialization")
     end subroutine
 
     subroutine make_screening_lists(eel)
@@ -2473,7 +2510,6 @@ module mod_electrostatics
     subroutine test_fmm_electrostatics(eel, pmax, thr)
         use mod_memory, only: mallocate
         use mod_constants, only: pi, OMMP_STR_CHAR_MAX
-        use fmmlib_interface
         use mod_profiling, only: time_pull, time_push
         use mod_io, only: ommp_fatal => fatal_error
 

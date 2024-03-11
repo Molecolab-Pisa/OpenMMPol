@@ -156,7 +156,7 @@ module mod_mmpol
         use mod_profiling, only: time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
         use mod_electrostatics, only: thole_init, remove_null_pol, &
-                                      make_screening_lists
+                                      make_screening_lists, fmm_coordinates_update
 
         implicit none
         
@@ -230,6 +230,9 @@ module mod_mmpol
         call time_pull("Preparing screening lists")
         call ommp_message("MMPol initialization (mmpol_prepare) completed.", OMMP_VERBOSE_DEBUG)
         call time_pull('MMPol object initialization (mmpol_prepare)')
+        if(sys_obj%eel%use_fmm) then
+            call fmm_coordinates_update(sys_obj%eel)
+        end if
     end subroutine mmpol_prepare
 
     subroutine mmpol_terminate(sys_obj)

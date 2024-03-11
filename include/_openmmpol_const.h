@@ -42,4 +42,8 @@
 #define OMMP_DEFAULT_NL_SUB 2
 
 #define OMMP_STR_CHAR_MAX 4096
+
+#define OMMP_FMM_DEFAULT_MAXL 9
+#define OMMP_FMM_ENABLE_THR 1000
+
 #endif

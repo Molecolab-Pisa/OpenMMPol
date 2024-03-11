@@ -128,4 +128,7 @@ module mod_constants
     integer(ip), parameter :: default_link_atom_n_eel_remove = OMMP_DEFAULT_LA_N_EEL_REMOVE
     real(rp), parameter :: default_link_atom_dist = OMMP_DEFAULT_LA_DIST
 
+    integer(ip), parameter :: ommp_fmm_enable_thr = OMMP_FMM_ENABLE_THR
+    integer(ip), parameter :: ommp_fmm_default_maxl = OMMP_FMM_DEFAULT_MAXL
+
 end module mod_constants
