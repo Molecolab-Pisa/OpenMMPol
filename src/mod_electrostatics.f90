@@ -475,20 +475,6 @@ module mod_electrostatics
 
     end subroutine
 
-    subroutine fmm_coordinates_update(eel)
-        implicit none
-
-        type(ommp_electrostatics_type), intent(inout) :: eel
-        
-        call time_push()
-        call init_as_rib_tree(eel%tree, eel%top%cmm)
-        call time_pull("Tree initialization")
-        
-        call time_push()
-        call fmm_init(eel%fmm, eel%fmm_maxl, eel%tree)
-        call time_pull("FMM initialization")
-    end subroutine
-
     subroutine make_screening_lists(eel)
         use mod_memory, only: mallocate, mfree
         use mod_adjacency_mat, only: compress_list, compress_data
@@ -1397,6 +1383,7 @@ module mod_electrostatics
         !! Computes the electric potential, field and field gradients of 
         !! static multipoles at all sites (polarizable sites are a 
         !! subset of static ones)
+        use mod_memory, only: mallocate
         implicit none
         
         type(ommp_electrostatics_type), intent(inout) :: eel
@@ -1406,6 +1393,7 @@ module mod_electrostatics
 
 
         real(rp) :: kernel(6), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
+        real(rp), allocatable :: tmp_q(:), tmp_mu(:,:), tmp_quad(:,:)
         integer(ip) :: i, j, idx, ikernel
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
@@ -1425,6 +1413,71 @@ module mod_electrostatics
         end if
         if(eel%amoeba) ikernel = ikernel + 2
 
+        if(eel%use_fmm) then
+            call mallocate('elec_prop_M2M [tmp_q]', eel%top%mm_atoms, tmp_q)
+            tmp_q(:) = eel%q(1,:)
+            if(eel%amoeba) then
+                call mallocate('elec_prop_M2M [tmp_mu]', 3, eel%top%mm_atoms, tmp_mu)
+                tmp_mu(:,:) = eel%q(2:4,:)
+                call mallocate('elec_prop_M2M [tmp_quad]', 6, eel%top%mm_atoms, tmp_quad)
+                tmp_quad(:,:) = eel%q(5:10,:)
+            else
+                call mallocate('elec_prop_M2M [tmp_mu]', 3, 1, tmp_mu)
+                call mallocate('elec_prop_M2M [tmp_quad]', 6, 1, tmp_quad)
+            end if
+
+            call fmm_solve_for_multipoles(eel%fmm, &
+                                          tmp_q, logical(.true., lp), &
+                                          tmp_mu, eel%amoeba, &
+                                          tmp_quad, eel%amoeba)
+
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            do i=1, top%mm_atoms 
+                call cart_prop_at_ipart(eel%fmm, i, do_V, eel%V_M2M(i), &
+                                                    do_E, eel%E_M2M(:,i), &
+                                                    do_Egrd, eel%Egrd_M2M(:,i), &
+                                                    do_EHes, eel%EHes_M2M(:,i))
+                ! Now removed the scaled parts only
+                do idx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
+                    j = eel%list_S_S%ci(idx)
+                    scalf = 1.0 - eel%scalef_S_S(idx)
+                        
+                    dr = top%cmm(:,i) - top%cmm(:, j)
+                    call coulomb_kernel(dr, ikernel, kernel)
+                    
+                    if(do_V) tmpV = 0.0_rp
+                    if(do_E) tmpE = 0.0_rp
+                    if(do_Egrd) tmpEgr = 0.0_rp
+                    if(do_EHes) tmpHE = 0.0_rp
+
+                    call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                        do_V, tmpV, & 
+                                        do_E, tmpE, &
+                                        do_Egrd, tmpEgr, &
+                                        do_EHes, tmpHE)
+                    if(eel%amoeba) then
+                        call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+
+                        call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+                    end if
+
+                    if(do_V) eel%V_M2M(i) = eel%V_M2M(i) - tmpV * scalf
+                    if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) - tmpE * scalf
+                    if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) - tmpEgr * scalf
+                    if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) - tmpHE * scalf
+
+                end do
+            end do
+        else
         if(eel%amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
@@ -1548,6 +1601,7 @@ module mod_electrostatics
                     end if
                 end do
             end do
+        end if
         end if
     end subroutine elec_prop_M2M
     
@@ -2646,6 +2700,92 @@ module mod_electrostatics
        
         call free_fmm(fmm_obj)
 
+    end subroutine
+
+    subroutine fmm_coordinates_update(eel)
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        
+        call time_push()
+        call init_as_rib_tree(eel%tree, eel%top%cmm)
+        call time_pull("Tree initialization")
+        
+        call time_push()
+        call fmm_init(eel%fmm, eel%fmm_maxl, eel%tree)
+        call time_pull("FMM initialization")
+    end subroutine
+
+    subroutine fmm_solve_for_multipoles(fmm_obj, q, use_q, mu, use_mu, quad, use_quad)
+        use mod_constants, only: pi
+        
+        implicit none
+
+        type(fmm_type), intent(inout) :: fmm_obj
+        !! FMM object, it should be already initialized
+        real(rp), intent(in) :: q(:)
+        logical(lp), intent(in) :: use_q
+        
+        real(rp), intent(in) :: mu(:, :)
+        logical(lp), intent(in) :: use_mu
+        
+        real(rp), intent(in) :: quad(:, :)
+        logical(lp), intent(in) :: use_quad
+
+        real(rp), allocatable :: multipoles_sphe(:, :)
+        integer(ip) :: n_comp
+
+        if(use_quad) then
+            n_comp = 9
+        else if(use_mu) then
+            n_comp = 4
+        else if(use_q) then 
+            n_comp = 1 
+        else
+            n_comp = 0
+        end if
+
+        if(n_comp == 0) then
+            call fatal_error("fmm_solve_for_multipoles called without any input source.")
+        end if
+        
+        allocate(multipoles_sphe(n_comp, fmm_obj%tree%n_particles))
+        
+        multipoles_sphe = 0.0
+        
+        if(use_q) then
+            if(size(q,1) /= fmm_obj%tree%n_particles) then
+                call fatal_error("charges array as wrong size in fmm_solve_for_multipoles")
+            end if
+            multipoles_sphe(1,:) = q / sqrt(4.0 * pi)
+        end if
+        
+        if(use_mu) then
+            if(size(mu,1) /= 3 .or. size(mu,2) /= fmm_obj%tree%n_particles) then
+                call fatal_error("dipoles array as wrong size in fmm_solve_for_multipoles")
+            end if
+            multipoles_sphe(2,:) = mu(2,:) / sqrt(4.0 * pi / 3.0)
+            multipoles_sphe(3,:) = mu(3,:) / sqrt(4.0 * pi / 3.0)
+            multipoles_sphe(4,:) = mu(1,:) / sqrt(4.0 * pi / 3.0)
+        end if
+        
+        if(use_quad) then
+            if(size(quad,1) /= 6 .or. size(quad,2) /= fmm_obj%tree%n_particles) then
+                call fatal_error("dipoles array as wrong size in fmm_solve_for_multipoles")
+            end if
+            multipoles_sphe(5,:) = 2.0 * quad(_xy_,:) * sqrt(15.0 / (4.0 * pi))
+            multipoles_sphe(6,:) = 2.0 *quad(_yz_,:) * sqrt(15.0 / (4.0 * pi))
+            multipoles_sphe(7,:) = 6.0 / 2.0 * quad(_zz_,:) * sqrt(5.0/(4.0*pi))
+            multipoles_sphe(8,:) = 2.0 * quad(_xz_,:) * sqrt(15.0 / (4.0 * pi))
+            multipoles_sphe(9,:) = (quad(_xx_,:) - quad(_yy_,:)) * sqrt(15.0/(4.0*pi))
+        end if
+        
+        ! Load FMM
+        call tree_p2m(fmm_obj, multipoles_sphe, 2)
+        call fmm_solve(fmm_obj)
+
+        deallocate(multipoles_sphe)
+        
     end subroutine
 
 end module mod_electrostatics
