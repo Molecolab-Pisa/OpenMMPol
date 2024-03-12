@@ -128,10 +128,18 @@ module mod_electrostatics
         !! flag to use fast multipoles
         integer(ip) :: fmm_maxl = 0
         !! Maximum angular moment used in fast multipoles
-        type(fmm_type) :: fmm
-        !! Fast multipoles object
+        type(fmm_type) :: fmm_static
+        !! Fast multipoles object for static multipoles sources
+        logical(lp) :: fmm_static_done = .false.
+        !! Flag for a fresh solution of ipd fmm
+        type(fmm_type) :: fmm_ipd
+        !! Fast multipoles object for ipd sources
+        logical(lp) :: fmm_ipd_done = .false.
+        !! Flag for a fresh solution of ipd fmm
         type(fmm_tree_type) :: tree
         !! Tree object
+        type(yale_sparse) :: fmm_near_field_list
+        !! For each particle, all the particles that should be included in near field
     
         !- Intermediate data allocate here -!
         logical(lp) :: M2M_done = .false.
@@ -344,8 +352,10 @@ module mod_electrostatics
         end if
 
         if(eel_obj%use_fmm) then
-            call free_fmm(eel_obj%fmm)
+            call free_fmm(eel_obj%fmm_static)
+            call free_fmm(eel_obj%fmm_ipd)
             call free_tree(eel_obj%tree)
+            call matfree(eel_obj%fmm_near_field_list)
         end if
 
     end subroutine electrostatics_terminate
@@ -1311,13 +1321,19 @@ module mod_electrostatics
         if(.not. do_gg .and. eel%M2D_done) return
         if(do_gg .and. eel%M2D_done .and. eel%M2Dgg_done) return
         
+        if(.not. allocated(eel%V_M2D) .and. eel%use_fmm) then
+            ! This is needed just as a placeholder in fmm calls
+            call mallocate('prepare_polelec [V_M2D]', eel%pol_atoms, &
+                            eel%n_ipd, eel%V_M2D)
+        end if
+        
         if(.not. allocated(eel%E_M2D)) then
             call mallocate('prepare_polelec [E_M2D]', 3, eel%pol_atoms, &
                             eel%n_ipd, eel%E_M2D)
         end if
-       
-        if(do_gg) then
-            if(.not. eel%ipd_done) call fatal_error("IPD should be computed &
+        
+        if(do_gg .or. eel%use_fmm) then
+            if(.not. eel%ipd_done .and. do_gg) call fatal_error("IPD should be computed &
                 &before computing analytical geometrical gradients of &
                 &polarization energy.")
             
@@ -1379,11 +1395,43 @@ module mod_electrostatics
         eel%M2D_done = .true.
     end subroutine prepare_polelec
 
+    subroutine preapare_fmm_static(eel)
+        use mod_memory, only: mallocate, mfree
+        implicit none
+        
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        !! Electrostatics data structure
+        real(rp), allocatable :: tmp_q(:), tmp_mu(:,:), tmp_quad(:,:)
+        
+        if(.not. eel%fmm_static_done) then
+            call mallocate('prepare_fmm_static [tmp_q]', eel%top%mm_atoms, tmp_q)
+            tmp_q(:) = eel%q(1,:)
+            if(eel%amoeba) then
+                call mallocate('prepare_fmm_static [tmp_mu]', 3, eel%top%mm_atoms, tmp_mu)
+                tmp_mu(:,:) = eel%q(2:4,:)
+                call mallocate('prepare_fmm_static [tmp_quad]', 6, eel%top%mm_atoms, tmp_quad)
+                tmp_quad(:,:) = eel%q(5:10,:)
+            else
+                call mallocate('prepare_fmm_static [tmp_mu]', 3, 1, tmp_mu)
+                call mallocate('prepare_fmm_static [tmp_quad]', 6, 1, tmp_quad)
+            end if
+
+            call fmm_solve_for_multipoles(eel%fmm_static, &
+                                        tmp_q, logical(.true., lp), &
+                                        tmp_mu, eel%amoeba, &
+                                        tmp_quad, eel%amoeba)
+            eel%fmm_static_done = .true.
+            
+            call mfree('prepare_fmm_static [tmp_q]', tmp_q)
+            call mfree('prepare_fmm_static [tmp_mu]', tmp_mu)
+            call mfree('prepare_fmm_static [tmp_quad]', tmp_quad)
+        end if
+    end subroutine
+
     subroutine elec_prop_M2M(eel, do_V, do_E, do_Egrd, do_EHes)
         !! Computes the electric potential, field and field gradients of 
         !! static multipoles at all sites (polarizable sites are a 
         !! subset of static ones)
-        use mod_memory, only: mallocate
         implicit none
         
         type(ommp_electrostatics_type), intent(inout) :: eel
@@ -1393,7 +1441,6 @@ module mod_electrostatics
 
 
         real(rp) :: kernel(6), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
-        real(rp), allocatable :: tmp_q(:), tmp_mu(:,:), tmp_quad(:,:)
         integer(ip) :: i, j, idx, ikernel
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
@@ -1414,30 +1461,16 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%use_fmm) then
-            call mallocate('elec_prop_M2M [tmp_q]', eel%top%mm_atoms, tmp_q)
-            tmp_q(:) = eel%q(1,:)
-            if(eel%amoeba) then
-                call mallocate('elec_prop_M2M [tmp_mu]', 3, eel%top%mm_atoms, tmp_mu)
-                tmp_mu(:,:) = eel%q(2:4,:)
-                call mallocate('elec_prop_M2M [tmp_quad]', 6, eel%top%mm_atoms, tmp_quad)
-                tmp_quad(:,:) = eel%q(5:10,:)
-            else
-                call mallocate('elec_prop_M2M [tmp_mu]', 3, 1, tmp_mu)
-                call mallocate('elec_prop_M2M [tmp_quad]', 6, 1, tmp_quad)
-            end if
-
-            call fmm_solve_for_multipoles(eel%fmm, &
-                                          tmp_q, logical(.true., lp), &
-                                          tmp_mu, eel%amoeba, &
-                                          tmp_quad, eel%amoeba)
+            call preapare_fmm_static(eel)
 
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
             do i=1, top%mm_atoms 
-                call cart_prop_at_ipart(eel%fmm, i, do_V, eel%V_M2M(i), &
-                                                    do_E, eel%E_M2M(:,i), &
-                                                    do_Egrd, eel%Egrd_M2M(:,i), &
-                                                    do_EHes, eel%EHes_M2M(:,i))
+                call cart_prop_at_ipart(eel%fmm_static, i, &
+                                        do_V, eel%V_M2M(i), &
+                                        do_E, eel%E_M2M(:,i), &
+                                        do_Egrd, eel%Egrd_M2M(:,i), &
+                                        do_EHes, eel%EHes_M2M(:,i))
                 ! Now removed the scaled parts only
                 do idx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
                     j = eel%list_S_S%ci(idx)
@@ -1775,13 +1808,14 @@ module mod_electrostatics
         logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
         !! Flag to control which properties have to be computed.
 
-        integer(ip) :: i, j, idx, ikernel
+        integer(ip) :: i, ipol, j, jnode, ij, idx, ikernel
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale, &
                    amoeba
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
                     scalf_p, scalf_d, scalf
         type(ommp_topology_type), pointer :: top
-        
+       
+        call time_push
         ! Shortcuts
         top => eel%top
         amoeba = eel%amoeba
@@ -1797,8 +1831,207 @@ module mod_electrostatics
         else
             return
         end if
-        if(eel%amoeba) ikernel = ikernel + 2 
+        if(eel%amoeba) ikernel = ikernel + 2_ip
         
+        if(eel%use_fmm) then
+            call preapare_fmm_static(eel)
+
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
+            do ipol=1, eel%pol_atoms 
+                i = eel%polar_mm(ipol)
+                call cart_propfar_at_ipart(eel%fmm_static, i, &
+                                           do_V, eel%V_M2D(ipol, _amoeba_D_), &
+                                           do_E, eel%E_M2D(:, ipol, _amoeba_D_), &
+                                           do_Egrd, eel%Egrd_M2D(:, ipol, _amoeba_D_), &
+                                           do_EHes, eel%EHes_M2D(:, ipol, _amoeba_D_))
+                if(do_V) eel%V_M2D(ipol, _amoeba_P_) = eel%V_M2D(ipol, _amoeba_D_)
+                if(do_E) eel%E_M2D(:, ipol, _amoeba_P_) = eel%E_M2D(:, ipol, _amoeba_D_)
+                if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_P_) = eel%Egrd_M2D(:, ipol, _amoeba_D_)
+                if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_P_) = eel%EHes_M2D(:, ipol, _amoeba_D_)
+               
+                ! Near field is computed internally because dumped kernel is required
+                do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
+                    j = eel%fmm_near_field_list%ci(ij)
+
+                    !loop on target
+                    to_do_p = .true.
+                    to_scale_p = .false.
+                    scalf_p = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_P_P%ri(j), eel%list_S_P_P%ri(j+1)-1
+                        if(eel%list_S_P_P%ci(idx) == ipol) then
+                            to_scale_p = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale_p) then
+                        to_do_p = eel%todo_S_P_P(idx)
+                        scalf_p = eel%scalef_S_P_P(idx)
+                    end if
+                    
+                    to_do_d = .true.
+                    to_scale_d = .false.
+                    scalf_d = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_S_P_D%ri(j), eel%list_S_P_D%ri(j+1)-1
+                        if(eel%list_S_P_D%ci(idx) == ipol) then
+                            to_scale_d = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale_d) then
+                        to_do_d = eel%todo_S_P_D(idx)
+                        scalf_d = eel%scalef_S_P_D(idx)
+                    end if
+
+                    if(to_do_p .or. to_do_d) then
+                    
+                        call damped_coulomb_kernel(eel, j, i, &
+                                                ikernel, kernel, dr)
+
+                        if(do_V) tmpV = 0.0_rp
+                        if(do_E) tmpE = 0.0_rp
+                        if(do_Egrd) tmpEgr = 0.0_rp
+                        if(do_EHes) tmpHE = 0.0_rp
+
+                        call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+                        if(eel%amoeba) then
+                            call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                                do_V, tmpV, & 
+                                                do_E, tmpE, &
+                                                do_Egrd, tmpEgr, &
+                                                do_EHes, tmpHE)
+
+                            call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                                do_V, tmpV, & 
+                                                do_E, tmpE, &
+                                                do_Egrd, tmpEgr, &
+                                                do_EHes, tmpHE)
+                        end if
+
+                        if(to_scale_p) then
+                            if(do_V) eel%V_M2D(ipol, _amoeba_P_) = eel%V_M2D(ipol, _amoeba_P_) + tmpV * scalf_p 
+                            if(do_E) eel%E_M2D(:, ipol, _amoeba_P_) = eel%E_M2D(:, ipol, _amoeba_P_) + tmpE * scalf_p
+                            if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_P_) = eel%Egrd_M2D(:, ipol, _amoeba_P_) + tmpEgr * scalf_p
+                            if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_P_) = eel%EHes_M2D(:, ipol, _amoeba_P_) + tmpHE * scalf_p
+                        else if(to_do_p) then
+                            if(do_V) eel%V_M2D(ipol, _amoeba_P_) = eel%V_M2D(ipol, _amoeba_P_) + tmpV 
+                            if(do_E) eel%E_M2D(:, ipol, _amoeba_P_) = eel%E_M2D(:, ipol, _amoeba_P_) + tmpE
+                            if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_P_) = eel%Egrd_M2D(:, ipol, _amoeba_P_) + tmpEgr
+                            if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_P_) = eel%EHes_M2D(:, ipol, _amoeba_P_) + tmpHE
+                        end if
+                        
+                        if(to_scale_d) then
+                            if(do_V) eel%V_M2D(ipol, _amoeba_D_) = eel%V_M2D(ipol, _amoeba_D_) + tmpV * scalf_d 
+                            if(do_E) eel%E_M2D(:, ipol, _amoeba_D_) = eel%E_M2D(:, ipol, _amoeba_D_) + tmpE * scalf_d
+                            if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_D_) = eel%Egrd_M2D(:, ipol, _amoeba_D_) + tmpEgr * scalf_d
+                            if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_D_) = eel%EHes_M2D(:, ipol, _amoeba_D_) + tmpHE * scalf_d
+                        else if(to_do_d) then
+                            if(do_V) eel%V_M2D(ipol, _amoeba_D_) = eel%V_M2D(ipol, _amoeba_D_) + tmpV 
+                            if(do_E) eel%E_M2D(:, ipol, _amoeba_D_) = eel%E_M2D(:, ipol, _amoeba_D_) + tmpE
+                            if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_D_) = eel%Egrd_M2D(:, ipol, _amoeba_D_) + tmpEgr
+                            if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_D_) = eel%EHes_M2D(:, ipol, _amoeba_D_) + tmpHE
+                        end if
+                    end if        
+                end do
+
+                ! Now remove screened interactions from far-field
+                do j=1, top%mm_atoms
+                    if(j == i) cycle
+
+                    to_scale_d = .false.
+                    to_scale_p = .false.
+
+                    do idx=eel%list_S_P_D%ri(j), eel%list_S_P_D%ri(j+1)-1
+                        if(eel%list_S_P_D%ci(idx) == ipol) then
+                            to_scale_d = .true.
+                            exit
+                        end if
+                    end do
+
+                    if(to_scale_d) then
+                        if(.not. any(eel%fmm_near_field_list%ci( eel%fmm_near_field_list%ri(i): &
+                                                                eel%fmm_near_field_list%ri(i+1)-1) == j)) then
+                            scalf_d = 1.0 - eel%scalef_S_P_D(idx)
+                        else
+                            to_scale_d = .false.
+                        end if
+                    end if
+                    
+                    do idx=eel%list_S_P_P%ri(j), eel%list_S_P_P%ri(j+1)-1
+                        if(eel%list_S_P_P%ci(idx) == ipol) then
+                            to_scale_p = .true.
+                            exit
+                        end if
+                    end do
+
+                    if(to_scale_p) then
+                        if(.not. any(eel%fmm_near_field_list%ci( eel%fmm_near_field_list%ri(i): &
+                                                                 eel%fmm_near_field_list%ri(i+1)-1) == j)) then
+                            scalf_p = 1.0 - eel%scalef_S_P_P(idx)
+                        else
+                            to_scale_p = .false.
+                        end if
+                    end if
+
+                    if(.not. to_scale_d .and. .not. to_scale_p) cycle
+                    
+                    ! The interaction should be corrected
+                    call damped_coulomb_kernel(eel, j, i, &
+                                               ikernel, kernel, dr)
+
+                    if(do_V) tmpV = 0.0_rp
+                    if(do_E) tmpE = 0.0_rp
+                    if(do_Egrd) tmpEgr = 0.0_rp
+                    if(do_EHes) tmpHE = 0.0_rp
+
+                    call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                        do_V, tmpV, & 
+                                        do_E, tmpE, &
+                                        do_Egrd, tmpEgr, &
+                                        do_EHes, tmpHE)
+                    if(eel%amoeba) then
+                        call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+
+                        call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+                    end if
+
+                    if(to_scale_p) then
+                        if(do_V) eel%V_M2D(ipol, _amoeba_P_) = eel%V_M2D(ipol, _amoeba_P_) - tmpV * scalf_p 
+                        if(do_E) eel%E_M2D(:, ipol, _amoeba_P_) = eel%E_M2D(:, ipol, _amoeba_P_) - tmpE * scalf_p
+                        if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_P_) = eel%Egrd_M2D(:, ipol, _amoeba_P_) - tmpEgr * scalf_p
+                        if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_P_) = eel%EHes_M2D(:, ipol, _amoeba_P_) - tmpHE * scalf_p
+                    end if
+                    
+                    if(to_scale_d) then
+                        if(do_V) eel%V_M2D(ipol, _amoeba_D_) = eel%V_M2D(ipol, _amoeba_D_) - tmpV * scalf_d 
+                        if(do_E) eel%E_M2D(:, ipol, _amoeba_D_) = eel%E_M2D(:, ipol, _amoeba_D_) - tmpE * scalf_d
+                        if(do_Egrd) eel%Egrd_M2D(:, ipol, _amoeba_D_) = eel%Egrd_M2D(:, ipol, _amoeba_D_) - tmpEgr * scalf_d
+                        if(do_EHes) eel%EHes_M2D(:, ipol, _amoeba_D_) = eel%EHes_M2D(:, ipol, _amoeba_D_) - tmpHE * scalf_d
+                    end if
+
+                end do
+            end do
+        else
         if(amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
@@ -1837,7 +2070,7 @@ module mod_electrostatics
                         end if
                     end do
 
-                    !If it should set the correct variables
+                    !!If it should set the correct variables
                     if(to_scale_d) then
                         to_do_d = eel%todo_S_P_D(idx)
                         scalf_d = eel%scalef_S_P_D(idx)
@@ -1953,7 +2186,8 @@ module mod_electrostatics
                 end do
             end do
         end if
-
+        end if
+        call time_pull('M2D')
     end subroutine
     
     subroutine elec_prop_D2M(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
@@ -2709,11 +2943,49 @@ module mod_electrostatics
         
         call time_push()
         call init_as_rib_tree(eel%tree, eel%top%cmm)
+        call fmm_make_neigh_list(eel)
         call time_pull("Tree initialization")
         
         call time_push()
-        call fmm_init(eel%fmm, eel%fmm_maxl, eel%tree)
+        call fmm_init(eel%fmm_static, eel%fmm_maxl, eel%tree)
+        call fmm_init(eel%fmm_ipd, eel%fmm_maxl, eel%tree)
         call time_pull("FMM initialization")
+    end subroutine
+
+    subroutine fmm_make_neigh_list(eel)
+        use mod_memory, only: mallocate
+        use mod_adjacency_mat, only: reallocate_mat
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        integer(ip), parameter :: n_guess_neigh = 30
+        integer(ip) :: i, j, inode, part_idx, jnode, node_idx
+
+        eel%fmm_near_field_list%n = eel%top%mm_atoms
+        call mallocate('fmm_make_neigh_list [ri]', eel%top%mm_atoms+1, eel%fmm_near_field_list%ri)
+        call mallocate('fmm_make_neigh_list [ci]', eel%top%mm_atoms * n_guess_neigh, eel%fmm_near_field_list%ci)
+        eel%fmm_near_field_list%ri(1) = 1
+
+        do i=1, eel%top%mm_atoms
+            eel%fmm_near_field_list%ri(i+1) = eel%fmm_near_field_list%ri(i)
+            inode = eel%tree%particle_to_node(i)
+
+            do node_idx=eel%tree%near_nl%ri(inode), eel%tree%near_nl%ri(inode+1)-1
+                jnode = eel%tree%near_nl%ci(node_idx)
+
+                do part_idx=eel%tree%particle_list%ri(jnode), eel%tree%particle_list%ri(jnode+1)-1
+                    j = eel%tree%particle_list%ci(part_idx)
+                    eel%fmm_near_field_list%ci(eel%fmm_near_field_list%ri(i+1)) = j
+                    eel%fmm_near_field_list%ri(i+1) = eel%fmm_near_field_list%ri(i+1) + 1
+                    if(eel%fmm_near_field_list%ri(i+1) > size(eel%fmm_near_field_list%ci)) then
+                        ! Next iteration would cause an overflow
+                        call reallocate_mat(eel%fmm_near_field_list, size(eel%fmm_near_field_list%ci) + eel%top%mm_atoms * n_guess_neigh)
+                    end if
+                end do
+            end do
+        end do
+        ! In the end shrink the row list
+        call reallocate_mat(eel%fmm_near_field_list, eel%fmm_near_field_list%ri(eel%top%mm_atoms+1)-1)
     end subroutine
 
     subroutine fmm_solve_for_multipoles(fmm_obj, q, use_q, mu, use_mu, quad, use_quad)
