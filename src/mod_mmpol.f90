@@ -331,6 +331,7 @@ module mod_mmpol
        
         use mod_memory, only: mfree
         use mod_link_atom, only: link_atom_update_merged_topology
+        use mod_electrostatics, only: fmm_coordinates_update
         implicit none
 
         type(ommp_system), intent(inout), target :: sys_obj
@@ -365,6 +366,8 @@ module mod_mmpol
         if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
         ! 2.3 Update coordinates inside link atom object
         if(sys_obj%use_linkatoms) call link_atom_update_merged_topology(sys_obj%la)
+        ! 2.4 Update fast-multipoles tree if needed
+        if(eel%use_fmm) call fmm_coordinates_update(eel)
     end subroutine
         
     
