@@ -132,10 +132,6 @@ module mod_electrostatics
         !! Fast multipoles object for static multipoles sources
         logical(lp) :: fmm_static_done = .false.
         !! Flag for a fresh solution of ipd fmm
-        type(fmm_type) :: fmm_ipd
-        !! Fast multipoles object for ipd sources
-        logical(lp) :: fmm_ipd_done = .false.
-        !! Flag for a fresh solution of ipd fmm
         type(fmm_tree_type) :: tree
         !! Tree object
         type(yale_sparse) :: fmm_near_field_list
@@ -353,7 +349,6 @@ module mod_electrostatics
 
         if(eel_obj%use_fmm) then
             call free_fmm(eel_obj%fmm_static)
-            call free_fmm(eel_obj%fmm_ipd)
             call free_tree(eel_obj%tree)
             call matfree(eel_obj%fmm_near_field_list)
         end if
@@ -1427,6 +1422,35 @@ module mod_electrostatics
             call mfree('prepare_fmm_static [tmp_quad]', tmp_quad)
         end if
     end subroutine
+    
+    subroutine prepare_fmm_ipd(eel, fmm, ipd)
+        use mod_memory, only: mallocate, mfree
+        implicit none
+        
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! Electrostatics data structure
+        type(fmm_type), intent(inout) :: fmm
+        !! fmm object used to run the calculation
+        real(rp), intent(in) :: ipd(3, eel%pol_atoms)
+        !! External induced point dipoles at polarizable sites
+
+        real(rp), allocatable :: tmp_mu(:,:)
+        real(rp) :: fake_q(1), fake_quad(6,1)
+        integer(ip) :: i
+        
+        call mallocate('prepare_fmm_ipd [tmp_mu]', 3, eel%top%mm_atoms, tmp_mu)
+        tmp_mu = 0.0
+        do i=1, eel%pol_atoms
+            tmp_mu(:,eel%polar_mm(i)) = ipd(:,i)
+        end do
+
+        call fmm_solve_for_multipoles(fmm, &
+                                      fake_q, logical(.false., lp), &
+                                      tmp_mu, logical(.true., lp), &
+                                      fake_quad, logical(.false., lp))
+            
+        call mfree('prepare_fmm_ipd [tmp_mu]', tmp_mu)
+    end subroutine
 
     subroutine elec_prop_M2M(eel, do_V, do_E, do_Egrd, do_EHes)
         !! Computes the electric potential, field and field gradients of 
@@ -1652,10 +1676,106 @@ module mod_electrostatics
         real(rp), intent(inout) :: E(3, eel%pol_atoms)
         !! Electric field (results will be added)
 
-        integer(ip) :: i, j, idx
+        integer(ip) :: i, j, ipol, jpol, ij, idx
         logical :: to_scale, to_do
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
+        type(fmm_type), allocatable :: fmm_ipd
 
+        if(eel%use_fmm) then
+            write(*, *) "DIOCANE", shape(ext_ipd)
+            allocate(fmm_ipd)
+            call fmm_init(fmm_ipd, eel%fmm_maxl, eel%tree)
+            call prepare_fmm_ipd(eel, fmm_ipd, ext_ipd)
+
+            ! !$omp parallel do default(shared) schedule(dynamic) &
+            ! !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
+            do ipol=1, eel%pol_atoms 
+                i = eel%polar_mm(ipol)
+                tmpE = 0.0
+                call cart_propfar_at_ipart(fmm_ipd, i, &
+                                           .false., tmpV, &
+                                           .true. , tmpE, &
+                                           .false., tmpEgr, &
+                                           .false., tmpHE)
+                
+                E(:, ipol) = tmpE
+                 
+                ! Near field is computed internally because dumped kernel is required
+                do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
+                    j = eel%fmm_near_field_list%ci(ij)
+                    jpol = eel%polar_mm(j)
+                    ! If the atom is not polarizable, skip
+                    if(jpol < 1) cycle 
+
+                    !loop on target
+                    to_do = .true.
+                    to_scale = .false.
+                    scalf = 1.0
+
+                    ! Check if the element should be scaled
+                    do idx=eel%list_P_P%ri(ipol), eel%list_P_P%ri(ipol+1)-1
+                        if(eel%list_P_P%ci(idx) == jpol) then
+                            to_scale = .true.
+                            exit
+                        end if
+                    end do
+
+                    !If it should set the correct variables
+                    if(to_scale) then
+                        to_do = eel%todo_P_P(idx)
+                        scalf = eel%scalef_P_P(idx)
+                    end if
+                    
+                    if(to_do) then
+                        call damped_coulomb_kernel(eel, j, i,& 
+                                                   2, kernel(1:3), dr)
+                        
+                        tmpE = 0.0_rp
+
+                        call mu_elec_prop(ext_ipd(:,jpol), dr, kernel, .false., tmpV, &
+                                        .true., tmpE, .false., tmpEgr, & 
+                                        .false., tmpHE)
+                        if(to_scale) then
+                            E(:, ipol) = E(:, ipol) + tmpE * scalf
+                        else
+                            E(:, ipol) = E(:, ipol) + tmpE
+                        end if
+                    end if
+                end do
+            end do
+
+            ! Now remove screened interactions from far-field, hopefully they should be almost absent
+            do ipol=1, eel%pol_atoms
+                i = eel%polar_mm(ipol)
+                
+                do idx=eel%list_P_P%ri(ipol), eel%list_P_P%ri(ipol+1)-1
+                    jpol = eel%list_P_P%ci(idx)
+                    j = eel%polar_mm(jpol)
+
+                    !If they are near, just skip it
+                    if(any(eel%fmm_near_field_list%ci(eel%fmm_near_field_list%ri(i): &
+                                                      eel%fmm_near_field_list%ri(i+1)-1) == j)) cycle
+
+                    scalf = 1.0 - eel%scalef_P_P(idx)
+                    
+                    call damped_coulomb_kernel(eel, j, i,& 
+                                                2, kernel(1:3), dr)
+                    
+                    tmpE = 0.0_rp
+
+                    call mu_elec_prop(ext_ipd(:,jpol), dr, kernel, .false., tmpV, &
+                                    .true., tmpE, .false., tmpEgr, & 
+                                    .false., tmpHE)
+                    
+                    E(:, ipol) = E(:, ipol) - tmpE * scalf
+                end do
+            end do
+
+            deallocate(fmm_ipd%multipoles)
+            deallocate(fmm_ipd%local_expansion)
+            deallocate(fmm_ipd)
+        else
+        
         !$omp parallel do default(shared) schedule(dynamic) &
         !$omp private(i,j,to_do,to_scale,scalf,idx,tmpV,tmpE,tmpEgr,tmpHE,kernel,dr)
         do j=1, eel%pol_atoms
@@ -1698,6 +1818,7 @@ module mod_electrostatics
                 end if
             end do
         end do
+        end if
     end subroutine field_extD2D
     
     subroutine elec_prop_D2D(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
@@ -2948,7 +3069,6 @@ module mod_electrostatics
         
         call time_push()
         call fmm_init(eel%fmm_static, eel%fmm_maxl, eel%tree)
-        call fmm_init(eel%fmm_ipd, eel%fmm_maxl, eel%tree)
         call time_pull("FMM initialization")
     end subroutine
 
@@ -3007,6 +3127,7 @@ module mod_electrostatics
         real(rp), allocatable :: multipoles_sphe(:, :)
         integer(ip) :: n_comp
 
+        write(*, *) "IN FMM SOLVE"
         if(use_quad) then
             n_comp = 9
         else if(use_mu) then
@@ -3027,14 +3148,15 @@ module mod_electrostatics
         
         if(use_q) then
             if(size(q,1) /= fmm_obj%tree%n_particles) then
-                call fatal_error("charges array as wrong size in fmm_solve_for_multipoles")
+                call fatal_error("charges array has wrong size in fmm_solve_for_multipoles")
             end if
             multipoles_sphe(1,:) = q / sqrt(4.0 * pi)
         end if
         
         if(use_mu) then
+            write(*, *) shape(mu), fmm_obj%tree%n_particles
             if(size(mu,1) /= 3 .or. size(mu,2) /= fmm_obj%tree%n_particles) then
-                call fatal_error("dipoles array as wrong size in fmm_solve_for_multipoles")
+                call fatal_error("dipoles array has wrong size in fmm_solve_for_multipoles")
             end if
             multipoles_sphe(2,:) = mu(2,:) / sqrt(4.0 * pi / 3.0)
             multipoles_sphe(3,:) = mu(3,:) / sqrt(4.0 * pi / 3.0)
@@ -3043,7 +3165,7 @@ module mod_electrostatics
         
         if(use_quad) then
             if(size(quad,1) /= 6 .or. size(quad,2) /= fmm_obj%tree%n_particles) then
-                call fatal_error("dipoles array as wrong size in fmm_solve_for_multipoles")
+                call fatal_error("dipoles array has wrong size in fmm_solve_for_multipoles")
             end if
             multipoles_sphe(5,:) = 2.0 * quad(_xy_,:) * sqrt(15.0 / (4.0 * pi))
             multipoles_sphe(6,:) = 2.0 *quad(_yz_,:) * sqrt(15.0 / (4.0 * pi))
