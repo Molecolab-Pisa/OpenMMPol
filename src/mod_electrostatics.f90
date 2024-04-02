@@ -221,7 +221,6 @@ module mod_electrostatics
     public :: potential_M2E, potential_D2E
     public :: field_M2E, field_D2E
     public :: fmm_coordinates_update
-    public :: test_fmm_electrostatics
 
     contains
 
@@ -1482,7 +1481,6 @@ module mod_electrostatics
                                       fake_q, logical(.false., lp), &
                                       tmp_mu, logical(.true., lp), &
                                       fake_quad, logical(.false., lp))
-            
         call mfree('prepare_fmm_ext_ipd [tmp_mu]', tmp_mu)
     end subroutine
 
@@ -1749,7 +1747,6 @@ module mod_electrostatics
                                            .true. , tmpE, &
                                            .false., tmpEgr, &
                                            .false., tmpHE)
-                
                 E(:, ipol) = tmpE
                  
                 ! Near field is computed internally because dumped kernel is required
@@ -1821,6 +1818,7 @@ module mod_electrostatics
                     
                     E(:, ipol) = E(:, ipol) - tmpE * scalf
                 end do
+                !write(*,*) E(:, ipol)
             end do
 
             deallocate(fmm_ipd%multipoles)
@@ -3235,156 +3233,15 @@ module mod_electrostatics
 
     end function screening_rules
 
-    subroutine test_fmm_electrostatics(eel, pmax, thr)
-        use mod_memory, only: mallocate
-        use mod_constants, only: pi, OMMP_STR_CHAR_MAX
-        use mod_profiling, only: time_pull, time_push
-        use mod_io, only: ommp_fatal => fatal_error
-
-        implicit none
-
-        type(ommp_electrostatics_type), intent(inout) :: eel
-        integer(ip), intent(in) :: pmax
-        real(rp), intent(in) :: thr
-
-        type(fmm_type) :: fmm_obj
-        type(fmm_tree_type) :: t
-
-        integer(ip) :: mm_atoms, i, j, i_node, j_node
-        real(rp) :: v, e(3), g(6), h(10), v_fmm, &
-                    e_fmm(3), g_fmm(6), h_fmm(10), &
-                    kernel(6), dr(3)
-        real(rp), allocatable :: multipoles_sphe(:, :)
-        character(len=OMMP_STR_CHAR_MAX) :: message
-
-
-        type(ommp_topology_type), pointer :: top
-
-        top => eel%top
-        mm_atoms = top%mm_atoms
-
-        allocate(multipoles_sphe(9,top%mm_atoms))
-        multipoles_sphe = 0.0
-        
-        multipoles_sphe(1,:) = eel%q(1,:) / sqrt(4.0 * pi)
-        
-        multipoles_sphe(2,:) = eel%q(3,:) / sqrt(4.0 * pi / 3.0)
-        multipoles_sphe(3,:) = eel%q(4,:) / sqrt(4.0 * pi / 3.0)
-        multipoles_sphe(4,:) = eel%q(2,:) / sqrt(4.0 * pi / 3.0)
-        
-        multipoles_sphe(5,:) = 2.0 * eel%q(4+_xy_,:) * sqrt(15.0 / (4.0 * pi))
-        multipoles_sphe(6,:) = 2.0 *eel%q(4+_yz_,:) * sqrt(15.0 / (4.0 * pi))
-        multipoles_sphe(7,:) = 6.0 / 2.0 * eel%q(4+_zz_,:) * sqrt(5.0/(4.0*pi))
-        multipoles_sphe(8,:) = 2.0 * eel%q(4+_xz_,:) * sqrt(15.0 / (4.0 * pi))
-        multipoles_sphe(9,:) = (eel%q(4+_xx_,:) - eel%q(4+_yy_,:)) * sqrt(15.0/(4.0*pi))
-       
-        call time_push()
-        call time_push()
-        call init_as_rib_tree(t, top%cmm)
-        call time_pull("Tree initialization")
-        call time_push()
-        call fmm_init(fmm_obj, pmax, t)
-        call time_pull("FMM initialization")
-        call time_push()
-        call tree_p2m(fmm_obj, multipoles_sphe, 2)
-        call time_pull("P2M")
-        deallocate(multipoles_sphe)
-
-        call time_push()
-        !call fmm_solve(fmm_obj)
-        call time_push()
-        call tree_m2m(fmm_obj)
-        call time_pull("M2M")
-        call time_push()
-        call tree_m2l(fmm_obj)
-        call time_pull("M2L")
-        call time_push()
-        call tree_l2l(fmm_obj)
-        call time_pull("L2L")
-        call time_pull("FMM Solution")
-        call time_pull("Total FMM")
-
-        !omp parallel do private(i,j, v, e, g, h, i_node, j_node, kernel, dr)
-        do i=1, top%mm_atoms
-            v = 0.0
-            e = 0.0
-            g = 0.0
-            h = 0.0
-            
-            v_fmm = 0.0
-            e_fmm = 0.0
-            g_fmm = 0.0
-            h_fmm = 0.0
-            
-            i_node = t%particle_to_node(i)
-
-            ! Do double loop
-            do j=1, top%mm_atoms
-                if(j == i) cycle
-
-                j_node = t%particle_to_node(j)
-                
-                ! Far field only w/o not
-                !if(.not. any(j_node == t%near_nl%ci(t%near_nl%ri(i_node):t%near_nl%ri(i_node+1)-1))) cycle 
-
-                dr = top%cmm(:,i) - top%cmm(:,j)
-                call coulomb_kernel(dr, 5, kernel) 
-               
-                call q_elec_prop(eel%q(1,j), dr, kernel, &
-                                 .true., v, &
-                                 .true., e, &
-                                 .true., g, &
-                                 .true., h)
-                call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
-                                  .true., v, &
-                                  .true., e, &
-                                  .true., g, &
-                                  .true., h)
-                call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
-                                    .true., v, &
-                                    .true., e, &
-                                    .true., g, &
-                                    .true., h)
-            end do
-
-            call cart_prop_at_ipart(fmm_obj, i, .true., v_fmm, &
-                                                .true., e_fmm, &
-                                                .true., g_fmm, &
-                                                .true., h_fmm)
-            if(abs(v_fmm-v) > thr) then
-                write(message, *) "V difference for atom", i, "is larger than ", thr, abs(v_fmm-v)
-                call ommp_fatal(message)
-            end if
-            
-            if(any(abs(e_fmm-e) > thr)) then
-                write(message, *) "E difference for atom", i, "is larger than ", thr, maxval(abs(e_fmm-e))
-                call ommp_fatal(message)
-            end if
-            
-            if(any(abs(g_fmm-g) > thr)) then
-                write(message, *) "G difference for atom", i, "is larger than ", thr, maxval(abs(g_fmm-g))
-                call ommp_fatal(message)
-            end if
-            
-            if(any(abs(h_fmm-h) > thr)) then
-                write(message, *) "H difference for atom", i, "is larger than ", thr, maxval(abs(h_fmm-h))
-                call ommp_fatal(message)
-            end if
-        end do
-       
-        call free_fmm(fmm_obj)
-
-    end subroutine
-
     subroutine fmm_coordinates_update(eel)
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
         integer(ip) :: i
-        
+       
         call time_push()
         call free_tree(eel%tree)
-        call init_as_rib_tree(eel%tree, eel%top%cmm)
+        call init_as_octatree(eel%tree, eel%top%cmm, 24.0_rp)
         call fmm_make_neigh_list(eel)
         call time_pull("Tree initialization")
         
@@ -3419,6 +3276,7 @@ module mod_electrostatics
 
                 do part_idx=eel%tree%particle_list%ri(jnode), eel%tree%particle_list%ri(jnode+1)-1
                     j = eel%tree%particle_list%ci(part_idx)
+                    if(i == j) cycle
                     eel%fmm_near_field_list%ci(eel%fmm_near_field_list%ri(i+1)) = j
                     eel%fmm_near_field_list%ri(i+1) = eel%fmm_near_field_list%ri(i+1) + 1
                     if(eel%fmm_near_field_list%ri(i+1) > size(eel%fmm_near_field_list%ci)) then
@@ -3427,6 +3285,7 @@ module mod_electrostatics
                     end if
                 end do
             end do
+            !write(*, *) i, eel%fmm_near_field_list%ci(eel%fmm_near_field_list%ri(i):eel%fmm_near_field_list%ri(i+1)-1)
         end do
         ! In the end shrink the row list
         call reallocate_mat(eel%fmm_near_field_list, eel%fmm_near_field_list%ri(eel%top%mm_atoms+1)-1)
@@ -3449,7 +3308,7 @@ module mod_electrostatics
         logical(lp), intent(in) :: use_quad
 
         real(rp), allocatable :: multipoles_sphe(:, :)
-        integer(ip) :: n_comp
+        integer(ip) :: n_comp, i
 
         if(use_quad) then
             n_comp = 9
@@ -3499,6 +3358,10 @@ module mod_electrostatics
         ! Load FMM
         call tree_p2m(fmm_obj, multipoles_sphe, 2)
         call fmm_solve(fmm_obj)
+        !do i=1,fmm_obj%tree%n_nodes
+        !    write(*, *) i, fmm_obj%local_expansion(:,i)
+        !    write(*, *) i, fmm_obj%multipoles(:,i)
+        !end do
 
         deallocate(multipoles_sphe)
         

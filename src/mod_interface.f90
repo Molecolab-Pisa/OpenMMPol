@@ -31,7 +31,7 @@ module ommp_interface
                           ommp_real => rp, &
                           ommp_logical => lp
     use mod_mmpol, only: ommp_system
-    use mod_electrostatics, only: ommp_electrostatics_type, test_fmm_electrostatics
+    use mod_electrostatics, only: ommp_electrostatics_type
     use mod_topology, only: ommp_topology_type
     use mod_qm_helper, only: ommp_qm_helper
 
