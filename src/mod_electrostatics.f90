@@ -6,6 +6,7 @@ module mod_electrostatics
     use mod_memory, only: ip, rp, lp
     use mod_adjacency_mat, only: yale_sparse
     use mod_topology, only: ommp_topology_type
+    use mod_profiling
     use fmmlib_interface
 
     !! TODO Check the signs in electrostatic elemental functions
@@ -1476,11 +1477,13 @@ module mod_electrostatics
         do i=1, eel%pol_atoms
             tmp_mu(:,eel%polar_mm(i)) = ipd(:,i)
         end do
-
+        
+        call time_push
         call fmm_solve_for_multipoles(fmm, &
                                       fake_q, logical(.false., lp), &
                                       tmp_mu, logical(.true., lp), &
                                       fake_quad, logical(.false., lp))
+        call time_pull('fmm_solve_for_multipoles')
         call mfree('prepare_fmm_ext_ipd [tmp_mu]', tmp_mu)
     end subroutine
 
@@ -1733,12 +1736,20 @@ module mod_electrostatics
         type(fmm_type), allocatable :: fmm_ipd
 
         if(eel%use_fmm) then
+            call time_push()
+            call time_push()
             allocate(fmm_ipd)
+            call time_pull("Allocation")
+            call time_push()
             call fmm_init(fmm_ipd, eel%fmm_maxl, eel%tree)
+            call time_pull("FMM initialization")
+            call time_push()
             call prepare_fmm_ext_ipd(eel, fmm_ipd, ext_ipd)
+            call time_pull("FMM solution")
 
-            ! !$omp parallel do default(shared) schedule(dynamic) &
-            ! !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
+            call time_push()
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do ipol=1, eel%pol_atoms 
                 i = eel%polar_mm(ipol)
                 tmpE = 0.0
@@ -1792,7 +1803,8 @@ module mod_electrostatics
                     end if
                 end do
             end do
-
+            call time_pull("Computing IPD field FMM")
+            call time_push
             ! Now remove screened interactions from far-field, hopefully they should be almost absent
             do ipol=1, eel%pol_atoms
                 i = eel%polar_mm(ipol)
@@ -1820,10 +1832,13 @@ module mod_electrostatics
                 end do
                 !write(*,*) E(:, ipol)
             end do
-
+            call time_pull("Removing screened ff")
+            call time_push()
             deallocate(fmm_ipd%multipoles)
             deallocate(fmm_ipd%local_expansion)
             deallocate(fmm_ipd)
+            call time_pull("Deallocation")
+            call time_pull("Total")
         else
         
         !$omp parallel do default(shared) schedule(dynamic) &
@@ -1916,8 +1931,8 @@ module mod_electrostatics
             call prepare_fmm_ipd(eel, knd)
 
 
-            ! !$omp parallel do default(shared) schedule(dynamic) &
-            ! !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do ipol=1, eel%pol_atoms 
                 i = eel%polar_mm(ipol)
                 
@@ -2525,8 +2540,8 @@ module mod_electrostatics
             
             call prepare_fmm_ipd(eel, knd)
 
-            ! !$omp parallel do default(shared) schedule(dynamic) &
-            ! !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,ij,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, top%mm_atoms
                 
                 call cart_propfar_at_ipart(eel%fmm_ipd(knd), i, &
@@ -3234,6 +3249,7 @@ module mod_electrostatics
     end function screening_rules
 
     subroutine fmm_coordinates_update(eel)
+        use mod_constants, only: angstrom2au
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
@@ -3241,7 +3257,7 @@ module mod_electrostatics
        
         call time_push()
         call free_tree(eel%tree)
-        call init_as_octatree(eel%tree, eel%top%cmm, 24.0_rp)
+        call init_as_octatree(eel%tree, eel%top%cmm, 12.0_rp)
         call fmm_make_neigh_list(eel)
         call time_pull("Tree initialization")
         
@@ -3310,6 +3326,7 @@ module mod_electrostatics
         real(rp), allocatable :: multipoles_sphe(:, :)
         integer(ip) :: n_comp, i
 
+        call time_push
         if(use_quad) then
             n_comp = 9
         else if(use_mu) then
@@ -3354,10 +3371,15 @@ module mod_electrostatics
             multipoles_sphe(8,:) = 2.0 * quad(_xz_,:) * sqrt(15.0 / (4.0 * pi))
             multipoles_sphe(9,:) = (quad(_xx_,:) - quad(_yy_,:)) * sqrt(15.0/(4.0*pi))
         end if
+        call time_pull('cart2sphe')
         
         ! Load FMM
+        call time_push
         call tree_p2m(fmm_obj, multipoles_sphe, 2)
+        call time_pull('tree_p2m')
+        call time_push()
         call fmm_solve(fmm_obj)
+        call time_pull('fmm_solve')
         !do i=1,fmm_obj%tree%n_nodes
         !    write(*, *) i, fmm_obj%local_expansion(:,i)
         !    write(*, *) i, fmm_obj%multipoles(:,i)
