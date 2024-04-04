@@ -3241,7 +3241,8 @@ module mod_electrostatics
        
         call time_push()
         call free_tree(eel%tree)
-        call init_as_octatree(eel%tree, eel%top%cmm, 24.0_rp)
+        call init_as_octatree(eel%tree, eel%top%cmm, 12.0_rp)
+        !call init_as_ribtree(eel%tree, eel%top%cmm, 12.0_rp)
         call fmm_make_neigh_list(eel)
         call time_pull("Tree initialization")
         
