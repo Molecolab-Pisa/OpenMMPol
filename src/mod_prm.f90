@@ -92,6 +92,7 @@ module mod_prm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip) :: natype
         integer(ip), allocatable, dimension(:) :: typez, typeclass
+        real(rp), allocatable, dimension(:) :: typemass
 
 
         if(.not. top%attype_initialized) then
@@ -117,9 +118,11 @@ module mod_prm
         end do
        
         call mallocate('read_prm [typeclass]', natype, typeclass)
-        call mallocate('read_prm [atz]', natype, typez)
+        call mallocate('read_prm [typez]', natype, typez)
+        call mallocate('read_prm [typemass]', natype, typemass)
         typeclass = 0
         typez = 0
+        typemass = 0.0
 
         ! Restart the reading from the beginning to actually save the parameters
         do il=1, size(prm_buf) 
@@ -154,6 +157,10 @@ module mod_prm
                 tokb = toke+1
                 toke = tokenize(line, tokb)
                 read(line(tokb:toke), *) typez(iat)
+                
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) typemass(iat)
 
                 ! Only partial reading of ATOM card is needed for now.
             end if
@@ -168,13 +175,19 @@ module mod_prm
             if(.not. top%atz_initialized) then
                 top%atz(i) = typez(top%attype(i)) 
             end if
+            
+            if(.not. top%atmass_initialized) then
+                top%atmass(i) = typemass(top%attype(i)) 
+            end if
         end do
         
         top%atclass_initialized = .true.
         top%atz_initialized = .true.
+        top%atmass_initialized = .true.
         
         call mfree('read_prm [typeclass]', typeclass)
-        call mfree('read_prm [atz]', typez)
+        call mfree('read_prm [typez]', typez)
+        call mfree('read_prm [typemass]', typemass)
 
     end subroutine read_atom_cards
 
