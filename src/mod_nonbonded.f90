@@ -388,6 +388,7 @@ module mod_nonbonded
     end subroutine vdw_buffered_7_14_Rijgrad
 
     pure function get_Rij0(vdw, i, j) result(Rij0)
+        use mod_constants, only: eps_rp
         
         implicit none
 
@@ -396,6 +397,11 @@ module mod_nonbonded
         integer(ip), intent(in) :: i, j
         !! Indices of interacting atoms
         real(rp) :: Rij0
+        
+        if(vdw%vdw_r(i) < eps_rp .and. vdw%vdw_r(j) < eps_rp) then
+            Rij0 = 0.0
+            return
+        end if
 
         select case(vdw%radrule) 
             case(OMMP_RADRULE_ARITHMETIC)
@@ -409,6 +415,7 @@ module mod_nonbonded
     end function
     
     pure function get_eij(vdw, i, j) result(eij)
+        use mod_constants, only: eps_rp
         
         implicit none
 
@@ -418,6 +425,11 @@ module mod_nonbonded
         !! Indices of interacting atoms
         real(rp) :: eij
 
+        if(vdw%vdw_e(i) < eps_rp .and. vdw%vdw_e(j) < eps_rp) then
+            eij = 0.0
+            return
+        end if
+        
         select case(vdw%epsrule) 
             case(OMMP_EPSRULE_GEOMETRIC)
                 eij = sqrt(vdw%vdw_e(i)*vdw%vdw_e(j))
@@ -445,6 +457,11 @@ module mod_nonbonded
            Rij0 = 0.0
            return
         end if
+        
+        if(vdw1%vdw_r(i) < eps_rp .and. vdw2%vdw_r(j) < eps_rp) then
+            Rij0 = 0.0
+            return
+        end if
 
         select case(vdw1%radrule) 
             case(OMMP_RADRULE_ARITHMETIC)
@@ -458,6 +475,7 @@ module mod_nonbonded
     end function
     
     pure function get_eij_inter(vdw1, vdw2, i, j) result(eij)
+        use mod_constants, only: eps_rp
         
         implicit none
 
@@ -468,6 +486,11 @@ module mod_nonbonded
         real(rp) :: eij
 
         if(vdw1%epsrule /= vdw2%epsrule) then
+            eij = 0.0
+            return
+        end if
+        
+        if(vdw1%vdw_e(i) < eps_rp .and. vdw2%vdw_e(j) < eps_rp) then
             eij = 0.0
             return
         end if
