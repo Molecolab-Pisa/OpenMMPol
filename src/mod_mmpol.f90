@@ -225,6 +225,7 @@ module mod_mmpol
         end if
 
         if(sys_obj%eel%use_fmm) then
+            call ommp_message("Building FMM near lists", OMMP_VERBOSE_DEBUG)
             call fmm_coordinates_update(sys_obj%eel)
         end if
         call ommp_message("Building screening lists", OMMP_VERBOSE_DEBUG)

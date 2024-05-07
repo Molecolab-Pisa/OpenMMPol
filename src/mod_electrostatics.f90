@@ -523,7 +523,7 @@ module mod_electrostatics
         
         integer(ip) :: i, ineigh, ij, j, ns, ns_guess, n, npol, &
                        ipp, jp, ns_guess_grp, pg_i, igrp, grp, ib, ie
-        logical :: to_do, to_scale
+        logical :: to_do, to_scale, usenl
         real(rp) :: scalf
         integer(ip), allocatable :: itmp(:,:), ntmp(:), itmp_far(:,:), ntmp_far(:)
         real(rp), allocatable :: rtmp(:,:), rtmp_far(:,:)
@@ -596,7 +596,7 @@ module mod_electrostatics
 
         ! Build S S list
         !$omp parallel do schedule(dynamic) default(shared) &
-        !$omp private(i,ineigh,ij,j, scalf)
+        !$omp private(i,ineigh,ij,j, scalf,usenl)
         do i=1, n
             ntmp(i) = 0
             if(eel%use_fmm) ntmp_far(i) = 0
@@ -605,7 +605,9 @@ module mod_electrostatics
                     j = eel%top%conn(ineigh)%ci(ij)
                     scalf = screening_rules(eel, i, 'S', j, 'S', '-')
                     if(abs(scalf-1.0) > eps_rp) then
-                        if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                        usenl = .true.
+                        if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                        if(usenl) then
                             ntmp(i) = ntmp(i) + 1
                             itmp(ntmp(i),i) = j
                             rtmp(ntmp(i),i) = scalf
@@ -651,7 +653,7 @@ module mod_electrostatics
         ntmp = 0
         if(eel%use_fmm) ntmp_far = 0
         !$omp parallel do schedule(dynamic) default(shared) & 
-        !$omp private(ipp,i,ineigh,ij,j,jp,scalf)
+        !$omp private(ipp,i,ineigh,ij,j,jp,scalf,usenl)
         do ipp=1, npol
             i = eel%polar_mm(ipp)
             do ineigh=1, 4
@@ -661,7 +663,9 @@ module mod_electrostatics
                     if(jp > 0) then
                         scalf = screening_rules(eel, ipp, 'P', jp, 'P', '-')
                         if(abs(scalf-1.0) > eps_rp) then
-                            if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                            usenl = .true.
+                            if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                            if(usenl) then
                                 ntmp(ipp) = ntmp(ipp) + 1
                                 itmp(ntmp(ipp),ipp) = jp
                                 rtmp(ntmp(ipp),ipp) = scalf
@@ -705,7 +709,7 @@ module mod_electrostatics
         
         ! Build S P lists
         !$omp parallel do schedule(dynamic) default(shared) &
-        !$omp private(i,ineigh,ij,j,jp,scalf)
+        !$omp private(i,ineigh,ij,j,jp,scalf,usenl)
         do i=1, n
             ntmp(i) = 0
             if(eel%use_fmm) ntmp_far(i) = 0
@@ -717,7 +721,9 @@ module mod_electrostatics
                         ! Needed for either amoeba or amber
                         scalf = screening_rules(eel, i, 'S', jp, 'P', 'P')
                         if(abs(scalf-1.0) > eps_rp) then
-                            if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                          usenl = .true.
+                            if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                            if(usenl) then
                                 ntmp(i) = ntmp(i) + 1
                                 itmp(ntmp(i),i) = jp
                                 rtmp(ntmp(i),i) = scalf
@@ -761,7 +767,7 @@ module mod_electrostatics
         
         if(eel%amoeba) then
             !$omp parallel do schedule(dynamic) default(shared) &
-            !$omp private(i,ineigh,ij,j,jp,scalf,pg_i,igrp,grp)
+            !$omp private(i,ineigh,ij,j,jp,scalf,pg_i,igrp,grp,usenl)
             do i=1, n
                 ntmp(i) = 0
                 if(eel%use_fmm) ntmp_far(i) = 0
@@ -779,7 +785,10 @@ module mod_electrostatics
                             if(jp > 0) then
                                 scalf = screening_rules(eel, i, 'S', jp, 'P', 'D')
                                 if(abs(scalf-1.0) > eps_rp) then
-                                    if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                                    usenl = .true.
+                                    if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                                    
+                                    if(usenl) then
                                         ntmp(i) = ntmp(i) + 1
                                         itmp(ntmp(i),i) = jp
                                         rtmp(ntmp(i),i) = scalf
