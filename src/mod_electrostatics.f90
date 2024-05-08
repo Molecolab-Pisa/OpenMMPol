@@ -1693,8 +1693,6 @@ module mod_electrostatics
             call time_pull("M2M Prepare FMM static")
 
             ! TODO !
-            if(allocated(eel%list_S_S_fmm_far)) &
-                call fatal_error('Currently not supported')
             call time_push
             !$omp parallel do default(shared)
             do i=1, top%mm_atoms 
@@ -1704,9 +1702,55 @@ module mod_electrostatics
                                         do_Egrd, eel%Egrd_M2M(:,i), &
                                         do_EHes, eel%EHes_M2M(:,i))
             end do
-            call time_pull("M2M Far field")
-            call time_push
 
+            call time_push
+            if(allocated(eel%list_S_S_fmm_far)) then
+                !$omp parallel do default(shared) schedule(dynamic) &
+                !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+                do i=1, top%mm_atoms
+                    do idx=eel%list_S_S_fmm_far%ri(i), eel%list_S_S_fmm_far%ri(i+1)-1
+                        j = eel%list_S_S_fmm_far%ci(idx)
+                        scalf = eel%scalef_S_S_fmm_far(idx) - 1.0
+
+                        dr = top%cmm(:,i) - top%cmm(:, j)
+                        call coulomb_kernel(dr, ikernel, kernel)
+                        
+                        if(do_V) tmpV = 0.0_rp
+                        if(do_E) tmpE = 0.0_rp
+                        if(do_Egrd) tmpEgr = 0.0_rp
+                        if(do_EHes) tmpHE = 0.0_rp
+
+                        call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+                        if(eel%amoeba) then
+                            call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                                do_V, tmpV, & 
+                                                do_E, tmpE, &
+                                                do_Egrd, tmpEgr, &
+                                                do_EHes, tmpHE)
+
+                            call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                                do_V, tmpV, & 
+                                                do_E, tmpE, &
+                                                do_Egrd, tmpEgr, &
+                                                do_EHes, tmpHE)
+                        end if
+
+                        if(do_V) eel%V_M2M(i) = eel%V_M2M(i) + tmpV * scalf
+                        if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) + tmpE * scalf
+                        if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) + tmpEgr * scalf
+                        if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) + tmpHE * scalf
+                    end do
+                end do
+            end if
+            call time_pull("M2M Far Field screned interactions")
+            
+            call time_pull("M2M Far field")
+            
+            call time_push
             write(*, *) "M2M Near interactions:", eel%fmm_near_field_list%ri(top%mm_atoms)
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,sidx,to_scale,to_do,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
