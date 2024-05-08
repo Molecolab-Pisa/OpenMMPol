@@ -129,6 +129,7 @@ module mod_constants
     real(rp), parameter :: default_link_atom_dist = OMMP_DEFAULT_LA_DIST
 
     integer(ip), parameter :: ommp_fmm_enable_thr = OMMP_FMM_ENABLE_THR
+    integer(ip), parameter :: ommp_fmm_default_maxl_pol = OMMP_FMM_DEFAULT_MAXL_POL
     integer(ip), parameter :: ommp_fmm_default_maxl = OMMP_FMM_DEFAULT_MAXL
-
+    real(rp), parameter :: ommp_fmm_default_cellsize = OMMP_FMM_DEFAULT_CELLSIZE
 end module mod_constants

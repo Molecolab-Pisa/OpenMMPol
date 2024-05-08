@@ -127,8 +127,12 @@ module mod_electrostatics
         !- FMM quantities here
         logical(lp) :: use_fmm = .false.
         !! flag to use fast multipoles
-        integer(ip) :: fmm_maxl = 0
-        !! Maximum angular moment used in fast multipoles
+        integer(ip) :: fmm_maxl_static = 0
+        !! Maximum angular moment used in fast multipoles for fixed part
+        integer(ip) :: fmm_maxl_pol = 0
+        !! Maximum angular moment used in fast multipoles for polarizable part
+        real(rp) :: fmm_distance = 0.0
+        !! Minimum dimension for cell size/distance used in FMM
         type(fmm_type), allocatable :: fmm_static
         !! Fast multipoles object for static multipoles sources
         logical(lp) :: fmm_static_done = .false.
@@ -245,8 +249,12 @@ module mod_electrostatics
 
     subroutine electrostatics_init(eel_obj, amoeba, pol_atoms, top_obj)
         use mod_memory, only: mallocate
-        use mod_constants, only: OMMP_MATV_DEFAULT, OMMP_SOLVER_DEFAULT, &
-                                 OMMP_FMM_DEFAULT_MAXL, OMMP_FMM_ENABLE_THR
+        use mod_constants, only: OMMP_MATV_DEFAULT, &
+                                 OMMP_SOLVER_DEFAULT, &
+                                 OMMP_FMM_DEFAULT_MAXL, &
+                                 OMMP_FMM_DEFAULT_MAXL_POL, &
+                                 OMMP_FMM_DEFAULT_CELLSIZE, &
+                                 OMMP_FMM_ENABLE_THR
 
         implicit none 
 
@@ -276,7 +284,9 @@ module mod_electrostatics
 
         if(mm_atoms > OMMP_FMM_ENABLE_THR) then
             eel_obj%use_fmm = .true.
-            eel_obj%fmm_maxl = OMMP_FMM_DEFAULT_MAXL
+            eel_obj%fmm_maxl_static = OMMP_FMM_DEFAULT_MAXL
+            eel_obj%fmm_maxl_pol = OMMP_FMM_DEFAULT_MAXL_POL
+            eel_obj%fmm_distance = OMMP_FMM_DEFAULT_CELLSIZE
             allocate(eel_obj%tree)
             allocate(eel_obj%fmm_static)
             eel_obj%fmm_static_done = .false.
@@ -1912,7 +1922,7 @@ module mod_electrostatics
             allocate(fmm_ipd)
             call time_pull("Allocation")
             call time_push()
-            call fmm_init(fmm_ipd, eel%fmm_maxl, eel%tree)
+            call fmm_init(fmm_ipd, eel%fmm_maxl_pol, eel%tree)
             call time_pull("FMM initialization")
             call time_push()
             call prepare_fmm_ext_ipd(eel, fmm_ipd, ext_ipd)
@@ -3451,15 +3461,14 @@ module mod_electrostatics
        
         call time_push()
         call free_tree(eel%tree)
-        call init_as_octatree(eel%tree, eel%top%cmm, 12.0_rp)
-        !call init_as_ribtree(eel%tree, eel%top%cmm, 12.0_rp)
+        call init_as_octatree(eel%tree, eel%top%cmm, eel%fmm_distance)
         call fmm_make_neigh_list(eel)
         call time_pull("Tree initialization")
         
         call time_push()
-        call fmm_init(eel%fmm_static, eel%fmm_maxl, eel%tree)
+        call fmm_init(eel%fmm_static, eel%fmm_maxl_static, eel%tree)
         do i=1, eel%n_ipd
-            call fmm_init(eel%fmm_ipd(i), eel%fmm_maxl, eel%tree)
+            call fmm_init(eel%fmm_ipd(i), eel%fmm_maxl_pol, eel%tree)
         end do
         call time_pull("FMM initialization")
     end subroutine
