@@ -523,7 +523,7 @@ module mod_electrostatics
         
         integer(ip) :: i, ineigh, ij, j, ns, ns_guess, n, npol, &
                        ipp, jp, ns_guess_grp, pg_i, igrp, grp, ib, ie
-        logical :: to_do, to_scale
+        logical :: to_do, to_scale, usenl
         real(rp) :: scalf
         integer(ip), allocatable :: itmp(:,:), ntmp(:), itmp_far(:,:), ntmp_far(:)
         real(rp), allocatable :: rtmp(:,:), rtmp_far(:,:)
@@ -596,7 +596,7 @@ module mod_electrostatics
 
         ! Build S S list
         !$omp parallel do schedule(dynamic) default(shared) &
-        !$omp private(i,ineigh,ij,j, scalf)
+        !$omp private(i,ineigh,ij,j, scalf,usenl)
         do i=1, n
             ntmp(i) = 0
             if(eel%use_fmm) ntmp_far(i) = 0
@@ -605,7 +605,9 @@ module mod_electrostatics
                     j = eel%top%conn(ineigh)%ci(ij)
                     scalf = screening_rules(eel, i, 'S', j, 'S', '-')
                     if(abs(scalf-1.0) > eps_rp) then
-                        if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                        usenl = .true.
+                        if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                        if(usenl) then
                             ntmp(i) = ntmp(i) + 1
                             itmp(ntmp(i),i) = j
                             rtmp(ntmp(i),i) = scalf
@@ -651,7 +653,7 @@ module mod_electrostatics
         ntmp = 0
         if(eel%use_fmm) ntmp_far = 0
         !$omp parallel do schedule(dynamic) default(shared) & 
-        !$omp private(ipp,i,ineigh,ij,j,jp,scalf)
+        !$omp private(ipp,i,ineigh,ij,j,jp,scalf,usenl)
         do ipp=1, npol
             i = eel%polar_mm(ipp)
             do ineigh=1, 4
@@ -661,7 +663,9 @@ module mod_electrostatics
                     if(jp > 0) then
                         scalf = screening_rules(eel, ipp, 'P', jp, 'P', '-')
                         if(abs(scalf-1.0) > eps_rp) then
-                            if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                            usenl = .true.
+                            if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                            if(usenl) then
                                 ntmp(ipp) = ntmp(ipp) + 1
                                 itmp(ntmp(ipp),ipp) = jp
                                 rtmp(ntmp(ipp),ipp) = scalf
@@ -705,7 +709,7 @@ module mod_electrostatics
         
         ! Build S P lists
         !$omp parallel do schedule(dynamic) default(shared) &
-        !$omp private(i,ineigh,ij,j,jp,scalf)
+        !$omp private(i,ineigh,ij,j,jp,scalf,usenl)
         do i=1, n
             ntmp(i) = 0
             if(eel%use_fmm) ntmp_far(i) = 0
@@ -717,7 +721,9 @@ module mod_electrostatics
                         ! Needed for either amoeba or amber
                         scalf = screening_rules(eel, i, 'S', jp, 'P', 'P')
                         if(abs(scalf-1.0) > eps_rp) then
-                            if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                          usenl = .true.
+                            if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                            if(usenl) then
                                 ntmp(i) = ntmp(i) + 1
                                 itmp(ntmp(i),i) = jp
                                 rtmp(ntmp(i),i) = scalf
@@ -761,7 +767,7 @@ module mod_electrostatics
         
         if(eel%amoeba) then
             !$omp parallel do schedule(dynamic) default(shared) &
-            !$omp private(i,ineigh,ij,j,jp,scalf,pg_i,igrp,grp)
+            !$omp private(i,ineigh,ij,j,jp,scalf,pg_i,igrp,grp,usenl)
             do i=1, n
                 ntmp(i) = 0
                 if(eel%use_fmm) ntmp_far(i) = 0
@@ -779,7 +785,10 @@ module mod_electrostatics
                             if(jp > 0) then
                                 scalf = screening_rules(eel, i, 'S', jp, 'P', 'D')
                                 if(abs(scalf-1.0) > eps_rp) then
-                                    if(.not. eel%use_fmm .or. (eel%use_fmm .and. fmm_list_are_near(eel,i,j))) then
+                                    usenl = .true.
+                                    if(eel%use_fmm) usenl = fmm_list_are_near(eel,i,j)
+                                    
+                                    if(usenl) then
                                         ntmp(i) = ntmp(i) + 1
                                         itmp(ntmp(i),i) = jp
                                         rtmp(ntmp(i),i) = scalf
@@ -1413,7 +1422,9 @@ module mod_electrostatics
             if(do_gg) eel%EHes_M2M = 0.0_rp
             
             if(do_gg) then
+                call time_push
                 call elec_prop_M2M(eel, .true., .true., .true., .true.)
+                call time_pull('elec prop M2M')
             else
                 call elec_prop_M2M(eel, .true., .true., .true., .false.)
             end if
@@ -1647,7 +1658,7 @@ module mod_electrostatics
 
 
         real(rp) :: kernel(6), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
-        integer(ip) :: i, j, idx, ikernel
+        integer(ip) :: i, j, idx, sidx, ikernel
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
 
@@ -1667,59 +1678,87 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%use_fmm) then
+            call time_push
             call preapare_fmm_static(eel)
+            call time_pull("M2M Prepare FMM static")
 
             ! TODO !
             if(allocated(eel%list_S_S_fmm_far)) &
                 call fatal_error('Currently not supported')
-            !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            call time_push
+            !$omp parallel do default(shared)
             do i=1, top%mm_atoms 
-                call cart_prop_at_ipart(eel%fmm_static, i, &
+                call cart_propfar_at_ipart(eel%fmm_static, i, &
                                         do_V, eel%V_M2M(i), &
                                         do_E, eel%E_M2M(:,i), &
                                         do_Egrd, eel%Egrd_M2M(:,i), &
                                         do_EHes, eel%EHes_M2M(:,i))
-                
-                ! Now removed the scaled parts only
-                do idx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
-                    j = eel%list_S_S%ci(idx)
-                    scalf = 1.0 - eel%scalef_S_S(idx)
-                        
-                    dr = top%cmm(:,i) - top%cmm(:, j)
-                    call coulomb_kernel(dr, ikernel, kernel)
+            end do
+            call time_pull("M2M Far field")
+            call time_push
+
+            write(*, *) "M2M Near interactions:", eel%fmm_near_field_list%ri(top%mm_atoms)
+            !$omp parallel do default(shared) schedule(dynamic) &
+            !$omp private(i,j,idx,sidx,to_scale,to_do,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            do i=1, top%mm_atoms
+                do idx=eel%fmm_near_field_list%ri(i), &
+                       eel%fmm_near_field_list%ri(i+1)-1
+                    j = eel%fmm_near_field_list%ci(idx)
                     
-                    if(do_V) tmpV = 0.0_rp
-                    if(do_E) tmpE = 0.0_rp
-                    if(do_Egrd) tmpEgr = 0.0_rp
-                    if(do_EHes) tmpHE = 0.0_rp
+                    to_do = .true.
+                    to_scale = .false.
+                    scalf = 1.0
 
-                    call q_elec_prop(eel%q(1,j), dr, kernel, &
-                                        do_V, tmpV, & 
-                                        do_E, tmpE, &
-                                        do_Egrd, tmpEgr, &
-                                        do_EHes, tmpHE)
-                    if(eel%amoeba) then
-                        call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
-                                            do_V, tmpV, & 
-                                            do_E, tmpE, &
-                                            do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                    ! Check if the element should be scaled
+                    do sidx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
+                        if(eel%list_S_S%ci(sidx) == j) then
+                            to_scale = .true.
+                            exit
+                        end if
+                    end do
 
-                        call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
-                                            do_V, tmpV, & 
-                                            do_E, tmpE, &
-                                            do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                    !If it should set the correct variables
+                    if(to_scale) then
+                        to_do = eel%todo_S_S(sidx)
+                        scalf = eel%scalef_S_S(sidx)
                     end if
 
-                    if(do_V) eel%V_M2M(i) = eel%V_M2M(i) - tmpV * scalf
-                    if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) - tmpE * scalf
-                    if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) - tmpEgr * scalf
-                    if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) - tmpHE * scalf
+                    if(to_do) then
+                        dr = top%cmm(:,i) - top%cmm(:, j)
+                        call coulomb_kernel(dr, ikernel, kernel)
+                        
+                        if(do_V) tmpV = 0.0_rp
+                        if(do_E) tmpE = 0.0_rp
+                        if(do_Egrd) tmpEgr = 0.0_rp
+                        if(do_EHes) tmpHE = 0.0_rp
 
+                        call q_elec_prop(eel%q(1,j), dr, kernel, &
+                                            do_V, tmpV, & 
+                                            do_E, tmpE, &
+                                            do_Egrd, tmpEgr, &
+                                            do_EHes, tmpHE)
+                        if(eel%amoeba) then
+                            call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
+                                                do_V, tmpV, & 
+                                                do_E, tmpE, &
+                                                do_Egrd, tmpEgr, &
+                                                do_EHes, tmpHE)
+
+                            call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
+                                                do_V, tmpV, & 
+                                                do_E, tmpE, &
+                                                do_Egrd, tmpEgr, &
+                                                do_EHes, tmpHE)
+                        end if
+
+                        if(do_V) eel%V_M2M(i) = eel%V_M2M(i) + tmpV * scalf
+                        if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) + tmpE * scalf
+                        if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) + tmpEgr * scalf
+                        if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) + tmpHE * scalf
+                    end if
                 end do
             end do
+            call time_pull("M2M Near field")
         else
         if(eel%amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) &

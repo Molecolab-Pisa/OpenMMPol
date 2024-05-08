@@ -5,6 +5,7 @@ module mod_geomgrad
     use mod_memory, only: ip, rp
     use mod_mmpol, only: ommp_system
     use mod_topology, only: ommp_topology_type
+    use mod_profiling, only: time_push, time_pull
 
     implicit none
     private
@@ -27,9 +28,12 @@ module mod_geomgrad
             integer(ip) :: i
             type(ommp_electrostatics_type), pointer :: eel 
             eel => s%eel
-
+            
+            call time_push
             call prepare_fixedelec(eel, .true.)
+            call time_pull("Prepare fixedelec")
 
+            call time_push
             if(eel%amoeba) then
                 !$omp parallel do 
                 do i=1, s%top%mm_atoms
@@ -79,8 +83,10 @@ module mod_geomgrad
                                   +    eel%q(4+_yz_,i) * eel%EHes_M2M(_yzz_,i))
                     
                 end do
+                call time_push
                 ! Torque forces from multipoles rotation
                 call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
+                call time_pull("Rotation grad")
             else
                 !$omp parallel do 
                 do i=1, s%top%mm_atoms
@@ -101,6 +107,7 @@ module mod_geomgrad
                     grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_M2M(:,i)
                 end do
             end if
+            call time_pull("Grad sum")
         end subroutine
 
         subroutine polelec_geomgrad(s, grad)
