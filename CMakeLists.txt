@@ -10,6 +10,7 @@ include(GetConfigArguments)
 include(GetGitVersion)
 
 set(OMMP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(OMMP_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 get_git_version(OMMP_VERSION OMMP_COMMIT)
 
 project(
@@ -21,6 +22,20 @@ project(
 
 add_subdirectory("config")
 get_config_arguments()
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol_const.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/include/openmmpol_const.h"
+  @ONLY
+)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/include/version.h"
+  @ONLY
+)
+
+file(COPY ${OMMP_ROOT_DIR}/include/openmmpol.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
 
 if(NOT TARGET "OpenMP::OpenMP_Fortran")
   find_package("OpenMP" REQUIRED)
@@ -42,6 +57,9 @@ if(NOT TARGET "OpenSSL")
   find_package("OpenSSL" REQUIRED)
 endif()
 
+# find_package("Python" REQUIRED)
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+
 set(
   lib-deps
   "OpenMP::OpenMP_Fortran"
@@ -50,10 +68,6 @@ set(
   "cJSON"
   "OpenSSL"
 )
-
-# Python interpeter
-set(PYTHON_INTERPRETER "python3" CACHE STRING
-  "Python interpreter to use for installing and testing python components")
 
 # Collect sources of the project
 set(srcs)
@@ -76,19 +90,19 @@ set_target_properties(
 )
 
 # TODO: ugly, refactor
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fno-realloc-lhs -fall-intrinsics")
-  target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
-  #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
-  target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
-  if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
-      set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
-  endif()
-  # target_link_libraries(openmmpol stdc++)
-  set (lib-deps 
-      "${lib-deps}"
-      "stdc++")
-endif()
+# if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+#   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fno-realloc-lhs -fall-intrinsics")
+#   target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
+#   #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
+#   target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
+#   if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
+#       set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
+#   endif()
+#   # target_link_libraries(openmmpol stdc++)
+#   set (lib-deps 
+#       "${lib-deps}"
+#       "stdc++")
+# endif()
 
 target_link_libraries(
   "${PROJECT_NAME}"
@@ -109,18 +123,6 @@ target_include_directories(
   "${PROJECT_NAME}"
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/
-)
-
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol_const.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/include/openmmpol_const.h"
-  @ONLY
-)
-
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/include/version.h"
-  @ONLY
 )
 
 install(
@@ -146,11 +148,13 @@ install(
 
 # Python interface
 if(WITH_PYTHON)
+    message("-- Building with Python interface")
     add_subdirectory("utils/pythonapi")
 endif()
 
 # Tests
 if(WITH_TESTS)
+    message("-- Building with tests")
     enable_testing()
     add_subdirectory("tests")
 endif()

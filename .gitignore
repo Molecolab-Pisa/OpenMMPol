@@ -9,3 +9,4 @@ doc/*
 build*/*
 _build
 include/version.h
+custom.cmake
