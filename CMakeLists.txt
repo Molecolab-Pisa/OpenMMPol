@@ -75,6 +75,21 @@ set_target_properties(
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 
+# TODO: ugly, refactor
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fno-realloc-lhs -fall-intrinsics")
+  target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
+  #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
+  target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
+  if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
+      set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
+  endif()
+  # target_link_libraries(openmmpol stdc++)
+  set (lib-deps 
+      "${lib-deps}"
+      "stdc++")
+endif()
+
 target_link_libraries(
   "${PROJECT_NAME}"
   PUBLIC
@@ -94,6 +109,18 @@ target_include_directories(
   "${PROJECT_NAME}"
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/
+)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol_const.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/include/openmmpol_const.h"
+  @ONLY
+)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/include/version.h"
+  @ONLY
 )
 
 install(
