@@ -1,26 +1,25 @@
-# The whole cmake structure of the project is
+# The whole cmake structure of this project is
 # heavily borrowing from
 # https://github.com/dftd4/dftd4/
 
 cmake_minimum_required(VERSION 3.18)
 
-# Get package version from Git
+# Load modules
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+include(GetConfigArguments)
+include(GetGitVersion)
 
-# TODO: get_git_version does not work, fix it
 set(OMMP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-include("${CMAKE_CURRENT_SOURCE_DIR}/config/cmake/GetGitVersion.cmake")
-get_git_version(OMMP_VERSION)
+get_git_version(OMMP_VERSION OMMP_COMMIT)
 
 project(
   "openmmpol"
   LANGUAGES "Fortran" "C" "CXX"
   VERSION "${OMMP_VERSION}"
-  DESCRIPTION "Modern Fortran library for polarizable QM/MM simulations"
+  DESCRIPTION "Modern Fortran library for polarizable QM/MM simulations, commit ${OMMP_COMMIT}"
 )
 
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/config/")
-
-# Get config arguments
+add_subdirectory("config")
 get_config_arguments()
 
 if(NOT TARGET "OpenMP::OpenMP_Fortran")
@@ -35,11 +34,11 @@ if(NOT TARGET "HDF5::HDF5")
   find_package("HDF5" REQUIRED)
 endif()
 
-if(NOT TARGET "cJSON::cJSON")
+if(NOT TARGET "cJSON")
   find_package("cJSON" REQUIRED)
 endif()
 
-if(NOT TARGET "OpenSSL::OpenSSL")
+if(NOT TARGET "OpenSSL")
   find_package("OpenSSL" REQUIRED)
 endif()
 
@@ -48,8 +47,8 @@ set(
   "OpenMP::OpenMP_Fortran"
   "LAPACK::LAPACK"
   "HDF5::HDF5"
-  "cJSON::cJSON"
-  "OpenSSL::OpenSSL"
+  "cJSON"
+  "OpenSSL"
 )
 
 # Python interpeter
@@ -58,7 +57,7 @@ set(PYTHON_INTERPRETER "python3" CACHE STRING
 
 # Collect sources of the project
 set(srcs)
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src/")
+add_subdirectory("src")
 
 # Setup main target, the openmmpol library
 add_library(
@@ -120,7 +119,7 @@ install(
 
 # Python interface
 if(WITH_PYTHON)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/utils/pythonapi")
+    add_subdirectory("utils/pythonapi")
 endif()
 
 # Tests
