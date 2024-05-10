@@ -1,9 +1,9 @@
 project: openMMPol
 src_dir: ./src
 output_dir: ./doc
-summary: A library to interface quantum chemical software with atomistic polarizable embeddinge
+summary: A library to interface quantum chemical software with atomistic polarizable embedding
 author: Molecolab
-author_description: Mennucci's research group in Pisa.
+author_description: Mennucci research group in Pisa.
 email: benedetta.mennucci@unipi.it
 fpp_extensions: f90
 preprocess: true

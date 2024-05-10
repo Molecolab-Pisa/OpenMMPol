@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(NOT TARGET openmmpol::openmmpol)
+  include(${CMAKE_CURRENT_LIST_DIR}/openmmpol-targets.cmake)
+endif()
