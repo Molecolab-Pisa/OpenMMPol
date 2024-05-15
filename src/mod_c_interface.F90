@@ -863,7 +863,6 @@ contains
       call ommp_full_geomgrad(s, grd)
    end subroutine
 
-#ifdef USE_HDF5
    function C_ommp_init_hdf5(filename, namespace) &
       result(c_prt) bind(c, name='ommp_init_hdf5')
       !! This function is an interface for saving an HDF5 file
@@ -933,7 +932,7 @@ contains
       call save_system_as_hdf5(hdf5out, s, err, trim(nms), logical(.true., kind=ommp_logical))
 
    end subroutine C_ommp_checkpoint
-#endif
+
    ! Functions to provide direct access to Fortran objects/memory from
    ! C and derived codes.
    function C_ommp_get_cmm(s_prt) bind(c, name='ommp_get_cmm')

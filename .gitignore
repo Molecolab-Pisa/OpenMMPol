@@ -1,4 +1,4 @@
-# Exclude binary files
+# Binary files
 *.o
 *.so
 *.a
@@ -8,5 +8,13 @@
 doc/*
 build*/*
 _build
+
+# Generated headers
 include/version.h
+
+# IDE
+.idea/
+.vscode/
+
+# Custom build options file
 custom.cmake

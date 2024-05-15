@@ -1,41 +1,62 @@
 # The whole cmake structure of this project is
 # heavily borrowing from
 # https://github.com/dftd4/dftd4/
+# and 
+# https://github.com/dftbplus/dftbplus/
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.18...3.29)
+# cmake_minimum_required(VERSION 3.27)
+
+# if(${CMAKE_VERSION} VERSION_LESS 3.12)
+    # cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
+# endif()
 
 # Load modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
-include(GetConfigArguments)
+include(BuildUtils)
 include(GetGitVersion)
 
 set(OMMP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(OMMP_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+# set(OMMP_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 get_git_version(OMMP_VERSION OMMP_COMMIT)
 
 project(
-  "openmmpol"
-  LANGUAGES "Fortran" "C" "CXX"
+  openmmpol
+  LANGUAGES Fortran C CXX
   VERSION "${OMMP_VERSION}"
-  DESCRIPTION "Modern Fortran library for polarizable QM/MM simulations, commit ${OMMP_COMMIT}"
+  DESCRIPTION "Modern Fortran library for polarizable QM/MM simulations, version commit: ${OMMP_COMMIT}"
 )
 
 add_subdirectory("config")
 get_config_arguments()
+setup_build_type()
+load_toolchain_settings()
+setup_global_compiler_flags()
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol_const.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/include/openmmpol_const.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/openmmpol_const.h"
   @ONLY
 )
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/include/version.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/version.h"
   @ONLY
 )
 
-file(COPY ${OMMP_ROOT_DIR}/include/openmmpol.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+set(
+  lib-deps
+  "OpenMP::OpenMP_Fortran"
+  "LAPACK::LAPACK"
+  "cJSON"
+  "OpenSSL"
+  # TODO: add generator expression for HDF5
+  # that depends on WITH_HDF5 variable?
+)
 
 if(NOT TARGET "OpenMP::OpenMP_Fortran")
   find_package("OpenMP" REQUIRED)
@@ -45,8 +66,13 @@ if(NOT TARGET "LAPACK::LAPACK")
   find_package("LAPACK" REQUIRED)
 endif()
 
-if(NOT TARGET "HDF5::HDF5")
-  find_package("HDF5" REQUIRED)
+if(WITH_HDF5)
+  list(APPEND lib-deps "HDF5::HDF5")
+
+  if(NOT TARGET "HDF5::HDF5")
+    find_package("HDF5" REQUIRED)
+  endif()
+
 endif()
 
 if(NOT TARGET "cJSON")
@@ -57,21 +83,18 @@ if(NOT TARGET "OpenSSL")
   find_package("OpenSSL" REQUIRED)
 endif()
 
-# find_package("Python" REQUIRED)
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
-set(
-  lib-deps
-  "OpenMP::OpenMP_Fortran"
-  "LAPACK::LAPACK"
-  "HDF5::HDF5"
-  "cJSON"
-  "OpenSSL"
-)
 
 # Collect sources of the project
 set(srcs)
+# set(srcs_preprocess)
 add_subdirectory("src")
+
+set_source_files_properties(
+  # ${srcs_preprocess}
+  ${srcs}
+  PROPERTIES Fortran_PREPROCESS ON
+)
 
 # Setup main target, the openmmpol library
 add_library(
@@ -86,23 +109,8 @@ set_target_properties(
   OUTPUT_NAME "${PROJECT_NAME}"
   VERSION "${PROJECT_VERSION}"
   SOVERSION "${PROJECT_VERSION_MAJOR}"
-  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include"
+  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mod"
 )
-
-# TODO: ugly, refactor
-# if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-#   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fno-realloc-lhs -fall-intrinsics")
-#   target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic) # Very strict check on code
-#   #target_compile_options(openmmpol PRIVATE -Wall -Wextra -pedantic -std=f2003 -fno-realloc-lhs) # Very strict check on code
-#   target_compile_options(openmmpol PRIVATE $<$<CONFIG:DEBUG>:-g -Wconversion>)
-#   if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
-#       set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Warray-temporaries -fimplicit-none -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -finit-real=nan -ffree-line-length-0 -fcheck=all")
-#   endif()
-#   # target_link_libraries(openmmpol stdc++)
-#   set (lib-deps 
-#       "${lib-deps}"
-#       "stdc++")
-# endif()
 
 target_link_libraries(
   "${PROJECT_NAME}"
@@ -113,16 +121,10 @@ target_link_libraries(
 target_include_directories(
   "${PROJECT_NAME}"
   PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}>
-)
-
-target_include_directories(
-  "${PROJECT_NAME}"
-  PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/
 )
 
 install(

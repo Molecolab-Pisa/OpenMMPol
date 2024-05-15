@@ -29,7 +29,7 @@ module mod_prm
 
 contains
 
-#include "prm_keywords.f90"
+#include "prm_keywords.F90"
 
    function get_prm_ff_type(prm_buf) result(ff_type)
       !! This function is intended to check if the ff described by prm_type
