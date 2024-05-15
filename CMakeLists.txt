@@ -1,25 +1,15 @@
-# The whole cmake structure of this project is
-# heavily borrowing from
-# https://github.com/dftd4/dftd4/
-# and 
-# https://github.com/dftbplus/dftbplus/
-
 cmake_minimum_required(VERSION 3.18...3.29)
-# cmake_minimum_required(VERSION 3.27)
-
-# if(${CMAKE_VERSION} VERSION_LESS 3.12)
-    # cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
-# endif()
 
 # Load modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(BuildUtils)
 include(GetGitVersion)
 
+# Get git version
 set(OMMP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-# set(OMMP_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 get_git_version(OMMP_VERSION OMMP_COMMIT)
 
+# Define project
 project(
   openmmpol
   LANGUAGES Fortran C CXX
@@ -33,6 +23,8 @@ setup_build_type()
 load_toolchain_settings()
 setup_global_compiler_flags()
 
+
+# /// Header file manipulation 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol_const.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/openmmpol_const.h"
@@ -47,13 +39,14 @@ configure_file(
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# ///
 
 set(
   lib-deps
   "OpenMP::OpenMP_Fortran"
   "LAPACK::LAPACK"
-  "cJSON"
-  "OpenSSL"
+  "cJSON::cJSON"
+  "OpenSSL::SSL"
   # TODO: add generator expression for HDF5
   # that depends on WITH_HDF5 variable?
 )
@@ -67,19 +60,21 @@ if(NOT TARGET "LAPACK::LAPACK")
 endif()
 
 if(WITH_HDF5)
-  list(APPEND lib-deps "HDF5::HDF5")
+  list(APPEND lib-deps "hdf5::hdf5_fortran")
 
-  if(NOT TARGET "HDF5::HDF5")
-    find_package("HDF5" REQUIRED)
+  if(NOT TARGET "hdf5::hdf5_fortran")
+    find_package(HDF5 COMPONENTS Fortran)
   endif()
 
 endif()
 
-if(NOT TARGET "cJSON")
+if(NOT TARGET "cJSON::cJSON")
   find_package("cJSON" REQUIRED)
+  # message("CJSON:")
+  # message("${CJSON_INCLUDE_DIR}")
 endif()
 
-if(NOT TARGET "OpenSSL")
+if(NOT TARGET "OpenSSL::SSL")
   find_package("OpenSSL" REQUIRED)
 endif()
 
@@ -87,14 +82,15 @@ find_package(Python COMPONENTS Interpreter Development REQUIRED)
 
 # Collect sources of the project
 set(srcs)
-# set(srcs_preprocess)
 add_subdirectory("src")
 
+# Preprocess all sources
+# (mostly needed for Linux w\ makefile generator)
 set_source_files_properties(
-  # ${srcs_preprocess}
   ${srcs}
   PROPERTIES Fortran_PREPROCESS ON
 )
+
 
 # Setup main target, the openmmpol library
 add_library(
@@ -112,11 +108,7 @@ set_target_properties(
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mod"
 )
 
-target_link_libraries(
-  "${PROJECT_NAME}"
-  PUBLIC
-  "${lib-deps}"
-)
+# TODO: add executables ommp_pp and ommp_xyz2mmp
 
 target_include_directories(
   "${PROJECT_NAME}"
@@ -127,6 +119,14 @@ target_include_directories(
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}>
 )
 
+target_link_libraries(
+  "${PROJECT_NAME}"
+  PUBLIC
+  "${lib-deps}"
+)
+
+add_subdirectory("app")
+
 install(
   TARGETS
   "${PROJECT_NAME}"
@@ -135,6 +135,7 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 )
+
 install(
   EXPORT
   "${PROJECT_NAME}-targets"
@@ -142,16 +143,23 @@ install(
   "${PROJECT_NAME}::"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
+
 install(
   DIRECTORY
   "${CMAKE_CURRENT_BINARY_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
 )
 
+install(
+  DIRECTORY
+  "${CMAKE_CURRENT_BINARY_DIR}/bin/"
+  DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
+)
+
 # Python interface
 if(WITH_PYTHON)
     message("-- Building with Python interface")
-    add_subdirectory("utils/pythonapi")
+    add_subdirectory("pythonapi")
 endif()
 
 # Tests
