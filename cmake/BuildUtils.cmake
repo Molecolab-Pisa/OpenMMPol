@@ -54,6 +54,7 @@ function(guess_toolchain toolchain)
     # set(_toolchain "intel")
   # elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
     # set(_toolchain "nag")
+  # TODO: add toolchains for other compilers, e.g. intel
   else()
     set(_toolchain "generic")
   endif()
@@ -114,107 +115,13 @@ function (add_preprocessor_flags flaglist)
   set(_flaglist "${${flaglist}}")
 
   if (WITH_HDF5)
-    # list(APPEND flaglist "-DUSE_HDF5")
     set(_flaglist  "-DUSE_HDF5 ${_flaglist}")
   endif()
 
   if (WITH_I8)
-    # list(APPEND flaglist "-DUSE_I8")
     set(_flaglist  "-DUSE_I8 ${_flaglist}")
   endif()
 
   set(${flaglist} ${_flaglist} PARENT_SCOPE)
 
 endfunction()
-
-# function (dftbp_add_fypp_defines fyppflags)
-
-#   set(_fyppflags "${${fyppflags}}")
-
-#   if(INTERNAL_ERFC)
-#     list(APPEND _fyppflags -DINTERNAL_ERFC=1)
-#   endif()
-
-#   if(WITH_OMP)
-#     list(APPEND _fyppflags -DWITH_OMP)
-#   endif()
-
-#   if(WITH_ARPACK)
-#     list(APPEND _fyppflags -DWITH_ARPACK)
-#   endif()
-
-#   if(WITH_MBD)
-#     list(APPEND _fyppflags -DWITH_MBD)
-#   endif()
-
-#   if(WITH_OPENMMPOL)
-#     list(APPEND _fyppflags -DWITH_OPENMMPOL)
-#   endif()
-
-#   if(WITH_PLUMED)
-#     list(APPEND _fyppflags -DWITH_PLUMED)
-#   endif()
-
-#   if(WITH_CHIMES)
-#     list(APPEND _fyppflags -DWITH_CHIMES)
-#   endif()
-
-#   if(WITH_MPI)
-#     list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
-#   endif()
-
-#   if(WITH_SOCKETS)
-#     list(APPEND _fyppflags -DWITH_SOCKETS)
-#   endif()
-
-#   if(WITH_ELSI)
-#     list(APPEND _fyppflags -DWITH_ELSI)
-#   endif()
-
-#   if(ELSI_WITH_PEXSI)
-#     list(APPEND _fyppflags -DWITH_PEXSI)
-#   endif()
-
-#   if(WITH_GPU)
-#     list(APPEND _fyppflags -DWITH_GPU)
-#   endif()
-
-#   if(WITH_MAGMA)
-#     list(APPEND _fyppflags -DWITH_MAGMA)
-#   endif()
-
-#   if(WITH_TRANSPORT)
-#     list(APPEND _fyppflags -DWITH_TRANSPORT)
-#   endif()
-
-#   if(WITH_POISSON)
-#     list(APPEND _fyppflags -DWITH_POISSON)
-#   endif()
-
-#   if(WITH_SDFTD3)
-#     list(APPEND _fyppflags -DWITH_SDFTD3)
-#   endif()
-
-#   if(WITH_TBLITE)
-#     list(APPEND _fyppflags -DWITH_TBLITE)
-#   endif()
-
-#   if(WITH_C_EXECUTABLES)
-#     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
-#   endif()
-
-#   if(BUILD_SHARED_LIBS)
-#     list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
-#   endif()
-
-#   if(INSTANCE_SAFE_BUILD)
-#     list(APPEND _fyppflags -DINSTANCE_SAFE_BUILD)
-#   endif()
-
-#   if(WITH_UNIT_TESTS)
-#     list(APPEND _fyppflags -DWITH_UNIT_TESTS)
-#   endif()
-
-#   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
-
-# endfunction()

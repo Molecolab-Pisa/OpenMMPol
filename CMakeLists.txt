@@ -47,8 +47,6 @@ set(
   "LAPACK::LAPACK"
   "cJSON::cJSON"
   "OpenSSL::SSL"
-  # TODO: add generator expression for HDF5
-  # that depends on WITH_HDF5 variable?
 )
 
 if(NOT TARGET "OpenMP::OpenMP_Fortran")
@@ -70,8 +68,6 @@ endif()
 
 if(NOT TARGET "cJSON::cJSON")
   find_package("cJSON" REQUIRED)
-  # message("CJSON:")
-  # message("${CJSON_INCLUDE_DIR}")
 endif()
 
 if(NOT TARGET "OpenSSL::SSL")
@@ -91,7 +87,6 @@ set_source_files_properties(
   PROPERTIES Fortran_PREPROCESS ON
 )
 
-
 # Setup main target, the openmmpol library
 add_library(
   "${PROJECT_NAME}"
@@ -108,8 +103,6 @@ set_target_properties(
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mod"
 )
 
-# TODO: add executables ommp_pp and ommp_xyz2mmp
-
 target_include_directories(
   "${PROJECT_NAME}"
   PUBLIC
@@ -125,6 +118,7 @@ target_link_libraries(
   "${lib-deps}"
 )
 
+# Add executables
 add_subdirectory("app")
 
 install(
@@ -133,6 +127,8 @@ install(
   EXPORT
   "${PROJECT_NAME}-targets"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 )
 
