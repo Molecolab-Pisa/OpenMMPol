@@ -1,8 +1,8 @@
-if (HDF5_WORKS)
-                    add_test(NAME NMA_AMOEBA_MMP_HDF5_convert
-                            COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
-                 endif ()
+if (WITH_HDF5)
+add_test(NAME NMA_AMOEBA_MMP_HDF5_convert
+        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
+        ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+
 add_test(NAME NMA_AMOEBA_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
@@ -11,7 +11,7 @@ add_test(NAME NMA_AMOEBA_MMP_init_comp
                           COMMAND ${CMAKE_COMMAND} -E compare_files
                           Testing/NMA_AMOEBA_MMP_init.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
-if (HDF5_WORKS)
+
 add_test(NAME NMA_AMOEBA_MMP_init_HDF5
                           COMMAND bin/${TESTLANG}_test_SI_init
                           Testing/NMA_AMOEBA_MMP_HDF5.json
@@ -20,12 +20,11 @@ add_test(NAME NMA_AMOEBA_MMP_init_comp_HDF5
                           COMMAND ${CMAKE_COMMAND} -E compare_files
                           Testing/NMA_AMOEBA_MMP_init.out_HDF5
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
-endif ()
-if (HDF5_WORKS)
-                    add_test(NAME NMA_AMOEBA_XYZ_HDF5_convert
-                            COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json Testing/NMA_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
-                 endif ()
+                          
+add_test(NAME NMA_AMOEBA_XYZ_HDF5_convert
+        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
+        ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json Testing/NMA_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+
 add_test(NAME NMA_AMOEBA_XYZ_init
                           COMMAND bin/${TESTLANG}_test_SI_init
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json
@@ -34,7 +33,7 @@ add_test(NAME NMA_AMOEBA_XYZ_init_comp
                           COMMAND ${CMAKE_COMMAND} -E compare_files
                           Testing/NMA_AMOEBA_XYZ_init.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
-if (HDF5_WORKS)
+
 add_test(NAME NMA_AMOEBA_XYZ_init_HDF5
                           COMMAND bin/${TESTLANG}_test_SI_init
                           Testing/NMA_AMOEBA_XYZ_HDF5.json
@@ -43,12 +42,11 @@ add_test(NAME NMA_AMOEBA_XYZ_init_comp_HDF5
                           COMMAND ${CMAKE_COMMAND} -E compare_files
                           Testing/NMA_AMOEBA_XYZ_init.out_HDF5
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_AMOEBA.ref)
-endif ()
-if (HDF5_WORKS)
-                    add_test(NAME NMA_AMBER_MMP_HDF5_convert
-                            COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json Testing/NMA_AMBER_MMP_HDF5 ./bin/ommp_pp)
-                 endif ()
+
+add_test(NAME NMA_AMBER_MMP_HDF5_convert
+        COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
+        ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json Testing/NMA_AMBER_MMP_HDF5 ./bin/ommp_pp)
+
 add_test(NAME NMA_AMBER_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json
@@ -57,7 +55,7 @@ add_test(NAME NMA_AMBER_MMP_init_comp
                           COMMAND ${CMAKE_COMMAND} -E compare_files
                           Testing/NMA_AMBER_MMP_init.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_WANG_AL.ref)
-if (HDF5_WORKS)
+
 add_test(NAME NMA_AMBER_MMP_init_HDF5
                           COMMAND bin/${TESTLANG}_test_SI_init
                           Testing/NMA_AMBER_MMP_HDF5.json
@@ -66,7 +64,7 @@ add_test(NAME NMA_AMBER_MMP_init_comp_HDF5
                           COMMAND ${CMAKE_COMMAND} -E compare_files
                           Testing/NMA_AMBER_MMP_init.out_HDF5
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/summary_WANG_AL.ref)
-endif ()
+
 add_test(NAME NMA_AMOEBA_MMP_energy
                           COMMAND bin/${TESTLANG}_test_SI_potential
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
@@ -76,7 +74,7 @@ add_test(NAME NMA_AMOEBA_MMP_energy_comp
                           Testing/NMA_AMOEBA_MMP_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_AMOEBA.ref
                            1e-06  1e-06)
-if (HDF5_WORKS)
+
 add_test(NAME NMA_AMOEBA_MMP_energy_HDF5
                           COMMAND bin/${TESTLANG}_test_SI_potential
                           Testing/NMA_AMOEBA_MMP_HDF5.json
@@ -86,7 +84,7 @@ add_test(NAME NMA_AMOEBA_MMP_energy_comp_HDF5
                           Testing/NMA_AMOEBA_MMP_energy.out_HDF5
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_0_AMOEBA.ref
                            1e-06  1e-06)
-endif ()
+
 add_test(NAME NMA_AMOEBA_MMP_energy_EF_1
                           COMMAND bin/${TESTLANG}_test_SI_potential
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
@@ -96,7 +94,7 @@ add_test(NAME NMA_AMOEBA_MMP_energy_EF_1_comp
                           Testing/NMA_AMOEBA_MMP_energy_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/N-methylacetamide/ENE_1_AMOEBA.ref
                            1e-06  1e-06)
-if (HDF5_WORKS)
+
 add_test(NAME NMA_AMOEBA_MMP_energy_EF_1_HDF5
                           COMMAND bin/${TESTLANG}_test_SI_potential
                           Testing/NMA_AMOEBA_MMP_HDF5.json

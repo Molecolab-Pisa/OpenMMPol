@@ -7,7 +7,7 @@ endif()
 
 set(
   "${PROJECT_NAME}-module-dir"
-  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
+  "${PROJECT_NAME}/${PROJECT_NAME}-${OMMP_VERSION}_${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
   CACHE STRING
   "Subdirectory to install generated module files to"
 )
@@ -30,14 +30,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   )
 endif()
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
-install(
-  DIRECTORY
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-)
-
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/template.pc"
@@ -49,6 +41,7 @@ write_basic_package_version_file(
   VERSION "${PROJECT_VERSION}"
   COMPATIBILITY SameMinorVersion
 )
+
 install(
   FILES
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.pc"
@@ -61,6 +54,7 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
   @ONLY
 )
+
 install(
   FILES
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"

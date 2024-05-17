@@ -16,6 +16,7 @@ project(
   VERSION "${OMMP_VERSION}"
   DESCRIPTION "Modern Fortran library for polarizable QM/MM simulations, version commit: ${OMMP_COMMIT}"
 )
+include(GNUInstallDirs)
 
 add_subdirectory("config")
 get_config_arguments()
@@ -146,10 +147,20 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
 )
 
+# install(
+  # DIRECTORY
+  # "${CMAKE_CURRENT_BINARY_DIR}/app/"
+  # DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
+  # FILES_MATCHING
+  # PATTERN "ommp_*"
+# )
+
 install(
-  DIRECTORY
-  "${CMAKE_CURRENT_BINARY_DIR}/bin/"
+  FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/app/ommp_pp"
+  "${CMAKE_CURRENT_BINARY_DIR}/app/ommp_xyz2mmp"
   DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
+  PERMISSIONS WORLD_EXECUTE
 )
 
 # Python interface

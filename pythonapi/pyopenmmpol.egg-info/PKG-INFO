@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: pyopenmmpol
+Version: 0.0.0
+Summary: Python interface of OpenMMPol library
+Author-email: Mattia Bondanza <mattia.bondanza@unipi.it>, Filippo Lipparini <filippo.lipparini@unipi.it>, Benedetta Mennucci <benedetta.mennucci@unipi.it>
+License: LGPL v3
+Project-URL: Bug Tracker, https://github.com/Molecolab-Pisa/OpenMMPol/issues
+Project-URL: Homepage, https://github.com/Molecolab-Pisa/OpenMMPol
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.7
+Requires-Dist: numpy>=1.17
