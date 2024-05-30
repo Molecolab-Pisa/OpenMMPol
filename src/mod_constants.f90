@@ -131,5 +131,6 @@ module mod_constants
     integer(ip), parameter :: ommp_fmm_enable_thr = OMMP_FMM_ENABLE_THR
     integer(ip), parameter :: ommp_fmm_default_maxl_pol = OMMP_FMM_DEFAULT_MAXL_POL
     integer(ip), parameter :: ommp_fmm_default_maxl = OMMP_FMM_DEFAULT_MAXL
-    real(rp), parameter :: ommp_fmm_default_cellsize = OMMP_FMM_DEFAULT_CELLSIZE
+    real(rp), parameter :: ommp_fmm_min_cellsize = OMMP_FMM_MIN_CELLSIZE
+    real(rp), parameter :: ommp_fmm_far_thr = OMMP_FMM_FAR_THR
 end module mod_constants

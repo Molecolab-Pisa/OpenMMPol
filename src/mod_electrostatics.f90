@@ -131,8 +131,10 @@ module mod_electrostatics
         !! Maximum angular moment used in fast multipoles for fixed part
         integer(ip) :: fmm_maxl_pol = 0
         !! Maximum angular moment used in fast multipoles for polarizable part
+        real(rp) :: fmm_min_cell_size = 0.0
+        !! Minimum dimension for cell size used in FMM
         real(rp) :: fmm_distance = 0.0
-        !! Minimum dimension for cell size/distance used in FMM
+        !! Threshold distance for considering two nodes in FMM tree as far
         type(fmm_type), allocatable :: fmm_static
         !! Fast multipoles object for static multipoles sources
         logical(lp) :: fmm_static_done = .false.
@@ -253,7 +255,8 @@ module mod_electrostatics
                                  OMMP_SOLVER_DEFAULT, &
                                  OMMP_FMM_DEFAULT_MAXL, &
                                  OMMP_FMM_DEFAULT_MAXL_POL, &
-                                 OMMP_FMM_DEFAULT_CELLSIZE, &
+                                 OMMP_FMM_MIN_CELLSIZE, &
+                                 OMMP_FMM_FAR_THR, &
                                  OMMP_FMM_ENABLE_THR
 
         implicit none 
@@ -286,7 +289,8 @@ module mod_electrostatics
             eel_obj%use_fmm = .true.
             eel_obj%fmm_maxl_static = OMMP_FMM_DEFAULT_MAXL
             eel_obj%fmm_maxl_pol = OMMP_FMM_DEFAULT_MAXL_POL
-            eel_obj%fmm_distance = OMMP_FMM_DEFAULT_CELLSIZE
+            eel_obj%fmm_distance = OMMP_FMM_FAR_THR
+            eel_obj%fmm_min_cell_size = OMMP_FMM_MIN_CELLSIZE
             allocate(eel_obj%tree)
             allocate(eel_obj%fmm_static)
             eel_obj%fmm_static_done = .false.
@@ -3497,16 +3501,27 @@ module mod_electrostatics
     end function screening_rules
 
     subroutine fmm_coordinates_update(eel)
-        use mod_constants, only: angstrom2au
+        use mod_constants, only: angstrom2au, OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
         integer(ip) :: i
+        character(len=OMMP_STR_CHAR_MAX) :: msg
        
         call time_push()
         call free_tree(eel%tree)
-        call init_as_octatree(eel%tree, eel%top%cmm, eel%fmm_distance)
+        call init_as_octatree(eel%tree, eel%top%cmm, &
+                              eel%fmm_distance, eel%fmm_min_cell_size)
+        write(msg, *) "Number of nodes in octatree: ", eel%tree%n_nodes
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        write(msg, *) "Number of far nodes: ", eel%tree%far_nl%ri(eel%tree%n_nodes+1)-1
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        write(msg, *) "Number of near nodes: ", eel%tree%near_nl%ri(eel%tree%n_nodes+1)-1
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+       
+        call time_push
         call fmm_make_neigh_list(eel)
+        call time_pull('OMMP make neigh list')
         call time_pull("Tree initialization")
         
         call time_push()
@@ -3542,7 +3557,7 @@ module mod_electrostatics
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
-        integer(ip), parameter :: n_guess_neigh = 30
+        integer(ip), parameter :: n_guess_neigh = 256
         integer(ip) :: i, j, inode, part_idx, jnode, node_idx
 
         eel%fmm_near_field_list%n = eel%top%mm_atoms
