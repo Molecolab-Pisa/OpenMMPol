@@ -149,6 +149,16 @@ extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT *, OMMP_QM_HELPER_PRT 
 extern void ommp_smartinput_cpstr(const char *, char *, char **);
 extern OMMP_SYSTEM_PRT ommp_system_from_qm_helper(OMMP_QM_HELPER_PRT, const char *);
 extern void ommp_set_vdw_cutoff(OMMP_SYSTEM_PRT, double);
+
+extern void ommp_enable_fmm(OMMP_SYSTEM_PRT);
+extern void ommp_disable_fmm(OMMP_SYSTEM_PRT);
+extern bool ommp_use_fmm(OMMP_SYSTEM_PRT);
+extern void ommp_set_fmm_lmax_pol(OMMP_SYSTEM_PRT, int32_t);
+extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);
+extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);
+extern void ommp_set_fmm_distance(OMMP_SYSTEM_PRT, double);
+extern void ommp_set_fmm_min_cell_size(OMMP_SYSTEM_PRT, double);
+
 #ifdef __cplusplus
 }
 #endif

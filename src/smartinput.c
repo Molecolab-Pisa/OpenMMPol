@@ -626,6 +626,10 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     double *la_bl=NULL;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
+    bool force_fmm = false, fmm_enabled = false;
+    double fmm_min_cell_size=OMMP_FMM_MIN_CELLSIZE;
+    double fmm_distance_thr=OMMP_FMM_FAR_THR;
+    int32_t fmm_maxl_pol=OMMP_FMM_DEFAULT_MAXL_POL, fmm_maxl=OMMP_FMM_DEFAULT_MAXL;
 
     while(cur != NULL){
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
@@ -704,6 +708,9 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 req_verbosity = OMMP_VERBOSE_HIGH;
             else if(strcmp(cur->valuestring, "debug") == 0)
                 req_verbosity = OMMP_VERBOSE_DEBUG;
+            else{
+                ommp_fatal("verbosity should be one of the following values [none, low, high, debug]");
+            }
         }
         else if(strcmp(cur->string, "name") == 0){
             json_name = cur->valuestring;
@@ -838,9 +845,39 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 linkatom_arr = linkatom_arr -> next;
             }
         }
+        else if(strcmp(cur->string, "use_fmm") == 0){
+            force_fmm = true;
+            if(strcmp(cur->valuestring, "true") == 0)
+                fmm_enabled = true;
+            else if(strcmp(cur->valuestring, "false") == 0)
+                fmm_enabled = false;
+            else{
+                ommp_fatal("verbosity should be one of the following values [true, false]");
+            }
+        }
+        else if(strcmp(cur->string, "fmm_max_l") == 0){
+            if(!cJSON_IsNumber(cur) && cur->valuedouble > 0.0)
+                ommp_fatal("FMM maximum angular moment should be an integer positive number.");
+            fmm_maxl = (int32_t) cur->valuedouble;
+        }
+        else if(strcmp(cur->string, "fmm_pol_max_l") == 0){
+            if(!cJSON_IsNumber(cur) && cur->valuedouble > 0.0)
+                ommp_fatal("FMM maximum angular moment should be an integer positive number.");
+            fmm_maxl_pol = (int32_t) cur->valuedouble;
+        }
+        else if(strcmp(cur->string, "fmm_min_cell_radius") == 0){
+            if(!cJSON_IsNumber(cur) && cur->valuedouble > 0.0)
+                ommp_fatal("FMM minimum cell radius should be a positive number.");
+            fmm_min_cell_size = cur->valuedouble * OMMP_ANG2AU;
+        }
+        else if(strcmp(cur->string, "fmm_distance_thr") == 0){
+            if(!cJSON_IsNumber(cur) && cur->valuedouble > 0.0)
+                ommp_fatal("FMM threshold distance should be a positive number.");
+            fmm_distance_thr = cur->valuedouble * OMMP_ANG2AU;
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
-            ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+            ommp_fatal(msg);
         }
 
         cur = cur->next;
@@ -924,6 +961,20 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         ommp_turn_pol_off(*ommp_sys, nremovepol, removepolat);
         free(removepolat);
     }
+
+    if(force_fmm){
+        if(fmm_enabled)
+            ommp_enable_fmm(*ommp_sys);
+        else
+            ommp_disable_fmm(*ommp_sys);
+    }
+    if(ommp_use_fmm(*ommp_sys)){
+      ommp_set_fmm_lmax_pol(*ommp_sys, fmm_maxl_pol);
+      ommp_set_fmm_lmax(*ommp_sys, fmm_maxl);
+      ommp_set_fmm_distance(*ommp_sys, fmm_distance_thr);
+      ommp_set_fmm_min_cell_size(*ommp_sys, fmm_min_cell_size);
+    }
+
     // Handle link atoms
     if(nla > 0){
         ommp_message("Initializing link atoms", OMMP_VERBOSE_DEBUG, "SI");

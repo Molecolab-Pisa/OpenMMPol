@@ -1760,6 +1760,107 @@ module mod_ommp_C_interface
             
             call c_f_pointer(sp, s)
             call ommp_set_vdw_cutoff(s, cutoff)
-    end subroutine
+        end subroutine
+        
+        subroutine C_ommp_set_fmm_lmax_pol(sp, l) &
+                bind(c, name='ommp_set_fmm_lmax_pol')
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+            real(ommp_integer), intent(in), value :: l
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            s%eel%fmm_maxl_pol = l
+        end subroutine
+        
+        subroutine C_ommp_set_fmm_lmax(sp, l) &
+                bind(c, name='ommp_set_fmm_lmax')
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+            real(ommp_integer), intent(in), value :: l
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            s%eel%fmm_maxl_static = l
+        end subroutine
+        
+        subroutine C_ommp_set_fmm_distance(sp, d) &
+                bind(c, name='ommp_set_fmm_distance')
+
+            use mod_electrostatics, only: fmm_coordinates_update
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+            real(ommp_real), intent(in), value :: d
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            s%eel%fmm_distance = d
+            call fmm_coordinates_update(s%eel)
+        end subroutine
+        
+        subroutine C_ommp_set_fmm_min_cell_size(sp, d) &
+                bind(c, name='ommp_set_fmm_min_cell_size')
+
+            use mod_electrostatics, only: fmm_coordinates_update
+            
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+            real(ommp_real), intent(in), value :: d
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            s%eel%fmm_min_cell_size = d
+            call fmm_coordinates_update(s%eel)
+        end subroutine
+        
+        function C_ommp_use_fmm(s_prt) bind(c, name='ommp_use_fmm')
+            !! Return true if the current forcefield is AMOEBA, and false in
+            !! all other cases.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_use_fmm
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_use_fmm = s%eel%use_fmm
+        end function C_ommp_use_fmm
+        
+        subroutine C_ommp_enable_fmm(sp) &
+                bind(c, name='ommp_enable_fmm')
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            s%eel%use_fmm = .true.
+        end subroutine
+        
+        subroutine C_ommp_disable_fmm(sp) &
+                bind(c, name='ommp_disable_fmm')
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+           
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(sp, s)
+            s%eel%use_fmm = .false.
+        end subroutine
 
 end module mod_ommp_C_interface
