@@ -500,7 +500,7 @@ module mod_electrostatics
                 call mfree('remove_null_pol [eel%polar_mm]', eel%polar_mm)
                 call mallocate('remove_null_pol [eel%polar_mm]', nidx, eel%polar_mm)
                 call mfree('remove_null_pol [eel%cpol]', eel%cpol)
-                call mallocate('remove_null_pol [eel%cpol]', 3, nidx, eel%cpol)
+                call mallocate('remove_null_pol [eel%cpol]', 3_ip, nidx, eel%cpol)
                 eel%mm_polar = 0
                 do i=1, nidx
                     eel%polar_mm(i) = polar_mm(idx(i))
@@ -639,7 +639,7 @@ module mod_electrostatics
         call compress_list(n, itmp, ntmp, eel%list_S_S)
         call compress_data(eel%list_S_S, rtmp, eel%scalef_S_S)
         call mallocate('make_screening_list [todo_S_S]', &
-                       size(eel%scalef_S_S), eel%todo_S_S)
+                       int(size(eel%scalef_S_S), ip), eel%todo_S_S)
         !$omp parallel do
         do i=1, size(eel%scalef_S_S)
             eel%todo_S_S(i) = (abs(eel%scalef_S_S(i)) > eps_rp)
@@ -651,7 +651,7 @@ module mod_electrostatics
                 call compress_list(n, itmp_far, ntmp_far, eel%list_S_S_fmm_far)
                 call compress_data(eel%list_S_S_fmm_far, rtmp_far, eel%scalef_S_S_fmm_far)
                 call mallocate('make_screening_list [todo_S_S_fmm_far]', &
-                               size(eel%scalef_S_S_fmm_far), eel%todo_S_S_fmm_far)
+                               int(size(eel%scalef_S_S_fmm_far), ip), eel%todo_S_S_fmm_far)
                 !$omp parallel do
                 do i=1, size(eel%scalef_S_S_fmm_far)
                     eel%todo_S_S_fmm_far(i) = (abs(eel%scalef_S_S_fmm_far(i)) > eps_rp)
@@ -698,7 +698,7 @@ module mod_electrostatics
         call compress_list(npol, itmp, ntmp(1:npol), eel%list_P_P)
         call compress_data(eel%list_P_P, rtmp, eel%scalef_P_P)
         call mallocate('make_screening_list [todo_P_P]', &
-                       size(eel%scalef_P_P), eel%todo_P_P)
+                       int(size(eel%scalef_P_P), ip), eel%todo_P_P)
         !$omp parallel do
         do i=1, size(eel%scalef_P_P)
             eel%todo_P_P(i) = (abs(eel%scalef_P_P(i)) > eps_rp)
@@ -709,7 +709,7 @@ module mod_electrostatics
                 call compress_list(npol, itmp_far, ntmp_far(1:npol), eel%list_P_P_fmm_far)
                 call compress_data(eel%list_P_P_fmm_far, rtmp, eel%scalef_P_P_fmm_far)
                 call mallocate('make_screening_list [todo_P_P]', &
-                            size(eel%scalef_P_P_fmm_far), eel%todo_P_P_fmm_far)
+                            int(size(eel%scalef_P_P_fmm_far), ip), eel%todo_P_P_fmm_far)
                 !$omp parallel do
                 do i=1, size(eel%scalef_P_P_fmm_far)
                     eel%todo_P_P_fmm_far(i) = (abs(eel%scalef_P_P_fmm_far(i)) > eps_rp)
@@ -756,7 +756,7 @@ module mod_electrostatics
         call compress_list(n, itmp, ntmp, eel%list_S_P_P)
         call compress_data(eel%list_S_P_P, rtmp, eel%scalef_S_P_P)
         call mallocate('make_screening_list [todo_S_P_P]', &
-                       size(eel%scalef_S_P_P), eel%todo_S_P_P)
+                       int(size(eel%scalef_S_P_P), ip), eel%todo_S_P_P)
         !$omp parallel do
         do i=1, size(eel%scalef_S_P_P)
             eel%todo_S_P_P(i) = (abs(eel%scalef_S_P_P(i)) > eps_rp)
@@ -767,7 +767,7 @@ module mod_electrostatics
                 call compress_list(n, itmp_far, ntmp_far, eel%list_S_P_P_fmm_far)
                 call compress_data(eel%list_S_P_P_fmm_far, rtmp_far, eel%scalef_S_P_P_fmm_far)
                 call mallocate('make_screening_list [todo_S_P_P_fmm_far]', &
-                            size(eel%scalef_S_P_P_fmm_far), eel%todo_S_P_P_fmm_far)
+                            int(size(eel%scalef_S_P_P_fmm_far), ip), eel%todo_S_P_P_fmm_far)
                 !$omp parallel do
                 do i=1, size(eel%scalef_S_P_P_fmm_far)
                     eel%todo_S_P_P_fmm_far(i) = (abs(eel%scalef_S_P_P_fmm_far(i)) > eps_rp)
@@ -822,7 +822,7 @@ module mod_electrostatics
             call compress_list(n, itmp, ntmp, eel%list_S_P_D)
             call compress_data(eel%list_S_P_D, rtmp, eel%scalef_S_P_D)
             call mallocate('make_screening_list [todo_S_P_D]', &
-                           size(eel%scalef_S_P_D), eel%todo_S_P_D)
+                           int(size(eel%scalef_S_P_D), ip), eel%todo_S_P_D)
             !$omp parallel do
             do i=1, size(eel%scalef_S_P_D)
                 eel%todo_S_P_D(i) = (abs(eel%scalef_S_P_D(i)) > eps_rp)
@@ -834,7 +834,7 @@ module mod_electrostatics
                     call compress_list(n, itmp_far, ntmp_far, eel%list_S_P_D_fmm_far)
                     call compress_data(eel%list_S_P_D_fmm_far, rtmp_far, eel%scalef_S_P_D_fmm_far)
                     call mallocate('make_screening_list [todo_S_P_D_fmm_far]', &
-                                size(eel%scalef_S_P_D_fmm_far), eel%todo_S_P_D_fmm_far)
+                                int(size(eel%scalef_S_P_D_fmm_far), ip), eel%todo_S_P_D_fmm_far)
                     !$omp parallel do
                     do i=1, size(eel%scalef_S_P_D_fmm_far)
                         eel%todo_S_P_D_fmm_far(i) = (abs(eel%scalef_S_P_D_fmm_far(i)) > eps_rp)
@@ -1419,15 +1419,15 @@ module mod_electrostatics
             end if
 
             if(.not. allocated(eel%E_M2M)) then
-                call mallocate('prepare_fixedelec [E_M2M]', 3, mm_atoms, eel%E_M2M)
+                call mallocate('prepare_fixedelec [E_M2M]', 3_ip, mm_atoms, eel%E_M2M)
             end if
 
             if(.not. allocated(eel%Egrd_M2M)) then
-                call mallocate('prepare_fixedelec [Egrd_M2M]', 6, mm_atoms, eel%Egrd_M2M)
+                call mallocate('prepare_fixedelec [Egrd_M2M]', 6_ip, mm_atoms, eel%Egrd_M2M)
             end if
             
             if(do_gg .and. .not. allocated(eel%EHes_M2M)) then
-                call mallocate('prepare_fixedelec [EHes_M2M]', 10, mm_atoms, eel%EHes_M2M)
+                call mallocate('prepare_fixedelec [EHes_M2M]', 10_ip, mm_atoms, eel%EHes_M2M)
             end if
             
             eel%V_M2M = 0.0_rp
@@ -1448,7 +1448,7 @@ module mod_electrostatics
             end if
 
             if(do_gg .and. .not. allocated(eel%E_M2M)) then
-                call mallocate('prepare_fixedelec [E_M2M]', 3, mm_atoms, eel%E_M2M)
+                call mallocate('prepare_fixedelec [E_M2M]', 3_ip, mm_atoms, eel%E_M2M)
             end if
 
             eel%V_M2M = 0.0_rp
@@ -1490,7 +1490,7 @@ module mod_electrostatics
         end if
         
         if(.not. allocated(eel%E_M2D)) then
-            call mallocate('prepare_polelec [E_M2D]', 3, eel%pol_atoms, &
+            call mallocate('prepare_polelec [E_M2D]', 3_ip, eel%pol_atoms, &
                             eel%n_ipd, eel%E_M2D)
         end if
         
@@ -1500,7 +1500,7 @@ module mod_electrostatics
                 &polarization energy.")
             
             if(.not. allocated(eel%Egrd_M2D)) then
-                call mallocate('prepare_polelec [Egrd_M2D]', 6, eel%pol_atoms, &
+                call mallocate('prepare_polelec [Egrd_M2D]', 6_ip, eel%pol_atoms, &
                                 eel%n_ipd, eel%Egrd_M2D)
             end if
             
@@ -1510,17 +1510,17 @@ module mod_electrostatics
             end if
             
             if(.not. allocated(eel%E_D2D) .and. eel%use_fmm) then
-                call mallocate('prepare_polelec [E_D2D]', 3, eel%pol_atoms, &
+                call mallocate('prepare_polelec [E_D2D]', 3_ip, eel%pol_atoms, &
                                eel%n_ipd, eel%E_D2D)
             end if
             
             if(.not. allocated(eel%Egrd_D2D)) then
-                call mallocate('prepare_polelec [Egrd_D2D]', 6, eel%pol_atoms, &
+                call mallocate('prepare_polelec [Egrd_D2D]', 6_ip, eel%pol_atoms, &
                                eel%n_ipd, eel%Egrd_D2D)
             end if
             
             if(.not. allocated(eel%EHes_D2D) .and. eel%use_fmm) then
-                call mallocate('prepare_polelec [EHes_D2D]', 10, eel%pol_atoms, &
+                call mallocate('prepare_polelec [EHes_D2D]', 10_ip, eel%pol_atoms, &
                                eel%n_ipd, eel%EHes_D2D)
             end if
             
@@ -1530,15 +1530,15 @@ module mod_electrostatics
             end if
             
             if(.not. allocated(eel%E_D2M)) then
-                call mallocate('prepare_polelec [E_D2M]', 3, eel%top%mm_atoms, &
+                call mallocate('prepare_polelec [E_D2M]', 3_ip, eel%top%mm_atoms, &
                                eel%E_D2M)
             end if
             if(.not. allocated(eel%Egrd_D2M) .and. eel%amoeba) then
-                call mallocate('prepare_polelec [Egrd_D2M]', 6, eel%top%mm_atoms, &
+                call mallocate('prepare_polelec [Egrd_D2M]', 6_ip, eel%top%mm_atoms, &
                                eel%Egrd_D2M)
             end if
             if(.not. allocated(eel%EHes_D2M) .and. eel%amoeba) then
-                call mallocate('prepare_polelec [E_D2M]', 10, eel%top%mm_atoms, &
+                call mallocate('prepare_polelec [E_D2M]', 10_ip, eel%top%mm_atoms, &
                                eel%EHes_D2M)
             end if
 
@@ -1589,13 +1589,13 @@ module mod_electrostatics
             call mallocate('prepare_fmm_static [tmp_q]', eel%top%mm_atoms, tmp_q)
             tmp_q(:) = eel%q(1,:)
             if(eel%amoeba) then
-                call mallocate('prepare_fmm_static [tmp_mu]', 3, eel%top%mm_atoms, tmp_mu)
+                call mallocate('prepare_fmm_static [tmp_mu]', 3_ip, eel%top%mm_atoms, tmp_mu)
                 tmp_mu(:,:) = eel%q(2:4,:)
-                call mallocate('prepare_fmm_static [tmp_quad]', 6, eel%top%mm_atoms, tmp_quad)
+                call mallocate('prepare_fmm_static [tmp_quad]', 6_ip, eel%top%mm_atoms, tmp_quad)
                 tmp_quad(:,:) = eel%q(5:10,:)
             else
-                call mallocate('prepare_fmm_static [tmp_mu]', 3, 1, tmp_mu)
-                call mallocate('prepare_fmm_static [tmp_quad]', 6, 1, tmp_quad)
+                call mallocate('prepare_fmm_static [tmp_mu]', 3_ip, 1_ip, tmp_mu)
+                call mallocate('prepare_fmm_static [tmp_quad]', 6_ip, 1_ip, tmp_quad)
             end if
 
             call fmm_solve_for_multipoles(eel%fmm_static, &
@@ -1625,7 +1625,7 @@ module mod_electrostatics
         real(rp) :: fake_q(1), fake_quad(6,1)
         integer(ip) :: i
         
-        call mallocate('prepare_fmm_ext_ipd [tmp_mu]', 3, eel%top%mm_atoms, tmp_mu)
+        call mallocate('prepare_fmm_ext_ipd [tmp_mu]', 3_ip, eel%top%mm_atoms, tmp_mu)
         tmp_mu = 0.0
         do i=1, eel%pol_atoms
             tmp_mu(:,eel%polar_mm(i)) = ipd(:,i)
@@ -1755,7 +1755,6 @@ module mod_electrostatics
             call time_pull("M2M Far field")
             
             call time_push
-            write(*, *) "M2M Near interactions:", eel%fmm_near_field_list%ri(top%mm_atoms)
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,sidx,to_scale,to_do,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
             do i=1, top%mm_atoms
@@ -2340,7 +2339,6 @@ module mod_electrostatics
                     scalf_p, scalf_d, scalf
         type(ommp_topology_type), pointer :: top
       
-        write(*, *) 'M2D'
         call time_push
         ! Shortcuts
         top => eel%top
@@ -2744,7 +2742,6 @@ module mod_electrostatics
         end if
         end if
         call time_pull('M2D')
-        write(*, *) 'M2D'
     end subroutine
     
     subroutine elec_prop_D2M(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
@@ -3501,7 +3498,7 @@ module mod_electrostatics
     end function screening_rules
 
     subroutine fmm_coordinates_update(eel)
-        use mod_constants, only: angstrom2au, OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW
+        use mod_constants, only: angstrom2au, OMMP_STR_CHAR_MAX, OMMP_VERBOSE_HIGH
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
@@ -3513,11 +3510,11 @@ module mod_electrostatics
         call init_as_octatree(eel%tree, eel%top%cmm, &
                               eel%fmm_distance, eel%fmm_min_cell_size)
         write(msg, *) "Number of nodes in octatree: ", eel%tree%n_nodes
-        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
         write(msg, *) "Number of far nodes: ", eel%tree%far_nl%ri(eel%tree%n_nodes+1)-1
-        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
         write(msg, *) "Number of near nodes: ", eel%tree%near_nl%ri(eel%tree%n_nodes+1)-1
-        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
        
         call time_push
         call fmm_make_neigh_list(eel)

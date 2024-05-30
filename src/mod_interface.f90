@@ -210,7 +210,7 @@ module ommp_interface
 
             if(do_mm_f) then
                 call mallocate('ommp_get_polelec_energy [ef]', &
-                               3, eel%pol_atoms, eel%n_ipd, ef)
+                               3_ommp_integer, eel%pol_atoms, eel%n_ipd, ef)
                 call prepare_polelec(eel)
                 do i=1, eel%n_ipd
                     ef(:,:,i) = eel%e_m2d(:,:,i) + ext_field
@@ -219,7 +219,7 @@ module ommp_interface
                 call mfree('ommp_get_polelec_energy [ef]', ef)
             else
                 call mallocate('ommp_get_polelec_energy [ef]', &
-                               3, eel%pol_atoms, eel%n_ipd, ef)
+                               3_ommp_integer, eel%pol_atoms, eel%n_ipd, ef)
                 
                 ef(:,:,1) = ext_field
                 call polarization(sys_obj, ef, solver, matv, [.true., .false.] )

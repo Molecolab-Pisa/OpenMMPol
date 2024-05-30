@@ -472,10 +472,10 @@ module mod_adjacency_mat
             if(n == 0) then
                 s%n = 0
                 if(allocated(s%ri)) call mfree('compress_list [ri]', s%ri)
-                call mallocate('compress_list [ri]', 1, s%ri)
+                call mallocate('compress_list [ri]', 1_ip, s%ri)
                 s%ri = 1
                 if(allocated(s%ci)) call mfree('compress_list [ci]', s%ci)
-                call mallocate('compress_list [ci]', 0, s%ci)
+                call mallocate('compress_list [ci]', 0_ip, s%ci)
                 return
             end if
 

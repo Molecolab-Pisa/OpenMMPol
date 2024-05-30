@@ -188,7 +188,7 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_bond = .true.
 
-        call mallocate('bond_init [bondat]', 2, n, bds%bondat)
+        call mallocate('bond_init [bondat]', 2_ip, n, bds%bondat)
         call mallocate('bond_init [kbond]', n, bds%kbond)
         call mallocate('bond_init [l0bond]', n, bds%l0bond)
         
@@ -380,7 +380,7 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_angle = .true.
 
-        call mallocate('angle_init [angleat]', 3, n, bds%angleat)
+        call mallocate('angle_init [angleat]', 3_ip, n, bds%angleat)
         call mallocate('angle_init [anglety]', n, bds%anglety)
         call mallocate('angle_init [angauxat]', n, bds%angauxat)
         call mallocate('angle_init [kangle]', n, bds%kangle)
@@ -643,7 +643,7 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_strbnd = .true.
 
-        call mallocate('strbnd_init [strbndat]', 3, n, bds%strbndat)
+        call mallocate('strbnd_init [strbndat]', 3_ip, n, bds%strbndat)
         call mallocate('strbnd_init [strbndl10]', n, bds%strbndl10)
         call mallocate('strbnd_init [strbndl20]', n, bds%strbndl20)
         call mallocate('strbnd_init [strbndthet0]', n, bds%strbndthet0)
@@ -797,7 +797,7 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_urey = .true.
 
-        call mallocate('urey_init [ureya]', 2, n, bds%ureyat)
+        call mallocate('urey_init [ureya]', 2_ip, n, bds%ureyat)
         call mallocate('urey_init [kurey]', n, bds%kurey)
         call mallocate('urey_init [l0urey]', n, bds%l0urey)
         bds%nurey = n
@@ -993,7 +993,7 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_opb = .true.
 
-        call mallocate('opb_init [opbat]', 4, n, bds%opbat)
+        call mallocate('opb_init [opbat]', 4_ip, n, bds%opbat)
         call mallocate('opb_init [kopb]', n, bds%kopb)
         bds%nopb = n
 
@@ -1159,7 +1159,7 @@ module mod_bonded
 
         bds%use_pitors = .true.
 
-        call mallocate('pitors_init [pitorsat]', 6, n, bds%pitorsat)
+        call mallocate('pitors_init [pitorsat]', 6_ip, n, bds%pitorsat)
         call mallocate('pitors_init [kpitors]', n, bds%kpitors)
         bds%npitors = n
 
@@ -1372,10 +1372,10 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_torsion = .true.
 
-        call mallocate('torsion_init [torsionat]', 4, n, bds%torsionat)
-        call mallocate('torsion_init [torsamp]', 6, n, bds%torsamp)
-        call mallocate('torsion_init [torsphase]', 6, n, bds%torsphase)
-        call mallocate('torsion_init [torsn]', 6, n, bds%torsn)
+        call mallocate('torsion_init [torsionat]', 4_ip, n, bds%torsionat)
+        call mallocate('torsion_init [torsamp]', 6_ip, n, bds%torsamp)
+        call mallocate('torsion_init [torsphase]', 6_ip, n, bds%torsphase)
+        call mallocate('torsion_init [torsn]', 6_ip, n, bds%torsn)
 
         bds%ntorsion = n
 
@@ -1639,10 +1639,10 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_imptorsion = .true.
 
-        call mallocate('imptorsion_init [imptorsionat]', 4, n, bds%imptorsionat)
-        call mallocate('imptorsion_init [imptorsamp]', 3, n, bds%imptorsamp)
-        call mallocate('imptorsion_init [imptorsphase]', 3, n, bds%imptorsphase)
-        call mallocate('imptorsion_init [imptorsn]', 3, n, bds%imptorsn)
+        call mallocate('imptorsion_init [imptorsionat]', 4_ip, n, bds%imptorsionat)
+        call mallocate('imptorsion_init [imptorsamp]', 3_ip, n, bds%imptorsamp)
+        call mallocate('imptorsion_init [imptorsphase]', 3_ip, n, bds%imptorsphase)
+        call mallocate('imptorsion_init [imptorsn]', 3_ip, n, bds%imptorsn)
 
         bds%nimptorsion = n
 
@@ -1664,10 +1664,10 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_angtor = .true.
 
-        call mallocate('angtor_init [angtorat]', 4, n, bds%angtorat)
-        call mallocate('angtor_init [angtork]', 6, n, bds%angtork)
+        call mallocate('angtor_init [angtorat]', 4_ip, n, bds%angtorat)
+        call mallocate('angtor_init [angtork]', 6_ip, n, bds%angtork)
         call mallocate('angtor_init [angtor_t]', n, bds%angtor_t)
-        call mallocate('angtor_init [angtor_a]', 2, n, bds%angtor_a)
+        call mallocate('angtor_init [angtor_a]', 2_ip, n, bds%angtor_a)
 
         bds%nangtor = n
 
@@ -1686,10 +1686,10 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_strtor = .true.
 
-        call mallocate('strtor_init [strtorat]', 4, n, bds%strtorat)
-        call mallocate('strtor_init [strtork]', 9, n, bds%strtork)
+        call mallocate('strtor_init [strtorat]', 4_ip, n, bds%strtorat)
+        call mallocate('strtor_init [strtork]', 9_ip, n, bds%strtork)
         call mallocate('strtor_init [strtor_t]', n, bds%strtor_t)
-        call mallocate('strtor_init [strtor_a]', 3, n, bds%strtor_b)
+        call mallocate('strtor_init [strtor_a]', 3_ip, n, bds%strtor_b)
 
         bds%nstrtor = n
 
@@ -2270,7 +2270,7 @@ module mod_bonded
         bds%use_tortor = .true.
         
         call mallocate('torsion_init [tortorprm]', n, bds%tortorprm )
-        call mallocate('torsion_init [tortorat]', 5, n, bds%tortorat)
+        call mallocate('torsion_init [tortorat]', 5_ip, n, bds%tortorat)
 
         bds%ntortor = n
 
@@ -2350,11 +2350,11 @@ module mod_bonded
             call mfree('torstors_newmap [rtmp]', rtmp)
 
             n_map = size(bds%ttmap_shape, 2)
-            call mallocate('torstors_newmap [itmp]', 2, n_map, itmp)
+            call mallocate('torstors_newmap [itmp]', 2_ip, n_map, itmp)
             itmp = bds%ttmap_shape
             call mfree('torstors_newmap [ttmap_shape]', bds%ttmap_shape)
             call mallocate('torstors_newmap [ttmap_shape]', &
-                           2, n_map+1, bds%ttmap_shape)
+                           2_ip, n_map+1, bds%ttmap_shape)
             bds%ttmap_shape(:,:n_map) = itmp
 
             call mfree('torstors_newmap [itmp]', itmp)
@@ -2368,7 +2368,7 @@ module mod_bonded
             call mallocate('torstors_newmap [ttmap_vx]', d1*d2,  bds%ttmap_vx)
             call mallocate('torstors_newmap [ttmap_vy]', d1*d2,  bds%ttmap_vy)
             call mallocate('torstors_newmap [ttmap_vxy]', d1*d2,  bds%ttmap_vxy)
-            call mallocate('torstors_newmap [ttmap_shape]', 2, 1, bds%ttmap_shape)
+            call mallocate('torstors_newmap [ttmap_shape]', 2_ip, 1_ip, bds%ttmap_shape)
         end if
 
         call mallocate('tortor_newmap [a]', max(d1,d2), a)

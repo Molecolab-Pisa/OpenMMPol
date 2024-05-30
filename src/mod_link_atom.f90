@@ -64,13 +64,13 @@ module mod_link_atom
             type(ommp_topology_type), intent(in), target :: qmtop, mmtop
 
             call mallocate('init_linkatoms [links]', &
-                           3, link_atom_allocation_chunk, &
+                           3_ip, link_atom_allocation_chunk, &
                            la%links)
             call mallocate('init_linkatoms [la_distance]', &
                            link_atom_allocation_chunk, la%la_distance)
             call mallocate('init_linkatoms [vdw_screening_f]', &
                            link_atom_allocation_chunk, la%vdw_screening_f)
-            call mallocate('init_linkatoms [vdw_screening_pairs]', 2, &
+            call mallocate('init_linkatoms [vdw_screening_pairs]', 2_ip, &
                            link_atom_allocation_chunk, la%vdw_screening_pairs)
 
             la%nla = 0
@@ -123,12 +123,12 @@ module mod_link_atom
             nmax = size(la%links, 2)
             if(la%nla + 1 > nmax) then
                 ! Reallocate links to accomodate new link atoms
-                call mallocate('create_link_atom [tmp]', 3, nmax, tmp)
+                call mallocate('create_link_atom [tmp]', 3_ip, nmax, tmp)
                 call mallocate('create_link_atom [rtmp]', nmax, rtmp)
                 tmp = la%links
                 rtmp = la%la_distance
                 call mfree('create_link_atom [la%links]', la%links)
-                call mallocate('create_link_atom [la%links]', 3, nmax+link_atom_allocation_chunk, la%links)
+                call mallocate('create_link_atom [la%links]', 3_ip, nmax+link_atom_allocation_chunk, la%links)
                 call mfree('create_link_atom [la%la_distance]', la%la_distance)
                 call mallocate('create_link_atom [la%la_distance]', nmax+link_atom_allocation_chunk, la%la_distance)
                 la%links = tmp(:,0:nmax)
@@ -369,14 +369,14 @@ module mod_link_atom
             nnew = n + la%vdw_n_screening
             nold = size(la%vdw_screening_f)
             if(nnew > nold) then
-                call mallocate('check_vdw_pairs [itmp]', 2, nold, itmp)
+                call mallocate('check_vdw_pairs [itmp]', 2_ip, nold, itmp)
                 call mallocate('check_vdw_pairs [rtmp]', nold, rtmp)
                 itmp = la%vdw_screening_pairs
                 rtmp = la%vdw_screening_f
                 call mfree('check_vdw_pairs [vdw_screening_pairs]', la%vdw_screening_pairs)
                 call mfree('check_vdw_pairs [vdw_screening_f]', la%vdw_screening_f)
                 
-                call mallocate('check_vdw_pairs [vdw_screening_pairs]', 2, nnew, la%vdw_screening_pairs)
+                call mallocate('check_vdw_pairs [vdw_screening_pairs]', 2_ip, nnew, la%vdw_screening_pairs)
                 call mallocate('check_vdw_pairs [vdw_screening_f]', nnew, la%vdw_screening_f)
 
                 la%vdw_screening_pairs(:,:nold) = itmp
@@ -699,7 +699,7 @@ module mod_link_atom
             integer(ip) :: i
 
             call mallocate('link_atom_bond_geomgrad [grd]', &
-                           3, la%qmmmtop%mm_atoms, grd)
+                           3_ip, la%qmmmtop%mm_atoms, grd)
             grd = 0.0
             call bond_geomgrad(la%bds, grd)
             
@@ -732,7 +732,7 @@ module mod_link_atom
             integer(ip) :: i
 
             call mallocate('link_atom_bond_geomgrad [grd]', &
-                           3, la%qmmmtop%mm_atoms, grd)
+                           3_ip, la%qmmmtop%mm_atoms, grd)
             grd = 0.0
             call angle_geomgrad(la%bds, grd)
             
@@ -765,7 +765,7 @@ module mod_link_atom
             integer(ip) :: i
 
             call mallocate('link_atom_bond_geomgrad [grd]', &
-                           3, la%qmmmtop%mm_atoms, grd)
+                           3_ip, la%qmmmtop%mm_atoms, grd)
             grd = 0.0
             call torsion_geomgrad(la%bds, grd)
             

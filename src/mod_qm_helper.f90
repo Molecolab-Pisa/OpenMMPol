@@ -313,7 +313,7 @@ module mod_qm_helper
             if(mm%use_linkatoms) then
                 call link_atom_update_merged_topology(mm%la)
                 
-                call mallocate('qm_helper_linkatom_geomgrad [lagrad]', 3, mm%la%nla, lagrad)
+                call mallocate('qm_helper_linkatom_geomgrad [lagrad]', 3_ip, mm%la%nla, lagrad)
                 do i=1, mm%la%nla
                     lagrad(:,i) = original_qmg(:,mm%la%links(3,i))
                 end do
@@ -375,7 +375,7 @@ module mod_qm_helper
             if(.not. qm%E_n2p_done) then
                 if(.not. allocated(qm%E_n2p)) then
                     call mallocate('electrostatic_for_ene [E_n2p]', &
-                                3, system%eel%pol_atoms, qm%E_n2p)
+                                3_ip, system%eel%pol_atoms, qm%E_n2p)
                 end if
 
                 qm%E_n2p = 0.0
@@ -454,19 +454,19 @@ module mod_qm_helper
            
             if(.not. allocated(qm%G_n2p)) then
                 call mallocate('electrostatic_for_ene [G_n2p]', &
-                               6, system%eel%pol_atoms, qm%G_n2p)
+                               6_ip, system%eel%pol_atoms, qm%G_n2p)
             end if
             if(.not. allocated(qm%E_n2m)) then
                 call mallocate('electrostatic_for_ene [E_n2m]', &
-                               3, system%top%mm_atoms, qm%E_n2m)
+                               3_ip, system%top%mm_atoms, qm%E_n2m)
             end if
             if(.not. allocated(qm%G_n2m)) then
                 call mallocate('electrostatic_for_ene [G_n2m]', &
-                               6, system%top%mm_atoms, qm%G_n2m)
+                               6_ip, system%top%mm_atoms, qm%G_n2m)
             end if
             if(.not. allocated(qm%H_n2m)) then
                 call mallocate('electrostatic_for_ene [H_n2m]', &
-                               10, system%top%mm_atoms, qm%H_n2m)
+                               10_ip, system%top%mm_atoms, qm%H_n2m)
             end if
 
             qm%E_n2m = 0.0
@@ -504,7 +504,7 @@ module mod_qm_helper
             
             if(.not. allocated(qm%E_m2n)) then
                 call mallocate('electrostatic_for_ene [E_m2n]', &
-                               3, qm%qm_top%mm_atoms, qm%E_m2n)
+                               3_ip, qm%qm_top%mm_atoms, qm%E_m2n)
             end if
             qm%E_m2n = 0.0
             call field_M2E(system%eel, qm%qm_top%cmm, qm%E_m2n)
@@ -512,7 +512,7 @@ module mod_qm_helper
             
             if(.not. allocated(qm%E_p2n)) then
                 call mallocate('electrostatic_for_ene [E_p2n]', &
-                               3, qm%qm_top%mm_atoms, qm%E_p2n)
+                               3_ip, qm%qm_top%mm_atoms, qm%E_p2n)
             end if
             qm%E_p2n = 0.0
             call field_D2E(system%eel, qm%qm_top%cmm, qm%E_p2n)

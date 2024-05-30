@@ -206,7 +206,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: new_c(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(new_c_p, new_c, [3, s%top%mm_atoms])
+            call c_f_pointer(new_c_p, new_c, [3_ommp_integer, s%top%mm_atoms])
             
             call update_coordinates(s, new_c)
         end subroutine
@@ -299,7 +299,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: ext_field(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(ext_field_prt, ext_field, [3, s%eel%pol_atoms])
+            call c_f_pointer(ext_field_prt, ext_field, [3_ommp_integer, s%eel%pol_atoms])
 
             call ommp_set_external_field(s, ext_field, solver, matv, .true.)
         end subroutine C_ommp_set_external_field
@@ -319,7 +319,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: ext_field(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(ext_field_prt, ext_field, [3, s%eel%pol_atoms])
+            call c_f_pointer(ext_field_prt, ext_field, [3_ommp_integer, s%eel%pol_atoms])
             
             call ommp_set_external_field(s, ext_field, solver, matv, .false.)
         end subroutine C_ommp_set_external_field_nomm
@@ -336,7 +336,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcext(:,:), fv(:)
            
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
+            call c_f_pointer(cext, fcext, [3_ommp_integer,n])
             call c_f_pointer(v, fv, [n])
             call ommp_potential_mmpol2ext(s, n, fcext, fv)
         end subroutine
@@ -353,7 +353,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcext(:,:), fv(:)
            
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
+            call c_f_pointer(cext, fcext, [3_ommp_integer,n])
             call c_f_pointer(v, fv, [n])
             call ommp_potential_pol2ext(s, n, fcext, fv)
         end subroutine
@@ -370,7 +370,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcext(:,:), fv(:)
            
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
+            call c_f_pointer(cext, fcext, [3_ommp_integer,n])
             call c_f_pointer(v, fv, [n])
             call ommp_potential_mm2ext(s, n, fcext, fv)
         end subroutine
@@ -598,7 +598,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_vdw_geomgrad(s, grd)    
         end subroutine
@@ -616,9 +616,9 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:), E(:,:), Egrd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
-            call c_f_pointer(pE, E, [3, s%top%mm_atoms])
-            call c_f_pointer(pE_grd, Egrd, [6, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
+            call c_f_pointer(pE, E, [3_ommp_integer, s%top%mm_atoms])
+            call c_f_pointer(pE_grd, Egrd, [6_ommp_integer, s%top%mm_atoms])
             
             call ommp_rotation_geomgrad(s, E, Egrd, grd)
         end subroutine
@@ -634,7 +634,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_bond_geomgrad(s, grd)    
         end subroutine
@@ -650,7 +650,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_angle_geomgrad(s, grd)    
         end subroutine
@@ -666,7 +666,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_strbnd_geomgrad(s, grd)    
         end subroutine
@@ -682,7 +682,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_urey_geomgrad(s, grd)    
         end subroutine
@@ -698,7 +698,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_torsion_geomgrad(s, grd)    
         end subroutine
@@ -714,7 +714,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_imptorsion_geomgrad(s, grd)    
         end subroutine
@@ -730,7 +730,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_angtor_geomgrad(s, grd)    
         end subroutine
@@ -746,7 +746,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_opb_geomgrad(s, grd)    
         end subroutine
@@ -762,7 +762,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_strtor_geomgrad(s, grd)    
         end subroutine
@@ -778,7 +778,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_tortor_geomgrad(s, grd)    
         end subroutine
@@ -794,7 +794,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_pitors_geomgrad(s, grd)    
         end subroutine
@@ -810,7 +810,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_full_bnd_geomgrad(s, grd)    
         end subroutine
@@ -826,7 +826,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             call ommp_fixedelec_geomgrad(s, grd)
         end subroutine
         
@@ -841,7 +841,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             call ommp_polelec_geomgrad(s, grd)
         end subroutine
         
@@ -858,7 +858,7 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: grd(:,:)
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(grd_prt, grd, [3, s%top%mm_atoms])
+            call c_f_pointer(grd_prt, grd, [3_ommp_integer, s%top%mm_atoms])
             
             call ommp_full_geomgrad(s, grd)
         end subroutine
@@ -1020,7 +1020,7 @@ module mod_ommp_C_interface
             call c_f_pointer(s_prt, s)
             if(.not. allocated(s%eel%C_polar_mm)) then 
                 call mallocate('C_ommp_get_polar_mm [C_polar_mm]', &
-                               size(s%eel%polar_mm), s%eel%C_polar_mm)
+                               int(size(s%eel%polar_mm), ommp_integer), s%eel%C_polar_mm)
                 s%eel%C_polar_mm = s%eel%polar_mm - 1
             end if
 
@@ -1132,8 +1132,8 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcext(:,:), fE(:,:)
            
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
-            call c_f_pointer(E, fE, [3,n])
+            call c_f_pointer(cext, fcext, [3_ommp_integer,n])
+            call c_f_pointer(E, fE, [3_ommp_integer,n])
             call ommp_field_mmpol2ext(s, n, fcext, fE)
         end subroutine
         
@@ -1151,8 +1151,8 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcext(:,:), fE(:,:)
            
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
-            call c_f_pointer(E, fE, [3,n])
+            call c_f_pointer(cext, fcext, [3_ommp_integer,n])
+            call c_f_pointer(E, fE, [3_ommp_integer,n])
             call field_M2E(s%eel, fcext, fE)
         end subroutine
 
@@ -1170,8 +1170,8 @@ module mod_ommp_C_interface
             real(ommp_real), pointer :: fcext(:,:), fE(:,:)
            
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(cext, fcext, [3,n])
-            call c_f_pointer(E, fE, [3,n])
+            call c_f_pointer(cext, fcext, [3_ommp_integer,n])
+            call c_f_pointer(E, fE, [3_ommp_integer,n])
             call field_D2E(s%eel, fcext, fE)
         end subroutine
 
@@ -1188,7 +1188,7 @@ module mod_ommp_C_interface
             integer(ommp_integer), pointer :: fzqm(:)
             type(c_ptr) :: c_prt
             
-            call c_f_pointer(cqm, fcqm, [3,n])
+            call c_f_pointer(cqm, fcqm, [3_ommp_integer,n])
             call c_f_pointer(qqm, fqqm, [n])
             call c_f_pointer(zqm, fzqm, [n])
             call ommp_init_qm_helper(s, n, fcqm, fqqm, fzqm)
@@ -1236,7 +1236,7 @@ module mod_ommp_C_interface
             type(ommp_qm_helper), pointer :: s
             
             call c_f_pointer(s_ptr, s)
-            call c_f_pointer(cqm, fcqm, [3,s%qm_top%mm_atoms])
+            call c_f_pointer(cqm, fcqm, [3_ommp_integer,s%qm_top%mm_atoms])
             call ommp_qm_helper_update_coord(s, fcqm)
         end subroutine
 
@@ -1331,8 +1331,8 @@ module mod_ommp_C_interface
 
             call c_f_pointer(s_prt, s)
             call c_f_pointer(qm_prt, qm)
-            call c_f_pointer(qmg_prt, qmg, [3,qm%qm_top%mm_atoms])
-            call c_f_pointer(mmg_prt, mmg, [3,s%top%mm_atoms])
+            call c_f_pointer(qmg_prt, qmg, [3_ommp_integer,qm%qm_top%mm_atoms])
+            call c_f_pointer(mmg_prt, mmg, [3_ommp_integer,s%top%mm_atoms])
 
             call ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
         end subroutine
@@ -1348,9 +1348,9 @@ module mod_ommp_C_interface
 
             call c_f_pointer(s_prt, s)
             call c_f_pointer(qm_prt, qm)
-            call c_f_pointer(qmg_prt, qmg, [3,qm%qm_top%mm_atoms])
-            call c_f_pointer(old_qmg_ptr, old_qmg, [3,qm%qm_top%mm_atoms])
-            call c_f_pointer(mmg_prt, mmg, [3,s%top%mm_atoms])
+            call c_f_pointer(qmg_prt, qmg, [3_ommp_integer,qm%qm_top%mm_atoms])
+            call c_f_pointer(old_qmg_ptr, old_qmg, [3_ommp_integer,qm%qm_top%mm_atoms])
+            call c_f_pointer(mmg_prt, mmg, [3_ommp_integer,s%top%mm_atoms])
 
             call ommp_qm_helper_link_atom_geomgrad(qm, s, qmg, mmg, old_qmg)
         end subroutine

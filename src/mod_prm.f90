@@ -579,7 +579,7 @@ module mod_prm
         call mallocate('assign_strbnd [eqang]', nstrbnd, k1)
         call mallocate('assign_strbnd [kang]', nstrbnd, k2)
         call mallocate('assign_strbnd [sbtmp]', maxsb, sbtmp)
-        call mallocate('assign_strbnd [sbattmp]', 3, maxsb, sbattmp)
+        call mallocate('assign_strbnd [sbattmp]', 3_ip, maxsb, sbattmp)
         call mallocate('assign_strbnd [at2bnd]', top%mm_atoms, at2bnd)
         call mallocate('assign_strbnd [at2ang]', top%mm_atoms, at2ang)
 
@@ -810,7 +810,7 @@ module mod_prm
         call mallocate('assign_opb [classc]', nopb, classc)
         call mallocate('assign_opb [classd]', nopb, classd)
         call mallocate('assign_opb [kopbend]', nopb, kopbend)
-        call mallocate('assign_opb [tmpat]', 4, maxopb, tmpat)
+        call mallocate('assign_opb [tmpat]', 4_ip, maxopb, tmpat)
         call mallocate('assign_opb [tmpk]', maxopb, tmpk)
 
         ! Restart the reading from the beginning to actually save the parameters
@@ -1014,7 +1014,7 @@ module mod_prm
         call mallocate('assign_pitors [classa]', npitors, classa)
         call mallocate('assign_pitors [classb]', npitors, classb)
         call mallocate('assign_pitors [kpi]', npitors, kpi)
-        call mallocate('assign_pitors [tmpat]', 6, maxpi, tmpat)
+        call mallocate('assign_pitors [tmpat]', 6_ip, maxpi, tmpat)
         call mallocate('assign_pitors [tmpk]', maxpi, tmpk)
 
         ! Restart the reading from the beginning to actually save the parameters
@@ -1167,10 +1167,10 @@ module mod_prm
         call mallocate('assign_torsion [classb]', nt, classb)
         call mallocate('assign_torsion [classc]', nt, classc)
         call mallocate('assign_torsion [classd]', nt, classd)
-        call mallocate('assign_torsion [t_amp]', 6, nt, t_amp)
-        call mallocate('assign_torsion [t_pha]', 6, nt, t_pha)
-        call mallocate('assign_torsion [t_n]', 6, nt, t_n)
-        call mallocate('assign_torsion [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_torsion [t_amp]', 6_ip, nt, t_amp)
+        call mallocate('assign_torsion [t_pha]', 6_ip, nt, t_pha)
+        call mallocate('assign_torsion [t_n]', 6_ip, nt, t_n)
+        call mallocate('assign_torsion [tmpat]', 4_ip, maxt, tmpat)
         call mallocate('assign_torsion [tmpprm]', maxt, tmpprm)
         t_amp = 0.0
         t_pha = 0.0
@@ -1366,10 +1366,10 @@ module mod_prm
         call mallocate('assign_imptorsion [classb]', nt, classb)
         call mallocate('assign_imptorsion [classc]', nt, classc)
         call mallocate('assign_imptorsion [classd]', nt, classd)
-        call mallocate('assign_imptorsion [t_amp]', 3, nt, t_amp)
-        call mallocate('assign_imptorsion [t_pha]', 3, nt, t_pha)
-        call mallocate('assign_imptorsion [t_n]', 3, nt, t_n)
-        call mallocate('assign_imptorsion [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_imptorsion [t_amp]', 3_ip, nt, t_amp)
+        call mallocate('assign_imptorsion [t_pha]', 3_ip, nt, t_pha)
+        call mallocate('assign_imptorsion [t_n]', 3_ip, nt, t_n)
+        call mallocate('assign_imptorsion [tmpat]', 4_ip, maxt, tmpat)
         call mallocate('assign_imptorsion [tmpprm]', maxt, tmpprm)
         t_amp = 0.0
         t_pha = 0.0
@@ -1618,8 +1618,8 @@ module mod_prm
         call mallocate('assign_strtor [classb]', nt, classb)
         call mallocate('assign_strtor [classc]', nt, classc)
         call mallocate('assign_strtor [classd]', nt, classd)
-        call mallocate('assign_strtor [kat]', 9, nt, kat)
-        call mallocate('assign_strtor [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_strtor [kat]', 9_ip, nt, kat)
+        call mallocate('assign_strtor [tmpat]', 4_ip, maxt, tmpat)
         call mallocate('assign_strtor [tmpprm]', maxt, tmpprm)
 
         ! Restart the reading from the beginning to actually save the parameters
@@ -1809,8 +1809,8 @@ module mod_prm
         call mallocate('assign_angtor [classb]', nt, classb)
         call mallocate('assign_angtor [classc]', nt, classc)
         call mallocate('assign_angtor [classd]', nt, classd)
-        call mallocate('assign_angtor [kat]', 6, nt, kat)
-        call mallocate('assign_angtor [tmpat]', 4, maxt, tmpat)
+        call mallocate('assign_angtor [kat]', 6_ip, nt, kat)
+        call mallocate('assign_angtor [tmpat]', 4_ip, maxt, tmpat)
         call mallocate('assign_angtor [tmpprm]', maxt, tmpprm)
 
         ! Restart the reading from the beginning to actually save the parameters
@@ -2653,7 +2653,7 @@ module mod_prm
         call mallocate('read_prm [polat]', npolarize, polat)
         call mallocate('read_prm [isopol]', npolarize, isopol)
         call mallocate('read_prm [thf]', npolarize, thf)
-        call mallocate('read_prm [pgspec]', 8, npolarize, pgspec)
+        call mallocate('read_prm [pgspec]', 8_ip, npolarize, pgspec)
         pgspec = 0
         ipolarize = 1
         
@@ -2986,8 +2986,8 @@ module mod_prm
         ! MULTIPOLE
         call mallocate('read_prm [multat]', nmult+nchg, multat)
         call mallocate('read_prm [multframe]', nmult+nchg, multframe)
-        call mallocate('read_prm [multax]', 3, nmult+nchg, multax)
-        call mallocate('read_prm [cmult]', 10, nmult+nchg, cmult)
+        call mallocate('read_prm [multax]', 3_ip, nmult+nchg, multax)
+        call mallocate('read_prm [cmult]', 10_ip, nmult+nchg, cmult)
         multax = AMOEBA_ROT_NONE
         imult = 1
         
@@ -3391,10 +3391,10 @@ module mod_prm
         end do
 
         maxtt = top%conn(4)%ri(top%mm_atoms+1)-1 
-        call mallocate('assign_tortors [classx]', 5, ntt, classx)
-        call mallocate('assign_tortors [map_dimension]', 2, ntt, map_dimension)
+        call mallocate('assign_tortors [classx]', 5_ip, ntt, classx)
+        call mallocate('assign_tortors [map_dimension]', 2_ip, ntt, map_dimension)
         call mallocate('assign_tortors [savedmap]', ntt, savedmap)
-        call mallocate('assign_tortors [tmpat]', 5, maxtt, tmpat)
+        call mallocate('assign_tortors [tmpat]', 5_ip, maxtt, tmpat)
         call mallocate('assign_tortors [tmpprm]', maxtt, tmpprm)
 
         ! Restart the reading from the beginning to actually save the parameters
@@ -3468,7 +3468,7 @@ module mod_prm
         ! Allocate data space and finally read the map
         ndata = dot_product(map_dimension(1,:), map_dimension(2,:))
         call mallocate('assign_tortors [data_map]', ndata, data_map)
-        call mallocate('assign_tortors [ang_map]', 2, ndata, ang_map)
+        call mallocate('assign_tortors [ang_map]', 2_ip, ndata, ang_map)
         
         itt = 1
         i=1

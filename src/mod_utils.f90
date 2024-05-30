@@ -338,7 +338,7 @@ module mod_utils
         logical, allocatable :: mask(:)
 
         if(allocated(ov)) call mfree('sort_ivec', ov)
-        call mallocate('sort_ivec', size(iv), ov)
+        call mallocate('sort_ivec', int(size(iv), ip), ov)
         allocate(mask(size(iv)))
         mask = .true.
 
