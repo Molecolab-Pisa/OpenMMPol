@@ -1768,7 +1768,7 @@ module mod_ommp_C_interface
             implicit none
 
             type(c_ptr), value, intent(in) :: sp
-            real(ommp_integer), intent(in), value :: l
+            integer(ommp_integer), intent(in), value :: l
            
             type(ommp_system), pointer :: s
             
@@ -1782,7 +1782,7 @@ module mod_ommp_C_interface
             implicit none
 
             type(c_ptr), value, intent(in) :: sp
-            real(ommp_integer), intent(in), value :: l
+            integer(ommp_integer), intent(in), value :: l
            
             type(ommp_system), pointer :: s
             

@@ -3505,7 +3505,21 @@ module mod_electrostatics
         integer(ip) :: i
         character(len=OMMP_STR_CHAR_MAX) :: msg
        
+        if(.not. eel%use_fmm) then
+            write(msg, *) "FMM are not enabled"
+            call ommp_message(msg, OMMP_VERBOSE_HIGH)
+            return
+        end if
+
         call time_push()
+        write(msg, *) "FMM Lmax (static): ", eel%fmm_maxl_static
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
+        write(msg, *) "FMM Lmax (pol)   : ", eel%fmm_maxl_pol
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
+        write(msg, *) "FMM Minimum cell size: ", eel%fmm_min_cell_size / angstrom2au
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
+        write(msg, *) "FMM Distance: ", eel%fmm_distance / angstrom2au
+        call ommp_message(msg, OMMP_VERBOSE_HIGH)
         call free_tree(eel%tree)
         call init_as_octatree(eel%tree, eel%top%cmm, &
                               eel%fmm_distance, eel%fmm_min_cell_size)
@@ -3522,8 +3536,10 @@ module mod_electrostatics
         call time_pull("Tree initialization")
         
         call time_push()
+        call free_fmm(eel%fmm_static)
         call fmm_init(eel%fmm_static, eel%fmm_maxl_static, eel%tree)
         do i=1, eel%n_ipd
+            call free_fmm(eel%fmm_ipd(i))
             call fmm_init(eel%fmm_ipd(i), eel%fmm_maxl_pol, eel%tree)
         end do
         call time_pull("FMM initialization")

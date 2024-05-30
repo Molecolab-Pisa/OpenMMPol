@@ -137,6 +137,7 @@ int main(int argc, char **argv){
     ommp_time_pull("Total grad bonded");
 
     free(electric_field);
+    free(grd);
     if(my_qmh != NULL) ommp_terminate_qm_helper(my_qmh);
     ommp_terminate(my_system);
     
