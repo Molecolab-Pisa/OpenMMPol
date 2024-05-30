@@ -3552,21 +3552,37 @@ module mod_electrostatics
     end function
 
     subroutine fmm_make_neigh_list(eel)
-        use mod_memory, only: mallocate
-        use mod_adjacency_mat, only: reallocate_mat
+        use mod_memory, only: mallocate, mfree
+        use mod_adjacency_mat, only: compress_list
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
-        integer(ip), parameter :: n_guess_neigh = 256
+        integer(ip) :: n_guess_neigh, nnear
         integer(ip) :: i, j, inode, part_idx, jnode, node_idx
+        integer(ip), allocatable :: uncomp_n_nl(:), uncomp_nl(:,:)
 
-        eel%fmm_near_field_list%n = eel%top%mm_atoms
-        call mallocate('fmm_make_neigh_list [ri]', eel%top%mm_atoms+1, eel%fmm_near_field_list%ri)
-        call mallocate('fmm_make_neigh_list [ci]', eel%top%mm_atoms * n_guess_neigh, eel%fmm_near_field_list%ci)
-        eel%fmm_near_field_list%ri(1) = 1
-
+        n_guess_neigh = 0
+        !$omp parallel do default(shared) private(i,nnear, inode, jnode, node_idx) 
         do i=1, eel%top%mm_atoms
-            eel%fmm_near_field_list%ri(i+1) = eel%fmm_near_field_list%ri(i)
+            nnear = 0
+            inode = eel%tree%particle_to_node(i)
+            
+            do node_idx=eel%tree%near_nl%ri(inode), eel%tree%near_nl%ri(inode+1)-1
+                jnode = eel%tree%near_nl%ci(node_idx)
+
+                nnear = nnear + eel%tree%particle_list%ri(jnode+1) - eel%tree%particle_list%ri(jnode)
+            end do
+            !$omp atomic
+            n_guess_neigh = max(n_guess_neigh, nnear)
+        end do
+
+        call mallocate('fmm_make_neigh_list [uncomp_n_nl]', eel%top%mm_atoms, uncomp_n_nl)
+        call mallocate('fmm_make_neigh_list [uncomp_nl]', n_guess_neigh, eel%top%mm_atoms, uncomp_nl)
+
+        uncomp_n_nl(:) = 0
+
+        !$omp parallel do default(shared) private(i, inode, jnode, node_idx, j) 
+        do i=1, eel%top%mm_atoms
             inode = eel%tree%particle_to_node(i)
 
             do node_idx=eel%tree%near_nl%ri(inode), eel%tree%near_nl%ri(inode+1)-1
@@ -3575,18 +3591,15 @@ module mod_electrostatics
                 do part_idx=eel%tree%particle_list%ri(jnode), eel%tree%particle_list%ri(jnode+1)-1
                     j = eel%tree%particle_list%ci(part_idx)
                     if(i == j) cycle
-                    eel%fmm_near_field_list%ci(eel%fmm_near_field_list%ri(i+1)) = j
-                    eel%fmm_near_field_list%ri(i+1) = eel%fmm_near_field_list%ri(i+1) + 1
-                    if(eel%fmm_near_field_list%ri(i+1) > size(eel%fmm_near_field_list%ci)) then
-                        ! Next iteration would cause an overflow
-                        call reallocate_mat(eel%fmm_near_field_list, size(eel%fmm_near_field_list%ci) &
-                                                                     + eel%top%mm_atoms * n_guess_neigh)
-                    end if
+                    uncomp_n_nl(i) = uncomp_n_nl(i) + 1
+                    uncomp_nl(uncomp_n_nl(i), i) = j
                 end do
             end do
         end do
         ! In the end shrink the row list
-        call reallocate_mat(eel%fmm_near_field_list, eel%fmm_near_field_list%ri(eel%top%mm_atoms+1)-1)
+        call compress_list(eel%top%mm_atoms, uncomp_nl, uncomp_n_nl, eel%fmm_near_field_list)
+        call mfree('fmm_make_neigh_list [uncomp_n_nl]', uncomp_n_nl)
+        call mfree('fmm_make_neigh_list [uncomp_nl]', uncomp_nl)
     end subroutine
 
     subroutine fmm_solve_for_multipoles(fmm_obj, q, use_q, mu, use_mu, quad, use_quad)
