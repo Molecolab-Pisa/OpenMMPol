@@ -1631,12 +1631,10 @@ module mod_electrostatics
             tmp_mu(:,eel%polar_mm(i)) = ipd(:,i)
         end do
         
-        call time_push
         call fmm_solve_for_multipoles(fmm, &
                                       fake_q, logical(.false., lp), &
                                       tmp_mu, logical(.true., lp), &
                                       fake_quad, logical(.false., lp))
-        call time_pull('fmm_solve_for_multipoles')
         call mfree('prepare_fmm_ext_ipd [tmp_mu]', tmp_mu)
     end subroutine
 
@@ -1692,12 +1690,9 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%use_fmm) then
-            call time_push
             call preapare_fmm_static(eel)
-            call time_pull("M2M Prepare FMM static")
 
             ! TODO !
-            call time_push
             !$omp parallel do default(shared)
             do i=1, top%mm_atoms 
                 call cart_propfar_at_ipart(eel%fmm_static, i, &
@@ -1750,11 +1745,7 @@ module mod_electrostatics
                     end do
                 end do
             end if
-            call time_pull("M2M Far Field screned interactions")
             
-            call time_pull("M2M Far field")
-            
-            call time_push
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,idx,sidx,to_scale,to_do,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
             do i=1, top%mm_atoms
@@ -1815,7 +1806,6 @@ module mod_electrostatics
                     end if
                 end do
             end do
-            call time_pull("M2M Near field")
         else
         if(eel%amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) &
@@ -1964,18 +1954,10 @@ module mod_electrostatics
         type(fmm_type), allocatable :: fmm_ipd
 
         if(eel%use_fmm) then
-            call time_push()
-            call time_push()
             allocate(fmm_ipd)
-            call time_pull("Allocation")
-            call time_push()
             call fmm_init(fmm_ipd, eel%fmm_maxl_pol, eel%tree)
-            call time_pull("FMM initialization")
-            call time_push()
             call prepare_fmm_ext_ipd(eel, fmm_ipd, ext_ipd)
-            call time_pull("FMM solution")
 
-            call time_push()
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do ipol=1, eel%pol_atoms 
@@ -1988,9 +1970,7 @@ module mod_electrostatics
                                            .false., tmpHE)
                 E(:, ipol) = tmpE
             end do
-            call time_pull("Far field")
             
-            call time_push()
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do ipol=1, eel%pol_atoms 
@@ -1999,7 +1979,7 @@ module mod_electrostatics
                 ! Near field is computed internally because dumped kernel is required
                 do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
                     j = eel%fmm_near_field_list%ci(ij)
-                    jpol = eel%polar_mm(j)
+                    jpol = eel%mm_polar(j)
                     ! If the atom is not polarizable, skip
                     if(jpol < 1) cycle 
 
@@ -2039,8 +2019,6 @@ module mod_electrostatics
                     end if
                 end do
             end do
-            call time_pull("Near field")
-            call time_push
             
             if(allocated(eel%list_P_P_fmm_far)) then
                 ! Now remove screened interactions from far-field
@@ -2065,13 +2043,9 @@ module mod_electrostatics
                     end do
                 end do
             end if
-            call time_pull("Removing screened ff")
-            call time_push()
             deallocate(fmm_ipd%multipoles)
             deallocate(fmm_ipd%local_expansion)
             deallocate(fmm_ipd)
-            call time_pull("Deallocation")
-            call time_pull("Total")
         else
         
         !$omp parallel do default(shared) schedule(dynamic) &
@@ -2339,7 +2313,6 @@ module mod_electrostatics
                     scalf_p, scalf_d, scalf
         type(ommp_topology_type), pointer :: top
       
-        call time_push
         ! Shortcuts
         top => eel%top
         amoeba = eel%amoeba
@@ -2741,7 +2714,6 @@ module mod_electrostatics
             end do
         end if
         end if
-        call time_pull('M2D')
     end subroutine
     
     subroutine elec_prop_D2M(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
@@ -3634,7 +3606,6 @@ module mod_electrostatics
         real(rp), allocatable :: multipoles_sphe(:, :)
         integer(ip) :: n_comp, i
 
-        call time_push
         if(use_quad) then
             n_comp = 9
         else if(use_mu) then
@@ -3679,23 +3650,12 @@ module mod_electrostatics
             multipoles_sphe(8,:) = 2.0 * quad(_xz_,:) * sqrt(15.0 / (4.0 * pi))
             multipoles_sphe(9,:) = (quad(_xx_,:) - quad(_yy_,:)) * sqrt(15.0/(4.0*pi))
         end if
-        call time_pull('cart2sphe')
         
         ! Load FMM
-        call time_push
         call tree_p2m(fmm_obj, multipoles_sphe, 2)
-        call time_pull('tree P2M')
-        call time_push()
-        call time_push
         call tree_m2m(fmm_obj)
-        call time_pull("tree M2M")
-        call time_push
         call tree_m2l(fmm_obj)
-        call time_pull("tree M2L")
-        call time_push
         call tree_l2l(fmm_obj)
-        call time_pull("tree L2L")
-        call time_pull('fmm_solve')
 
         deallocate(multipoles_sphe)
         
