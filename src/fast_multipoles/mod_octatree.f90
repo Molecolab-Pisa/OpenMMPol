@@ -35,7 +35,6 @@ contains
         real(rp) :: minc(3), maxc(3), root_dim(3), root_center(3), dist, min_cell_size
         type(yale_sparse) :: node2particle        
 
-        call time_push
 
         if(present(min_cell_size_in)) then
             min_cell_size = max(0.0_rp, min_cell_size_in)
@@ -230,7 +229,6 @@ contains
                 call fmm_error("Some particles aren't in any node")
             end if
         end do
-        call time_pull('Octatree initialization')
     end subroutine
     
 end module

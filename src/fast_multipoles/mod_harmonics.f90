@@ -1344,21 +1344,15 @@ subroutine fmm_m2l_rotation_work(c, pm, pl, vscales, &
     integer :: m, n, p
     ! Pointers for temporary values of harmonics
     real(rp), pointer :: tmp_ml(:), tmp_ml2(:), vcos(:), vsin(:)
-    !call time_push
-    !call time_push
     ! Covert Cartesian coordinates into spherical
     call carttosph(c, rho, ctheta, stheta, cphi, sphi)
-    !call time_pull('carttosph')
     ! If no need for rotations, just do translation along z
     if (abs(stheta) < eps_rp) then
         ! Workspace here is (pm+2)*(pm+1)
-        !call time_push
         call fmm_m2l_ztranslate_work(c(3), pm, pl, vscales, &
             & m2l_ztranslate_coef, alpha, src_m, beta, dst_l, work)
-        !call time_pull("fmm_m2l_ztranslate_work")
         return
     end if
-    !call time_push
     ! Prepare pointers
     p = max(pm, pl)
     m = (p+1)**2
@@ -1371,35 +1365,21 @@ subroutine fmm_m2l_rotation_work(c, pm, pl, vscales, &
     vcos => work(n+1:n+m) ! 6*p*p + 18*p + 7
     n = n + m
     vsin => work(n+1:n+m) ! 6*p*p + 19*p + 8
-    !call time_pull('Pointer preparation')
-    !call time_push
     ! Compute arrays of cos and sin that are needed for rotations of harmonics
     call trgev(cphi, sphi, p, vcos, vsin)
-    !call time_pull('trgev')
     ! Rotate around OZ axis (work array might appear in the future)
-    !call time_push
     call fmm_sph_rotate_oz_adj_work(pm, vcos, vsin, alpha, src_m, 0.0_rp, tmp_ml)
-    !call time_pull('oza')
     ! Perform rotation in the OXZ plane, work size is 4*pm*pm+13*pm+4
-    !call time_push
     call fmm_sph_rotate_oxz_work(pm, ctheta, -stheta, 1.0_rp, tmp_ml, 0.0_rp, &
         & tmp_ml2, work)
-    !call time_pull('oxz')
     ! OZ translation, workspace here is (pm+2)*(pm+1)
-    !call time_push
     call fmm_m2l_ztranslate_work(rho, pm, pl, vscales, &
         & m2l_ztranslate_coef, 1.0_rp, tmp_ml2, 0.0_rp, tmp_ml, work)
-    !call time_pull('zt')
     ! Backward rotation in the OXZ plane, work size is 4*pl*pl+13*pl+4
-    !call time_push
     call fmm_sph_rotate_oxz_work(pl, ctheta, stheta, 1.0_rp, tmp_ml, 0.0_rp, &
         & tmp_ml2, work)
-    !call time_pull('oxz')
     ! Backward rotation around OZ axis (work array might appear in the future)
-    !call time_push
     call fmm_sph_rotate_oz_work(pl, vcos, vsin, 1.0_rp, tmp_ml2, beta, dst_l)
-    !call time_pull('oz')
-    !call time_pull("fmm_m2l_work")
 end subroutine fmm_m2l_rotation_work
 
 !> Direct L2L translation by 4 rotations and 1 translation
@@ -1520,15 +1500,9 @@ subroutine fmm_m2l(c_st, pm, pl, s, t)
     real(rp), allocatable :: work(:)
 
     ! Allocate local variables
-    !call time_push
     allocate(work(6*max(pm, pl)**2 + 19*max(pm, pl) + 8))
-    !call time_pull('Memory allocation')
-    !call time_push
-    !call time_pull('Const gen')
 
-    !call time_push
     call fmm_m2l_rotation_work(c_st, pm, pl, vscales, m2l_ztranslate_coef, 1.0_rp, s, 0.0_rp, t, work)
-    !call time_pull("M2L rotation")
 
     deallocate(work)
 end subroutine

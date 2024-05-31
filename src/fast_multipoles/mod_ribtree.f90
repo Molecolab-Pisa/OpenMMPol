@@ -31,7 +31,6 @@ contains
         integer(ip), allocatable :: order(:), cluster(:,:)
         real(rp) :: r1, r2, c(3), c1(3), c2(3), d
         
-        call time_push
 
         t%tree_degree = 2
         t%n_particles = size(c_particle, 2)
@@ -170,7 +169,6 @@ contains
 
         call tree_populate_farnear_lists(t, dfar)
 
-        call time_pull('RIB tree initialization')
     end subroutine
     
     subroutine tree_rib_node_bisect(c_particle, order, div)

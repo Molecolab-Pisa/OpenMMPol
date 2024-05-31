@@ -2,7 +2,6 @@ module mod_tree
     use mod_constants, only: ip, rp, lp
     use mod_adjacency_mat, only: yale_sparse
     use mod_fmm_utils, only: fmm_error
-    use mod_profiling, only: time_push, time_pull
 
     implicit none
     private
@@ -158,7 +157,6 @@ module mod_tree
         integer(ip), allocatable :: uncompressed_near(:,:), uncompressed_n_near(:)
         integer(ip) :: chunk_size, size_near
 
-        call time_push
         ! Just a guess, if needed the vectors are enlarged, a better guess is a good TODO
         chunk_size = min(2000, t%n_nodes)
         
@@ -197,22 +195,17 @@ module mod_tree
             end do
         end do
         
-        call time_push
         call aggregative_pass(t, uncompressed_n_far, uncompressed_far)
-        call time_pull("Aggregative pass")
         
-        call time_push
         !! Now compress in yale sparse format and delete the uncompressed lists
         call compress_list(t%n_nodes, uncompressed_far, uncompressed_n_far, t%far_nl)
         call compress_list(t%n_nodes, uncompressed_near, uncompressed_n_near, t%near_nl)
-        call time_pull("List compression")
 
         ! In the end remove the pair list that is still allocated
         if(allocated(uncompressed_near)) deallocate(uncompressed_near)
         if(allocated(uncompressed_n_near)) deallocate(uncompressed_n_near)
         if(allocated(uncompressed_far)) deallocate(uncompressed_far)
         if(allocated(uncompressed_n_far)) deallocate(uncompressed_n_far)
-        call time_pull("Far near list")
 
     end subroutine
     
@@ -293,7 +286,6 @@ module mod_tree
         integer(ip), allocatable :: i_checklist(:), j_checklist(:)
         integer(ip) :: chunk_size, size_near, kk, m, n, m_node, n_node
 
-        call time_push
         ! Just a guess, if needed the vectors are enlarged, a better guess is a good TODO
         chunk_size = min(10000, t%n_nodes)
         
@@ -317,7 +309,6 @@ module mod_tree
         uncompressed_n_nnear(1) = 1
         uncompressed_nnear(1,1) = 1
         
-        call time_push
         do ilev=1, t%breadth-1
             ! For each level starting from the first one
             do ii=t%level_list%ri(ilev), t%level_list%ri(ilev+1)-1
@@ -393,22 +384,16 @@ module mod_tree
                 end do
             end do
         end do
-        call time_pull("Near search")
 
-        call time_push
         call aggregative_pass(t, uncompressed_n_far, uncompressed_far)
-        call time_pull("Aggregative pass")
         
-        call time_push
         !! Now compress in yale sparse format and delete the uncompressed lists
         call compress_list(t%n_nodes, uncompressed_far, uncompressed_n_far, t%far_nl)
         call compress_list(t%n_nodes, uncompressed_near, uncompressed_n_near, t%near_nl)
-        call time_pull("List compression")
 
         deallocate(uncompressed_far, uncompressed_n_far, &
                    uncompressed_near, uncompressed_n_near, &
                    uncompressed_nnear, uncompressed_n_nnear)
-        call time_pull("Far near list")
     end subroutine
 
     subroutine populate_leaf_list(t)

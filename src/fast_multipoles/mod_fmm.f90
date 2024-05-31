@@ -45,7 +45,6 @@ module mod_fmm
     use mod_constants, only : ip, rp
     use mod_tree, only: fmm_tree_type
     use mod_fmm_utils, only: fmm_error
-    use mod_profiling, only: time_pull, time_push
     use mod_harmonics, only: prepare_fmmm_constants
 
     implicit none
@@ -76,7 +75,6 @@ module mod_fmm
         type(fmm_type), intent(inout) :: fmm_obj
         type(fmm_tree_type), intent(in), target :: tree
 
-        call time_push()
         fmm_obj%tree => tree
         fmm_obj%pmax_mm = pmax
         fmm_obj%pmax_le = pmax
@@ -88,7 +86,6 @@ module mod_fmm
         fmm_obj%multipoles = 0.0
         fmm_obj%local_expansion = 0.0
         call prepare_fmmm_constants(fmm_obj%pmax_mm, fmm_obj%pmax_le)
-        call time_pull("FMM Init")
     end subroutine
 
     subroutine free_fmm(fmm_obj)
@@ -298,7 +295,6 @@ module mod_fmm
         real(rp), allocatable :: expansion_s(:), expansion_t(:)
         real(rp) :: c_st(3), r_s, r_t
 
-        call time_push
 
         t => fmm_obj%tree
 
@@ -330,8 +326,6 @@ module mod_fmm
                 fmm_obj%multipoles(:,i_node) = fmm_obj%multipoles(:,i_node) + expansion_t
             end do
         end do
-
-        call time_pull('Tree P2M')
     end subroutine
     
     subroutine tree_m2m(fmm_obj)
@@ -347,7 +341,6 @@ module mod_fmm
         real(rp), allocatable :: expansion_s(:), expansion_t(:)
         real(rp) :: c_st(3), r_s, r_t
 
-         call time_push
         t => fmm_obj%tree
         allocate(expansion_s(ntot_sph_harm(fmm_obj%pmax_mm)), &
                  expansion_t(ntot_sph_harm(fmm_obj%pmax_mm)))
@@ -382,7 +375,6 @@ module mod_fmm
         end do
 
         deallocate(expansion_s, expansion_t)
-        call time_pull('Tree M2M')
     end subroutine
 
     subroutine tree_m2l(fmm_obj)
@@ -398,7 +390,6 @@ module mod_fmm
         real(rp), allocatable :: mme_s(:), le_t(:)
         integer(ip) :: i_node, j_node, j
        
-        call time_push
         t => fmm_obj%tree
         allocate(mme_s(ntot_sph_harm(fmm_obj%pmax_mm)))
         allocate(le_t(ntot_sph_harm(fmm_obj%pmax_le)))
@@ -419,7 +410,6 @@ module mod_fmm
         end do
 
         deallocate(mme_s, le_t)
-        call time_pull('Tree M2L')
     end subroutine
 
     subroutine tree_l2l(fmm_obj)
@@ -435,7 +425,6 @@ module mod_fmm
         real(rp), allocatable :: le_s(:), le_t(:)
         real(rp) :: c_st(3), r_s, r_t
 
-        call time_push
         t => fmm_obj%tree
         
         allocate(le_s(ntot_sph_harm(fmm_obj%pmax_le)), &
@@ -460,16 +449,13 @@ module mod_fmm
                     end if
 
                     c_st = t%node_centroid(:,i_node) - t%node_centroid(:,j_node)
-                    !call time_push()
                     call fmm_l2l(c_st, 1.0_rp, 1.0_rp, fmm_obj%pmax_le, le_s, le_t)
-                    !call time_pull("Single L2L")
                     fmm_obj%local_expansion(:,j_node) = fmm_obj%local_expansion(:,j_node) + le_t
                 end do
             end do
         end do
         
         deallocate(le_s, le_t)
-        call time_pull('Tree L2L')
     end subroutine
 
     
