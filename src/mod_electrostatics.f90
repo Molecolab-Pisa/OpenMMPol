@@ -1702,7 +1702,6 @@ module mod_electrostatics
                                         do_EHes, eel%EHes_M2M(:,i))
             end do
 
-            call time_push
             if(allocated(eel%list_S_S_fmm_far)) then
                 !$omp parallel do default(shared) schedule(dynamic) &
                 !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
