@@ -116,7 +116,7 @@ module mod_qm_helper
         end subroutine
 
         subroutine qm_helper_update_coord(qm, cnew, reconnect_in, linkatoms)
-            use mod_adjacency_mat, only: matfree
+            use mod_adjacency_mat, only: free_yale_sparse
             use mod_topology, only: guess_connectivity
             use mod_io, only: ommp_message
             use mod_constants, only: OMMP_VERBOSE_LOW
@@ -151,7 +151,7 @@ module mod_qm_helper
             if(rc) then
                 call ommp_message("Rebuilding connectivity.", OMMP_VERBOSE_LOW, 'linkatom')
                 do i=1, size(qm%qm_top%conn)
-                    call matfree(qm%qm_top%conn(i))
+                    call free_yale_sparse(qm%qm_top%conn(i))
                 end do
                 deallocate(qm%qm_top%conn)
                 allocate(qm%qm_top%conn(1))

@@ -220,7 +220,7 @@ module mod_nonbonded
 
     subroutine vdw_terminate(vdw)
         use mod_memory, only: mfree
-        use mod_adjacency_mat, only: matfree
+        use mod_adjacency_mat, only: free_yale_sparse
         use mod_neighbor_list, only: nl_terminate
 
         implicit none

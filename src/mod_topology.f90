@@ -225,7 +225,7 @@ module mod_topology
             !! Check if adjacency matrix up to nth order is present in
             !! topology object. If it is not present, update the topology
             !! accordingly.
-            use mod_adjacency_mat, only: matfree, matcpy, build_conn_upto_n
+            use mod_adjacency_mat, only: free_yale_sparse, copy_yale_sparse, build_conn_upto_n
             use mod_io, only: fatal_error
 
             implicit none
@@ -240,9 +240,9 @@ module mod_topology
             end if 
 
             if(size(top_obj%conn) < n) then
-                call matcpy(top_obj%conn(1), adj)
+                call copy_yale_sparse(top_obj%conn(1), adj)
                 do i=1, size(top_obj%conn)
-                    call matfree(top_obj%conn(i))
+                    call free_yale_sparse(top_obj%conn(i))
                 end do
 
                 call build_conn_upto_n(adj, n, top_obj%conn, .false.)
@@ -252,7 +252,7 @@ module mod_topology
         
         subroutine topology_terminate(top_obj)
             use mod_memory, only: mfree
-            use mod_adjacency_mat, only: matfree
+            use mod_adjacency_mat, only: free_yale_sparse
 
             implicit none
 
@@ -269,7 +269,7 @@ module mod_topology
             
             if(allocated(top_obj%conn)) then
                 do i=1, size(top_obj%conn)
-                    call matfree(top_obj%conn(i))
+                    call free_yale_sparse(top_obj%conn(i))
                 end do
                 deallocate(top_obj%conn)
             endif

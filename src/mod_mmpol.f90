@@ -151,7 +151,7 @@ module mod_mmpol
         !!   * Build list for polarization groups, compute groups connectivity   
         !!   * performs multipoles rotation   
 
-        use mod_adjacency_mat, only: build_conn_upto_n, matcpy, reverse_grp_tab
+        use mod_adjacency_mat, only: build_conn_upto_n, copy_yale_sparse, reverse_grp_tab
         use mod_io, only: ommp_message
         use mod_profiling, only: time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
@@ -172,7 +172,7 @@ module mod_mmpol
         
         ! compute connectivity lists from connected atoms
         if(size(sys_obj%top%conn) < 4) then
-            call matcpy(sys_obj%top%conn(1), adj)
+            call copy_yale_sparse(sys_obj%top%conn(1), adj)
             deallocate(sys_obj%top%conn)
             call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if

@@ -70,13 +70,13 @@ module mod_neighbor_list
         end subroutine
 
         subroutine nl_terminate(nl)
-            use mod_adjacency_mat, only : matfree
+            use mod_adjacency_mat, only : free_yale_sparse
             
             implicit none
 
             type(ommp_neigh_list), intent(inout) :: nl
 
-            call matfree(nl%c2p)
+            call free_yale_sparse(nl%c2p)
             call mfree('nl_terminate [p2c]', nl%p2c)
             call mfree('nl_terminate [neigh_offset]', nl%neigh_offset)
         end subroutine

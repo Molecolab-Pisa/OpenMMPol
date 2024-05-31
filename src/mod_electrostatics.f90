@@ -337,7 +337,7 @@ module mod_electrostatics
 
     subroutine electrostatics_terminate(eel_obj)
         use mod_memory, only: mfree
-        use mod_adjacency_mat, only: matfree
+        use mod_adjacency_mat, only: free_yale_sparse
 
         implicit none
 
@@ -358,12 +358,12 @@ module mod_electrostatics
                        eel_obj%mmat_polgrp)
             if(allocated(eel_obj%pg_conn)) then
                 do i=1, size(eel_obj%pg_conn)
-                    call matfree(eel_obj%pg_conn(i))
+                    call free_yale_sparse(eel_obj%pg_conn(i))
                 end do
                 deallocate(eel_obj%pg_conn)
             end if
             
-            call matfree(eel_obj%polgrp_mmat)
+            call free_yale_sparse(eel_obj%polgrp_mmat)
             call mfree('electrostatics_terminate [mol_frame]', &
                        eel_obj%mol_frame)
             call mfree('electrostatics_terminate [ix]', eel_obj%ix)
@@ -381,11 +381,11 @@ module mod_electrostatics
         call mfree('electrostatics_terminate [scalef_S_S]', eel_obj%scalef_S_S)
         call mfree('electrostatics_terminate [scalef_P_P]', eel_obj%scalef_P_P)
         if(allocated(eel_obj%list_S_S)) then
-            call matfree(eel_obj%list_S_S)
+            call free_yale_sparse(eel_obj%list_S_S)
             deallocate(eel_obj%list_S_S)
         end if
         if(allocated(eel_obj%list_P_P)) then
-            call matfree(eel_obj%list_P_P)
+            call free_yale_sparse(eel_obj%list_P_P)
             deallocate(eel_obj%list_P_P)
         end if
 
@@ -396,7 +396,7 @@ module mod_electrostatics
             end do
             call free_tree(eel_obj%tree)
             deallocate(eel_obj%fmm_static, eel_obj%fmm_ipd, eel_obj%tree)
-            call matfree(eel_obj%fmm_near_field_list)
+            call free_yale_sparse(eel_obj%fmm_near_field_list)
         end if
 
     end subroutine electrostatics_terminate
@@ -528,7 +528,7 @@ module mod_electrostatics
 
     subroutine make_screening_lists(eel)
         use mod_memory, only: mallocate, mfree
-        use mod_adjacency_mat, only: compress_list, compress_data, matfree
+        use mod_adjacency_mat, only: compress_list, compress_data, free_yale_sparse
         use mod_constants, only: eps_rp
         
         implicit none
@@ -658,7 +658,7 @@ module mod_electrostatics
                 end do
             else
                 ! The list is empty
-                call matfree(eel%list_S_S_fmm_far)
+                call free_yale_sparse(eel%list_S_S_fmm_far)
                 deallocate(eel%list_S_S_fmm_far)
             end if
         end if
@@ -716,7 +716,7 @@ module mod_electrostatics
                 end do
             else
                 ! The list is empty
-                call matfree(eel%list_P_P_fmm_far)
+                call free_yale_sparse(eel%list_P_P_fmm_far)
                 deallocate(eel%list_P_P_fmm_far)
             end if
         end if
@@ -774,7 +774,7 @@ module mod_electrostatics
                 end do
             else
                 ! The list is empty
-                call matfree(eel%list_S_P_P_fmm_far)
+                call free_yale_sparse(eel%list_S_P_P_fmm_far)
                 deallocate(eel%list_S_P_P_fmm_far)
             end if
         end if
@@ -841,7 +841,7 @@ module mod_electrostatics
                     end do
                 else
                     ! The list is empty
-                    call matfree(eel%list_S_P_D_fmm_far)
+                    call free_yale_sparse(eel%list_S_P_D_fmm_far)
                     deallocate(eel%list_S_P_D_fmm_far)
                 end if
             end if
@@ -1599,9 +1599,9 @@ module mod_electrostatics
             end if
 
             call fmm_solve_for_multipoles(eel%fmm_static, &
-                                        tmp_q, logical(.true., lp), &
-                                        tmp_mu, eel%amoeba, &
-                                        tmp_quad, eel%amoeba)
+                                          tmp_q, logical(.true., lp), &
+                                          tmp_mu, eel%amoeba, &
+                                          tmp_quad, eel%amoeba)
             eel%fmm_static_done = .true.
             
             call mfree('prepare_fmm_static [tmp_q]', tmp_q)
@@ -3604,23 +3604,16 @@ module mod_electrostatics
         logical(lp), intent(in) :: use_quad
 
         real(rp), allocatable :: multipoles_sphe(:, :)
-        integer(ip) :: n_comp, i
+        integer(ip) :: i
 
-        if(use_quad) then
-            n_comp = 9
-        else if(use_mu) then
-            n_comp = 4
-        else if(use_q) then 
-            n_comp = 1 
-        else
-            n_comp = 0
-        end if
+        call time_push
 
-        if(n_comp == 0) then
+
+        if(.not. use_q .and. .not. use_mu .and. .not. use_quad) then
             call fatal_error("fmm_solve_for_multipoles called without any input source.")
         end if
-        
-        allocate(multipoles_sphe(n_comp, fmm_obj%tree%n_particles))
+
+        allocate(multipoles_sphe(9_ip, fmm_obj%tree%n_particles))
         
         multipoles_sphe = 0.0
         
@@ -3658,6 +3651,8 @@ module mod_electrostatics
         call tree_l2l(fmm_obj)
 
         deallocate(multipoles_sphe)
+
+        call time_pull("FMM Solution")
         
     end subroutine
 

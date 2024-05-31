@@ -38,13 +38,28 @@ module mod_adjacency_mat
     end type yale_sparse
 
     public :: yale_sparse
-    public :: adj_mat_from_conn, build_conn_upto_n, matfree, matcpy, &
+    public :: adj_mat_from_conn, build_conn_upto_n, free_yale_sparse, copy_yale_sparse, &
               reallocate_mat, reverse_grp_tab, &
-              compress_list, compress_data
+              compress_list, compress_data, allocate_yale_sparse
 
     contains
 
-        subroutine matcpy(f, t)
+        subroutine allocate_yale_sparse(m, n, nnz)
+            implicit none
+
+            type(yale_sparse), intent(inout) :: m
+            !! Matrix to be initialized
+            integer(ip), intent(in) :: n
+            !! Major dimension for the matrix
+            integer(ip), intent(in) :: nnz
+            !! Number of nonzero element for the matrix
+
+            m%n = n
+            allocate(m%ri(n+1))
+            allocate(m%ci(nnz))
+        end subroutine
+
+        subroutine copy_yale_sparse(f, t)
             !! Copy boolean sparse matrix in yale format f to t.
             implicit none
             type(yale_sparse), intent(in) :: f
@@ -58,9 +73,9 @@ module mod_adjacency_mat
             t%n = f%n
             t%ri = f%ri
             t%ci = f%ci
-        end subroutine matcpy
+        end subroutine copy_yale_sparse
 
-        subroutine matfree(m)
+        subroutine free_yale_sparse(m)
             !! Deallocate a boolean sparse matrix (in Yale format) 
             implicit none
             
@@ -69,7 +84,7 @@ module mod_adjacency_mat
             if(allocated(m%ri)) deallocate(m%ri)
             if(allocated(m%ci)) deallocate(m%ci)
             m%n=0_ip
-        end subroutine matfree
+        end subroutine free_yale_sparse
 
         subroutine adj_mat_from_conn(i12, sparse)
             !! Create adjacency matrix \(\mathbb C_1\) from connectivity lists.   
@@ -341,7 +356,7 @@ module mod_adjacency_mat
                 allocate(res(n))
                 adj_idx = 1
             end if
-            call matcpy(adj, res(adj_idx))
+            call copy_yale_sparse(adj, res(adj_idx))
             
             do i=adj_idx+1, adj_idx+n-1
                 if(size(res(i-1)%ci) == 0) then
@@ -358,15 +373,15 @@ module mod_adjacency_mat
                         call sparse_identity(adj%n, id)
                         call mat_andnot(tmp, id, res(i))
                         if(start_id) then
-                            call matcpy(id, res(1))
+                            call copy_yale_sparse(id, res(1))
                         end if
-                        call matfree(id)
+                        call free_yale_sparse(id)
                     else
                         call mat_andnot(tmp, res(i-2), res(i))
                     end if
                 end if
             end do
-            call matfree(tmp)
+            call free_yale_sparse(tmp)
         end subroutine build_conn_upto_n
         
         subroutine reverse_grp_tab(a2g, g2a, ng_in)

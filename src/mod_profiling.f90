@@ -62,8 +62,8 @@ module mod_profiling
             tcnt = tcnt - 1
             write(msg, "(3a, ': ', e14.6E2, ' s')") repeat('-', tcnt), '> ', s, elap
             call ommp_message(msg, OMMP_VERBOSE_HIGH, 'time')
-            write(msg, "(3a, ': ', e14.6E2, ' GB')") repeat('-', tcnt), '> ', s, mm
-            call ommp_message(msg, OMMP_VERBOSE_HIGH, 'memory')
+            ! write(msg, "(3a, ': ', e14.6E2, ' GB')") repeat('-', tcnt), '> ', s, mm
+            ! call ommp_message(msg, OMMP_VERBOSE_HIGH, 'memory')
         else
             call fatal_error('time_pull Cannot pull any value.')
         end if
