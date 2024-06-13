@@ -34,7 +34,8 @@ include(CMakePackageConfigHelpers)
 configure_package_config_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/template.pc"
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.pc"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  # INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${module-dir}"
 )
 write_basic_package_version_file(
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.pc"
@@ -46,7 +47,8 @@ install(
   FILES
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.pc"
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.pc"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  # DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${module-dir}"
 )
 
 configure_file(

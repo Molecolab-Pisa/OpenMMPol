@@ -91,6 +91,7 @@ set_source_files_properties(
 # Setup main target, the openmmpol library
 add_library(
   "${PROJECT_NAME}"
+  SHARED
   "${srcs}"
 )
 
@@ -127,10 +128,10 @@ install(
   "${PROJECT_NAME}"
   EXPORT
   "${PROJECT_NAME}-targets"
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${module-dir}"
+  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/${module-dir}"
 )
 
 install(
@@ -138,7 +139,8 @@ install(
   "${PROJECT_NAME}-targets"
   NAMESPACE
   "${PROJECT_NAME}::"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  # DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${module-dir}"
 )
 
 install(
@@ -146,14 +148,6 @@ install(
   "${CMAKE_CURRENT_BINARY_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
 )
-
-# install(
-  # DIRECTORY
-  # "${CMAKE_CURRENT_BINARY_DIR}/app/"
-  # DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
-  # FILES_MATCHING
-  # PATTERN "ommp_*"
-# )
 
 install(
   FILES
