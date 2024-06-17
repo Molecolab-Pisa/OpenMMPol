@@ -40,7 +40,6 @@ configure_file(
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-# ///
 
 set(
   lib-deps
@@ -167,6 +166,7 @@ endif()
 if(WITH_TESTS)
     message("-- Building with tests")
     enable_testing()
-    add_subdirectory("tests")
+    # add_subdirectory("tests")
+    include(tests/CMakeLists.txt)
 endif()
 
