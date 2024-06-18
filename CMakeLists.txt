@@ -27,33 +27,33 @@ set(
   lib-deps
   "OpenMP::OpenMP_Fortran"
   "LAPACK::LAPACK"
-  "cJSON::cJSON"
+  "cjson"
   "OpenSSL::SSL"
 )
 
-if(NOT TARGET "OpenMP::OpenMP_Fortran")
-  find_package("OpenMP" REQUIRED)
+if(NOT TARGET OpenMP::OpenMP_Fortran)
+  find_package(OpenMP REQUIRED)
 endif()
 
-if(NOT TARGET "LAPACK::LAPACK")
-  find_package("LAPACK" REQUIRED)
+if(NOT TARGET LAPACK::LAPACK)
+  find_package(LAPACK REQUIRED)
 endif()
 
 if(WITH_HDF5)
-  list(APPEND lib-deps "hdf5::hdf5_fortran")
+  list(APPEND lib-deps hdf5::hdf5_fortran)
 
-  if(NOT TARGET "hdf5::hdf5_fortran")
+  if(NOT TARGET hdf5::hdf5_fortran)
     find_package(HDF5 COMPONENTS Fortran)
   endif()
 
 endif()
 
-if(NOT TARGET "cJSON::cJSON")
-  find_package("cJSON" REQUIRED)
+if(NOT TARGET cjson)
+  find_package(cJSON REQUIRED)
 endif()
 
-if(NOT TARGET "OpenSSL::SSL")
-  find_package("OpenSSL" REQUIRED)
+if(NOT TARGET OpenSSL::SSL)
+  find_package(OpenSSL REQUIRED)
 endif()
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
