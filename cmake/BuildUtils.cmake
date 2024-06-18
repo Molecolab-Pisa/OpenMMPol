@@ -54,7 +54,7 @@ function(guess_toolchain toolchain)
     set(_toolchain "intel")
   # elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
     # set(_toolchain "nag")
-  # TODO: add toolchains for other compilers, e.g. intel
+  # TODO: add toolchains for other compilers?
   else()
     set(_toolchain "generic")
   endif()

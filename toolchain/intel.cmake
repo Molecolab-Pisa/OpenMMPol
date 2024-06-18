@@ -15,7 +15,6 @@
 #
 
 # TODO: incomplete, check flags twice more
-
 #
 # Fortran compiler settings
 #

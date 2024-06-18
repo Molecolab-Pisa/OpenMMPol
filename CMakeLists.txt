@@ -62,8 +62,8 @@ find_package(Python COMPONENTS Interpreter Development REQUIRED)
 set(srcs)
 add_subdirectory("src")
 
-# Preprocess all sources
-# (mostly needed for Linux w\ makefile generator)
+# Explicitly require CMake to preprocess all sources;
+# this is necessary for some generators
 set_source_files_properties(
   ${srcs}
   PROPERTIES Fortran_PREPROCESS ON
@@ -92,7 +92,7 @@ target_include_directories(
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/lib>
 )
 
 target_link_libraries(
@@ -104,17 +104,19 @@ target_link_libraries(
 # Add executables
 add_subdirectory("app")
 
+# Install targets 1
 install(
   TARGETS
   ${PROJECT_NAME}
   EXPORT
-  "${PROJECT_NAME}-targets"
+  ${PROJECT_NAME}-targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
   INCLUDES DESTINATION ${CMAKE_INSTALL_PREFIX}/include
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
 )
 
+# Install targets 2
 install(
   EXPORT
   ${PROJECT_NAME}-targets
@@ -123,22 +125,29 @@ install(
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME}
 )
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openmmpol.cmake"
-              "${CMAKE_CURRENT_BINARY_DIR}/openmmpol-version.cmake"
+# Install CMake config files
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/openmmpol-config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/openmmpol-config-version.cmake
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME}
         )
 
+# Install the Fortran .mod
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mod/ommp_interface.mod
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/)
+
+# Install the headers
 install(
   DIRECTORY
-  "${CMAKE_CURRENT_BINARY_DIR}/include/"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
+  ${CMAKE_CURRENT_BINARY_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/include
 )
 
+# Install binaries
 install(
   FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/app/ommp_pp"
-  "${CMAKE_CURRENT_BINARY_DIR}/app/ommp_xyz2mmp"
-  DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
+  ${CMAKE_CURRENT_BINARY_DIR}/app/ommp_pp
+  ${CMAKE_CURRENT_BINARY_DIR}/app/ommp_xyz2mmp
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   PERMISSIONS WORLD_EXECUTE
 )
 
@@ -153,7 +162,7 @@ if(WITH_TESTS)
     message("-- Building with tests")
     enable_testing()
     # Currently, the test language is set here.
-    # TODO: add an option to config.cmake to choose between C and F03
+    # TODO: add an option to config.cmake to alternate between C and F03
     set(TESTLANG "C"
         CACHE STRING
         "Language to be used for the test suite,

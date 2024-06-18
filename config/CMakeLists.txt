@@ -13,7 +13,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   )
 endif()
 
-configure_file(openmmpol.cmake.in ${CMAKE_BINARY_DIR}/openmmpol.cmake @ONLY)
+configure_file(openmmpol-config.cmake.in ${CMAKE_BINARY_DIR}/openmmpol-config.cmake @ONLY)
 
 configure_file(
   openmmpol_const.h.in
@@ -28,11 +28,11 @@ configure_file(
 )
 
 # Header file manipulation 
-file(COPY ${CMAKE_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_BINARY_DIR}/include/)
-file(COPY ${CMAKE_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_BINARY_DIR}/include/)
+file(COPY ${CMAKE_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${CMAKE_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 
 write_basic_package_version_file(
-  "${CMAKE_BINARY_DIR}/${PROJECT_NAME}-version.cmake"
+  "${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
   VERSION "${PROJECT_VERSION}"
   COMPATIBILITY AnyNewerVersion
 )
