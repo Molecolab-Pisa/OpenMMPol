@@ -1,0 +1,12 @@
+include(CMakeFindDependencyMacro)
+
+find_dependency(OpenMP::OpenMP_Fortran REQUIRED)
+find_dependency(LAPACK::LAPACK REQUIRED)
+find_dependency(cJSON::cJSON REQUIRED)
+find_dependency(OpenSSL::SSL)
+
+if(@WITH_HDF5@)
+    find_dependency(hdf5::hdf5_fortran REQUIRED)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/openmmpol-targets.cmake")

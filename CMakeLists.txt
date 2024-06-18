@@ -1,20 +1,18 @@
 cmake_minimum_required(VERSION 3.18...3.29)
-include(CMakePrintHelpers)
-
 # Load modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+include(CMakePrintHelpers)
 include(BuildUtils)
 include(GetGitVersion)
 
 # Get git version
-set(OMMP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 get_git_version(OMMP_VERSION OMMP_COMMIT OMMP_VERSION_INTERNAL)
   
 # Define project
 project(
   openmmpol
   LANGUAGES Fortran C CXX
-  VERSION "${OMMP_VERSION}"
+  VERSION ${OMMP_VERSION}
   DESCRIPTION "Modern Fortran library for polarizable QM/MM simulations, version commit: ${OMMP_COMMIT}"
 )
 include(GNUInstallDirs)
@@ -24,23 +22,6 @@ get_config_arguments()
 setup_build_type()
 load_toolchain_settings()
 setup_global_compiler_flags()
-
-
-# /// Header file manipulation 
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol_const.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/openmmpol_const.h"
-  @ONLY
-)
-
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/version.h"
-  @ONLY
-)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(
   lib-deps
@@ -90,32 +71,32 @@ set_source_files_properties(
 
 # Setup main library target
 add_library(
-  "${PROJECT_NAME}"
+  ${PROJECT_NAME}
   SHARED
   "${srcs}"
 )
 
 set_target_properties(
-  "${PROJECT_NAME}"
+  ${PROJECT_NAME}
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE
-  OUTPUT_NAME "${PROJECT_NAME}"
-  VERSION "${PROJECT_VERSION}"
-  SOVERSION "${PROJECT_VERSION_MAJOR}"
-  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mod"
+  OUTPUT_NAME ${PROJECT_NAME}
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+  Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod
 )
 
 target_include_directories(
-  "${PROJECT_NAME}"
+  ${PROJECT_NAME}
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
 )
 
 target_link_libraries(
-  "${PROJECT_NAME}"
+  ${PROJECT_NAME}
   PUBLIC
   "${lib-deps}"
 )
@@ -125,23 +106,27 @@ add_subdirectory("app")
 
 install(
   TARGETS
-  "${PROJECT_NAME}"
+  ${PROJECT_NAME}
   EXPORT
   "${PROJECT_NAME}-targets"
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${module-dir}"
-  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/${module-dir}"
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/${module-dir}"
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  INCLUDES DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+  RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
 )
 
 install(
   EXPORT
-  "${PROJECT_NAME}-targets"
+  ${PROJECT_NAME}-targets
   NAMESPACE
-  "${PROJECT_NAME}::"
-  # DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${module-dir}"
+  ${PROJECT_NAME}::
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME}
 )
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openmmpol.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/openmmpol-version.cmake"
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME}
+        )
 
 install(
   DIRECTORY

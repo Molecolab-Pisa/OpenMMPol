@@ -33,14 +33,14 @@ function(get_git_version var1 var2 var3)
           COMMAND cut -d "." -f2- 
           COMMAND rev
           COMMAND tr -d "\n"
-          WORKING_DIRECTORY ${OMMP_ROOT_DIR}
+          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
           RESULT_VARIABLE status
           OUTPUT_VARIABLE GIT_VERSION
           ERROR_QUIET)
 
       execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:'%h' -n 1
           COMMAND tr -d "\n"
-          WORKING_DIRECTORY ${OMMP_ROOT_DIR}
+          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
           RESULT_VARIABLE status
           OUTPUT_VARIABLE GIT_COMMIT
           ERROR_QUIET
@@ -50,7 +50,7 @@ function(get_git_version var1 var2 var3)
       execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty
           COMMAND sed "s/-/+r/;s/-/./g"
           COMMAND tr -d "\n"
-          WORKING_DIRECTORY ${OMMP_ROOT_DIR}
+          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
           RESULT_VARIABLE status
           OUTPUT_VARIABLE GIT_VERSION_INTERNAL
           ERROR_QUIET

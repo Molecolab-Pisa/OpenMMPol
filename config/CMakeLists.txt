@@ -1,21 +1,4 @@
-if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
-  set(
-    "${PROJECT_NAME}-dependency-method"
-    "subproject" "cmake" "pkgconf" "fetch"
-  )
-endif()
-
-set(
-  "${PROJECT_NAME}-module-dir"
-  "${PROJECT_NAME}/${PROJECT_NAME}-${OMMP_VERSION}_${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
-  CACHE STRING
-  "Subdirectory to install generated module files to"
-)
-set(
-  module-dir
-  "${${PROJECT_NAME}-module-dir}"
-)
-set(module-dir "${module-dir}" PARENT_SCOPE)
+include(CMakePackageConfigHelpers)
 
 # Set build type as CMake does not provide defaults
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -30,36 +13,27 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   )
 endif()
 
-include(CMakePackageConfigHelpers)
-configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/template.pc"
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.pc"
-  # INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${module-dir}"
-)
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.pc"
-  VERSION "${PROJECT_VERSION}"
-  COMPATIBILITY SameMinorVersion
-)
-
-install(
-  FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.pc"
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.pc"
-  # DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${module-dir}"
-)
+configure_file(openmmpol.cmake.in ${CMAKE_BINARY_DIR}/openmmpol.cmake @ONLY)
 
 configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/template.pc"
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
+  openmmpol_const.h.in
+  ${CMAKE_BINARY_DIR}/openmmpol_const.h
   @ONLY
 )
 
-install(
-  FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+configure_file(
+  version.h.in
+  ${CMAKE_BINARY_DIR}/version.h
+  @ONLY
+)
+
+# Header file manipulation 
+file(COPY ${CMAKE_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_BINARY_DIR}/include/)
+file(COPY ${CMAKE_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_BINARY_DIR}/include/)
+
+write_basic_package_version_file(
+  "${CMAKE_BINARY_DIR}/${PROJECT_NAME}-version.cmake"
+  VERSION "${PROJECT_VERSION}"
+  COMPATIBILITY AnyNewerVersion
 )
 
