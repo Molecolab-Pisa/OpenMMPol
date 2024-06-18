@@ -1,7 +1,7 @@
 if (WITH_HDF5)
 add_test(NAME NMA_AMOEBA_MMP_HDF5_convert
         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-        ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+        ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_HDF5 ./app/ommp_pp)
 
 # bin/C_test_SI_init /tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_init.out
 add_test(NAME NMA_AMOEBA_MMP_init
@@ -24,7 +24,7 @@ add_test(NAME NMA_AMOEBA_MMP_init_comp_HDF5
                           
 add_test(NAME NMA_AMOEBA_XYZ_HDF5_convert
         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-        ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json Testing/NMA_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+        ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_xyz.json Testing/NMA_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
 
 add_test(NAME NMA_AMOEBA_XYZ_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -46,7 +46,7 @@ add_test(NAME NMA_AMOEBA_XYZ_init_comp_HDF5
 
 add_test(NAME NMA_AMBER_MMP_HDF5_convert
         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-        ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json Testing/NMA_AMBER_MMP_HDF5 ./bin/ommp_pp)
+        ${CMAKE_SOURCE_DIR}/tests/NMA_amber_mmp.json Testing/NMA_AMBER_MMP_HDF5 ./app/ommp_pp)
 
 add_test(NAME NMA_AMBER_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -187,7 +187,7 @@ add_test(NAME NMA_AMOEBA_MMP_ipd_EF_1_comp
 if (HDF5_WORKS)
                     add_test(NAME NMACUT_AMOEBA_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amoeba_mmp.json Testing/NMACUT_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amoeba_mmp.json Testing/NMACUT_AMOEBA_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME NMACUT_AMOEBA_MMP_ipd
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -228,7 +228,7 @@ add_test(NAME NMA_AMBER_MMP_ipd_EF_1_comp
 if (HDF5_WORKS)
                     add_test(NAME NMACUT_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amber_mmp.json Testing/NMACUT_AMBER_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amber_mmp.json Testing/NMACUT_AMBER_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME NMACUT_AMBER_MMP_ipd
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -391,7 +391,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1CRN_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1crn_amber_mmp.json Testing/1CRN_AMBER_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1crn_amber_mmp.json Testing/1CRN_AMBER_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1CRN_AMBER_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -414,7 +414,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1CRN_AMOEBA_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_mmp.json Testing/1CRN_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_mmp.json Testing/1CRN_AMOEBA_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1CRN_AMOEBA_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -437,7 +437,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1CRN_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_xyz.json Testing/1CRN_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1crn_amoeba_xyz.json Testing/1CRN_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1CRN_AMOEBA_XYZ_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -460,7 +460,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1CRN_AMBER_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1crn_amber_xyz.json Testing/1CRN_AMBER_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1crn_amber_xyz.json Testing/1CRN_AMBER_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1CRN_AMBER_XYZ_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -679,7 +679,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1UBQ_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amber_mmp.json Testing/1UBQ_AMBER_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amber_mmp.json Testing/1UBQ_AMBER_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1UBQ_AMBER_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -702,7 +702,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1UBQ_AMOEBA_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_mmp.json Testing/1UBQ_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_mmp.json Testing/1UBQ_AMOEBA_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1UBQ_AMOEBA_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -725,7 +725,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1UBQ_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz.json Testing/1UBQ_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz.json Testing/1UBQ_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1UBQ_AMOEBA_XYZ_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -904,7 +904,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1UBQ_AMOEBA_XYZ_LS_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz_LS.json Testing/1UBQ_AMOEBA_XYZ_LS_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ubq_amoeba_xyz_LS.json Testing/1UBQ_AMOEBA_XYZ_LS_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1UBQ_AMOEBA_XYZ_LS_energy
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -949,7 +949,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1AO6_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ao6_amber_mmp.json Testing/1AO6_AMBER_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ao6_amber_mmp.json Testing/1AO6_AMBER_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1AO6_AMBER_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -972,7 +972,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1AO6CUT_AMBER_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json Testing/1AO6CUT_AMBER_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amber_mmp.json Testing/1AO6CUT_AMBER_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1AO6CUT_AMBER_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -995,7 +995,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1AO6_AMOEBA_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_mmp.json Testing/1AO6_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_mmp.json Testing/1AO6_AMOEBA_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1AO6_AMOEBA_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -1018,7 +1018,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1AO6CUT_AMOEBA_MMP_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json Testing/1AO6CUT_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ao6_cut_amoeba_mmp.json Testing/1AO6CUT_AMOEBA_MMP_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1AO6CUT_AMOEBA_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -1041,7 +1041,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 1AO6_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_xyz.json Testing/1AO6_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/1ao6_amoeba_xyz.json Testing/1AO6_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 1AO6_AMOEBA_XYZ_init
                           COMMAND bin/${TESTLANG}_test_SI_init
@@ -1220,7 +1220,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME 2D94_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/2d94_amoeba_xyz.json Testing/2D94_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/2d94_amoeba_xyz.json Testing/2D94_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME 2D94_AMOEBA_XYZ_energy
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -1265,7 +1265,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME ALACAP_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/alacap_amoeba_xyz.json Testing/ALACAP_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/alacap_amoeba_xyz.json Testing/ALACAP_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME ALACAP_AMOEBA_XYZ_geomgrad_num
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
@@ -1298,7 +1298,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME TYRCAP_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/tyrcap_amoeba_xyz.json Testing/TYRCAP_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/tyrcap_amoeba_xyz.json Testing/TYRCAP_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME TYRCAP_AMOEBA_XYZ_geomgrad_num
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
@@ -1331,7 +1331,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME TYR2CAP_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/tyr2cap_amoeba_xyz.json Testing/TYR2CAP_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/tyr2cap_amoeba_xyz.json Testing/TYR2CAP_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME TYR2CAP_AMOEBA_XYZ_geomgrad_num
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
@@ -1364,7 +1364,7 @@ endif ()
 if (HDF5_WORKS)
                     add_test(NAME PNA4H2O_AMOEBA_XYZ_HDF5_convert
                             COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
-                            ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json Testing/PNA4H2O_AMOEBA_XYZ_HDF5 ./bin/ommp_pp)
+                            ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json Testing/PNA4H2O_AMOEBA_XYZ_HDF5 ./app/ommp_pp)
                  endif ()
 add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_num
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num

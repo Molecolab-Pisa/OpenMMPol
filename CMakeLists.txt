@@ -88,7 +88,7 @@ set_source_files_properties(
   PROPERTIES Fortran_PREPROCESS ON
 )
 
-# Setup main target, the openmmpol library
+# Setup main library target
 add_library(
   "${PROJECT_NAME}"
   SHARED

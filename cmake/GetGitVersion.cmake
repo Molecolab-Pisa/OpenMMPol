@@ -46,9 +46,9 @@ function(get_git_version var1 var2 var3)
           ERROR_QUIET
       )
 
-      # 2. git describe --tags | sed "0,/\-/{s/\-/+/}" | tr -d "\n"
-      execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags
-          COMMAND sed "0,/\-/{s/\-/+/}"
+      # 2. git describe --tags --dirty | sed "s/-/+r/;s/-/./g" | tr -d "\n"
+      execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty
+          COMMAND sed "s/-/+r/;s/-/./g"
           COMMAND tr -d "\n"
           WORKING_DIRECTORY ${OMMP_ROOT_DIR}
           RESULT_VARIABLE status
