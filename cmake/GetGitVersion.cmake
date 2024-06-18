@@ -23,34 +23,47 @@ if(__get_git_version)
   return()
 endif()
 set(__get_git_version INCLUDED)
-function(get_git_version var1 var2)
+function(get_git_version var1 var2 var3)
   if(GIT_EXECUTABLE)
-      # git describe --tags | sed "s/\-/./g" | rev | cut -d"." -f2-  | rev | tr -d "\n"
+
+      # 1. git describe --tags | sed "s/\-/./g" | rev | cut -d"." -f2-  | rev | tr -d "\n"
       execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags
-          COMMAND sed "s/-/./g"
+          COMMAND sed "s/\-/./g"
           COMMAND rev
           COMMAND cut -d "." -f2- 
           COMMAND rev
           COMMAND tr -d "\n"
-          # COMMAND sed "s/-/+r/;s/-/./g"
           WORKING_DIRECTORY ${OMMP_ROOT_DIR}
           RESULT_VARIABLE status
           OUTPUT_VARIABLE GIT_VERSION
           ERROR_QUIET)
-      
+
       execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:'%h' -n 1
-        COMMAND tr -d "\n"
-        WORKING_DIRECTORY ${OMMP_ROOT_DIR}
-        RESULT_VARIABLE status
-        OUTPUT_VARIABLE GIT_COMMIT
-        ERROR_QUIET
+          COMMAND tr -d "\n"
+          WORKING_DIRECTORY ${OMMP_ROOT_DIR}
+          RESULT_VARIABLE status
+          OUTPUT_VARIABLE GIT_COMMIT
+          ERROR_QUIET
+      )
+
+      # 2. git describe --tags | sed "0,/\-/{s/\-/+/}" | tr -d "\n"
+      execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags
+          COMMAND sed "0,/\-/{s/\-/+/}"
+          COMMAND tr -d "\n"
+          WORKING_DIRECTORY ${OMMP_ROOT_DIR}
+          RESULT_VARIABLE status
+          OUTPUT_VARIABLE GIT_VERSION_INTERNAL
+          ERROR_QUIET
       )
         
   else()
       set(GIT_VERSION "0.0.0.0")
       set(GIT_COMMIT "notfound")
+      set(GIT_VERSION_INTERNAL "0.0.0")
   endif()
+
   message("-- git Version: ${GIT_VERSION}, commit: ${GIT_COMMIT}")
   set(${var1} ${GIT_VERSION} PARENT_SCOPE)
   set(${var2} ${GIT_COMMIT} PARENT_SCOPE)
+  set(${var3} ${GIT_VERSION_INTERNAL} PARENT_SCOPE)
 endfunction()

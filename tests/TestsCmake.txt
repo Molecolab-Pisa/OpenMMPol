@@ -3,6 +3,7 @@ add_test(NAME NMA_AMOEBA_MMP_HDF5_convert
         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/convert_test_to_hdf5.py
         ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_HDF5 ./bin/ommp_pp)
 
+# bin/C_test_SI_init /tests/NMA_amoeba_mmp.json Testing/NMA_AMOEBA_MMP_init.out
 add_test(NAME NMA_AMOEBA_MMP_init
                           COMMAND bin/${TESTLANG}_test_SI_init
                           ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json

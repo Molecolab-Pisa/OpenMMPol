@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.18...3.29)
+include(CMakePrintHelpers)
 
 # Load modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
@@ -7,8 +8,8 @@ include(GetGitVersion)
 
 # Get git version
 set(OMMP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-get_git_version(OMMP_VERSION OMMP_COMMIT)
-
+get_git_version(OMMP_VERSION OMMP_COMMIT OMMP_VERSION_INTERNAL)
+  
 # Define project
 project(
   openmmpol
@@ -166,7 +167,13 @@ endif()
 if(WITH_TESTS)
     message("-- Building with tests")
     enable_testing()
-    # add_subdirectory("tests")
+    # Currently, the test language is set here.
+    # TODO: add an option to config.cmake to choose between C and F03
+    set(TESTLANG "C"
+        CACHE STRING
+        "Language to be used for the test suite,
+        the very same test programs are implemented in C99 (C)
+        and Fortran2003 (F03).")
     include(tests/CMakeLists.txt)
 endif()
 

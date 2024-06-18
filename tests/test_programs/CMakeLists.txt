@@ -18,3 +18,11 @@ target_link_libraries(${TESTLANG}_test_SI_init openmmpol)
 target_link_libraries(${TESTLANG}_test_SI_potential openmmpol)
 target_link_libraries(${TESTLANG}_test_SI_geomgrad openmmpol)
 target_link_libraries(${TESTLANG}_test_SI_geomgrad_num openmmpol)
+
+set_target_properties(${TESTLANG}_test_SI_init
+                      ${TESTLANG}_test_SI_potential
+                      ${TESTLANG}_test_SI_geomgrad
+                      ${TESTLANG}_test_SI_geomgrad_num
+                      PROPERTIES
+                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)

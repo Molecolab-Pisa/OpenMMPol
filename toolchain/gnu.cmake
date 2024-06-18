@@ -4,16 +4,16 @@
 set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
   CACHE STRING "Build type independent Fortran compiler flags")
 
-set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops"
+set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops -fall-intrinsics"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
+set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE} -fall-intrinsics"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-g -Wall -std=f2018 -fbounds-check"
+set(Fortran_FLAGS_DEBUG "-g -Wall -std=f2018 -fbounds-check -fall-intrinsics"
   CACHE STRING "Fortran compiler flags for Debug build")
 
-set(Fortran_FLAGS_COVERAGE "-O0 -g --coverage")
+set(Fortran_FLAGS_COVERAGE "-O0 -g --coverage -fall-intrinsics")
 
 # Use intrinsic Fortran 2008 erf/erfc functions
 set(INTERNAL_ERFC CACHE BOOL 0)
