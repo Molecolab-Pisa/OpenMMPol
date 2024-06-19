@@ -19,13 +19,13 @@
 # Fortran compiler settings
 #
 
-set(Fortran_FLAGS_RELEASE "-O3 -funroll-loops -standard-realloc-lhs -stdf18"
+set(Fortran_FLAGS_RELEASE "-O3 -funroll-loops -standard-realloc-lhs -std18 -fpp"
   CACHE STRING "Fortran compiler flags for Release build")
 
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-g -warn all -stdf18 -check -diag-error-limit 1 -traceback"
+set(Fortran_FLAGS_DEBUG "-g -warn all -std18 -check -diag-error-limit 1 -traceback -fpp"
   CACHE STRING "Fortran compiler flags for Debug build")
 
 # Use intrinsic Fortran 2008 erf/erfc functions

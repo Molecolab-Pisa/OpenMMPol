@@ -21,9 +21,15 @@ module mod_iohdf5
 
    implicit none
    private
-
    public :: save_system_as_hdf5, mmpol_init_from_hdf5
-
+ 
+#ifndef USE_HDF5
+   ! If HDF5 is not used, use
+   ! those placeholders
+   integer, parameter :: hid_t = 8
+   ! integer :: hsize_t = 8
+#endif
+   
    interface hdf5_add_scalar
       ! Write a scalar as an attribute of the group
       module procedure r_hdf5_add_scalar
@@ -64,6 +70,7 @@ module mod_iohdf5
       module procedure l2_hdf5_read_array
    end interface hdf5_read_array
 
+
 contains
 
    ! Subroutines dedicated to HDF5 I/O
@@ -71,16 +78,17 @@ contains
    subroutine r_hdf5_add_scalar(hid, label, scalar)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       real(rp), intent(in) :: scalar
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1), parameter :: dims = [1]
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
+
 
       call H5Screate_f(H5S_SCALAR_F, cur_dsp, eflag)
 
@@ -89,21 +97,21 @@ contains
          H5T_RP, &
          cur_dsp, cur_dst, eflag)
       call H5Awrite_f(cur_dst, H5T_RP, scalar, dims, eflag)
-#else
-      call raise_error("openmmpol is compiled without HDF5 support")
+#else 
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i_hdf5_add_scalar(hid, label, scalar)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       integer(ip), intent(in) :: scalar
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1), parameter :: dims = [1]
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -115,7 +123,7 @@ contains
          cur_dsp, cur_dst, eflag)
       call H5Awrite_f(cur_dst, H5T_IP, scalar, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
 
    end subroutine
@@ -123,13 +131,13 @@ contains
    subroutine l_hdf5_add_scalar(hid, label, scalar)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       logical(lp), intent(in) :: scalar
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1), parameter :: dims = [1]
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -145,7 +153,7 @@ contains
          call H5Awrite_f(cur_dst, H5T_LP, 0, dims, eflag)
       end if
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
 
    end subroutine
@@ -153,13 +161,13 @@ contains
    subroutine r1_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       real(rp), intent(in), dimension(:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -172,20 +180,20 @@ contains
          cur_dsp, cur_dst, eflag)
       call h5dwrite_f(cur_dst, H5T_RP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine r2_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       real(rp), intent(in), dimension(:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(2) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -198,20 +206,20 @@ contains
          cur_dsp, cur_dst, eflag)
       call h5dwrite_f(cur_dst, H5T_RP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine r3_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       real(rp), intent(in), dimension(:,:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(3) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -224,20 +232,20 @@ contains
          cur_dsp, cur_dst, eflag)
       call h5dwrite_f(cur_dst, H5T_RP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i1_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       integer(ip), intent(in), dimension(:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -250,20 +258,20 @@ contains
          cur_dsp, cur_dst, eflag)
       call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i2_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       integer(ip), intent(in), dimension(:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(2) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -276,20 +284,20 @@ contains
          cur_dsp, cur_dst, eflag)
       call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i3_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       integer(ip), intent(in), dimension(:,:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(3) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -302,20 +310,20 @@ contains
          cur_dsp, cur_dst, eflag)
       call h5dwrite_f(cur_dst, H5T_IP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine l1_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       logical(lp), intent(in), dimension(:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -343,20 +351,20 @@ contains
 
       deallocate(tmp)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine l2_hdf5_add_array(hid, label, v)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: label
       logical(lp), intent(in), dimension(:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(2) :: dims
       integer(hid_t) :: cur_dst, cur_dsp
       integer(kind=4) :: eflag
@@ -384,20 +392,20 @@ contains
       call h5dwrite_f(cur_dst, H5T_LP, tmp, dims, eflag)
       deallocate(tmp)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    function hdf5_array_len(hid, dataset_name)
 #ifdef USE_HDF5
       use hdf5
-
+#endif
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       integer(ip) :: hdf5_array_len
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(4) :: dims, maxdims
       integer(ip) :: rank
       integer(hid_t) :: dataset, dataspace
@@ -409,13 +417,14 @@ contains
       call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, eflag)
       hdf5_array_len = int(dims(rank), kind=ip)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end function
 
    subroutine r1_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only: mallocate
 
@@ -424,7 +433,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       real(rp), allocatable, dimension(:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -441,13 +450,14 @@ contains
       end if
       call h5dread_f(dataset, H5T_RP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine r2_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only: mallocate
 
@@ -456,7 +466,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       real(rp), allocatable, dimension(:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(2) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -475,13 +485,14 @@ contains
       end if
       call h5dread_f(dataset, H5T_RP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine r3_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only: mallocate
 
@@ -490,7 +501,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       real(rp), allocatable, dimension(:,:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(3) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -510,13 +521,14 @@ contains
       end if
       call h5dread_f(dataset, H5T_RP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i1_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only: mallocate
 
@@ -525,7 +537,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       integer(ip), allocatable, dimension(:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -542,13 +554,14 @@ contains
       end if
       call h5dread_f(dataset, H5T_IP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i2_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only:  mallocate
 
@@ -557,7 +570,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       integer(ip), allocatable, dimension(:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(2) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -576,13 +589,14 @@ contains
       end if
       call h5dread_f(dataset, H5T_IP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i3_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only: mallocate
 
@@ -591,7 +605,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       integer(ip), allocatable, dimension(:,:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(3) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -611,13 +625,14 @@ contains
       end if
       call h5dread_f(dataset, H5T_IP, v, dims, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine l1_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only: mallocate
 
@@ -626,7 +641,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       logical(lp), allocatable, dimension(:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -657,13 +672,14 @@ contains
 
       deallocate(tmp)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine l2_hdf5_read_array(hid, dataset_name, v)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_mmpol, only: fatal_error
       use mod_memory, only:  mallocate
 
@@ -672,7 +688,7 @@ contains
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: dataset_name
       logical(lp), allocatable, dimension(:,:) :: v
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(2) :: dims, maxdims
       integer(hid_t) :: dataset, dataspace
       integer(kind=4) :: eflag
@@ -708,20 +724,21 @@ contains
 
       deallocate(tmp)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine r_hdf5_read_scalar(hid, location, attname, s)
 #ifdef USE_HDF5
       use hdf5
+#endif
 
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: location, attname
       real(rp) :: s
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1), parameter :: dims = [1]
       integer(kind=4) :: eflag
       integer(hid_t) :: att_id, dataset
@@ -731,20 +748,21 @@ contains
       call H5Aread_f(att_id, H5T_RP, s, dims, eflag)
       call h5gclose_f(dataset, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine i_hdf5_read_scalar(hid, location, attname, s)
 #ifdef USE_HDF5
       use hdf5
+#endif
 
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: location, attname
       integer(ip) :: s
-
+#ifdef USE_HDF5
       integer(hsize_t), dimension(1), parameter :: dims = [1]
       integer(kind=4) :: eflag
       integer(hid_t) :: att_id, dataset
@@ -754,21 +772,22 @@ contains
       call H5Aread_f(att_id, H5T_IP, s, dims, eflag)
       call h5gclose_f(dataset, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine l_hdf5_read_scalar(hid, location, attname, s)
 #ifdef USE_HDF5
       use hdf5
+#endif
 
       implicit none
 
       integer(hid_t), intent(in) :: hid
       character(len=*), intent(in) :: location, attname
-      integer(c_int8_t) :: is
       logical(lp) :: s
-
+#ifdef USE_HDF5
+      integer(c_int8_t) :: is
       integer(hsize_t), dimension(1), parameter :: dims = [1]
       integer(kind=4) :: eflag
       integer(hid_t) :: att_id, dataset
@@ -783,12 +802,11 @@ contains
          s = .true.
       end if
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    function hdf5_name_exists(hid, location) result(exists)
-#ifdef USE_HDF5
       implicit none
 
       integer(hid_t), intent(in) :: hid
@@ -796,24 +814,24 @@ contains
       logical :: exists
 
       integer(kind=4) :: eflag
-
+#ifdef USE_HDF5
       call h5lexists_f(hid, location, exists, eflag)
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end function
 
    subroutine save_system_as_hdf5(filename, s, out_fail, &
       namespace, &
       mutable_only)
-#ifdef USE_HDF5
+
       implicit none
 
       character(len=*), intent(in) :: filename, namespace
       type(ommp_system), intent(in) :: s
       integer(ip), intent(out) :: out_fail
       logical(lp), intent(in) :: mutable_only
-
+#ifdef USE_HDF5
       integer(hid_t) :: hg
       integer(kind=4) :: eflag
       integer(hid_t) :: iof_hdf5 = 301
@@ -851,7 +869,7 @@ contains
       ! TODO Handle more complex cases like a/b/c in namespace
       call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while creating group.&
+         call ommp_message("fatal_error while creating group.&
          &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -876,7 +894,7 @@ contains
 
       call h5fclose_f(iof_hdf5, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while closing HDF5 file. Failure in &
+         call ommp_message("fatal_error while closing HDF5 file. Failure in &
          &h5fclose_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -884,14 +902,14 @@ contains
 
       out_fail = 0_ip
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine save_topology_as_hdf5(iof_hdf5, top, out_fail, &
       namespace, &
       mutable_only)
-#ifdef USE_HDF5
+
       implicit none
 
       integer(hid_t) :: iof_hdf5
@@ -899,13 +917,13 @@ contains
       type(ommp_topology_type), intent(in) :: top
       integer(ip), intent(out) :: out_fail
       logical(lp), intent(in) :: mutable_only
-
+#ifdef USE_HDF5
       integer(hid_t) :: hg, hg_cur
       integer(kind=4) :: eflag
 
       call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while creating group 'system model.'&
+         call ommp_message("fatal_error while creating group 'system model.'&
          &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -930,14 +948,13 @@ contains
 
       out_fail = 0_ip
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine save_electrostatics_as_hdf5(iof_hdf5, eel, out_fail, &
       namespace, &
       mutable_only)
-#ifdef USE_HDF5
 
       use mod_memory, only: mallocate, mfree
       implicit none
@@ -947,14 +964,14 @@ contains
       type(ommp_electrostatics_type), intent(in) :: eel
       integer(ip), intent(out) :: out_fail
       logical(lp), intent(in) :: mutable_only
-
+#ifdef USE_HDF5
       integer(hid_t) :: hg, listg
       integer(kind=4) :: eflag
       real(rp), allocatable :: tmp_q0(:, :)
 
       call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while creating group. &
+         call ommp_message("fatal_error while creating group. &
          &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -1003,7 +1020,7 @@ contains
          if(eel%screening_list_done) then
             call h5gcreate_f(iof_hdf5, namespace//"/screening_lists", listg, eflag)
             if( eflag /= 0) then
-               call ommp_message("raise_error while creating group. &
+               call ommp_message("fatal_error while creating group. &
                &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
                out_fail = -1_ip
                return
@@ -1060,14 +1077,14 @@ contains
 
       out_fail = 0_ip
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine save_nonbonded_as_hdf5(iof_hdf5, vdw, out_fail, &
       namespace, &
       mutable_only)
-#ifdef USE_HDF5
+
       implicit none
 
       integer(hid_t) :: iof_hdf5
@@ -1075,13 +1092,13 @@ contains
       type(ommp_nonbonded_type), intent(in) :: vdw
       integer(ip), intent(out) :: out_fail
       logical(lp), intent(in) :: mutable_only
-
+#ifdef USE_HDF5
       integer(hid_t) :: hg
       integer(kind=4) :: eflag
 
       call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while creating group. &
+         call ommp_message("fatal_error while creating group. &
          &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -1110,14 +1127,14 @@ contains
 
       out_fail = 0_ip
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine save_bonded_as_hdf5(iof_hdf5, bds, out_fail, &
       namespace, &
       mutable_only)
-#ifdef USE_HDF5
+
       implicit none
 
       integer(hid_t) :: iof_hdf5
@@ -1125,13 +1142,13 @@ contains
       type(ommp_bonded_type), intent(in) :: bds
       integer(ip), intent(out) :: out_fail
       logical(lp), intent(in) :: mutable_only
-
+#ifdef USE_HDF5
       integer(hid_t) :: hg, hg_cur_bp
       integer(kind=4) :: eflag
 
       call h5gcreate_f(iof_hdf5, namespace, hg, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while creating group. &
+         call ommp_message("fatal_error while creating group. &
          &Failure in h5gcreate_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -1274,13 +1291,14 @@ contains
 
       out_fail = 0_ip
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine
 
    subroutine mmpol_init_from_hdf5(filename, namespace, s, out_fail)
 #ifdef USE_HDF5
       use hdf5
+#endif
       use mod_adjacency_mat, only: build_conn_upto_n, yale_sparse
       use mod_io, only: ommp_message
       use mod_memory, only: mfree, mallocate
@@ -1299,7 +1317,7 @@ contains
       type(ommp_system), intent(inout), target :: s
       character(len=*), intent(in) :: filename
       integer(ip), intent(out) :: out_fail
-
+#ifdef USE_HDF5
       integer(hid_t) :: iof_hdf5 = 301
       integer(kind=4) :: eflag
       real(rp), dimension(:), allocatable :: l_mscale, l_pscale, l_dscale, &
@@ -1857,7 +1875,7 @@ contains
 
       call h5fclose_f(iof_hdf5, eflag)
       if( eflag /= 0) then
-         call ommp_message("raise_error while closing HDF5 file. Failure in &
+         call ommp_message("fatal_error while closing HDF5 file. Failure in &
          &h5fclose_f subroutine.", OMMP_VERBOSE_LOW)
          out_fail = -1_ip
          return
@@ -1867,17 +1885,9 @@ contains
 
       out_fail = 0_ip
 #else
-      call raise_error("openmmpol is compiled without HDF5 support")
+      call fatal_error("openmmpol is compiled without HDF5 support")
 #endif
    end subroutine mmpol_init_from_hdf5
-
-   subroutine raise_error(message)
-      character (len=*), intent(in) :: message
-
-      write(*, *) message
-      error stop
-
-   end subroutine raise_error
 
 end module mod_iohdf5
 
