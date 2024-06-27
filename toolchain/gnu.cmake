@@ -35,7 +35,7 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 
 set(C_FLAGS_COVERAGE "-O0 -g --coverage")
 
-if(${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 8.0)
-    set(OpenMP_Fortran_FLAGS "-fopenmp")
-    set(OpenMP_Fortran_LIB_NAMES "${OpenMP_C_LIB_NAMES}")
-endif()
+# if(${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 8.0)
+#     set(OpenMP_Fortran_FLAGS "-fopenmp")
+#     set(OpenMP_Fortran_LIB_NAMES "${OpenMP_C_LIB_NAMES}")
+# endif()

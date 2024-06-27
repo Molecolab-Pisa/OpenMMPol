@@ -19,9 +19,6 @@ include(GNUInstallDirs)
 
 add_subdirectory("config")
 get_config_arguments()
-setup_build_type()
-load_toolchain_settings()
-setup_global_compiler_flags()
 
 set(
   lib-deps
@@ -57,6 +54,10 @@ if(NOT TARGET OpenSSL::SSL)
 endif()
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
+
+setup_build_type()
+load_toolchain_settings()
+setup_global_compiler_flags()
 
 # Collect sources of the project
 set(srcs)
