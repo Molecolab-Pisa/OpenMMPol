@@ -215,7 +215,7 @@ cython_debug/
 .idea/
 
 # VSCode
-.vscode
+.vscode/
 
 # Custom build options file
 custom.cmake
