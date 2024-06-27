@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "*.in": "c",
-        "openmmpol.h": "c"
-    }
-}
