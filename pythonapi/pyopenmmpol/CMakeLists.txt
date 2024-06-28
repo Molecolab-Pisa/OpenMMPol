@@ -12,6 +12,7 @@ set_target_properties(
    SOVERSION "${PROJECT_VERSION_MAJOR}"
  )
  
- target_link_libraries("py${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}")
+target_link_libraries("py${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}")
 
- file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+configure_file(__version__.py.in ${CMAKE_CURRENT_BINARY_DIR}/__version__.py @ONLY)

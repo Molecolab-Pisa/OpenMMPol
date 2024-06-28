@@ -1,6 +1,6 @@
 include(CMakeFindDependencyMacro)
 
-find_dependency(OpenMP REQUIRED)
+find_dependency(OpenMP REQUIRED COMPONENTS Fortran)
 find_dependency(LAPACK REQUIRED)
 find_dependency(cJSON REQUIRED)
 find_dependency(OpenSSL REQUIRED)
