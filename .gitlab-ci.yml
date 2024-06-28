@@ -87,7 +87,6 @@ compile-C:
     script:
         - cd build
         - make C_test_programs
-        - make utility_programs
     artifacts:
         paths:
             - build/bin
@@ -130,7 +129,6 @@ compile-C-intel:
     script:
         - cd build_intel
         - make C_test_programs
-        - make utility_programs
     artifacts:
         paths:
             - build_intel/bin
@@ -177,7 +175,6 @@ compile-C-nvidia:
     script:
         - cd build_nvidia
         - make C_test_programs
-        - make utility_programs
     artifacts:
         paths:
             - build_nvidia/bin
