@@ -60,7 +60,7 @@ cmake-config-nvidia:
     script:
         - mkdir build_nvidia
         - cd build_nvidia
-        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/nvidia/hdf5-1.12.2 ..
+        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
     artifacts:
         paths:
             - build_nvidia
