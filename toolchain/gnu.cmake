@@ -1,7 +1,7 @@
 #
 # Fortran compiler settings
 #
-set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fno-realloc-lhs -fall-intrinsics -Wall -Wextra -pedantic"
+set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2008ts -fno-realloc-lhs -fall-intrinsics -Wall -Wextra -pedantic"
   CACHE STRING "Build type independent Fortran compiler flags")
 
 set(Fortran_FLAGS_RELEASE "-O3 -funroll-all-loops"
