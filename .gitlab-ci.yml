@@ -87,9 +87,11 @@ compile-C:
     script:
         - cd build
         - make C_test_programs
+        - make openmmpol_utils
     artifacts:
         paths:
             - build/bin
+            - build/app
     only:
         - pushes
         - schedules
@@ -129,9 +131,11 @@ compile-C-intel:
     script:
         - cd build_intel
         - make C_test_programs
+        - make openmmpol_utils
     artifacts:
         paths:
             - build_intel/bin
+            - build_intel/app
     only:
         - schedules
 
@@ -175,9 +179,11 @@ compile-C-nvidia:
     script:
         - cd build_nvidia
         - make C_test_programs
+        - make openmmpol_utils
     artifacts:
         paths:
             - build_nvidia/bin
+            - build_nvidia/app
     only:
         - schedules
 
