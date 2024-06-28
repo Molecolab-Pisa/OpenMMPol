@@ -18,6 +18,13 @@ set_target_properties(C_test_SI_init
                     PROPERTIES
                     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+# CI custom targets; do not touch
+add_custom_target(C_test_programs DEPENDS C_test_SI_init
+                                          C_test_SI_potential
+                                          C_test_SI_geomgrad
+                                          C_test_SI_geomgrad_num)
+
+
 # Add executable targets
 # add_executable(F03_test_SI_init "tests/test_programs/F03/test_SI_init.f90")
 # add_executable(F03_test_SI_potential "tests/test_programs/F03/test_SI_potential.f90")
