@@ -19,9 +19,6 @@ include(GNUInstallDirs)
 
 add_subdirectory("config")
 get_config_arguments()
-setup_build_type()
-load_toolchain_settings()
-setup_global_compiler_flags()
 
 set(
   lib-deps
@@ -33,12 +30,6 @@ set(
 
 if(NOT TARGET OpenMP::OpenMP_Fortran)
   find_package(OpenMP REQUIRED)
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
-    if(${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 8.0)
-      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
-      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
-    endif()
-  endif()
 endif()
 
 if(NOT TARGET LAPACK::LAPACK)
@@ -63,6 +54,10 @@ if(NOT TARGET OpenSSL::SSL)
 endif()
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
+
+setup_build_type()
+load_toolchain_settings()
+setup_global_compiler_flags()
 
 # Collect sources of the project
 set(srcs)
