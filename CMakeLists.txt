@@ -29,7 +29,7 @@ set(
 )
 
 if(NOT TARGET OpenMP::OpenMP_Fortran)
-  find_package(OpenMP REQUIRED)
+  find_package(OpenMP REQUIRED COMPONENTS Fortran)
 endif()
 
 if(NOT TARGET LAPACK::LAPACK)
