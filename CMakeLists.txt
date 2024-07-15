@@ -63,37 +63,37 @@ include_directories(${CMAKE_BINARY_DIR}/include) # Directory for .h files
 message(NOTICE "Version string ${OMMP_VERSION}")
 
 set(LIBRARY_SRC
-    src/fast_multipoles/mod_fmm.f90
-    src/fast_multipoles/mod_fmm_interface.f90
-    src/fast_multipoles/mod_fmm_utils.f90
-    src/fast_multipoles/mod_harmonics.f90
-    src/fast_multipoles/mod_octatree.f90
-    src/fast_multipoles/mod_ribtree.f90
-    src/fast_multipoles/mod_tree.f90
-    src/mod_adjacency_mat.f90
-    src/mod_bonded.f90
-    src/mod_constants.f90
-    src/mod_c_interface.f90
-    src/mod_electrostatics.f90
-    src/mod_geomgrad.f90
-    src/mod_inputloader.f90
-    src/mod_interface.f90
-    src/mod_io.f90
-    src/mod_iohdf5.f90
-    src/mod_jacobian_mat.f90
-    src/mod_link_atom.f90
-    src/mod_memory.f90
-    src/mod_mmpol.f90
-    src/mod_neighbors_list.f90
-    src/mod_nonbonded.f90
-    src/mod_polarization.f90
-    src/mod_prm.f90
-    src/mod_profiling.f90
-    src/mod_qm_helper.f90
-    src/mod_solvers.f90
-    src/mod_topology.f90
-    src/mod_utils.f90
-    src/rotate_multipoles.f90
+    src/fast_multipoles/mod_fmm.F90
+    src/fast_multipoles/mod_fmm_interface.F90
+    src/fast_multipoles/mod_fmm_utils.F90
+    src/fast_multipoles/mod_harmonics.F90
+    src/fast_multipoles/mod_octatree.F90
+    src/fast_multipoles/mod_ribtree.F90
+    src/fast_multipoles/mod_tree.F90
+    src/mod_adjacency_mat.F90
+    src/mod_bonded.F90
+    src/mod_constants.F90
+    src/mod_c_interface.F90
+    src/mod_electrostatics.F90
+    src/mod_geomgrad.F90
+    src/mod_inputloader.F90
+    src/mod_interface.F90
+    src/mod_io.F90
+    src/mod_iohdf5.F90
+    src/mod_jacobian_mat.F90
+    src/mod_link_atom.F90
+    src/mod_memory.F90
+    src/mod_mmpol.F90
+    src/mod_neighbors_list.F90
+    src/mod_nonbonded.F90
+    src/mod_polarization.F90
+    src/mod_prm.F90
+    src/mod_profiling.F90
+    src/mod_qm_helper.F90
+    src/mod_solvers.F90
+    src/mod_topology.F90
+    src/mod_utils.F90
+    src/rotate_multipoles.F90
     src/smartinput.c)
     
 # Enable preprocessor for Fortran
@@ -126,7 +126,8 @@ if(NOT PYTHON)
         set(CMAKE_REQUIRED_LIBRARIES ${HDF5_Fortran_LIBRARIES})
         include(CheckFortranSourceCompiles)
         check_fortran_source_compiles("program test_hdf5; use hdf5; integer(hid_t) :: test; integer(kind=4) :: eflag; call h5open_f(eflag); end"
-                                      HDF5_WORKS SRC_EXT .f90)
+            HDF5_WORKS SRC_EXT .F90
+    )
         if (HDF5_WORKS)
             add_definitions(-DUSE_HDF5)
         endif() 
