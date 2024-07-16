@@ -1,0 +1,50 @@
+[project]
+name = "pyopenmmpol"
+description = "Python interface of OpenMMPol library"
+
+authors = [
+  {name = "Mattia Bondanza", email = "mattia.bondanza@unipi.it"},
+  {name = "Filippo Lipparini", email = "filippo.lipparini@unipi.it"},
+  {name = "Benedetta Mennucci", email = "benedetta.mennucci@unipi.it"},
+]
+license = {text = "LGPL v3"}
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+]
+
+dependencies = [
+  "numpy >= 1.17",
+]
+
+dynamic = [
+  "version",
+]
+
+requires-python = ">=3.7"
+
+[project.urls]
+"Homepage" = "https://github.com/Molecolab-Pisa/OpenMMPol"
+"Bug Tracker" = "https://github.com/Molecolab-Pisa/OpenMMPol/issues"
+
+[build-system]
+build-backend = "hatchling.build"
+requires = [
+  "hatchling>=1.4.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyopenmmpol"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "build",
+]
+
+[tool.hatch.build]
+include = [
+  "pyopenmmpol/*.so",
+]
+
+[tool.hatch.version]
+path = "pyopenmmpol/__version__.py"

@@ -7,7 +7,7 @@
 int main(int argc, char **argv){
     if(argc != 3){
         printf("Syntax expected\n");
-        printf("    $ ommp_pp <JSON SI FILE> <OMMP HDF5 INPUT FILE>\n");
+        printf("    $ ommp_pp <JSON SI FILE> <OMMP HDF5 OUTPUT FILE>\n");
         return 0;
     }
     

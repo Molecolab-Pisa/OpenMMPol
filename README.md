@@ -35,6 +35,11 @@ In non-git release the version identifier can be hard-coded in ``include/version
 ## Citing OpenMMPol
 Please cite the following papers if you use the library:
 
+[The OpenMMPol library for polarizable QM/MM calculations of properties and dynamics](https://doi.org/10.1063/5.0198251)
+M. Bondanza, T. Nottoli, M. Nottoli, L. Cupellini, F. Lipparini and B. Mennucci
+J. Chem. Phys. 160, 134106 (2024)
+doi:10.1063/5.0198251
+
 [Polarizable embedding QM/MM: the future gold standard for complex (bio)systems?](https://doi.org/10.1039/D0CP02119A)
 M. Bondanza, M. Nottoli, L. Cupellini, F. Lipparini and B. Mennucci
 Phys. Chem. Chem. Phys. 22, 14433-14448 (2020)
@@ -45,47 +50,70 @@ J. Chem. Theory Comput. 12, 3654-3661 (2016)
 D. Loco, É. Polack, S. Caprasecca, L. Lagardère, F. Lipparini, J.-P. Piquemal and B. Mennucci
 doi:10.1021/acs.jctc.6b00385
 
+
+## Contributions
+### Core Developers
+[Mattia Bondanza](https://orcid.org/0000-0001-6254-3957)
+
+[Tommaso Nottoli](https://orcid.org/0000-0002-9543-6127)
+
+[Michele Nottoli](https://orcid.org/0000-0002-6544-0897)
+
+[Filippo Lipparini](https://orcid.org/0000-0002-4947-3912)
+
+[Benedetta Mennucci](https://orcid.org/0000-0002-4394-0129)
+
+### Community Contributions
+[Alexander Maryewski](https://orcid.org/0000-0002-7390-1075) - Reviewed build system
+
 ## Dependencies and Quick Installation
 
 To build and install the package, you just need a compiler that supports standard Fortran2008ts (currently the 
-library is tested with `gnu 7.5.0`, `intel 2021.7.0` and `nvidia 10.2.89`), cmake >= 3.20, 
-lapack libraries and optionally hdf5 library.
+library is tested with `gnu 7.5.0`, `intel 2024.2.0` and `nvidia 24.5.1`), cmake >= 3.20, 
+lapack, openSSL, openMP, cJSON libraries and optionally HDF5 library.
 
 To install the requirements on OpenSuse Leap just use the following command:
 
-``zypper in gcc gcc-c++ gcc-fortran make cmake python lapack-devel liblapack3 hdf5 hdf5-devel zlib-devel``
+``zypper in cJSON-devel gcc gcc-c++ gcc-fortran make cmake python lapack-devel liblapack3 hdf5 hdf5-devel zlib-devel``
 
-To build the package, just use cmake in the standard way; from the root directory of the git repository:
+To build the package, create a customized copy of ``config.cmake`` and edit it according to your needs:
 
-``$ mkdir build``
+``$ cp config.cmake custom.cmake``
+
+Then just use cmake to build the project:
+
+``$ cmake [-C custom.cmake] -B build``
   
-``$ cd build``
-  
-``$ cmake ..``
+``$ cmake --build -B build -j``
 
 At configuration time you can control several build options:
 
-``-DCMAKE_BUILD_TYPE=<RELEASE|DEBUG> # to control the compiler flags (debug generate a much slower code with a more strict control)``
+``-DCMAKE_BUILD_TYPE=<Debug|Release|RelWithDebInfo|Coverage> # to control the compiler flags (debug generate a much slower code with a more strict control)``
 
 ``-CMAKE_INSTALL_PREFIX=<PATH_TO_INSTALL> # eg. / /usr /usr/local /home/user/.local etc.``
 
-``-DTESTLANG=<C|F03> # Language for the test programs used in make test / ctest``
+``-DTESTLANG=<C|F03> # Tests are run with the programs implemented in the selected language``
   
 ``-DCMAKE_C_COMPILER -DCMAKE_CXX_COMPILER -DCMAKE_Fortran_COMPILER # Compilers to be used; eg. to use intel/nvidia compilers instead of defaults``
 
-Once configured you can build the library with
-
-``$ make``
-
 And install it with:
 
-``$ make install``
+``$ cmake --install build``
 
 To compile the python module you need the pybind11 package and numpy; to install those
 requirements on  OpenSuse Leap use:
 
 ``zypper in python-pybind11-common-devel python3-numpy python3-pybind11 python3-pybind11-devel``
 
-To compile and install the python packge, from the root of repository, just use:
+To compile and install the python packge, enable python in your cmake configuration (eg. editing config.cmake).
+Then build the program as before: the make install package will also install the python package in your current
+python directory. If you want to install just the Python package and skip all the other parts of installation, use the
+following installation command:
 
-``pip install .`` 
+``cmake --install <NAME-OF-BUILD-DIRECTORY> --component Python``
+
+You can also build Python packages (after installing build package) using:
+
+``make PythonPackage``
+
+from the build directory; this will generate the ``.tar.gz`` and ``.whl`` packages in ``pythonapi/dist``.

@@ -14,10 +14,10 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
     basename = data['name']
 
     if jsonfile not in converted_to_hdf5:
-        print("""if (HDF5_WORKS)
+        print("""if (WITH_HDF5)
                     add_test(NAME {:s}_HDF5_convert
                             COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/convert_test_to_hdf5.py
-                            ${{CMAKE_SOURCE_DIR}}/tests/{:s} Testing/{:s}_HDF5 ./bin/ommp_pp)
+                            ${{CMAKE_SOURCE_DIR}}/tests/{:s} Testing/{:s}_HDF5 ./app/ommp_pp)
                  endif ()""".format(basename, jsonfile, basename), file=fout)
         converted_to_hdf5[jsonfile] = 'Testing/{:s}_HDF5.json'.format(basename)
 
@@ -34,17 +34,21 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           Testing/{:s}
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s})""".format(tname, tout, ref),
               file=fout)
-        print("if (HDF5_WORKS)", file=fout)
+        print("""set_tests_properties({:s}_comp PROPERTIES DEPENDS {:s})""".format(tname, tname), file=fout)
+        
+        print("if (WITH_HDF5)", file=fout)
         print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_init
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname, converted_to_hdf5[jsonfile], tout),
               file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname, basename), file=fout)
         print("""add_test(NAME {:s}_comp_HDF5
                           COMMAND ${{CMAKE_COMMAND}} -E compare_files
                           Testing/{:s}_HDF5
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s})""".format(tname, tout, ref),
               file=fout)
+        print("""set_tests_properties({:s}_comp_HDF5 PROPERTIES DEPENDS {:s}_HDF5)""".format(tname, tname), file=fout)
         print("endif ()", file=fout)
     elif program == "energy":
         if atol is None:
@@ -71,18 +75,22 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
-        print("if (HDF5_WORKS)", file=fout)
+        print("""set_tests_properties({:s}_comp PROPERTIES DEPENDS {:s})""".format(tname, tname), file=fout)
+        
+        print("if (WITH_HDF5)", file=fout)
         print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_potential
                           {:s}
                           Testing/{:s}_HDF5 {:s})""".format(tname, converted_to_hdf5[jsonfile], tout, ef_str),
               file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname, basename), file=fout)
         print("""add_test(NAME {:s}_comp_HDF5
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_potential.py
                           Testing/{:s}_HDF5
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
+        print("""set_tests_properties({:s}_comp_HDF5 PROPERTIES DEPENDS {:s}_HDF5)""".format(tname, tname), file=fout)
         print("endif ()", file=fout)
     elif program == "ipd":
         if atol is None:
@@ -109,6 +117,7 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout, ref, rtol, atol),
               file=fout)
+        print("""set_tests_properties({:s}_comp PROPERTIES DEPENDS {:s})""".format(tname, tname), file=fout)
     elif program == "grad-num":
         if atol is None:
             atol = atol_grad
@@ -141,23 +150,28 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                           Testing/{:s}
                           {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
               file=fout)
-        print("if (HDF5_WORKS)", file=fout)
+        print("""set_tests_properties({:s}_comp_num_ana PROPERTIES DEPENDS \"{:s};{:s}\")""".format(tname, tname_ana, tname_num), file=fout)
+
+        print("if (WITH_HDF5)", file=fout)
         print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad_num
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname_num, converted_to_hdf5[jsonfile], tout_num),
               file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname_num, basename), file=fout)
         print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
               file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname_ana, basename), file=fout)
         print("""add_test(NAME {:s}_comp_num_ana_HDF5
                           COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                           Testing/{:s}_HDF5
                           Testing/{:s}_HDF5
                           {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
               file=fout)
+        print("""set_tests_properties({:s}_comp_num_ana_HDF5 PROPERTIES DEPENDS \"{:s}_HDF5;{:s}_HDF5\")""".format(tname, tname_ana, tname_num), file=fout)
         print("endif ()", file=fout)
         if doref:
             print("""add_test(NAME {:s}_comp_ana_ref
@@ -166,12 +180,14 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                             ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                             {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
                 file=fout)
+            print("""set_tests_properties({:s}_comp_ana_ref PROPERTIES DEPENDS {:s})""".format(tname, tname_ana), file=fout)
             print("""add_test(NAME {:s}_comp_num_ref
                             COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                             Testing/{:s}
                             ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                             {:6.5g} {:6.5g})""".format(tname, tout_num, ref, rtol, atol),
                 file=fout)
+            print("""set_tests_properties({:s}_comp_num_ref PROPERTIES DEPENDS {:s})""".format(tname, tname_num), file=fout)
     elif program == "grad":
         if atol is None:
             atol = atol_grad
@@ -194,18 +210,22 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                         ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                         {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
             file=fout)
-        print("if (HDF5_WORKS)", file=fout)
+        print("""set_tests_properties({:s}_comp_ana_ref PROPERTIES DEPENDS {:s})""".format(tname, tname_ana), file=fout)
+        
+        print("if (WITH_HDF5)", file=fout)
         print("""add_test(NAME {:s}_HDF5
                           COMMAND bin/${{TESTLANG}}_test_SI_geomgrad
                           {:s}
                           Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
               file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname_ana, basename), file=fout)
         print("""add_test(NAME {:s}_comp_ana_ref_HDF5
                         COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomgrad.py
                         Testing/{:s}
                         ${{CMAKE_SOURCE_DIR}}/tests/{:s}
                         {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
             file=fout)
+        print("""set_tests_properties({:s}_comp_ana_ref_HDF5 PROPERTIES DEPENDS {:s}_HDF5)""".format(tname, tname_ana), file=fout)
         print("endif ()", file=fout)
     else:
         print("message(FATAL_ERROR, \"Automatically generated test {:s} cannot be understood\")".format(program), file=fout)

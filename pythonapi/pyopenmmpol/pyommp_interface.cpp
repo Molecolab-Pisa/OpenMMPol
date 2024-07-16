@@ -1331,7 +1331,7 @@ py::list smartinput(std::string json_file){
     return res;
 }
 
-PYBIND11_MODULE(pyopenmmpol, m){
+PYBIND11_MODULE(__pyopenmmpol, m){
     m.def("set_verbose", &set_verbose);
     m.def("time_push", &time_push);
     m.def("time_pull", &time_pull);

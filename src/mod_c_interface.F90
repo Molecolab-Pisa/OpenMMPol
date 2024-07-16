@@ -863,7 +863,7 @@ module mod_ommp_C_interface
             call ommp_full_geomgrad(s, grd)
         end subroutine
 
-#ifdef USE_HDF5
+#ifdef WITH_HDF5
         function C_ommp_init_hdf5(filename, namespace) &
                 result(c_prt) bind(c, name='ommp_init_hdf5')
             !! This function is an interface for saving an HDF5 file 
