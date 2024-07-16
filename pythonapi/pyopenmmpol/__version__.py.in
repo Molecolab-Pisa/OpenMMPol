@@ -1,0 +1,1 @@
+__version__ = "@OMMP_VERSION_INTERNAL@"

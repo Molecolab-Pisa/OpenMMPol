@@ -1,4 +1,4 @@
-module test_geomgrad
+module test_geomgrad_num
     use ommp_interface
 
     abstract interface
@@ -210,7 +210,7 @@ end module
 program test_SI_geomgrad_num
     use iso_c_binding, only: c_char
     use ommp_interface
-    use test_geomgrad
+    use test_geomgrad_num
 
     implicit none
     character(kind=c_char, len=120), dimension(3) :: args

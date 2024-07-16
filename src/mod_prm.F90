@@ -29,7 +29,7 @@ module mod_prm
 
     contains 
     
-#include "prm_keywords.f90"
+#include "prm_keywords.F90"
 
     function get_prm_ff_type(prm_buf) result(ff_type)
         !! This function is intended to check if the ff described by prm_type
@@ -92,6 +92,7 @@ module mod_prm
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip) :: natype
         integer(ip), allocatable, dimension(:) :: typez, typeclass
+        real(rp), allocatable, dimension(:) :: typemass
 
 
         if(.not. top%attype_initialized) then
@@ -117,9 +118,11 @@ module mod_prm
         end do
        
         call mallocate('read_prm [typeclass]', natype, typeclass)
-        call mallocate('read_prm [atz]', natype, typez)
+        call mallocate('read_prm [typez]', natype, typez)
+        call mallocate('read_prm [typemass]', natype, typemass)
         typeclass = 0
         typez = 0
+        typemass = 0.0
 
         ! Restart the reading from the beginning to actually save the parameters
         do il=1, size(prm_buf) 
@@ -154,6 +157,10 @@ module mod_prm
                 tokb = toke+1
                 toke = tokenize(line, tokb)
                 read(line(tokb:toke), *) typez(iat)
+                
+                tokb = toke+1
+                toke = tokenize(line, tokb)
+                read(line(tokb:toke), *) typemass(iat)
 
                 ! Only partial reading of ATOM card is needed for now.
             end if
@@ -168,13 +175,19 @@ module mod_prm
             if(.not. top%atz_initialized) then
                 top%atz(i) = typez(top%attype(i)) 
             end if
+            
+            if(.not. top%atmass_initialized) then
+                top%atmass(i) = typemass(top%attype(i)) 
+            end if
         end do
         
         top%atclass_initialized = .true.
         top%atz_initialized = .true.
+        top%atmass_initialized = .true.
         
         call mfree('read_prm [typeclass]', typeclass)
-        call mfree('read_prm [atz]', typez)
+        call mfree('read_prm [typez]', typez)
+        call mfree('read_prm [typemass]', typemass)
 
     end subroutine read_atom_cards
 
@@ -721,7 +734,7 @@ module mod_prm
             l2_done = .false.
             thet_done = .false.
 
-            do j=at2bnd(l1a), size(bds%angleat, 2)
+            do j=at2bnd(l1a), size(bds%bondat, 2)
                 if(l1a == bds%bondat(1,j) .and. l1b == bds%bondat(2,j)) then
                     l1_done = .true.
                     bds%strbndl10(i) = bds%l0bond(j)
@@ -729,7 +742,7 @@ module mod_prm
                 end if
             end do
 
-            do j=at2bnd(l2a), size(bds%angleat, 2)
+            do j=at2bnd(l2a), size(bds%bondat, 2)
                 if(l2a == bds%bondat(1,j) .and. l2b == bds%bondat(2,j)) then
                     l2_done = .true.
                     bds%strbndl20(i) = bds%l0bond(j)
@@ -1143,7 +1156,7 @@ module mod_prm
                        cla, clb, clc, cld, maxt, a, b, c, d, jb, jc, jd, iprm, ji, period
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
         integer(ip), allocatable :: classa(:), classb(:), classc(:), classd(:), &
-                                    t_n(:,:), tmpat(:,:), tmpprm(:)
+                                    t_n(:,:), tmpat(:,:), tmpprm(:), tmpbuf(:,:)
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
         real(rp) :: amp, phase, torsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
@@ -1161,7 +1174,7 @@ module mod_prm
             line = prm_buf(il)
             if(line(:8) == 'torsion ') nt = nt + 1
         end do
-
+        
         maxt = top%conn(3)%ri(top%mm_atoms+1)-1
         call mallocate('assign_torsion [classa]', nt, classa)
         call mallocate('assign_torsion [classb]', nt, classb)
@@ -1296,6 +1309,26 @@ module mod_prm
                                 classc(iprm) == clb .and. &
                                  classd(iprm) == cla)) then
                                 ! The parameter is ok
+                                
+                                ! Extrem check to avoid memory errors.
+                                if(it > maxt) then
+                                    call mallocate('assign_torsion [tmpbuf]', 4, maxt, tmpbuf)
+                                    tmpbuf(:,:) = tmpat(:,:)
+                                    call mfree('assign_torsion [tmpat]', tmpat)
+                                    call mallocate('assign_torsion [tmpat]', 4, maxt+maxt+1, tmpat)
+                                    tmpat(:,1:maxt) = tmpbuf(:,:)
+                                    call mfree('assign_torsion [tmpbuf]', tmpbuf)
+
+                                    call mallocate('assign_torsion [tmpbuf]', 1, maxt, tmpbuf)
+                                    tmpbuf(1,:) = tmpprm(:)
+                                    call mfree('assign_torsion [tmpprm]', tmpprm)
+                                    call mallocate('assign_torsion [tmpprm]', maxt+maxt+1, tmpprm)
+                                    tmpprm(1:maxt) = tmpbuf(1,:)
+                                    call mfree('assign_torsion [tmpbuf]', tmpbuf)
+
+                                    maxt = 2*maxt + 1
+                                end if
+
                                 tmpat(:,it) = [a, b, c, d]
                                 tmpprm(it) = iprm
                                 it = it+1

@@ -54,6 +54,8 @@ module ommp_interface
                              ommp_prepare_qm_ele_grd => electrostatic_for_grad
     use mod_profiling, only: ommp_time_push => time_push, & 
                              ommp_time_pull => time_pull
+   use mod_iohdf5, only: mmpol_init_from_hdf5, save_system_as_hdf5
+    
     implicit none
     
     character(*), parameter :: ommp_version_string = _OMMP_VERSION
@@ -968,10 +970,7 @@ module ommp_interface
 
         end subroutine
 
-#ifdef USE_HDF5
         subroutine ommp_init_hdf5(s, filename, namespace)
-            use mod_iohdf5, only: mmpol_init_from_hdf5
-            
             implicit none
             
             type(ommp_system), pointer :: s
@@ -988,8 +987,6 @@ module ommp_interface
             !! This function is an interface for saving an HDF5 file 
             !! with all the data contained in mmpol module using
             !! [[mod_io:mmpol_save_as_hdf5]]
-            use mod_iohdf5, only: save_system_as_hdf5 
-
             implicit none
             
             character(len=*) :: filename, namespace
@@ -1005,9 +1002,6 @@ module ommp_interface
         end subroutine ommp_save_as_hdf5
         
         subroutine ommp_checkpoint(s, filename, namespace)
-            
-            use mod_iohdf5, only: save_system_as_hdf5 
-
             implicit none
             
             character(len=*) :: filename, namespace
@@ -1021,7 +1015,6 @@ module ommp_interface
                                      logical(.true., kind=ommp_logical))
             
         end subroutine ommp_checkpoint
-#endif
 
     ! QM Helper Object housekeeping
     subroutine ommp_init_qm_helper(s, n, cqm, qqm, zqm)
@@ -1492,7 +1485,6 @@ module ommp_interface
         deallocate(prm_buf)
 
         call mmpol_prepare(sys)
-        !call ommp_time_pull('Conversion of QMHelper to OMMP System')
         call ommp_message('QMH->SYS Completed', OMMP_VERBOSE_DEBUG)
     end subroutine ommp_system_from_qm_helper
 

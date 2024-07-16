@@ -26,6 +26,12 @@ module mod_topology
         logical(lp) :: atz_initialized = .false.
         !! Initialization flag for atz, when it is filled with actual values
         !! it should be set to true
+        real(rp), allocatable :: atmass(:)
+        !! The atomic mass for each atom in the system, when it is not initialized
+        !! it contains only zeros
+        logical(lp) :: atmass_initialized = .false.
+        !! Initialization flag for atmass, when it is filled with actual values
+        !! it should be set to true
         integer(ip), allocatable :: attype(:)
         !! Atom class for each atom in the system.
         !! It is only used during certain parameters assignaments; when it
@@ -68,6 +74,9 @@ module mod_topology
             
             call mallocate('topology_init [atz]', top_obj%mm_atoms, top_obj%atz)
             top_obj%atz = 0
+            top_obj%atz_initialized = .false.
+            call mallocate('topology_init [atmass]', top_obj%mm_atoms, top_obj%atmass)
+            top_obj%atz = 0.0
             top_obj%atz_initialized = .false.
             call mallocate('topology_init [atclass]', top_obj%mm_atoms, &
                            top_obj%atclass)
@@ -261,6 +270,7 @@ module mod_topology
 
             call mfree('topology_terminate [cmm]', top_obj%cmm)
             call mfree('topology_terminate [atz]', top_obj%atz)
+            call mfree('topology_terminate [atmass]', top_obj%atmass)
             call mfree('topology_terminate [atclass]', top_obj%atclass)
             call mfree('topology_terminate [attype]', top_obj%attype)
             
@@ -370,6 +380,10 @@ module mod_topology
             top3%atz_initialized = top1%atz_initialized .and. top2%atz_initialized
             if(top1%atz_initialized) top3%atz(1:top1%mm_atoms) = top1%atz
             if(top2%atz_initialized) top3%atz(top1%mm_atoms+1:n) = top2%atz
+            
+            top3%atmass_initialized = top1%atmass_initialized .and. top2%atmass_initialized
+            if(top1%atmass_initialized) top3%atmass(1:top1%mm_atoms) = top1%atmass(:)
+            if(top2%atmass_initialized) top3%atmass(top1%mm_atoms+1:n) = top2%atmass(:)
             
             top3%attype_initialized = top1%attype_initialized .and. top2%attype_initialized
             if(top1%attype_initialized) top3%attype(1:top1%mm_atoms) = top1%attype

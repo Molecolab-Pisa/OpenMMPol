@@ -409,7 +409,7 @@ subroutine rotation_matrix(doder,c,cx,cy,cz,mol_frame,r,dri,driz,drix,driy)
 !
     u = xi
     dot = u(3)/xi_norm
-    if (dot.le.zofac) then
+    if (dot.le.zofac .and. abs(u(2)) > eps_rp) then
       v(1) = 1.0_rp
     else
       v(2) = 1.0_rp

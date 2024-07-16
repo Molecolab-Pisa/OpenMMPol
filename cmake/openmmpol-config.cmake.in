@@ -1,8 +1,0 @@
-# Compute installation prefix relative to this file.
-get_filename_component(_prefix @CMAKE_INSTALL_PREFIX@ ABSOLUTE)
-
-# Report other information.
-include(GNUInstallDirs)
-set(OPENMMPOL_INCLUDE_DIRS "${_prefix}/include/openMMPol-@OMMP_VERSION@")
-set(OPENMMPOL_LIBRARIES "${_prefix}/${CMAKE_INSTALL_LIBDIR}/openMMPol-@OMMP_VERSION@/libopenmmpol.so")
-set(OPENMMPOL_FOUND)

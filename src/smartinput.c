@@ -925,7 +925,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         //if(prm_path != NULL)
         //    ommp_fatal("prm_file set but it is not needed for mmpol input, this is ambiguous.");
 
-#ifdef USE_HDF5
+#ifdef WITH_HDF5
         *ommp_sys = ommp_init_hdf5(hdf5_path, "system");
 #else
         ommp_fatal("This version of OpenMMPol does not have HDF5 support, the required input operation cannot be performed.");
