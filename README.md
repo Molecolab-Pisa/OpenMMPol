@@ -84,7 +84,7 @@ Then just use cmake to build the project:
 
 ``$ cmake [-C custom.cmake] -B build``
   
-``$ cmake --build -B build -j``
+``$ cmake --build build -j``
 
 At configuration time you can control several build options:
 
