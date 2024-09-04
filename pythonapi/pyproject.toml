@@ -21,7 +21,7 @@ dynamic = [
   "version",
 ]
 
-requires-python = ">=3.7"
+requires-python = ">=3.6"
 
 [project.urls]
 "Homepage" = "https://github.com/Molecolab-Pisa/OpenMMPol"
@@ -30,7 +30,7 @@ requires-python = ">=3.7"
 [build-system]
 build-backend = "hatchling.build"
 requires = [
-  "hatchling>=1.4.1",
+  "hatchling",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -44,6 +44,9 @@ exclude = [
 [tool.hatch.build]
 include = [
   "pyopenmmpol/*.so",
+]
+artifacts = [
+  "pyopenmmpol/*.so"
 ]
 
 [tool.hatch.version]
