@@ -31,7 +31,13 @@ else:
     atol = 1e-08
 
 #print(rtol, atol)
-
+T = abs(A-B) <= (atol + rtol * abs(B))
+for i in range(T.shape[0]):
+    print('{:04d}'.format(i),T[i,:], end='')
+    if not all(T[i,:]):
+        print(A[i,:], B[i,:])
+    else:
+        print()
 if(np.allclose(A, B, rtol=rtol, atol=atol)):
     quit(0)
 else:

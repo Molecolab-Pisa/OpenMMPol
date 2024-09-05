@@ -6,5 +6,8 @@
         "path": "tests/1ubq/input_WANG_AL.mmp",
         "md5sum": "c14f98ba4a97bcc6969942d8af8713fd"
     },
-    "verbosity": "high"
+    "verbosity": "high",
+    "fmm_distance_thr": 8.0,
+    "fmm_max_l": 18,
+    "fmm_pol_max_l": 18
 }

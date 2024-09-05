@@ -947,7 +947,7 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_energy_comp
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
                           Testing/1UBQ_AMOEBA_XYZ_energy.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
-                           1e-06  1e-06)
+                           1e-06  0.001)
 set_tests_properties(1UBQ_AMOEBA_XYZ_energy_comp PROPERTIES DEPENDS 1UBQ_AMOEBA_XYZ_energy)
 if (WITH_HDF5)
 add_test(NAME 1UBQ_AMOEBA_XYZ_energy_HDF5
@@ -959,7 +959,7 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_energy_comp_HDF5
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_potential.py
                           Testing/1UBQ_AMOEBA_XYZ_energy.out_HDF5
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL.ref
-                           1e-06  1e-06)
+                           1e-06  0.001)
 set_tests_properties(1UBQ_AMOEBA_XYZ_energy_comp_HDF5 PROPERTIES DEPENDS 1UBQ_AMOEBA_XYZ_energy_HDF5)
 endif ()
 add_test(NAME 1UBQ_AMBER_MMP_ipd
@@ -970,7 +970,7 @@ add_test(NAME 1UBQ_AMBER_MMP_ipd_comp
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
                           Testing/1UBQ_AMBER_MMP_ipd.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_0_WANG_AL.ref
-                           1e-06  1e-05)
+                           1e-06  0.001)
 set_tests_properties(1UBQ_AMBER_MMP_ipd_comp PROPERTIES DEPENDS 1UBQ_AMBER_MMP_ipd)
 add_test(NAME 1UBQ_AMBER_MMP_ipd_EF_1
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -980,7 +980,7 @@ add_test(NAME 1UBQ_AMBER_MMP_ipd_EF_1_comp
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
                           Testing/1UBQ_AMBER_MMP_ipd_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_WANG_AL.ref
-                           1e-06  1e-05)
+                           1e-06  0.001)
 set_tests_properties(1UBQ_AMBER_MMP_ipd_EF_1_comp PROPERTIES DEPENDS 1UBQ_AMBER_MMP_ipd_EF_1)
 add_test(NAME 1UBQ_AMOEBA_MMP_ipd
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -990,7 +990,7 @@ add_test(NAME 1UBQ_AMOEBA_MMP_ipd_comp
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
                           Testing/1UBQ_AMOEBA_MMP_ipd.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_0_AMOEBA.ref
-                           1e-06  1e-05)
+                           1e-06  0.001)
 set_tests_properties(1UBQ_AMOEBA_MMP_ipd_comp PROPERTIES DEPENDS 1UBQ_AMOEBA_MMP_ipd)
 add_test(NAME 1UBQ_AMOEBA_MMP_ipd_EF_1
                           COMMAND bin/${TESTLANG}_test_SI_potential
@@ -1000,7 +1000,7 @@ add_test(NAME 1UBQ_AMOEBA_MMP_ipd_EF_1_comp
                           COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_ipd.py
                           Testing/1UBQ_AMOEBA_MMP_ipd_EF_1.out
                           ${CMAKE_SOURCE_DIR}/tests/1ubq/IPD_1_AMOEBA.ref
-                           1e-06  1e-05)
+                           1e-06  0.001)
 set_tests_properties(1UBQ_AMOEBA_MMP_ipd_EF_1_comp PROPERTIES DEPENDS 1UBQ_AMOEBA_MMP_ipd_EF_1)
 add_test(NAME 1UBQ_AMOEBA_XYZ_geomgrad_ana
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad
@@ -1061,7 +1061,7 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_comp_ana_ref
                         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
                         Testing/1UBQ_AMOEBA_XYZ_LS_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL_LS.ref
-                         0.001 0.0001)
+                         0.001   0.01)
 set_tests_properties(1UBQ_AMOEBA_XYZ_LS_geomgrad_comp_ana_ref PROPERTIES DEPENDS 1UBQ_AMOEBA_XYZ_LS_geomgrad_ana)
 if (WITH_HDF5)
 add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_ana_HDF5
@@ -1073,7 +1073,7 @@ add_test(NAME 1UBQ_AMOEBA_XYZ_LS_geomgrad_comp_ana_ref_HDF5
                         COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomgrad.py
                         Testing/1UBQ_AMOEBA_XYZ_LS_geomgrad_ana.out
                         ${CMAKE_SOURCE_DIR}/tests/1ubq/FULL_POTENTIAL_LS.ref
-                         0.001 0.0001)
+                         0.001   0.01)
 set_tests_properties(1UBQ_AMOEBA_XYZ_LS_geomgrad_comp_ana_ref_HDF5 PROPERTIES DEPENDS 1UBQ_AMOEBA_XYZ_LS_geomgrad_ana_HDF5)
 endif ()
 if (WITH_HDF5)

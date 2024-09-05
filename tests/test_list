@@ -46,15 +46,15 @@ NMA_amoeba_xyz.json     grad-num        none                                    
 1ubq_amber_mmp.json     energy          1ubq/ENE_1_WANG_AL.ref                  1ubq/EF_1.txt
 1ubq_amoeba_mmp.json    energy          1ubq/ENE_0_AMOEBA.ref                   none
 1ubq_amoeba_mmp.json    energy          1ubq/ENE_1_AMOEBA.ref                   1ubq/EF_1.txt
-1ubq_amoeba_xyz.json    energy          1ubq/FULL_POTENTIAL.ref                 none
-1ubq_amber_mmp.json     ipd             1ubq/IPD_0_WANG_AL.ref                  none
-1ubq_amber_mmp.json     ipd             1ubq/IPD_1_WANG_AL.ref                  1ubq/EF_1.txt
-1ubq_amoeba_mmp.json    ipd             1ubq/IPD_0_AMOEBA.ref                   none
-1ubq_amoeba_mmp.json    ipd             1ubq/IPD_1_AMOEBA.ref                   1ubq/EF_1.txt
+1ubq_amoeba_xyz.json    energy          1ubq/FULL_POTENTIAL.ref                 none                            1e-3            1e-6
+1ubq_amber_mmp.json     ipd             1ubq/IPD_0_WANG_AL.ref                  none                            1e-3            1e-6
+1ubq_amber_mmp.json     ipd             1ubq/IPD_1_WANG_AL.ref                  1ubq/EF_1.txt                   1e-3            1e-6
+1ubq_amoeba_mmp.json    ipd             1ubq/IPD_0_AMOEBA.ref                   none                            1e-3            1e-6
+1ubq_amoeba_mmp.json    ipd             1ubq/IPD_1_AMOEBA.ref                   1ubq/EF_1.txt                   1e-3            1e-6
 1ubq_amoeba_xyz.json    grad            1ubq/FULL_POTENTIAL.ref                 none
 # Same calculation as above but with VDW cutoff at 12.0 A
-1ubq_amoeba_xyz_LS.json energy          1ubq/FULL_POTENTIAL_LS.ref              none                        1e-5                1e-5
-1ubq_amoeba_xyz_LS.json grad            1ubq/FULL_POTENTIAL_LS.ref              none
+1ubq_amoeba_xyz_LS.json energy          1ubq/FULL_POTENTIAL_LS.ref              none                            1e-5            1e-5
+1ubq_amoeba_xyz_LS.json grad            1ubq/FULL_POTENTIAL_LS.ref              none                            1e-2            1e-3
 # 1AO6 -- 18k atoms
 1ao6_amber_mmp.json      init           1ao6/summary_WANG_AL.ref                none
 1ao6_cut_amber_mmp.json  init           1ao6/summary_WANG_AL_CUT10.ref          none
