@@ -150,12 +150,20 @@ install(
 # Install binaries
 install(
   FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/app/ommp_pp
   ${CMAKE_CURRENT_BINARY_DIR}/app/ommp_xyz2mmp
   DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   PERMISSIONS WORLD_EXECUTE
   COMPONENT UtilityApp
 )
+if(WITH_HDF5)
+    install(
+      FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/app/ommp_pp
+      DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+      PERMISSIONS WORLD_EXECUTE
+      COMPONENT UtilityApp
+    )
+endif()
 
 # Python interface
 if(WITH_PYTHON)
