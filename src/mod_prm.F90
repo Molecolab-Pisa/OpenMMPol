@@ -2047,7 +2047,19 @@ module mod_prm
             ! One angle keyourd could stand for 2 parameters for different H-env
         end do
 
-        maxang = (top%conn(2)%ri(top%mm_atoms+1)-1) / 2
+        maxang = 0
+        do a=1, top%mm_atoms
+            do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                c = top%conn(1)%ci(jc)
+                do jb=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                    b = top%conn(1)%ci(jb)
+                    if(a >= b) cycle
+                    ! There is an angle in the form A-C-B
+                    maxang = maxang + 1
+                end do
+            end do
+        end do
+
         call mallocate('assign_angle [classa]', nang, classa)
         call mallocate('assign_angle [classb]', nang, classb)
         call mallocate('assign_angle [classc]', nang, classc)
@@ -2261,17 +2273,16 @@ module mod_prm
         iang = 1
         do a=1, top%mm_atoms
             cla = top%atclass(a)
-            do jb=top%conn(2)%ri(a), top%conn(2)%ri(a+1)-1
-                b = top%conn(2)%ci(jb)
-                if(a > b) cycle
-                clb = top%atclass(b)
-                
-                do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
-                    c = top%conn(1)%ci(jc)
-                    if(all(top%conn(1)%ci(top%conn(1)%ri(b):top%conn(1)%ri(b+1)-1) /= c)) cycle
+            do jc=top%conn(1)%ri(a), top%conn(1)%ri(a+1)-1
+                c = top%conn(1)%ci(jc)
+                clc = top%atclass(c)
+                do jb=top%conn(1)%ri(c), top%conn(1)%ri(c+1)-1
+                    b = top%conn(1)%ci(jb)
+                    if(a >= b) cycle
                     ! There is an angle in the form A-C-B
-                    clc = top%atclass(c)
+                    clb = top%atclass(b)
                     done = .false.
+                    write(*, *) a,c,b
 
                     do j=1, nang
                         if((cla == classa(j) &
