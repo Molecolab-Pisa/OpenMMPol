@@ -43,6 +43,43 @@ module mod_adjacency_mat
               compress_list, compress_data, allocate_yale_sparse
 
     contains
+        subroutine print_yale_sparse(m, header, level, logpre, u)
+            use mod_io, only: ommp_message
+            use mod_constants, only: OMMP_STR_CHAR_MAX
+
+            implicit none 
+
+            type(yale_sparse), intent(in) :: m 
+            !! Matrix to print
+            character(len=*), intent(in), optional :: header
+            !! Header of the matrix printout
+            character(len=*), intent(in), optional :: logpre
+            !! String that explains the type of message, if missing a default type
+            !! is assigned based on requested verbosity level
+            integer(ip), intent(in) :: level
+            !! Requested verbosity level
+            integer(ip), intent(in), optional :: u
+            !! Output unit for the message, if missing, [[iof_mmpol]] is used.
+
+            integer(ip), parameter :: max_print_size = 20
+            integer(ip) :: i, j
+            character(len=OMMP_STR_CHAR_MAX) :: s
+
+            write(s, "(A, A)") "Yale Sparse Matrix :: ", header
+            call ommp_message(s, level, logpre, u)
+
+            if(m%n < max_print_size) then
+                do i=1, m%n
+                    write(s, "(I2, ':', 20I2)") i, m%ci(m%ri(i):m%ri(i+1)-1)
+                    call ommp_message(s, level, logpre, u)
+                end do
+                write(s, "(A, A)") "End Yale Sparse Matrix :: ", header
+                call ommp_message(s, level, logpre, u)
+            else
+                write(s, "(A, A, A)") "****** Matrix too big to be printed (", header, ")"
+                call ommp_message(s, level, logpre, u)
+            end if
+        end subroutine
 
         subroutine allocate_yale_sparse(m, n, nnz)
             implicit none
