@@ -377,6 +377,7 @@ module mod_bonded
         !! Number of angle bending functions in the potential
         !! energy of the system
 
+        write(*, *) "PORCODIO", n
         if( n < 1 ) return
         bds%use_angle = .true.
 
@@ -1369,6 +1370,7 @@ module mod_bonded
         !! Number of torsion functions in the potential
         !! energy of the system
         
+        write(*, *) "DIOCANE TORSION", n
         if( n < 1 ) return
         bds%use_torsion = .true.
 
@@ -2269,8 +2271,8 @@ module mod_bonded
         if( n < 1 ) return
         bds%use_tortor = .true.
         
-        call mallocate('torsion_init [tortorprm]', n, bds%tortorprm )
-        call mallocate('torsion_init [tortorat]', 5_ip, n, bds%tortorat)
+        call mallocate('tortor_init [tortorprm]', n, bds%tortorprm )
+        call mallocate('tortor_init [tortorat]', 5_ip, n, bds%tortorat)
 
         bds%ntortor = n
 
