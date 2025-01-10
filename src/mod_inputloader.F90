@@ -364,6 +364,7 @@ module mod_inputloader
         ! Remove comments from prm file
         !$omp parallel do
         do i=1, size(prm_buf)
+            prm_buf(i) = adjustl(prm_buf(i))
             prm_buf(i) = str_to_lower(prm_buf(i))
             prm_buf(i) = str_uncomment(prm_buf(i), '!')
         end do

@@ -8,7 +8,7 @@ module mod_prm
     use mod_bonded, only: ommp_bonded_type
     use mod_electrostatics, only: ommp_electrostatics_type
     use mod_constants, only: OMMP_STR_CHAR_MAX, OMMP_VERBOSE_LOW, &
-                             OMMP_VERBOSE_HIGH
+                             OMMP_VERBOSE_HIGH, OMMP_VERBOSE_DEBUG
     use mod_utils, only: isreal, isint, tokenize, count_substr_occurence, &
                          str_to_lower, str_uncomment
 
@@ -1160,6 +1160,7 @@ module mod_prm
         real(rp), allocatable :: t_amp(:,:), t_pha(:,:)
         real(rp) :: amp, phase, torsion_unit = 1.0
         type(ommp_topology_type), pointer :: top
+        logical :: done
 
         top => bds%top
 
@@ -1299,6 +1300,8 @@ module mod_prm
                         if(a > d) cycle
                         cld = top%atclass(d)
                         ! There is a dihedral A-B-C-D
+                        
+                        done = .false.
                         do iprm=1, nt
                             if((classa(iprm) == cla .and. &
                                 classb(iprm) == clb .and. &
@@ -1331,10 +1334,16 @@ module mod_prm
 
                                 tmpat(:,it) = [a, b, c, d]
                                 tmpprm(it) = iprm
+                                done = .true.
                                 it = it+1
                                 exit
                             end if
                         end do
+                        if(.not. done) then
+                            write(errstring, *) "No torsion parameter found for &
+                                &atoms ", a, b, c, d, "(atom classes ", cla, clb, clc, cld, ")"
+                            call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
+                        end if
                     end do
                 end do
             end do
@@ -2282,7 +2291,6 @@ module mod_prm
                     ! There is an angle in the form A-C-B
                     clb = top%atclass(b)
                     done = .false.
-                    write(*, *) a,c,b
 
                     do j=1, nang
                         if((cla == classa(j) &

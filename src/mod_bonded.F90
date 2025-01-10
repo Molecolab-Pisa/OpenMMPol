@@ -377,7 +377,6 @@ module mod_bonded
         !! Number of angle bending functions in the potential
         !! energy of the system
 
-        write(*, *) "PORCODIO", n
         if( n < 1 ) return
         bds%use_angle = .true.
 
@@ -1370,7 +1369,6 @@ module mod_bonded
         !! Number of torsion functions in the potential
         !! energy of the system
         
-        write(*, *) "DIOCANE TORSION", n
         if( n < 1 ) return
         bds%use_torsion = .true.
 
