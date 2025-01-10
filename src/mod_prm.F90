@@ -2148,6 +2148,21 @@ module mod_prm
                 end if
                 read(line(tokb:toke), *) classc(iang)
 
+                ! Now check that this atomclass combination is unique!
+                do j=1, iang-1
+                    if((classa(iang) == classa(j) & 
+                    .and. classb(iang) == classb(j) &
+                    .and. classc(iang) == classc(j)) .or. &
+                    (classa(iang) == classc(j) &
+                    .and. classb(iang) == classb(j) &
+                    .and. classc(iang) == classa(j))) then
+                            write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                                "Duplicate angle parameter for atomclasses (", &
+                                classa(j), '-', classb(j), '-', classc(j), ')'
+                            call fatal_error(errstring)
+                    endif
+                end do
+                
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
@@ -2232,6 +2247,21 @@ module mod_prm
                 end if
                 read(line(tokb:toke), *) classc(iang)
 
+                ! Now check that this atomclass combination is unique!
+                do j=1, iang-1
+                    if((classa(iang) == classa(j) & 
+                    .and. classb(iang) == classb(j) &
+                    .and. classc(iang) == classc(j)) .or. &
+                    (classa(iang) == classc(j) &
+                    .and. classb(iang) == classb(j) &
+                    .and. classc(iang) == classa(j))) then
+                            write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                                "Duplicate angle parameter for atomclasses (", &
+                                classa(j), '-', classb(j), '-', classc(j), ')'
+                            call fatal_error(errstring)
+                    endif
+                end do
+
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
                 if(.not. isreal(line(tokb:toke))) then
@@ -2277,8 +2307,8 @@ module mod_prm
             end if
             i = i+1
         end do
-        nang = iang
-        
+        nang = iang - 1
+
         iang = 1
         do a=1, top%mm_atoms
             cla = top%atclass(a)
