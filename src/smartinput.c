@@ -626,7 +626,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     double *la_bl=NULL;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
-    bool force_fmm = false, fmm_enabled = false;
+    bool force_fmm = false, fmm_enabled = false, ignore_duplicated_angle_prm = false;
     double fmm_min_cell_size=OMMP_FMM_MIN_CELLSIZE;
     double fmm_distance_thr=OMMP_FMM_FAR_THR;
     int32_t fmm_maxl_pol=OMMP_FMM_DEFAULT_MAXL_POL, fmm_maxl=OMMP_FMM_DEFAULT_MAXL;
@@ -852,7 +852,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             else if(strcmp(cur->valuestring, "false") == 0)
                 fmm_enabled = false;
             else{
-                ommp_fatal("verbosity should be one of the following values [true, false]");
+                ommp_fatal("use_fmm should be one of the following values [true, false]");
             }
         }
         else if(strcmp(cur->string, "fmm_max_l") == 0){
@@ -875,6 +875,16 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal("FMM threshold distance should be a positive number.");
             fmm_distance_thr = cur->valuedouble * OMMP_ANG2AU;
         }
+        else if(strcmp(cur->string, "ignore_duplicated_angle_prm") == 0){
+            ignore_duplicated_angle_prm = true;
+            if(strcmp(cur->valuestring, "true") == 0)
+                ignore_duplicated_angle_prm = true;
+            else if(strcmp(cur->valuestring, "false") == 0)
+                ignore_duplicated_angle_prm = false;
+            else{
+                ommp_fatal("ignore_duplicated_angle_prm should be one of the following values [true, false]");
+            }
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_fatal(msg);
@@ -888,6 +898,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     // Set output file
     if(output_path != NULL)
         ommp_set_outputfile(output_path);
+    
+    // Duplicated angle parameters
+    if(ignore_duplicated_angle_prm){
+        ommp_ignore_duplicated_angle_prm();
+    }
 
     // Print information from JSON
     if(json_name != NULL){
@@ -962,6 +977,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         free(removepolat);
     }
 
+    // Handle fast multipoles
     if(force_fmm){
         if(fmm_enabled)
             ommp_enable_fmm(*ommp_sys);

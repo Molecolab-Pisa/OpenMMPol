@@ -15,6 +15,9 @@ module mod_prm
     implicit none
     private
 
+    logical(lp) :: ignore_duplicated_angle_prm = .false.
+    !! Flag to ignore duplicated angle and anglep parameters in prm file 
+    public :: set_ignore_duplicated_angle_prm
 
     !!public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
     !!          assign_angle, assign_urey, assign_strbnd, assign_opb, &
@@ -30,6 +33,18 @@ module mod_prm
     contains 
     
 #include "prm_keywords.F90"
+
+    subroutine set_ignore_duplicated_angle_prm(v)
+        implicit none
+
+        logical(lp), optional :: v
+
+        if(present(v)) then
+            ignore_duplicated_angle_prm = v
+        else
+            ignore_duplicated_angle_prm = .true.
+        end if
+    end subroutine
 
     function get_prm_ff_type(prm_buf) result(ff_type)
         !! This function is intended to check if the ff described by prm_type
@@ -2023,9 +2038,9 @@ module mod_prm
         integer(ip), parameter :: nexc_default = 3
         integer(ip) :: il, i, j, tokb, toke, iang, nang, &
                        cla, clb, clc, maxang, a, b, c, jc, jb, k, nhenv, &
-                       iexc, nexc
+                       iexc, nexc, nremove
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring
-        integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:)
+        integer(ip), allocatable :: classa(:), classb(:), classc(:), angtype(:), remove(:)
         real(rp), allocatable :: kang(:), th0ang(:)
         logical :: done
         type(ommp_topology_type), pointer :: top
@@ -2072,6 +2087,7 @@ module mod_prm
         call mallocate('assign_angle [classa]', nang, classa)
         call mallocate('assign_angle [classb]', nang, classb)
         call mallocate('assign_angle [classc]', nang, classc)
+        call mallocate('assign_angle [remove]', nang, remove)
         call mallocate('assign_angle [eqang]', nang, th0ang)
         call mallocate('assign_angle [kang]', nang, kang)
         call mallocate('assign_angle [angtype]', nang, angtype)
@@ -2149,6 +2165,7 @@ module mod_prm
                 read(line(tokb:toke), *) classc(iang)
 
                 ! Now check that this atomclass combination is unique!
+                nremove = 0
                 do j=1, iang-1
                     if((classa(iang) == classa(j) & 
                     .and. classb(iang) == classb(j) &
@@ -2156,12 +2173,35 @@ module mod_prm
                     (classa(iang) == classc(j) &
                     .and. classb(iang) == classb(j) &
                     .and. classc(iang) == classa(j))) then
-                            write(errstring, '(A,I0,A,I0,A,I0,A)') &
-                                "Duplicate angle parameter for atomclasses (", &
-                                classa(j), '-', classb(j), '-', classc(j), ')'
-                            call fatal_error(errstring)
+                            if(ignore_duplicated_angle_prm) then
+                                ! Now remove this element
+                                nremove = nremove + 1
+                                remove(nremove) = j     
+                            else
+                                write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                                    "Duplicate angle parameter for atomclasses (", &
+                                    classa(j), '-', classb(j), '-', classc(j), ')'
+                                call fatal_error(errstring)
+                            end if
                     endif
                 end do
+                if(nremove > 0) then
+                    write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                        "Duplicate angle parameter for atomclasses (", &
+                        classa(iang), '-', classb(iang), '-', classc(iang), ') - considering only the last entry'
+                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm parsing')
+                    do j=1, nremove
+                        classa(remove(j):iang-1) = classa(remove(j)+1:iang)
+                        classb(remove(j):iang-1) = classb(remove(j)+1:iang)
+                        classc(remove(j):iang-1) = classc(remove(j)+1:iang)
+                        
+                        th0ang(remove(j):iang-1) = th0ang(remove(j)+1:iang)
+                        kang(remove(j):iang-1) = kang(remove(j)+1:iang)
+                        angtype(remove(j):iang-1) = angtype(remove(j)+1:iang)
+
+                        iang = iang - 1
+                    end do
+                end if
                 
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
@@ -2248,6 +2288,7 @@ module mod_prm
                 read(line(tokb:toke), *) classc(iang)
 
                 ! Now check that this atomclass combination is unique!
+                nremove = 0
                 do j=1, iang-1
                     if((classa(iang) == classa(j) & 
                     .and. classb(iang) == classb(j) &
@@ -2255,12 +2296,35 @@ module mod_prm
                     (classa(iang) == classc(j) &
                     .and. classb(iang) == classb(j) &
                     .and. classc(iang) == classa(j))) then
-                            write(errstring, '(A,I0,A,I0,A,I0,A)') &
-                                "Duplicate angle parameter for atomclasses (", &
-                                classa(j), '-', classb(j), '-', classc(j), ')'
-                            call fatal_error(errstring)
+                            if(ignore_duplicated_angle_prm) then
+                                ! Now remove this element
+                                nremove = nremove + 1
+                                remove(nremove) = j     
+                            else
+                                write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                                    "Duplicate angle parameter for atomclasses (", &
+                                    classa(j), '-', classb(j), '-', classc(j), ')'
+                                call fatal_error(errstring)
+                            end if
                     endif
                 end do
+                if(nremove > 0) then
+                    write(errstring, '(A,I0,A,I0,A,I0,A)') &
+                        "Duplicate angle parameter for atomclasses (", &
+                        classa(iang), '-', classb(iang), '-', classc(iang), ') - considering only the last entry'
+                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm parsing')
+                    do j=1, nremove
+                        classa(remove(j):iang-1) = classa(remove(j)+1:iang)
+                        classb(remove(j):iang-1) = classb(remove(j)+1:iang)
+                        classc(remove(j):iang-1) = classc(remove(j)+1:iang)
+                        
+                        th0ang(remove(j):iang-1) = th0ang(remove(j)+1:iang)
+                        kang(remove(j):iang-1) = kang(remove(j)+1:iang)
+                        angtype(remove(j):iang-1) = angtype(remove(j)+1:iang)
+
+                        iang = iang - 1
+                    end do
+                end if
 
                 tokb = toke + 1
                 toke = tokenize(line, tokb)
@@ -2427,6 +2491,7 @@ module mod_prm
         call mfree('assign_angle [classc]', classc)
         call mfree('assign_angle [eqang]', th0ang)
         call mfree('assign_angle [kang]', kang)
+        call mfree('assign_angle [remove]', remove)
         call mfree('assign_angle [angtype]', angtype)
     
     end subroutine assign_angle

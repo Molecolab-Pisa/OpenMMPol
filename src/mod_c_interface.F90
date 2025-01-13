@@ -1863,4 +1863,12 @@ module mod_ommp_C_interface
             s%eel%use_fmm = .false.
         end subroutine
 
+        subroutine C_ommp_ignore_duplicated_angle_prm() &
+                bind(c, name='ommp_ignore_duplicated_angle_prm')
+
+            implicit none
+
+            call ommp_ignore_duplicated_angle_prm
+        end subroutine
+
 end module mod_ommp_C_interface
