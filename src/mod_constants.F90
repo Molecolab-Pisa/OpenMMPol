@@ -133,4 +133,30 @@ module mod_constants
     integer(ip), parameter :: ommp_fmm_default_maxl = OMMP_FMM_DEFAULT_MAXL
     real(rp), parameter :: ommp_fmm_min_cellsize = OMMP_FMM_MIN_CELLSIZE
     real(rp), parameter :: ommp_fmm_far_thr = OMMP_FMM_FAR_THR
+
+    contains
+
+    function amoeba_rotation_convention_to_str(c) result(s)
+        implicit none
+
+        integer(ip), intent(in) :: c
+        character(len=ommp_str_char_max) :: s
+
+        if(c == AMOEBA_ROT_NONE) then
+            s = "No rotation"
+        else if(c == AMOEBA_ROT_Z_THEN_X) then
+            s = "Z then X"
+        else if(c == AMOEBA_ROT_BISECTOR) then
+            s = "Bisector"
+        else if(c == AMOEBA_ROT_Z_ONLY) then
+            s = "Z only"
+        else if(c == AMOEBA_ROT_Z_BISECT) then
+            s = "Z bisector"
+        else if(c == AMOEBA_ROT_3_FOLD) then
+            s = "3-fold rotation"
+        else
+            s = "Unknown rotation type"
+        end if
+    end function
+
 end module mod_constants

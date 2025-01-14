@@ -2189,7 +2189,7 @@ module mod_prm
                     write(errstring, '(A,I0,A,I0,A,I0,A)') &
                         "Duplicate angle parameter for atomclasses (", &
                         classa(iang), '-', classb(iang), '-', classc(iang), ') - considering only the last entry'
-                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm parsing')
+                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm-error')
                     do j=1, nremove
                         classa(remove(j):iang-1) = classa(remove(j)+1:iang)
                         classb(remove(j):iang-1) = classb(remove(j)+1:iang)
@@ -3091,7 +3091,8 @@ module mod_prm
                                  AMOEBA_ROT_Z_BISECT, &
                                  AMOEBA_ROT_3_FOLD, &
                                  eps_rp, &
-                                 OMMP_VERBOSE_DEBUG
+                                 OMMP_VERBOSE_DEBUG, &
+                                 amoeba_rotation_convention_to_str
         
         implicit none
         
@@ -3363,7 +3364,7 @@ module mod_prm
         
 
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,only12,j,found13,ax_found,iax,iat,done) 
+        !$omp private(i,only12,j,found13,ax_found,iax,iat,done, errstring) 
         do i=1, size(top%attype)
             if(eel%amoeba) then
                 eel%mol_frame(i) = 0
@@ -3467,9 +3468,18 @@ module mod_prm
                             call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
                         end if
 
-                        write(errstring, "(A, I0, A, I0, A, I0, A, I0, A, I0, A)") &
-                            "Atom ", i, " is assigned multipole set ", j, &
-                            " axes [ ", iax(2), "-", iax(3), "-", iax(1), " ]"
+                        if(eel%amoeba) then
+                            write(errstring, "(A, I0, A, I0, A, F8.4, A, 3F8.4, A, 6F8.4, A, I0, A, I0, A, I0, A, A)") &
+                                "Atom ", i, " is assigned multipole set ", j, ' [q: ', &
+                                eel%q(1,j), ' mu: ', eel%q(2,j), eel%q(3,j), eel%q(4,j), &
+                                ' quad: ', eel%q(5:,j), &
+                                "] atom axes [ ", iax(2), "-", iax(3), "-", iax(1), " ] ", &
+                                trim(amoeba_rotation_convention_to_str(eel%mol_frame(i)))
+                        else
+                            write(errstring, "(A, I0, A, I0, A, F8.4, A)") &
+                                "Atom ", i, " is assigned multipole set ", j, ' [q: ', &
+                                eel%q(1,j), "]"
+                        end if
                         call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
 
                         
