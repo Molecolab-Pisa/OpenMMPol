@@ -3053,20 +3053,19 @@ module mod_prm
                             if(eel%mmat_polgrp(iat) == 0) then
                                 eel%mmat_polgrp(iat) = eel%mmat_polgrp(i)
                             else if(eel%mmat_polgrp(iat) /= eel%mmat_polgrp(i)) then
-                                ! TODO This code have never been tested, as no
-                                ! suitable case have been found
-                                do l=1, top%mm_atoms
-                                    if(eel%mmat_polgrp(l) == 0) then
-                                        continue
-                                    else if(eel%mmat_polgrp(l) == eel%mmat_polgrp(iat) &
-                                            .or. eel%mmat_polgrp(l) == eel%mmat_polgrp(i)) then
-                                        eel%mmat_polgrp(l) = min(eel%mmat_polgrp(iat), eel%mmat_polgrp(i))
-                                    else if(eel%mmat_polgrp(l) > max(eel%mmat_polgrp(iat),eel%mmat_polgrp(i))) then
-                                        eel%mmat_polgrp(l) = eel%mmat_polgrp(l) - 1
-                                    else
-                                        continue
-                                    end if
-                                end do
+                                ! We have to merge two groups so we have two possibilities
+                                ! a) the polgrp for the current atom is the lower one
+                                if(eel%mmat_polgrp(iat) > eel%mmat_polgrp(i)) then
+                                    ! keep using mmat_polgrp(i)
+                                    do l=1, top%mm_atoms
+                                        if(eel%mmat_polgrp(l) == eel%mmat_polgrp(iat)) eel%mmat_polgrp(l) = eel%mmat_polgrp(i)
+                                    end do
+                                ! b) ... or the higher one
+                                else
+                                    do l=1, top%mm_atoms
+                                        if(eel%mmat_polgrp(l) == eel%mmat_polgrp(i)) eel%mmat_polgrp(l) = eel%mmat_polgrp(iat)
+                                    end do
+                                end if
                             end if
                         end if
                     end do
