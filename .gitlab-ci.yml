@@ -9,12 +9,16 @@ stages:
     - coverage
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE
-    
+  DOCKER_TLS_CERTDIR: "/certs"
+
 build_docker_env:
     stage: docker-building
-    image: docker:git
+    image: docker:24.0.5
+    services:
+      - name: docker:24.0.5-dind
+        alias: docker
     script:
-        - docker login -u $CI_REGISTRY_USER -p $CI_BUILD_TOKEN $CI_REGISTRY
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
         - docker build --load -t $IMAGE_TAG .
         - docker push $IMAGE_TAG
     only:
@@ -22,6 +26,7 @@ build_docker_env:
             - pushes
         changes:
             - Dockerfile
+            - .gitlab-ci.yml
 
 cmake-config:
     stage: configure
