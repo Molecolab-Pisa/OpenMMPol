@@ -2312,7 +2312,7 @@ module mod_prm
                     write(errstring, '(A,I0,A,I0,A,I0,A)') &
                         "Duplicate angle parameter for atomclasses (", &
                         classa(iang), '-', classb(iang), '-', classc(iang), ') - considering only the last entry'
-                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm parsing')
+                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm-error')
                     do j=1, nremove
                         classa(remove(j):iang-1) = classa(remove(j)+1:iang)
                         classb(remove(j):iang-1) = classb(remove(j)+1:iang)
@@ -3044,7 +3044,7 @@ module mod_prm
                         ipg = ipg+1
                         eel%mmat_polgrp(i) = ipg
                     end if
-                    
+
                     ! loop over the atoms connected to ith atom
                     do k=top%conn(1)%ri(i), top%conn(1)%ri(i+1)-1
                         iat = top%conn(1)%ci(k)
@@ -3315,20 +3315,12 @@ module mod_prm
 
                 ! The type of rotation is encoded in the sign/nullness of 
                 ! of the axis specification
-                if(multax(1,imult) == 0) then
-                    multframe(imult) = AMOEBA_ROT_NONE
-                else if(multax(2, imult) == 0) then
-                    multframe(imult) = AMOEBA_ROT_Z_ONLY
-                else if(multax(1,imult) < 0 .and. multax(2,imult) < 0 &
-                        .and. multax(3,imult) < 0) then
-                    multframe(imult) = AMOEBA_ROT_3_FOLD
-                else if(multax(1,imult) < 0 .or. multax(2,imult) < 0) then
-                    multframe(imult) = AMOEBA_ROT_BISECTOR
-                else if(multax(2,imult) < 0 .and. multax(3,imult) < 0) then
-                    multframe(imult) = AMOEBA_ROT_Z_BISECT
-                else
-                    multframe(imult) = AMOEBA_ROT_Z_THEN_X
-                end if
+                multframe(imult) = AMOEBA_ROT_Z_THEN_X
+                if(multax(1,imult) == 0) multframe(imult) = AMOEBA_ROT_NONE
+                if(multax(1,imult) /= 0 .and. multax(2, imult) == 0) multframe(imult) = AMOEBA_ROT_Z_ONLY
+                if(multax(1,imult) < 0 .or. multax(2,imult) < 0) multframe(imult) = AMOEBA_ROT_BISECTOR
+                if(multax(2,imult) < 0 .and. multax(3,imult) < 0) multframe(imult) = AMOEBA_ROT_Z_BISECT
+                if(multax(1,imult) < 0 .and. multax(2,imult) < 0 .and. multax(3,imult) < 0) multframe(imult) = AMOEBA_ROT_3_FOLD
                 ! Remove the encoded information after saving it in a reasonable
                 ! way
                 multax(:,imult) = abs(multax(:,imult))
@@ -3450,6 +3442,7 @@ module mod_prm
 
                     ! Everything is done, no further improvement is possible
                     if(all(ax_found) .and. .not. (only12 .and. found13)) then
+                        !$omp critical
                         if(eel%amoeba) then
                             eel%ix(i) = iax(2)
                             eel%iy(i) = iax(3)
@@ -3466,12 +3459,11 @@ module mod_prm
                                 "Reassigning multipoles for atom ", i
                             call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
                         end if
-
                         if(eel%amoeba) then
                             write(errstring, "(A, I0, A, I0, A, F8.4, A, 3F8.4, A, 6F8.4, A, I0, A, I0, A, I0, A, A)") &
                                 "Atom ", i, " is assigned multipole set ", j, ' [q: ', &
-                                eel%q(1,j), ' mu: ', eel%q(2,j), eel%q(3,j), eel%q(4,j), &
-                                ' quad: ', eel%q(5:,j), &
+                                eel%q(1,i), ' mu: ', eel%q(2,i), eel%q(3,i), eel%q(4,i), &
+                                ' quad: ', eel%q(5:,i), &
                                 "] atom axes [ ", iax(2), "-", iax(3), "-", iax(1), " ] ", &
                                 trim(amoeba_rotation_convention_to_str(eel%mol_frame(i)))
                         else
@@ -3480,6 +3472,8 @@ module mod_prm
                                 eel%q(1,j), "]"
                         end if
                         call ommp_message(errstring, OMMP_VERBOSE_DEBUG)
+                        !$omp end critical
+                    
 
                         
                         if(.not. found13) then
