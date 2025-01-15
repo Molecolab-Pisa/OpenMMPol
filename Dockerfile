@@ -44,7 +44,7 @@ RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; 
     rm hdf5-1_12_2.tar.gz; \
     cd hdf5-hdf5-1_12_2; \
     source /opt/intel/oneapi/setvars.sh; \
-    CC=icx CXX=icpx FC=ifort ./configure --prefix /opt/intel/hdf5-1.12.2 --enable-fortran --enable-build-mode=production --enable-shared; \
+    CC=icx CXX=icpx FC=ifx ./configure --prefix /opt/intel/hdf5-1.12.2 --enable-fortran --enable-build-mode=production --enable-shared; \
     make; make install; \
     cd -; rm -rf hdf5-1_12_2.tar.gz;
 # NVCompilers suite
