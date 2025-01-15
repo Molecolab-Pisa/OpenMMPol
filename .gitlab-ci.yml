@@ -26,7 +26,6 @@ build_docker_env:
             - pushes
         changes:
             - Dockerfile
-            - .gitlab-ci.yml
 
 cmake-config:
     stage: configure
@@ -47,7 +46,7 @@ cmake-config-intel:
     script:
         - mkdir build_intel
         - cd build_intel
-        - cmake -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/intel/hdf5-1.12.2 ..
+        - cmake -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_BUILD_TYPE=RELEASE -DHDF5_ROOT=/opt/intel/hdf5-1.12.2 ..
     artifacts:
         paths:
             - build_intel
