@@ -58,3 +58,4 @@ RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; 
     CC=nvc CXX=nvcc FC=nvfortran ./configure --prefix /opt/nvidia/hdf5-1.12.2 --enable-fortran --enable-build-mode=production --enable-shared; \
     make; make install; \
     cd -; rm -rf hdf5-1_12_2.tar.gz;
+RUN zypper --non-interactive install procps
