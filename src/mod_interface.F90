@@ -1088,7 +1088,38 @@ module ommp_interface
         evdw = 0.0
         call qm_helper_vdw_energy(qm, s, evdw)
     end function
-    
+
+    subroutine ommp_qm_helper_vdw_energy_by_atom(qm, s, evdw_ba)
+        use mod_nonbonded, only: vdw_potential_inter_restricted
+        use mod_memory, only: mallocate, mfree
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+        type(ommp_qm_helper), intent(in) :: qm
+        real(ommp_real), intent(inout) :: evdw_ba(qm%qm_top%mm_atoms)
+
+        real(ommp_real), allocatable :: sf(:)
+        integer(ommp_integer), allocatable :: pairs(:,:)
+        integer(ommp_integer) :: i, j
+
+        call mallocate('[ommp_qm_helper_vdw_energy_by_atom] sf', s%top%mm_atoms, sf)
+        call mallocate('[ommp_qm_helper_vdw_energy_by_atom] pairs', 2, s%top%mm_atoms, pairs)
+
+        sf = 1.
+        do j=1, s%top%mm_atoms
+            pairs(2,j) = j
+        end do
+
+        do i=1, qm%qm_top%mm_atoms
+            pairs(1,:) = i
+            call vdw_potential_inter_restricted(qm%qm_vdw, s%vdw, pairs, sf, s%top%mm_atoms, evdw_ba(i))
+        end do
+
+        call mfree('[ommp_qm_helper_vdw_energy_by_atom] sf', sf)
+        call mfree('[ommp_qm_helper_vdw_energy_by_atom] pairs', pairs)
+    end subroutine
+
     subroutine ommp_qm_helper_vdw_geomgrad(qm, s, qmg, mmg)
         
         use mod_qm_helper, only: qm_helper_vdw_geomgrad
