@@ -138,6 +138,7 @@ extern "C"
     extern bool ommp_qm_helper_use_nonbonded(OMMP_QM_HELPER_PRT);
 
     extern void ommp_qm_helper_init_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
+    extern void ommp_qm_helper_vdw_energy_by_atoms(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT, double *);
     extern int32_t ommp_create_link_atom(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT,
                                          int32_t, int32_t, int32_t, const char *,
                                          double, int32_t);
@@ -159,6 +160,7 @@ extern "C"
     extern void ommp_set_fmm_min_cell_size(OMMP_SYSTEM_PRT, double);
 
     extern void ommp_ignore_duplicated_angle_prm(void);
+
 
 #ifdef __cplusplus
 }

@@ -137,6 +137,7 @@ class OMMPQmHelper{
                                 std::string radius_size, std::string radius_type,
                                 std::string eps_rule);
         double vdw_energy(OMMPSystem& s);
+        py_cdarray vdw_energy_by_atom(OMMPSystem& s);
         std::map<std::string, py_cdarray> vdw_geomgrad(OMMPSystem& s);
         std::map<std::string, py_cdarray> link_atom_geomgrad(OMMPSystem& s, py_cdarray old_qmg);
         void prepare_qm_ele_ene(OMMPSystem& s);
@@ -1044,6 +1045,22 @@ double OMMPQmHelper::vdw_energy(OMMPSystem& s){
     return ommp_qm_helper_vdw_energy(handler, s_handler);
 }
 
+py_cdarray OMMPQmHelper::vdw_energy_by_atom(OMMPSystem& s){
+    OMMP_SYSTEM_PRT s_handler = s.get_handler();
+
+    double *evdw_ba = new double[get_qm_atoms()];
+    for(int i=0; i<get_qm_atoms(); i++) evdw_ba[i] = .0;
+
+    ommp_qm_helper_vdw_energy_by_atoms(handler, s_handler, evdw_ba);
+    
+    py::buffer_info bufinfo(evdw_ba, sizeof(double),
+                            py::format_descriptor<double>::format(),
+                            1,
+                            {get_qm_atoms()},
+                            {sizeof(double)});
+    return py_cdarray(bufinfo);
+}
+
 std::map<std::string, py_cdarray> OMMPQmHelper::vdw_geomgrad(OMMPSystem& s){
     OMMP_SYSTEM_PRT s_handler = s.get_handler();
 
@@ -1556,6 +1573,10 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def("vdw_energy",
              &OMMPQmHelper::vdw_energy,
              "Compute the VdW interaction energy between QM and MM parts of the system",
+             py::arg("OMMP_system"))
+        .def("vdw_energy_by_atom",
+             &OMMPQmHelper::vdw_energy_by_atom,
+             "Compute the VdW interaction energy between QM and MM parts of the system per atom",
              py::arg("OMMP_system"))
         .def("link_atom_geomgrad",
              &OMMPQmHelper::link_atom_geomgrad,
