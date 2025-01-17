@@ -626,7 +626,9 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     double *la_bl=NULL;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
-    bool force_fmm = false, fmm_enabled = false, ignore_duplicated_angle_prm = false;
+    bool force_fmm = false, fmm_enabled = false;
+    bool ignore_duplicated_angle_prm = false,
+         ignore_duplicated_opb_prm = false;
     double fmm_min_cell_size=OMMP_FMM_MIN_CELLSIZE;
     double fmm_distance_thr=OMMP_FMM_FAR_THR;
     int32_t fmm_maxl_pol=OMMP_FMM_DEFAULT_MAXL_POL, fmm_maxl=OMMP_FMM_DEFAULT_MAXL;
@@ -885,6 +887,31 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal("ignore_duplicated_angle_prm should be one of the following values [true, false]");
             }
         }
+        else if(strcmp(cur->string, "ignore_duplicated_opb_prm") == 0){
+            ignore_duplicated_opb_prm = true;
+            if(strcmp(cur->valuestring, "true") == 0)
+                ignore_duplicated_opb_prm = true;
+            else if(strcmp(cur->valuestring, "false") == 0)
+                ignore_duplicated_opb_prm = false;
+            else{
+                ommp_fatal("ignore_duplicated_opb_prm should be one of the following values [true, false]");
+            }
+        }
+        else if(strcmp(cur->string, "ignore_duplicated_prm") == 0){
+            ignore_duplicated_angle_prm = true;
+            ignore_duplicated_opb_prm = true;
+            if(strcmp(cur->valuestring, "true") == 0){
+                ignore_duplicated_angle_prm = true;
+                ignore_duplicated_opb_prm = true;
+            }
+            else if(strcmp(cur->valuestring, "false") == 0){
+                ignore_duplicated_angle_prm = false;
+                ignore_duplicated_opb_prm = false;
+            }
+            else{
+                ommp_fatal("ignore_duplicated_prm should be one of the following values [true, false]");
+            }
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_fatal(msg);
@@ -902,6 +929,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     // Duplicated angle parameters
     if(ignore_duplicated_angle_prm){
         ommp_ignore_duplicated_angle_prm();
+    }
+    
+    // Duplicated opb parameters
+    if(ignore_duplicated_opb_prm){
+        ommp_ignore_duplicated_opb_prm();
     }
 
     // Print information from JSON

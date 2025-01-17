@@ -17,7 +17,10 @@ module mod_prm
 
     logical(lp) :: ignore_duplicated_angle_prm = .false.
     !! Flag to ignore duplicated angle and anglep parameters in prm file 
-    public :: set_ignore_duplicated_angle_prm
+    logical(lp) :: ignore_duplicated_opb_prm = .false.
+    !! Flags to ignore duplicated parameters in prm file 
+    public :: set_ignore_duplicated_angle_prm, &
+              set_ignore_duplicated_opb_prm
 
     !!public :: assign_vdw, assign_pol, assign_mpoles, assign_bond, &
     !!          assign_angle, assign_urey, assign_strbnd, assign_opb, &
@@ -43,6 +46,18 @@ module mod_prm
             ignore_duplicated_angle_prm = v
         else
             ignore_duplicated_angle_prm = .true.
+        end if
+    end subroutine
+    
+    subroutine set_ignore_duplicated_opb_prm(v)
+        implicit none
+
+        logical(lp), optional :: v
+
+        if(present(v)) then
+            ignore_duplicated_opb_prm = v
+        else
+            ignore_duplicated_opb_prm = .true.
         end if
     end subroutine
 
@@ -802,11 +817,12 @@ module mod_prm
         !! Bonded potential data structure
         character(len=OMMP_STR_CHAR_MAX), intent(in) :: prm_buf(:)
 
-        integer(ip) :: il, i, tokb, toke, iopb, nopb, &
-                       cla, clb, clc, cld, maxopb, a, b, c, d, jc, jb, iprm
+        integer(ip) :: il, i, j, tokb, toke, iopb, nopb, &
+                       cla, clb, clc, cld, maxopb, a, b, c, d, jc, jb, iprm, &
+                       nremove
         character(len=OMMP_STR_CHAR_MAX) :: line, errstring, opb_type
         integer(ip), allocatable :: classa(:), classb(:), classc(:), & 
-                                    classd(:), tmpat(:,:)
+                                    classd(:), tmpat(:,:), remove(:)
         real(rp), allocatable :: kopbend(:), tmpk(:)
         type(ommp_topology_type), pointer :: top
 
@@ -837,6 +853,7 @@ module mod_prm
         call mallocate('assign_opb [classb]', nopb, classb)
         call mallocate('assign_opb [classc]', nopb, classc)
         call mallocate('assign_opb [classd]', nopb, classd)
+        call mallocate('assign_opb [remove]', nopb, remove)
         call mallocate('assign_opb [kopbend]', nopb, kopbend)
         call mallocate('assign_opb [tmpat]', 4_ip, maxopb, tmpat)
         call mallocate('assign_opb [tmpk]', maxopb, tmpk)
@@ -932,6 +949,47 @@ module mod_prm
                     call fatal_error(errstring)
                 end if
                 read(line(tokb:toke), *) kopbend(iopb)
+                
+                ! Now check that this atomclass combination is unique!
+                nremove = 0
+                do j=1, iopb-1
+                    if((classa(iopb) == classa(j) & 
+                    .and. classb(iopb) == classb(j) &
+                    .and. classc(iopb) == classc(j) &
+                    .and. classd(iopb) == classd(j)) .or. &
+                    (classa(iopb) == classa(j) &
+                    .and. classb(iopb) == classb(j) &
+                    .and. classc(iopb) == classd(j) &
+                    .and. classd(iopb) == classc(j))) then
+                            if(ignore_duplicated_opb_prm) then
+                                ! Now remove this element
+                                nremove = nremove + 1
+                                remove(nremove) = j     
+                            else
+                                write(errstring, '(A,I0,A,I0,A,I0,A,I0,A)') &
+                                    "Duplicate OPB parameter for atomclasses (", &
+                                    classa(j), '-', classb(j), '-', classc(j), '-', classd(j), ')'
+                                call fatal_error(errstring)
+                            end if
+                    endif
+                end do
+                if(nremove > 0) then
+                    write(errstring, '(A,I0,A,I0,A,I0,A,I0,A)') &
+                        "Duplicate opb parameter for atomclasses (", &
+                        classa(iopb), '-', classb(iopb), '-', classc(iopb), '-', classd(iopb), &
+                        ') - considering only the last entry'
+                    call ommp_message(errstring, OMMP_VERBOSE_LOW, 'prm-error')
+                    do j=1, nremove
+                        classa(remove(j):iopb-1) = classa(remove(j)+1:iopb)
+                        classb(remove(j):iopb-1) = classb(remove(j)+1:iopb)
+                        classc(remove(j):iopb-1) = classc(remove(j)+1:iopb)
+                        classd(remove(j):iopb-1) = classd(remove(j)+1:iopb)
+                        
+                        kopbend(remove(j):iopb-1) = kopbend(remove(j)+1:iopb)
+
+                        iopb = iopb - 1
+                    end do
+                end if
                 
                 iopb = iopb + 1
             end if

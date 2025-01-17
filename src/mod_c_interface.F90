@@ -1886,5 +1886,13 @@ module mod_ommp_C_interface
 
             call ommp_ignore_duplicated_angle_prm
         end subroutine
+        
+        subroutine C_ommp_ignore_duplicated_opb_prm() &
+                bind(c, name='ommp_ignore_duplicated_opb_prm')
+
+            implicit none
+
+            call ommp_ignore_duplicated_opb_prm
+        end subroutine
 
 end module mod_ommp_C_interface

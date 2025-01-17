@@ -160,6 +160,7 @@ extern "C"
     extern void ommp_set_fmm_min_cell_size(OMMP_SYSTEM_PRT, double);
 
     extern void ommp_ignore_duplicated_angle_prm(void);
+    extern void ommp_ignore_duplicated_opb_prm(void);
 
 
 #ifdef __cplusplus

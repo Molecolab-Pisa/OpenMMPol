@@ -54,7 +54,8 @@ module ommp_interface
                              ommp_prepare_qm_ele_grd => electrostatic_for_grad
     use mod_profiling, only: ommp_time_push => time_push, & 
                              ommp_time_pull => time_pull
-    use mod_prm, only: ommp_ignore_duplicated_angle_prm => set_ignore_duplicated_angle_prm
+    use mod_prm, only: ommp_ignore_duplicated_angle_prm => set_ignore_duplicated_angle_prm, &
+                       ommp_ignore_duplicated_opb_prm => set_ignore_duplicated_opb_prm
     use mod_iohdf5, only: mmpol_init_from_hdf5, save_system_as_hdf5
     
     implicit none
