@@ -8,7 +8,7 @@
 #include <openmmpol.h>
 
 #define NELEM 19
-char ELEMENTS[NELEM][2] = {"X", 
+char ELEMENTS[NELEM][3] = {"X", 
                            "H", "He", 
                            "Li", "Be", "B", "C", "N", "O", "F", "Ne",
                            "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar"};
