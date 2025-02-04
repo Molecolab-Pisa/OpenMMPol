@@ -29,6 +29,7 @@ configure_file(
 
 # Header file manipulation 
 file(COPY ${CMAKE_SOURCE_DIR}/include/openmmpol.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${CMAKE_SOURCE_DIR}/include/elements.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${CMAKE_SOURCE_DIR}/include/f_cart_components.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 
 write_basic_package_version_file(
