@@ -6,12 +6,7 @@
 #include <openssl/md5.h>
 
 #include <openmmpol.h>
-
-#define NELEM 19
-char ELEMENTS[NELEM][3] = {"X", 
-                           "H", "He", 
-                           "Li", "Be", "B", "C", "N", "O", "F", "Ne",
-                           "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar"};
+#include <elements.h>
 
 int element_to_Z(char *elem){
     for(int i=0; i<NELEM; i++)
