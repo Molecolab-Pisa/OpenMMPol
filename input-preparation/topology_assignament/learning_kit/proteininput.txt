@@ -1,0 +1,10 @@
+test2
+Test
+amoebabio18.prm
+FOR
+VAL
+LEU
+TRP
+NME
+
+N
