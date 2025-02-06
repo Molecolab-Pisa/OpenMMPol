@@ -6,6 +6,8 @@ import MDAnalysis as mda
 from MDAnalysis.topology.guessers import guess_atom_element
 import json
 
+import sys
+
 
 class Fragment():
     def __init__(self,
@@ -168,6 +170,14 @@ def aa_to_resid(in_aa_string,
         # This should be glycine!
         assert get_subgraph_match(m_aa, read_smiles('[CH2](C(=O)[OH])[NH2]')) is not None
         aa2neutral = get_subgraph_matches(m_aa, m_neut_bb)[0]
+    if aa2neutral is None:
+        print("Prolineeeee!!!")
+        pro_m_neut_bb = read_smiles('[CH](C(=O)[OH])[NH]', explicit_hydrogen=True)
+        aa2neutral = get_subgraph_match(m_aa, pro_m_neut_bb)
+        print_mol(m_aa)
+        tag_mol_graph(pro_m_neut_bb)
+        print_mol(pro_m_neut_bb)
+
 
     toremove = []
     for i_aa in aa2neutral:
@@ -227,7 +237,7 @@ def selection_to_graph(sele):
             vdw_table = {}
             for at in u.atoms:
                 if at.type not in vdw_table:
-                    vdw_table[at.type] = mda.topology.tables.vdwradii[at.element]
+                    vdw_table[at.type] = mda.topology.tables.vdwradii[at.element.upper()]
         else:
             vdw_table = None
 
@@ -273,7 +283,8 @@ def three2one(strin):
                  'tyr': 'Y',
                  'trp': 'W',
                  'wat': 'O',
-                 'Mg': 'Mg'}
+                 'Mg': 'Mg',
+                 'Zn': 'Zn'}
     for t in three_one:
         if strin.startswith(t):
             return three_one[t]
@@ -305,91 +316,155 @@ smiles_aa = {'phe': 'C1=CC=C(C=C1)CC(C(=O)O)N',
              'tyr': 'Oc1ccc(CC(N)C(=O)O)cc1',
              'trp': 'C(N)(C(=O)O)CC1c2ccccc2NC=1'}
 
-with open('db_amber.json', 'r') as f:
+print("Loading db from file...")
+with open('clean_db.json', 'r') as f:
     json_in = json.load(f)
 db = [dict_to_frag(f) for f in json_in['res_assignament']]
-print("Loaded from file")
-#except:
-#    high_p = ['asp', 'glu', 'lys+', 'hip', 'arg+']
-#    db = []
-#
-#    #Internal residues
-#    for resname in smiles_aa:
-#        smiles_str, env_atm = aa_to_resid(smiles_aa[resname])
-#        p = 0
-#        if resname in high_p:
-#            p = 1
-#        db += [Fragment(resname, 
-#                        smiles_str, 
-#                        env_atm, 
-#                        priority=p,
-#                        default_oln=three2one(resname[:3]),
-#                        default_resname=resname[:3].upper(),
-#                        restype='protein_res')]
-#    db += [Fragment('pro', 
-#                    'C1CCN([C](=O))C1C(=O)[N]', 
-#                    [4, 5, 9], 
-#                    priority=0,
-#                    default_oln='P',
-#                    default_resname='PRO',
-#                    restype='protein_res')]
-#
-#    #N-terminal residues (NH3+)
-#    for resname in smiles_aa:
-#        smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
-#                                        resid_bb='[CH]([C](=O)[N])[NH3]',
-#                                        resid_ca=0,
-#                                        resid_env=[3])
-#        p = 2
-#        if resname in high_p:
-#            p = 3
-#        db += [Fragment(resname+'_nt_nh3', 
-#                        smiles_str, 
-#                        env_atm, 
-#                        priority=p,
-#                        default_oln=three2one(resname[:3]),
-#                        default_resname=resname[:3].upper(),
-#                        restype='protein_nh3terminal')]
-#    #db += [Fragment('pro', 'C1CCN([C](=O))C1C(=O)[N]', [4, 5, 9], priority=0)]
-#
-#    #C_terminal residues (COO)
-#    m = read_smiles('[CH]([C](=O)[O])[NH]([C](=O))', explicit_hydrogen=True)
-#    tag_mol_graph(m)
-#    for resname in smiles_aa:
-#        smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
-#                                        resid_bb='[CH]([C](=O)[O])[NH]([C](=O))',
-#                                        resid_ca=0,
-#                                        resid_env=[5,6])
-#        p = 2
-#        if resname in high_p:
-#            p = 3
-#        db += [Fragment(resname+'_ct_coo', 
-#                        smiles_str, 
-#                        env_atm, 
-#                        priority=p,
-#                        default_oln=three2one(resname[:3]),
-#                        default_resname=resname[:3].upper(),
-#                        restype='protein_cooterminal')]
-#    #db += [Fragment('pro', 'C1CCN([C](=O))C1C(=O)[N]', [4, 5, 9], priority=0)]
-#
-#    #Water
-#    db += [Fragment('wat', 
-#                    'O',
-#                    env_atm=[],
-#                    priority=0,
-#                    default_oln='O',
-#                    default_resname='WAT',
-#                    restype='solvent')]
-#    db += [Fragment('Mg', 
-#                    '[Mg]',
-#                    env_atm=[],
-#                    priority=0,
-#                    default_oln='Mg',
-#                    default_resname='Mg2',
-#                    restype='solvent')]
 
+json_out = {}
+json_out['res_assignament'] = [f.asdict() for f in db]
+for i in json_out['res_assignament']:
+    i['atomtypes'] = []
 
-uni = mda.Universe('input.arc')
+with open('clean_db.json', 'w') as f:
+    print(json.dumps(json_out, indent=4), file=f)
+exit(1)
+
+## #except:
+## high_p = ['asp', 'glu', 'lys+', 'hip', 'arg+']
+## #    db = []
+## #
+## #    #Internal residues
+## #    for resname in smiles_aa:
+## #        smiles_str, env_atm = aa_to_resid(smiles_aa[resname])
+## #        p = 0
+## #        if resname in high_p:
+## #            p = 1
+## #        db += [Fragment(resname, 
+## #                        smiles_str, 
+## #                        env_atm, 
+## #                        priority=p,
+## #                        default_oln=three2one(resname[:3]),
+## #                        default_resname=resname[:3].upper(),
+## #                        restype='protein_res')]
+## #    db += [Fragment('pro', 
+## #                    'C1CCN([C](=O))C1C(=O)[N]', 
+## #                    [4, 5, 9], 
+## #                    priority=0,
+## #                    default_oln='P',
+## #                    default_resname='PRO',
+## #                    restype='protein_res')]
+## #
+##     #N-terminal residues (NH3+)
+## m = read_smiles('[CH]([C](=O)[N])(NH(C(=O)H))', explicit_hydrogen=True)
+## tag_mol_graph(m)
+## print_mol(m)
+## for resname in smiles_aa:
+##     smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+##                                     resid_bb='[CH]([C](=O)[N])(NH([C](=O)[H]))',
+##                                     resid_ca=0,
+##                                     resid_env=[3])
+##     p = 2
+##     if resname in high_p:
+##         p = 3
+##     db += [Fragment(resname+'_nt_nhcoh', 
+##                     smiles_str, 
+##                     env_atm, 
+##                     priority=p,
+##                     default_oln=three2one(resname[:3]),
+##                     default_resname=resname[:3].upper(),
+##                     restype='protein_nhcohterminal')]
+##     #db += [Fragment('pro', 'C1CCN([C](=O))C1C(=O)[N]', [4, 5, 9], priority=0)]
+## #    #N-terminal residues (NH3+)
+## #    for resname in smiles_aa:
+## #        smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+## #                                        resid_bb='[CH]([C](=O)[N])[NH3]',
+## #                                        resid_ca=0,
+## #                                        resid_env=[3])
+## #        p = 2
+## #        if resname in high_p:
+## #            p = 3
+## #        db += [Fragment(resname+'_nt_nh3', 
+## #                        smiles_str, 
+## #                        env_atm, 
+## #                        priority=p,
+## #                        default_oln=three2one(resname[:3]),
+## #                        default_resname=resname[:3].upper(),
+## #                        restype='protein_nh3terminal')]
+## #    #db += [Fragment('pro', 'C1CCN([C](=O))C1C(=O)[N]', [4, 5, 9], priority=0)]
+## #
+## #C_terminal residues (COO)
+## for resname in smiles_aa:
+##     smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+##                                     resid_bb='[CH]([C](=O)[NH][CH3])[NH]([C](=O))',
+##                                     resid_ca=0,
+##                                     resid_env=[6,7])
+##     #ma = read_smiles(smiles_str)
+##     #tag_mol_graph(ma)
+##     #print_mol(ma)
+##     p = 5
+##     if resname in high_p:
+##         p = 4
+##     db += [Fragment(resname+'_ct_conme', 
+##                     smiles_str, 
+##                     env_atm, 
+##                     priority=p,
+##                     default_oln=three2one(resname[:3]),
+##                     default_resname=resname[:3].upper(),
+##                     restype='protein_conmeterminal')]
+## 
+## ma = read_smiles('C1CCN([C](=O))C1C(=O)NC')
+## tag_mol_graph(ma)
+## print_mol(ma)
+## db += [Fragment('pro_ct_conme', 
+##                 'C1CCN([C](=O))C1C(=O)NC', 
+##                 [4, 5], 
+##                 priority=4,
+##                 default_oln='P',
+##                 default_resname='PRO',
+##                 restype='protein_conmeterminal')]
+##     #C_terminal residues (CONHMe)
+##     #m = read_smiles('[CH]([C](=O)[O])[NH]([C](=O))', explicit_hydrogen=True)
+##     #tag_mol_graph(m)
+##     #for resname in smiles_aa:
+##     #    smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+##     #                                    resid_bb='[CH]([C](=O)[O])[NH]([C](=O))',
+##     #                                    resid_ca=0,
+##     #                                    resid_env=[5,6])
+##     #    p = 2
+##     #    if resname in high_p:
+##     #        p = 3
+##     #    db += [Fragment(resname+'_ct_coo', 
+##     #                    smiles_str, 
+##     #                    env_atm, 
+##     #                    priority=p,
+##     #                    default_oln=three2one(resname[:3]),
+##     #                    default_resname=resname[:3].upper(),
+##     #                    restype='protein_cooterminal')]
+##     #db += [Fragment('pro', 'C1CCN([C](=O))C1C(=O)[N]', [4, 5, 9], priority=0)]
+## #
+## #    #Water
+## #    db += [Fragment('wat', 
+## #                    'O',
+## #                    env_atm=[],
+## #                    priority=0,
+## #                    default_oln='O',
+## #                    default_resname='WAT',
+## #                    restype='solvent')]
+## db += [Fragment('Zn', 
+##                 '[Zn]',
+##                 env_atm=[],
+##                 priority=0,
+##                 default_oln='Zn',
+##                 default_resname='Zn2',
+##                 restype='solvent')]
+## 
+## json_out = {}
+## json_out['res_assignament'] = [f.asdict() for f in db]
+## with open('clean_db.json', 'w') as f:
+##     print(json.dumps(json_out, indent=4), file=f)
+
+uni = mda.Universe(sys.argv[1])
 prot = selection_to_graph(uni.atoms)
 tag_mol_graph(prot)
 nat = len(prot.nodes)
@@ -402,11 +477,15 @@ for ifrag, frag in sorted(enumerate(db), key=lambda a: a[1].priority, reverse=Tr
     res = read_smiles(frag.smiles_str, explicit_hydrogen=True)
     aa_matches = get_subgraph_matches(prot, res)
     print("Found {:d} {:s} resids".format(len(aa_matches), resname))
-    attype = np.zeros(frag.natoms, dtype=np.int64)
-    if len(frag.atomtypes) == 0 or 0 in [frag.atomtypes[i] for i in frag.assigned_atm]:
-        missing_prm = True
-    else:
-        missing_prm = False
+    #print(frag.env_atm)
+    #if len(aa_matches) > 0:
+    #    tag_mol_graph(res)
+    #    print_mol(res)
+    #attype = np.zeros(frag.natoms, dtype=np.int64)
+    #if len(frag.atomtypes) == 0 or 0 in [frag.atomtypes[i] for i in frag.assigned_atm]:
+    #    missing_prm = True
+    #else:
+    #    missing_prm = False
 
     for m in aa_matches:
         candidate_resid = max(resid) + 1
@@ -419,22 +498,19 @@ for ifrag, frag in sorted(enumerate(db), key=lambda a: a[1].priority, reverse=Tr
                     resnames[i] = resname
                     resid[i] = candidate_resid
                     atmid[i] = m[i]
-                    if missing_prm:
-                        attype[m[i]] = int(uni.atoms[i].type)
-                    else:
-                        try:
-                            assert frag.atomtypes[m[i]] == int(uni.atoms[i].type)
-                        except:
-                            print("Atom {}: expected {} found {}".format(i, frag.atomtypes[m[i]], int(uni.atoms[i].type)))
-        if missing_prm and not 0 in attype[frag.assigned_atm]:
-            print("Added parameters for {}".format(frag.name))
-            db[ifrag].set_atomtypes(attype)
+                    # if missing_prm:
+                    #     attype[m[i]] = int(uni.atoms[i].type)
+                    # else:
+                    #     try:
+                    #         assert frag.atomtypes[m[i]] == int(uni.atoms[i].type)
+                    #     except:
+                    #         print("Atom {}: expected {} found {}".format(i, frag.atomtypes[m[i]], int(uni.atoms[i].type)))
+        #if missing_prm and not 0 in attype[frag.assigned_atm]:
+        #    print("Added parameters for {}".format(frag.name))
+        #    db[ifrag].set_atomtypes(attype)
+    print(len(done_flags))
 
 
-json_out = {}
-json_out['res_assignament'] = [f.asdict() for f in db]
-with open('db_amber.json', 'w') as f:
-    print(json.dumps(json_out, indent=4), file=f)
 
 lastresid = -1
 for i in range(nat):
