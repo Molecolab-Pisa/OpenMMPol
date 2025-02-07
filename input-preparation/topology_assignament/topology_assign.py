@@ -9,6 +9,9 @@ import json
 import sys
 from topas import *
 
+logger = logging.getLogger('pysmiles')
+logger.setLevel(level=logging.ERROR)
+
 def topology_assign(input_structure, json_database):
     print("Loading db from file...")
     with open(json_database, 'r') as f:
@@ -29,14 +32,14 @@ def topology_assign(input_structure, json_database):
     for ifrag, frag in sorted(enumerate(db), key=lambda a: a[1].priority, reverse=True):
         resname = frag.name
         print("Searching for residue {:s}".format(resname))
-        res = read_smiles(frag.smiles_str, explicit_hydrogen=True)
+        res = read_smiles(frag.smiles_str, explicit_hydrogen=True, strict=False)
         aa_matches = get_subgraph_matches(prot, res)
         if len(aa_matches) > 0:
             print("Found {:d} {:s} resids".format(len(aa_matches), resname))
 
         for m in aa_matches:
             candidate_resid = max(resid) + 1
-            
+
             assignable_atoms = [i for i in m if m[i] not in frag.env_atm]
             print(m)
             print([a in done_flags for a in assignable_atoms])

@@ -5,6 +5,10 @@ import numpy as np
 import MDAnalysis as mda
 from MDAnalysis.topology.guessers import guess_atom_element
 import json
+import logging
+
+logger = logging.getLogger('pysmiles')
+logger.setLevel(level=logging.ERROR)
 
 class Fragment():
     def __init__(self,
@@ -20,7 +24,7 @@ class Fragment():
         self.name = name
         self.smiles_str = smiles_str
         self.env_atm = env_atm
-        self.natoms = len(read_smiles(self.smiles_str, explicit_hydrogen=True).nodes)
+        self.natoms = len(read_smiles(self.smiles_str, explicit_hydrogen=True, strict=False).nodes)
         if default_resname is not None:
             self.resname = default_resname
         else:
@@ -142,21 +146,24 @@ def print_mol(m):
             )
     plt.show()
 
-def aa_to_resid(in_aa_string, 
+def aa_to_resid(in_aa_string,
                 resid_bb='[CH]([C](=O)[N])[NH]([C](=O))',
                 resid_ca=0,
                 resid_env=[3, 5, 6]):
     neutral_bb = '[CH](C(=O)[OH])[NH2]'
     m_neut_bb = read_smiles(neutral_bb,
-                            explicit_hydrogen=True)
+                            explicit_hydrogen=True,
+                            strict=False)
     neutral_ca = 0
     #tag_mol_graph(m_neut_bb)
     #print_mol(m_neut_bb)
     m_resid_bb = read_smiles(resid_bb,
-                             explicit_hydrogen=True)
-    
+                             explicit_hydrogen=True,
+                             strict=False)
+
     m_aa = read_smiles(in_aa_string,
-                       explicit_hydrogen=True)
+                       explicit_hydrogen=True,
+                       strict=False)
     tag_mol_graph(m_aa)
 
     # Find the atom linked to CA and remove the whole backbone
@@ -165,10 +172,10 @@ def aa_to_resid(in_aa_string,
         aa2neutral = get_subgraph_match(m_aa, m_neut_bb)
     except ValueError:
         # This should be glycine!
-        assert get_subgraph_match(m_aa, read_smiles('[CH2](C(=O)[OH])[NH2]')) is not None
+        assert get_subgraph_match(m_aa, read_smiles('[CH2](C(=O)[OH])[NH2]', strict=False)) is not None
         aa2neutral = get_subgraph_matches(m_aa, m_neut_bb)[0]
     if aa2neutral is None:
-        pro_m_neut_bb = read_smiles('[CH](C(=O)[OH])[NH]', explicit_hydrogen=True)
+        pro_m_neut_bb = read_smiles('[CH](C(=O)[OH])[NH]', explicit_hydrogen=True, strict=False)
         aa2neutral = get_subgraph_match(m_aa, pro_m_neut_bb)
         print_mol(m_aa)
         tag_mol_graph(pro_m_neut_bb)
@@ -216,7 +223,7 @@ def aa_to_resid(in_aa_string,
     m_resid_aa.add_edge(residaa_s, residaa_ca)
     #print_mol(m_resid_aa)
     smiles_str = write_smiles(m_resid_aa)
-    reload_map = get_subgraph_match(m_resid_aa, read_smiles(smiles_str))
+    reload_map = get_subgraph_match(m_resid_aa, read_smiles(smiles_str, strict=False))
 
     return smiles_str, [reload_map[i] for i in resid_env]
 
@@ -229,18 +236,19 @@ def selection_to_graph(sele):
 
     if not hasattr(u.atoms, 'bonds') or sum([len(at.bonds) for at in sele]) == 0:
         # Create a VdW table that only relies on element information
-        if hasattr(u.atoms, 'types'):
-            vdw_table = {}
-            for at in u.atoms:
-                if at.type not in vdw_table:
-                    vdw_table[at.type] = mda.topology.tables.vdwradii[at.element.upper()]
-        else:
-            vdw_table = None
+        u.atoms.guess_bonds()
+        # if hasattr(u.atoms, 'types'):
+        #     vdw_table = {}
+        #     for at in u.atoms:
+        #         if at.type not in vdw_table:
+        #             vdw_table[at.type] = mda.topology.tables.vdwradii[at.element.upper()]
+        # else:
+        #     vdw_table = None
 
-        if not hasattr(u.atoms, 'bonds'):
-            u.atoms.guess_bonds(vdwradii=vdw_table)
-        else:
-            sele.atoms.guess_bonds(vdwradii=vdw_table)
+        # if not hasattr(u.atoms, 'bonds'):
+        #     u.atoms.guess_bonds(vdwradii=vdw_table)
+        # else:
+        #     sele.atoms.guess_bonds(vdwradii=vdw_table)
 
     G = nx.Graph(attr='element')
     natoms = 0
