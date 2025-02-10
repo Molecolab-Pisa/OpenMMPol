@@ -25,100 +25,165 @@ class PrmAssignament():
         tag_mol_graph(self.mol_graph)
         # Check for correctness
         assert len(self.mol_graph.nodes) == self.natoms
+        # If needed, generate sub-graphs for each molecule
+        self.split_into_molecules()
+        # Database used for the assignament
         self.db = None
 
     @property
     def natoms(self):
+        """Return the number of atoms in the system"""
         return len(self.u.atoms)
 
-    def is_assigned(self, iatm):
+    def is_assigned(self, iatm: int):
+        """Check if an atom with index iatm is assigned or not"""
         return self.assigned_fragid[iatm] >= 0
 
     @property
     def tot_assigned(self):
+        """Count the total number of assigned atoms"""
         return np.count_nonzero(self.assigned_fragid >= 0)
 
     def get_next_free_resid(self):
+        """Get the lowest residue-id that is not used"""
         return max(self.assigned_resid) + 1
+
+    def split_into_molecules(self):
+        """Check if more than one molecule is present in the
+        system and generate the subgraphs for each molecule.
+        Used to speedup the assignament procedure"""
+        cc_gen = nx.connected_components(self.mol_graph)
+        self.mol_sub_graphs = []
+        for comp in cc_gen:
+            self.mol_sub_graphs += [nx.subgraph(self.mol_graph, comp)]
+
+    @property
+    def nmol(self):
+        """Number of molecules in the system"""
+        if self.mol_sub_graphs is None:
+            self.split_into_molecules()
+        return len(self.mol_sub_graphs)
 
     def set_db(self, db):
         self.db = db
 
-    def get_ol_sequence(self):
-        try:
-            assert self.tot_assigned == self.natoms
-        except AssertionError:
-            print("The structure should be completely assigned before asking for sequence")
+    # def get_ol_sequence(self):
+    #     try:
+    #         assert self.tot_assigned == self.natoms
+    #     except AssertionError:
+    #         print("The structure should be completely assigned before asking for sequence")
+
+    def get_assigned_atomtypes(self):
+        at = []
+        for i in range(self.natoms):
+            if self.is_assigned(i):
+                try:
+                    frag = self.db[self.assigned_fragid[i]]
+                except KeyError:
+                    print("Can't find fragment with fragment id {:d}".format(self.assigned_fragid[i]))
+                    return None
+                try:
+                    at += [frag.atomtypes[self.assigned_atomid[i]]]
+                except KeyError:
+                    print("Atom {:d} assigned as atom {:d} of residue {:d} (...) hasn't an atomtype".format(i, 
+                                                                                                            self.assigned_atomid[i],
+                                                                                                            frag.fragment_id))
+                    return None
+            else:
+                return None
+        return at
 
     def topology_assign(self):
-        for frag in self.db:
-            print("Searching for residue {:s} (priority {:d})".format(frag.name,
-                                                                      frag.priority))
-            aa_matches = get_subgraph_matches(self.mol_graph, frag.frag_graph)
-            if len(aa_matches) > 0:
-                print("Found {:d} {:s} resids".format(len(aa_matches), frag.name))
+        """Perform the assignament using the current db"""
+        try:
+            assert self.db is not None
+        except AssertionError:
+            raise ValueError("A database should be set before starting the assignament")
+        
+        
+        if self.mol_sub_graphs is None:
+            mgs = [self.mol_graph]
+        else:
+            mgs = self.mol_sub_graphs
 
-            for m in aa_matches:
-                candidate_resid = self.get_next_free_resid()
+        for mg in mgs:
+            print("Assigning molecule with {:d} nodes and {:d} arcs".format(len(mg.nodes), len(mg.edges)))
 
-                assignable_atoms = [i for i in m if m[i] not in frag.env_atm]
-
-                if any([self.is_assigned(a) for a in assignable_atoms]):
-                    print("The structure is already assigned!")
-                    res_to_unassign = []
-                    at_to_unassign = []
-                    new_assigned_at = []
-                    for at in assignable_atoms:
-                        if self.is_assigned(at):
-                            print("Atom {:03d} is in resid {:03d}".format(at, self.assigned_resid[at]))
-                            res_to_unassign += [self.assigned_resid[at]]
-                            at_to_unassign += [at]
-                        else:
-                            print("Atom {:03d} is not in a residue!")
-                            new_assigned_at += [at]
-                    #print(set(res_to_unassign))
-                    #print(len(at_to_unassign))
-                    #print(new_assigned_at)
-                    if len(set(res_to_unassign)) > 1:
-                        raise NotImplementedError("Multiple residues have to be unassigned!")
-                    if len(new_assigned_at) == 0:
-                        print("No improvement here.")
-                        continue
-                    else:
-                        #print(np.count_nonzero(resid == res_to_unassign[0]))
-                        #print(len(at_to_unassign))
-                        #print(len(new_assigned_at))
-                        if np.count_nonzero(resid == res_to_unassign[0]) == len(at_to_unassign):
-                            print("Ok reassigning is needed here!")
-                            exit()
-                        else:
-                            raise NotImplementedError("Partial reassignement is not expected!")
+            for frag in self.db:
+                
+                # Skip if the number of atoms in fragment is larger than the
+                # number of atoms in current molecule
+                if frag.natoms > len(mg.nodes):
                     continue
 
-                print("Assigning {:d} atoms to residue {:d}".format(len(m), candidate_resid))
-                for i in m:
-                    if m[i] not in frag.env_atm:
-                        if self.is_assigned(i):
-                            #if assigning == True:
-                            #    print(m[i])
-                            #    tag_mol_graph(res)
-                            #    print_mol(res)
-                            #    raise ValueError("Trying to partially assign a residue")
-                            #else:
-                            #    assigning = False
-                            raise ValueError("Attempting unhandled ressignament")
-                        else:
-                            #if assigning == False:
-                            #    print(m[i])
-                            #    tag_mol_graph(res)
-                            #    print_mol(res)
-                            #    raise ValueError("Trying to partially assign a residue")
-                            #else:
-                            #    assigning = True
+                print("Searching for residue {:s} (priority {:d})".format(frag.name,
+                                                                        frag.priority))
+                aa_matches = get_subgraph_matches(mg, frag.frag_graph)
+                if len(aa_matches) > 0:
+                    print("Found {:d} {:s} resids".format(len(aa_matches), frag.name))
 
-                            self.assigned_resid[i] = candidate_resid
-                            self.assigned_fragid[i] = frag.fragment_id
-                            self.assigned_atomid[i] = m[i]
+                for m in aa_matches:
+                    candidate_resid = self.get_next_free_resid()
+
+                    assignable_atoms = [i for i in m if m[i] not in frag.env_atm]
+                    print(assignable_atoms)
+
+                    if any([self.is_assigned(a) for a in assignable_atoms]):
+                        print("The structure is already assigned!")
+                        res_to_unassign = []
+                        at_to_unassign = []
+                        new_assigned_at = []
+                        for at in assignable_atoms:
+                            if self.is_assigned(at):
+                                print("Atom {:03d} is in resid {:03d}".format(at, self.assigned_resid[at]))
+                                res_to_unassign += [self.assigned_resid[at]]
+                                at_to_unassign += [at]
+                            else:
+                                print("Atom {:03d} is not in a residue!")
+                                new_assigned_at += [at]
+                        #print(set(res_to_unassign))
+                        #print(len(at_to_unassign))
+                        #print(new_assigned_at)
+                        if len(set(res_to_unassign)) > 1:
+                            raise NotImplementedError("Multiple residues have to be unassigned!")
+                        if len(new_assigned_at) == 0:
+                            print("No improvement here.")
+                            continue
+                        else:
+                            #print(np.count_nonzero(resid == res_to_unassign[0]))
+                            #print(len(at_to_unassign))
+                            #print(len(new_assigned_at))
+                            if np.count_nonzero(resid == res_to_unassign[0]) == len(at_to_unassign):
+                                print("Ok reassigning is needed here!")
+                                exit()
+                            else:
+                                raise NotImplementedError("Partial reassignement is not expected!")
+                        continue
+
+                    print("Assigning {:d} atoms to residue {:d}".format(len(m), candidate_resid))
+                    for i in m:
+                        if m[i] not in frag.env_atm:
+                            if self.is_assigned(i):
+                                #if assigning == True:
+                                #    print(m[i])
+                                #    tag_mol_graph(res)
+                                #    print_mol(res)
+                                #    raise ValueError("Trying to partially assign a residue")
+                                #else:
+                                #    assigning = False
+                                raise ValueError("Attempting unhandled ressignament")
+                            else:
+                                #if assigning == False:
+                                #    print(m[i])
+                                #    tag_mol_graph(res)
+                                #    print_mol(res)
+                                #    raise ValueError("Trying to partially assign a residue")
+                                #else:
+                                #    assigning = True
+
+                                self.assigned_resid[i] = candidate_resid
+                                self.assigned_fragid[i] = frag.fragment_id
+                                self.assigned_atomid[i] = m[i]
 
     def learn_from(self):
         if not hasattr(self.u.atoms[0], 'type'):
@@ -127,18 +192,107 @@ class PrmAssignament():
         for i in range(self.natoms):
             if self.is_assigned(i):
                 print("Correct atom type for {:03d} is {}".format(i, self.u.atoms[i].type))
+                # Find the correct fragment
+                frag = self.db[self.assigned_fragid[i]]
+                
+                if frag.has_atomtypes(self.assigned_atomid[i]):
+                    try:
+                        assert self.u.atoms[i].type == frag.atomtypes[self.assigned_atomid[i]]
+                        print("Already in DB with consistent atomtype")
+                    except AssertionError:
+                        raise ValueError("Inconsistent information between learning input and database for atom {:d}".format(i))
+                else:
+                    frag.set_atomtype(self.assigned_atomid[i], self.u.atoms[i].type)
+                    print("Inserting in db")
+
             else:
                 print("Atom {:03d} is unassigned".format(i))
+
+    def save_tinker_xyz(self, fname, header_str=None):
+        if header_str is None:
+            header = 'Generated by TopologyAssignament by Mattia Bondanza'
+        else:
+            header = header_str.replace('\n', ' ')
+            
+        assigned_atomtypes = self.get_assigned_atomtypes()
+        if assigned_atomtypes is None:
+            print("Cannot continue without atom types")
+            return
+
+        with open(fname, 'w') as f:
+            print("{:d} {:s}".format(self.natoms, header), file=f)
+            for i in range(self.natoms):
+                at = self.u.atoms[i]
+                print("{:>5d} {:>5s} {:10.6f} {:10.6f} {:10.6f} {:>5d} ".format(at.id, 
+                                                                                at.element,
+                                                                                at.position[0],
+                                                                                at.position[1],
+                                                                                at.position[2],
+                                                                                int(assigned_atomtypes[i])), 
+                      end='', file=f)
+                for b in at.bonds:
+                    if b.atoms[0] == at:
+                        at2 = b.atoms[1]
+                    else:
+                        at2 = b.atoms[0]
+                    print('{:>5d} '.format(at2.id), end='', file=f)
+                print(file=f)
+
+
+
+class AssignamentDB():
+    def __init__(self, dbfile=None):
+        self.dbfile = dbfile
+
+        if self.dbfile is not None:
+            with open(self.dbfile, 'r') as f:
+                json_in = json.load(f)
+            db = [Fragment.from_dict(f) for f in json_in['res_assignament']]
+            self.db = sorted(db, key=lambda frag: frag.priority, reverse=True)
+            self.id_to_index = {}
+            for ifrag, frag in enumerate(self.db):
+                frag.fragment_id = ifrag
+                self.id_to_index[ifrag] = ifrag
+        else:
+            self.db = []
+            self.id_to_index = {}
+
+    def __iter__(self):
+        return iter(sorted(self.db, key=lambda frag: frag.priority, reverse=True))
+
+    def __getitem__(self, k):
+        if type(k) == int or np.can_cast(type(k), int):
+            try:
+                return self.db[self.id_to_index[k]]
+            except KeyError:
+                raise StopIteration
+        else:
+            raise KeyError
+
+    def save_as_json(self, fout):
+        json_out = {}
+        json_out['res_assignament'] = [f.asdict() for f in self.db]
+        with open(fout, 'w') as f:
+            print(json.dumps(json_out, indent=4), file=f)
+
+    def get_min_free_id(self):
+        for i, k in enumerate(sorted(self.id_to_index.keys())):
+            if i != k:
+                return i
+        return len(self.id_to_index)
+
+    def add_fragment(self, frag):
+        self.db += [frag]
+        self.id_to_index[self.get_min_free_id()] = len(self.db) - 1
 
 
 class Fragment():
     def __init__(self,
                  name,
                  smiles_str,
-                 fragment_id,
                  env_atm=[],
-                 atomnames=[],
-                 atomtypes=[],
+                 atomnames={},
+                 atomtypes={},
                  default_resname='UNK',
                  restype='unknown',
                  default_oln='-',
@@ -149,7 +303,7 @@ class Fragment():
         self.frag_graph = read_smiles(self.smiles_str,
                                       explicit_hydrogen=True,
                                       strict=False)
-        self.fragment_id = fragment_id
+        self.fragment_id = None
         self.env_atm = env_atm
         self.natoms = len(self.frag_graph.nodes)
 
@@ -167,11 +321,23 @@ class Fragment():
     def assignable_atm(self):
         return [i for i in range(self.natoms) if i not in self.env_atm]
 
-    def set_atomtypes(self, atomtypes):
-        if self.natoms == len(atomtypes):
-            self.atomtypes = atomtypes.copy()
+    def has_atomtypes(self, iatm=None):
+        if iatm is None:
+            return len(self.atomtypes) == self.assignable_atm
         else:
-            raise ValueError("Length of the atomtypes array should be {:d}".format(natoms))
+            if iatm in self.atomtypes:
+                return self.atomtypes[iatm] is not None
+            else:
+                return False
+
+    def set_atomtype(self, iatm, atomtype):
+        if iatm in self.atomtypes and self.atomtypes[iatm] is not None:
+            raise ValueError("Cannot reassign atomtypes")
+        else:
+            self.atomtypes[iatm] = atomtype
+    
+    def reset_atomtype(self, iatm):
+        self.atomtypes[iatm] = None
 
     def asdict(self):
         d = {}
@@ -181,24 +347,29 @@ class Fragment():
         d['natoms'] = self.natoms
         d['resname'] = self.resname
         d['priority'] = self.priority
-        d['atomtypes'] = [int(i) for i in self.atomtypes]
-        d['atomnames'] = list(self.atomnames)
+        d['atomtypes'] = {int(a): self.atomtypes[a] for a in self.atomtypes}
+        d['atomnames'] = {int(a): self.atomnames[a] for a in self.atomnames}
         d['restype'] = self.restype
         d['oln'] = self.oln
-        d['fragment_id'] = self.fragment_id
         return d
 
-def dict_to_frag(d):
-    return Fragment(d['name'],
-                    d['smiles_str'],
-                    d['fragment_id'],
-                    env_atm=d['env_atm'],
-                    default_resname=d['resname'],
-                    priority=d['priority'],
-                    atomtypes=d['atomtypes'],
-                    atomnames=d['atomnames'],
-                    restype=d['restype'],
-                    default_oln=d['oln'])
+    @classmethod
+    def from_dict(cls, d):
+        dic_atomtypes = d['atomtypes']
+        dic_atomnames = d['atomnames']
+
+        atomtypes = {int(a): dic_atomtypes[a] for a in dic_atomtypes}
+        atomnames = {int(a): dic_atomnames[a] for a in dic_atomnames}
+        return cls(d['name'],
+                   d['smiles_str'],
+                   env_atm=d['env_atm'],
+                   default_resname=d['resname'],
+                   priority=d['priority'],
+                   atomtypes=atomtypes,
+                   atomnames=atomnames,
+                   restype=d['restype'],
+                   default_oln=d['oln'])
+
 def name_to_c(n):
     if n == 'C':
         return '#000000'

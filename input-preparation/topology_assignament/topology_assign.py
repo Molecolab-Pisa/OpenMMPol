@@ -3,19 +3,221 @@ import MDAnalysis as mda
 import json
 import sys
 from topas import *
+import argparse
 
-mya = PrmAssignament(mda.Universe(sys.argv[1]))
+allowed_cmd = ['assign', 'database']
 
-print("Loading db from file...")
-with open(sys.argv[2], 'r') as f:
-    json_in = json.load(f)
-db = [dict_to_frag(f) for f in json_in['res_assignament']]
-db = sorted(db, key=lambda frag: frag.priority, reverse=True)
-mya.set_db(db)
+if len(sys.argv) < 2 or sys.argv[1] not in allowed_cmd:
+    print("Use as first argument one of the following commands:")
+    for c in allowed_cmd:
+        print("\t{:s}".format(c))
 
-mya.topology_assign()
+elif sys.argv[1] == 'assign':
+    parser = argparse.ArgumentParser(prog='assign',
+                                     description="""Perform atom type assignament on a file containing a molecule structure""")
+    parser.add_argument('-d', '--db',
+                        required=True,
+                        type=str,
+                        help='Database to be used for the assignament',
+                        metavar='<db_name.json>',
+                        dest='db')
+    parser.add_argument('-f', '--mol-file',
+                        required=True,
+                        type=str,
+                        help='''Molecular structure to be assigned.
+                                Any kind of structural file that can be read by MDAnalysis is accepted.''',
+                        metavar='<mol_file.xyz>',
+                        dest='molf')
+    
+    parser.add_argument('--out-txyz-file',
+                        type=str,
+                        help='''Output Tinker xyz file containing the assignament information.''',
+                        metavar='<out_file.xyz>',
+                        dest='out_txyz')
+    args = parser.parse_args(args=sys.argv[2:])
 
-print("Assigned {:d} / {:d}".format(mya.tot_assigned, mya.natoms))
+    mya = PrmAssignament(mda.Universe(args.molf))
+    print("Number of molecule in the system {:d}".format(mya.nmol))
 
-mya.learn_from()
+    print("Loading db from file...")
+    mydb = AssignamentDB(args.db)
+    mya.set_db(mydb)
+
+    mya.topology_assign()
+
+    print("Assigned {:d} / {:d}".format(mya.tot_assigned, mya.natoms))
+
+    if hasattr(args, 'out_txyz'):
+        mya.save_tinker_xyz(args.out_txyz)
+
+elif sys.argv[1] == 'database':
+    parser = argparse.ArgumentParser(prog='database',
+                                     description="""Perform operations on database""")
+    parser.add_argument('-d', '--db',
+                        required=True,
+                        type=str,
+                        help='Database to be used for the assignament',
+                        metavar='<db_name.json>',
+                        dest='db')
+    
+    parser.add_argument('--create-clean',
+                        action='store_true',
+                        help='Create a new clean database',
+                        dest='create_clean')
+
+    args = parser.parse_args(args=sys.argv[2:])
+
+    if args.create_clean:
+        smiles_aa = {'phe': 'C1=CC=C(C=C1)CC(C(=O)O)N',
+                    'ala': 'CC(C(=O)O)N',
+                    'gly': 'C(C(=O)O)N',
+                    'arg': 'NC(=N)NCCCC(N)C(=O)O',
+                    'arg+': 'NC(=[NH2])NCCCC(N)C(=O)O',
+                    'hid': 'C1=C(NC=N1)CC(C(=O)O)N',
+                    'hip': 'C1=C(NC=([NH]1))CC(C(=O)O)N',
+                    'hie': 'C1=C([N]C=([NH]1))CC(C(=O)O)N',
+                    'lys': 'NCCCCC(N)C(=O)O',
+                    'lys+': '[NH3]CCCCC(N)C(=O)O',
+                    'asp': 'C([CH](C(=O)O)N)C(=O)[OH]',
+                    'asp-': 'C([CH](C(=O)O)N)C(=O)[O]',
+                    'gln': 'NC(=O)CCC(N)C(=O)O',
+                    'ser': 'OCC(N)C(=O)O',
+                    'thr': 'CC(O)C(N)C(=O)O',
+                    'asn': 'C([CH](C(=O)O)N)C(=O)N',
+                    'glu-': '[O]C(=O)CCC(N)C(=O)O',
+                    'glu': '[OH]C(=O)CCC(N)C(=O)O',
+                    'cys': 'SCC(N)C(=O)O',
+                    'val': 'CC(C)C(N)C(=O)O',
+                    'ile': 'CC[CH](C)[CH](C(=O)O)N',
+                    'leu': 'CC(C)C[CH](C(=O)O)N',
+                    'met': 'CSCCC(C(=O)O)N',
+                    'tyr': 'Oc1ccc(CC(N)C(=O)O)cc1',
+                    'trp': 'C(N)(C(=O)O)CC1c2ccccc2NC=1'}
+
+        high_p = ['asp', 'glu', 'lys+', 'hip', 'arg+']
+        db = AssignamentDB()
+
+        #Internal residues
+        for resname in smiles_aa:
+            smiles_str, env_atm = aa_to_resid(smiles_aa[resname])
+            p = 0
+            if resname in high_p:
+                p = 1
+            db.add_fragment(Fragment(resname,
+                            smiles_str,
+                            env_atm,
+                            priority=p,
+                            default_oln=three2one(resname[:3]),
+                            default_resname=resname[:3].upper(),
+                            restype='protein_res'))
+        db.add_fragment(Fragment('pro',
+                        'C1CCN([C](=O))C1C(=O)[N]',
+                        [4, 5, 9],
+                        priority=0,
+                        default_oln='P',
+                        default_resname='PRO',
+                        restype='protein_res'))
+
+        # N-terminal residues
+        ## Formyl H-C(=O)-NH-|
+        for resname in smiles_aa:
+            smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+                                            resid_bb='[CH]([C](=O)[N])(NH([C](=O)[H]))',
+                                            resid_ca=0,
+                                            resid_env=[3])
+            p = 2
+            if resname in high_p:
+                p = 3
+            db.add_fragment(Fragment(resname+'_nt_nhcoh',
+                            smiles_str,
+                            env_atm,
+                            priority=p,
+                            default_oln=three2one(resname[:3]),
+                            default_resname=resname[:3].upper(),
+                            restype='protein_nhcohterminal'))
+        ## Protonated H3N-|
+        for resname in smiles_aa:
+            smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+                                            resid_bb='[CH]([C](=O)[N])[NH3]',
+                                            resid_ca=0,
+                                            resid_env=[3])
+            p = 2
+            if resname in high_p:
+                p = 3
+            db.add_fragment(Fragment(resname+'_nt_nh3',
+                            smiles_str,
+                            env_atm,
+                            priority=p,
+                            default_oln=three2one(resname[:3]),
+                            default_resname=resname[:3].upper(),
+                            restype='protein_nh3terminal'))
+
+        # C-terminal residues
+        ## NMA H3C-NH-C(=O)-|
+        for resname in smiles_aa:
+            smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+                                            resid_bb='[CH]([C](=O)[NH][CH3])[NH]([C](=O))',
+                                            resid_ca=0,
+                                            resid_env=[6,7])
+            p = 2
+            if resname in high_p:
+                p = 3
+            db.add_fragment(Fragment(resname+'_ct_conme',
+                            smiles_str,
+                            env_atm,
+                            priority=p,
+                            default_oln=three2one(resname[:3]),
+                            default_resname=resname[:3].upper(),
+                            restype='protein_conmeterminal'))
+
+        db.add_fragment(Fragment('pro_ct_conme',
+                        'C1CCN([C](=O))C1C(=O)NC',
+                        [4, 5],
+                        priority=4,
+                        default_oln='P',
+                        default_resname='PRO',
+                        restype='protein_conmeterminal'))
+
+        # Deprotonated O2C-|
+        m = read_smiles('[CH]([C](=O)[O])[NH]([C](=O))', explicit_hydrogen=True, strict=False)
+        tag_mol_graph(m)
+        for resname in smiles_aa:
+            smiles_str, env_atm = aa_to_resid(smiles_aa[resname],
+                                            resid_bb='[CH]([C](=O)[O])[NH]([C](=O))',
+                                            resid_ca=0,
+                                            resid_env=[5,6])
+            p = 2
+            if resname in high_p:
+                p = 3
+
+            db.add_fragment(Fragment(resname+'_ct_coo',
+                            smiles_str,
+                            env_atm,
+                            priority=p,
+                            default_oln=three2one(resname[:3]),
+                            default_resname=resname[:3].upper(),
+                            restype='protein_cooterminal'))
+
+        # Water
+        db.add_fragment(Fragment('wat',
+                        'O',
+                        env_atm=[],
+                        priority=0,
+                        default_oln='O',
+                        default_resname='WAT',
+                        restype='solvent'))
+
+        # Ions
+        db.add_fragment(Fragment('Zn',
+                        '[Zn]',
+                        env_atm=[],
+                        priority=0,
+                        default_oln='Zn',
+                        default_resname='Zn2',
+                        restype='solvent'))
+
+        db.save_as_json(args.db)
+
+#mya.learn_from()
+#mydb.save_as_json(sys.argv[2])
 
