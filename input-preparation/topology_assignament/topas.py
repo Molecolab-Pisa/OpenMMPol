@@ -194,13 +194,15 @@ class PrmAssignament():
                 print("Correct atom type for {:03d} is {}".format(i, self.u.atoms[i].type))
                 # Find the correct fragment
                 frag = self.db[self.assigned_fragid[i]]
-                
+                print("Atom is assigned to {:s}-{:d}".format(frag.name, self.assigned_atomid[i]))
+                #print(frag.atomtypes)
                 if frag.has_atomtypes(self.assigned_atomid[i]):
                     try:
                         assert self.u.atoms[i].type == frag.atomtypes[self.assigned_atomid[i]]
                         print("Already in DB with consistent atomtype")
                     except AssertionError:
-                        raise ValueError("Inconsistent information between learning input and database for atom {:d}".format(i))
+                        raise ValueError("""Inconsistent information between learning input 
+                        and database for atom {:d} (atom {:d} of residue {:s})""".format(i, self.assigned_atomid[i], frag.name))
                 else:
                     frag.set_atomtype(self.assigned_atomid[i], self.u.atoms[i].type)
                     print("Inserting in db")
@@ -282,8 +284,11 @@ class AssignamentDB():
         return len(self.id_to_index)
 
     def add_fragment(self, frag):
+        # TODO add check on new added fragments
         self.db += [frag]
-        self.id_to_index[self.get_min_free_id()] = len(self.db) - 1
+        fragment_id = self.get_min_free_id()
+        self.id_to_index[fragment_id] = len(self.db) - 1
+        self.db[-1].fragment_id = fragment_id
 
 
 class Fragment():
@@ -292,11 +297,11 @@ class Fragment():
                  smiles_str,
                  env_atm=[],
                  atomnames={},
-                 atomtypes={},
+                 atomtypes=None,
                  default_resname='UNK',
                  restype='unknown',
                  default_oln='-',
-                 priority=0):
+                 priority=None):
 
         self.name = name
         self.smiles_str = smiles_str
@@ -312,8 +317,14 @@ class Fragment():
         else:
             self.resname = name
         self.oln = default_oln
-        self.priority = priority
-        self.atomtypes = atomtypes
+        if priority is None:
+            self.priority = self.natoms - len(env_atm)
+        else:
+            self.priority = priority
+        if atomtypes is None:
+            self.atomtypes = {}
+        else:
+            self.atomtypes = atomtypes
         self.atomnames = atomnames
         self.restype = restype
 
