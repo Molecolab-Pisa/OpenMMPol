@@ -35,21 +35,23 @@ elif sys.argv[1] == 'assign':
                         type=str,
                         help='''Output Tinker xyz file containing the assignament information.''',
                         metavar='<out_file.xyz>',
+                        default=None,
                         dest='out_txyz')
     args = parser.parse_args(args=sys.argv[2:])
 
     mya = PrmAssignament(mda.Universe(args.molf))
-    print("Number of molecule in the system {:d}".format(mya.nmol))
+    logger.info("Number of molecule in the system {:d}".format(mya.nmol))
 
-    print("Loading db from file...")
+    logger.info("Loading db from file")
     mydb = AssignamentDB(args.db)
     mya.set_db(mydb)
 
     mya.topology_assign()
 
-    print("Assigned {:d} / {:d}".format(mya.tot_assigned, mya.natoms))
+    logger.info("Assigned {:d} / {:d}".format(mya.tot_assigned, mya.natoms))
+    logger.info(mya.assignament_log())
 
-    if hasattr(args, 'out_txyz'):
+    if hasattr(args, 'out_txyz') and args.out_txyz is not None:
         mya.save_tinker_xyz(args.out_txyz)
 
 elif sys.argv[1] == 'database':
@@ -75,6 +77,12 @@ elif sys.argv[1] == 'database':
                         metavar='<models.txt>',
                         dest='models')
     
+    parser.add_argument('--plot-models',
+                        action='store_true',
+                        help='''Plot graph of models added to database.''',
+                        default=False,
+                        dest='plot_models')
+    
     parser.add_argument('--learn-from',
                         type=str,
                         nargs='+',
@@ -92,6 +100,12 @@ elif sys.argv[1] == 'database':
                         choices=['name', 'type'],
                         help='''Take only atom name/type from the input structural file''',
                         dest='learn_only')
+    
+    parser.add_argument('--remove-fragment-without-types',
+                        action='store_true',
+                        help='''All parameter in database without atomtypes are just removed.''',
+                        default=False,
+                        dest='remove_notypes')
 
     args = parser.parse_args(args=sys.argv[2:])
 
@@ -106,10 +120,12 @@ elif sys.argv[1] == 'database':
 
     db_modified = False
 
-    if hasattr(args, 'models'):
+    if hasattr(args, 'models') and args.models is not None:
         for modf in args.models:
             with open(modf, 'r') as f:
                 for l in f:
+                    if not l.strip():
+                        continue
                     tok = l.split()
                     name = tok[0]
                     smiles_str = tok[1]
@@ -120,14 +136,17 @@ elif sys.argv[1] == 'database':
                     threelc = tok[3]
                     restype = tok[4]
                     
-                    db.add_fragment(Fragment(name,
-                                            smiles_str,
-                                            env_atm,
-                                            default_resname=threelc,
-                                            restype=restype))
+                    f = Fragment(name,
+                                 smiles_str,
+                                 env_atm,
+                                 default_resname=threelc,
+                                 restype=restype)
+                    if args.plot_models:
+                        f.draw()
+                    db.add_fragment(f)
                     db_modified = True
     
-    if hasattr(args, 'learn_struct'):
+    if hasattr(args, 'learn_struct') and args.learn_struct is not None:
         learn_name = True
         learn_type = True
         if hasattr(args, 'learn_only'):
@@ -145,6 +164,18 @@ elif sys.argv[1] == 'database':
                            use_type=learn_type)
             db_modified = True
 
+    if args.remove_notypes:
+        logger.info("Removing fragments without atom-types")
+        frag_to_remove = []
+        for frag in db:
+            if not frag.has_atomtypes():
+                frag_to_remove += [frag]
+        for frag in frag_to_remove:
+            db.remove_fragment(frag)
+            db_modified = True
+
+
     if db_modified or not db_exists:
+        logger.info("Writing database")
         db.save_as_json(args.db)
 

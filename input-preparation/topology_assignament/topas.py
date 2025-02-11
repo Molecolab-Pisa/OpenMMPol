@@ -246,6 +246,36 @@ class PrmAssignament():
                     print('{:>5d} '.format(at2.id), end='', file=f)
                 print(file=f)
 
+    def assignament_log(self):
+        s = ''
+        for i, mol in enumerate(self.mol_sub_graphs):
+            s += 'Molecule {:d} ({:d} atoms): '.format(i, len(mol.nodes))
+            resids = []
+            s1 = ''
+            nuna = 0
+            for atid in mol.nodes:
+                if self.assigned_resid[atid] < 0:
+                    if not s1.endswith('UNASSIGNED'):
+                        s1 += '-UNASSIGNED'
+                    nuna += 1
+                else:
+                    if self.assigned_resid[atid] in resids:
+                        if self.assigned_resid[atid] == resids[-1]:
+                            pass
+                        else:
+                            s1 += '?(uncontiguous residues found)'
+                    else:
+                        if s1.endswith('UNASSIGNED'):
+                            s1 = s1.replace('UNASSIGNED', '?({:d} unassigned atoms)'.format(nuna))
+                            nuna = 0
+                        if len(s1) > 0:
+                            s1 += '-'
+                        resids += [self.assigned_resid[atid]]
+                        s1 += self.db[self.assigned_fragid[atid]].resname
+            if s1.endswith('UNASSIGNED'):
+                s1 = s1.replace('UNASSIGNED', '?({:d} unassigned atoms)'.format(nuna))
+            s += s1 + '\n'
+        return s
 
 
 class AssignamentDB():
@@ -296,6 +326,18 @@ class AssignamentDB():
         self.id_to_index[fragment_id] = len(self.db) - 1
         self.db[-1].fragment_id = fragment_id
 
+    def remove_fragment(self, frag):
+        fragment_id = frag.fragment_id
+        try:
+            index = self.id_to_index[fragment_id]
+        except IndexError:
+            print("Trying to remove an unexistent fragment")
+            return
+        self.db.pop(index)
+        del self.id_to_index[fragment_id]
+        for fid in self.id_to_index:
+            if self.id_to_index[fid] > index:
+                self.id_to_index[fid] -= 1
 
 class Fragment():
     def __init__(self,
@@ -311,9 +353,14 @@ class Fragment():
 
         self.name = name
         self.smiles_str = smiles_str
+        if '/' in self.smiles_str or '\\' in self.smiles_str:
+            print("Stereochemical information will be discarded!")
+            self.smiles_str = self.smiles_str.replace('/', '-')
+            self.smiles_str = self.smiles_str.replace('\\', '-')
         self.frag_graph = read_smiles(self.smiles_str,
                                       explicit_hydrogen=True,
                                       strict=False)
+        tag_mol_graph(self.frag_graph)
         self.fragment_id = None
         self.env_atm = env_atm
         self.natoms = len(self.frag_graph.nodes)
@@ -324,7 +371,7 @@ class Fragment():
             self.resname = name
         self.oln = default_oln
         if priority is None:
-            self.priority = self.natoms - len(env_atm)
+            self.priority = (self.natoms - len(env_atm)) * 10 + len(env_atm)
         else:
             self.priority = priority
         if atomtypes is None:
@@ -387,17 +434,26 @@ class Fragment():
                    restype=d['restype'],
                    default_oln=d['oln'])
 
-def name_to_c(n):
-    if n == 'C':
-        return '#000000'
-    elif n == 'H':
-        return '#dddddd'
-    elif n == 'O':
-        return '#ff0000'
-    elif n == 'N':
-        return '#0000ff'
-    else:
-        return '#00ff00'
+    def draw(self):
+        def name_to_color(n):
+            if n == 'C':
+                return '#000000'
+            elif n == 'H':
+                return '#dddddd'
+            elif n == 'O':
+                return '#ff0000'
+            elif n == 'N':
+                return '#0000ff'
+            else:
+                return '#00ff00'
+        nx.draw(self.frag_graph,
+                pos = nx.spring_layout(self.frag_graph, iterations=100*self.natoms),
+                node_color = [name_to_color(a[1]) for a in self.frag_graph.nodes(data='element')],
+                labels = {n: self.frag_graph.nodes[n]['id'] for n in self.frag_graph}, font_color='#00ff00'
+                )
+        plt.show()
+
+
 
 def tag_mol_graph(g):
     nx.set_node_attributes(g, -1, 'id')
@@ -456,13 +512,6 @@ def get_subgraph_match(big_g, sub_g, exclude_list=None):
         return None
     else:
         raise ValueError("More than one match was found!")
-
-def print_mol(m):
-    nx.draw(m,
-            node_color = [name_to_c(a[1]) for a in m.nodes(data='element')],
-            labels = {n: m.nodes[n]['id'] for n in m}, font_color='#00ff00'
-            )
-    plt.show()
 
 def aa_to_resid(in_aa_string,
                 resid_bb='[CH]([C](=O)[N])[NH]([C](=O))',

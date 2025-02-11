@@ -16,7 +16,7 @@ aminoacids = ['GLY',
               'SER',
               'THR',
               'CYS',
-              #'CYX'
+              'CYX',
               'PRO',
               'PHE',
               'TYR',
@@ -43,29 +43,35 @@ for a in aminoacids + alt_aminoacids:
         print("internal_{:s}".format(a), file=f)
         print("Internal {:s}".format(a), file=f)
         print("{:s}".format(ff_file), file=f)
-        print(a, file=f) # Default C-Terminal (COO-)
-        print(a, file=f) # Internal
-        print(a, file=f) # Default N-terminal (NH3+)
+        if a == 'CYX':
+            print('CYX 0.0 0.0 0.0 0.0 0.0 0.0 0.0 4', file=f)
+            print('CYX 0.0 0.0 0.0 0.0 0.0 0.0 0.0 3', file=f)
+            print('CYX 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2', file=f)
+            print('CYX 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1', file=f)
+        else:
+            print(a, file=f) # Default C-Terminal (COO-)
+            print(a, file=f) # Internal
+            print(a, file=f) # Default N-terminal (NH3+)
         print("\nN", file=f)
 
-for ct in c_term:
-    for a in aminoacids + alt_aminoacids:
-        with open("ct_{:s}_{:s}.txt".format(ct, a), 'w') as f:
-            print("ct_{:s}_{:s}".format(ct, a), file=f)
-            print("C-terminal ({:s}) {:s}".format(ct, a), file=f)
-            print("{:s}".format(ff_file), file=f)
-            print("{:s}".format(ct), file=f)
-            print(a, file=f)
-            print("GLY", file=f)
-            print("\nN", file=f)
-
-for nt in n_term:
-    for a in aminoacids + alt_aminoacids:
-        with open("nt_{:s}_{:s}.txt".format(nt, a), 'w') as f:
-            print("nt_{:s}_{:s}".format(nt, a), file=f)
-            print("N-terminal ({:s}) {:s}".format(nt, a), file=f)
-            print("{:s}".format(ff_file), file=f)
-            print("GLY", file=f)
-            print(a, file=f)
-            print(nt, file=f)
-            print("\nN", file=f)
+# for ct in c_term:
+#     for a in aminoacids + alt_aminoacids:
+#         with open("ct_{:s}_{:s}.txt".format(ct, a), 'w') as f:
+#             print("ct_{:s}_{:s}".format(ct, a), file=f)
+#             print("C-terminal ({:s}) {:s}".format(ct, a), file=f)
+#             print("{:s}".format(ff_file), file=f)
+#             print("{:s}".format(ct), file=f)
+#             print(a, file=f)
+#             print("GLY", file=f)
+#             print("\nN", file=f)
+# 
+# for nt in n_term:
+#     for a in aminoacids + alt_aminoacids:
+#         with open("nt_{:s}_{:s}.txt".format(nt, a), 'w') as f:
+#             print("nt_{:s}_{:s}".format(nt, a), file=f)
+#             print("N-terminal ({:s}) {:s}".format(nt, a), file=f)
+#             print("{:s}".format(ff_file), file=f)
+#             print("GLY", file=f)
+#             print(a, file=f)
+#             print(nt, file=f)
+#             print("\nN", file=f)

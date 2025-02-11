@@ -1,0 +1,10 @@
+water                          O                                                  -                    WAT  solvent
+Zn                             [Zn]                                               -                    Zn2  solvent
+Mg                             [Mg]                                               -                    Mg2  solvent
+Na                             [Na]                                               -                    Na   solvent
+Cl                             [Cl]                                               -                    Cl   solvent
+methanol                       CO                                                 -                    MeOH solvent
+ethanol                        CCO                                                -                    EtOH solvent
+methyl-cyclohexane             CC1CCCCC1                                          -                    MeCy solvent
+acetonitrile                   CC#N                                               -                    MeCN solvent
+dimethylsulphoxide             CS(C)=O                                            -                    DMSO solvent
