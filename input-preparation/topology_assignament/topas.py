@@ -185,7 +185,13 @@ class PrmAssignament():
                                 self.assigned_fragid[i] = frag.fragment_id
                                 self.assigned_atomid[i] = m[i]
 
-    def learn_from(self):
+    def learn_from(self, use_name=True, use_type=True):
+        if use_name:
+            raise NotImplementedError("Learning atomnames is still not implemented")
+        if use_type:
+            self.learn_type()
+
+    def learn_type(self):
         if not hasattr(self.u.atoms[0], 'type'):
             raise ValueError("Cannot learn, sine your input file has no atom types")
 

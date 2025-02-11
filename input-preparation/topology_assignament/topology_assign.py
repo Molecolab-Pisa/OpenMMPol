@@ -88,7 +88,10 @@ elif sys.argv[1] == 'database':
                         metavar='<struct.mol2>',
                         dest='learn_struct')
 
-
+    parser.add_argument('--learn-only',
+                        choices=['name', 'type'],
+                        help='''Take only atom name/type from the input structural file''',
+                        dest='learn_only')
 
     args = parser.parse_args(args=sys.argv[2:])
 
@@ -125,17 +128,23 @@ elif sys.argv[1] == 'database':
                     db_modified = True
     
     if hasattr(args, 'learn_struct'):
+        learn_name = True
+        learn_type = True
+        if hasattr(args, 'learn_only'):
+            if args.learn_only == 'name':
+                learn_type = False
+            elif args.learn_only == 'type':
+                learn_name = False
+
         for molsf in args.learn_struct:
             logger.info("Learning from {:s}".format(molsf))
             mya = PrmAssignament(mda.Universe(molsf))
             mya.set_db(db)
             mya.topology_assign()
-            mya.learn_from()
+            mya.learn_from(use_name=learn_name, 
+                           use_type=learn_type)
             db_modified = True
 
     if db_modified or not db_exists:
         db.save_as_json(args.db)
-
-#mya.learn_from()
-#mydb.save_as_json(sys.argv[2])
 
