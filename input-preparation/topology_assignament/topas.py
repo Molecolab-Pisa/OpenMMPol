@@ -453,6 +453,166 @@ class Fragment():
                 )
         plt.show()
 
+    def is_aminoacid_residue(self):
+        minimal_backbone = '[CH]([C])([C](=O))[N]'
+        bb_graph = read_smiles(minimal_backbone,
+                               explicit_hydrogen=True,
+                               strict=False)
+        tag_mol_graph(bb_graph)
+
+        match = get_subgraph_matches(self.frag_graph, bb_graph)
+
+        if len(match) > 1:
+            # Threonine and serine
+            thr_ser_minimal_backbone = '[CH]([C](OH))([C](=O))[N]'
+            thr_ser_bb_graph = read_smiles(thr_ser_minimal_backbone,
+                                           explicit_hydrogen=True,
+                                           strict=False)
+            tag_mol_graph(thr_ser_bb_graph)
+            match = get_subgraph_match(self.frag_graph, thr_ser_bb_graph)
+            is_thr_or_ser = match is not None
+            return is_thr_or_ser
+
+        elif len(match) == 1:
+            return True
+        else:
+            # Glycine
+            return self.is_glycine_residue()
+    
+    def is_glycine_residue(self):
+        glycine_minimal_backbone = '[CH2]([C](=O))[N]'
+        glycine_bb_graph = read_smiles(glycine_minimal_backbone,
+                                        explicit_hydrogen=True,
+                                        strict=False)
+        tag_mol_graph(glycine_bb_graph)
+        match = get_subgraph_match(self.frag_graph, glycine_bb_graph)
+        is_glycine = match is not None
+        return is_glycine
+
+    def get_CA_index(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+
+        minimal_backbone = '[CH]([C](=O))[N]'
+        CA_idx = 0
+
+        bb_graph = read_smiles(minimal_backbone,
+                               explicit_hydrogen=True,
+                               strict=False)
+        tag_mol_graph(bb_graph)
+
+        match = get_subgraph_matches(self.frag_graph, bb_graph)
+
+        for i in match[0]:
+            if match[0][i] == CA_idx:
+                return i
+        return None
+    
+    def get_CB_index(self):
+        try:
+            assert self.is_aminoacid_residue() and not self.is_glycine_residue()
+        except AssertionError:
+            return None
+
+        minimal_backbone = '[CH]([C])([C](=O))[N]'
+        CB_idx = 1
+
+        bb_graph = read_smiles(minimal_backbone,
+                               explicit_hydrogen=True,
+                               strict=False)
+        tag_mol_graph(bb_graph)
+
+        match = get_subgraph_matches(self.frag_graph, bb_graph)
+
+        for i in match[0]:
+            if match[0][i] == CB_idx:
+                return i
+        return None
+
+
+    # def aa_to_resid(in_aa_string,
+    #                 resid_bb='[CH]([C](=O)[N])[NH]([C](=O))',
+    #                 resid_ca=0,
+    #                 resid_env=[3, 5, 6]):
+    #     neutral_bb = '[CH](C(=O)[OH])[NH2]'
+    #     m_neut_bb = read_smiles(neutral_bb,
+    #                             explicit_hydrogen=True,
+    #                             strict=False)
+    #     neutral_ca = 0
+    #     #tag_mol_graph(m_neut_bb)
+    #     #print_mol(m_neut_bb)
+    #     m_resid_bb = read_smiles(resid_bb,
+    #                             explicit_hydrogen=True,
+    #                             strict=False)
+
+    #     m_aa = read_smiles(in_aa_string,
+    #                     explicit_hydrogen=True,
+    #                     strict=False)
+    #     tag_mol_graph(m_aa)
+
+    #     # Find the atom linked to CA and remove the whole backbone
+    #     aa_ca = None
+    #     try:
+    #         aa2neutral = get_subgraph_match(m_aa, m_neut_bb)
+    #     except ValueError:
+    #         # This should be glycine!
+    #         assert get_subgraph_match(m_aa, read_smiles('[CH2](C(=O)[OH])[NH2]', strict=False)) is not None
+    #         aa2neutral = get_subgraph_matches(m_aa, m_neut_bb)[0]
+    #     if aa2neutral is None:
+    #         pro_m_neut_bb = read_smiles('[CH](C(=O)[OH])[NH]', explicit_hydrogen=True, strict=False)
+    #         aa2neutral = get_subgraph_match(m_aa, pro_m_neut_bb)
+    #         print_mol(m_aa)
+    #         tag_mol_graph(pro_m_neut_bb)
+    #         print_mol(pro_m_neut_bb)
+
+
+    #     toremove = []
+    #     for i_aa in aa2neutral:
+    #         i_neutral = aa2neutral[i_aa]
+    #         toremove += [i_aa]
+
+    #         if i_neutral == neutral_ca:
+    #             for a, b in m_aa.edges(i_aa):
+    #                 try:
+    #                     assert a == i_aa
+    #                     c = b
+    #                 except AssertionError:
+    #                     c = a
+
+    #                 if aa2neutral.get(c, None) is None:
+    #                     if aa_ca is not None:
+    #                         raise ValueError("Problem in locating sidechain")
+    #                     aa_ca = c
+    #             #print("Side chain joint point is ", c)
+    #     m_aa.remove_nodes_from(toremove)
+    #     m_resid_aa = nx.disjoint_union(m_resid_bb, m_aa)
+    #     tag_mol_graph(m_resid_aa)
+
+    #     resid2bb = get_subgraph_match(m_resid_aa, m_resid_bb)
+
+    #     # Exclude the backbone from the next search...
+    #     resid2sidechain = get_subgraph_match(m_resid_aa, m_aa, exclude_list=[i for i in resid2bb])
+    #     residaa_s = None
+    #     residaa_ca = None
+    #     for i in resid2sidechain:
+    #         if resid2sidechain[i] == aa_ca:
+    #             if residaa_s is not None:
+    #                 raise ValueError("Problem in locating sidechain in final mol")
+    #             residaa_s = i
+    #     for i in resid2bb:
+    #         if resid2bb[i] == resid_ca:
+    #             if residaa_ca is not None:
+    #                 raise ValueError("Problem in locating CA in final mol")
+    #             residaa_ca = i
+    #     m_resid_aa.add_edge(residaa_s, residaa_ca)
+    #     #print_mol(m_resid_aa)
+    #     smiles_str = write_smiles(m_resid_aa)
+    #     reload_map = get_subgraph_match(m_resid_aa, read_smiles(smiles_str, strict=False))
+
+    #     return smiles_str, [reload_map[i] for i in resid_env]
+
 
 
 def tag_mol_graph(g):
@@ -513,86 +673,6 @@ def get_subgraph_match(big_g, sub_g, exclude_list=None):
     else:
         raise ValueError("More than one match was found!")
 
-def aa_to_resid(in_aa_string,
-                resid_bb='[CH]([C](=O)[N])[NH]([C](=O))',
-                resid_ca=0,
-                resid_env=[3, 5, 6]):
-    neutral_bb = '[CH](C(=O)[OH])[NH2]'
-    m_neut_bb = read_smiles(neutral_bb,
-                            explicit_hydrogen=True,
-                            strict=False)
-    neutral_ca = 0
-    #tag_mol_graph(m_neut_bb)
-    #print_mol(m_neut_bb)
-    m_resid_bb = read_smiles(resid_bb,
-                             explicit_hydrogen=True,
-                             strict=False)
-
-    m_aa = read_smiles(in_aa_string,
-                       explicit_hydrogen=True,
-                       strict=False)
-    tag_mol_graph(m_aa)
-
-    # Find the atom linked to CA and remove the whole backbone
-    aa_ca = None
-    try:
-        aa2neutral = get_subgraph_match(m_aa, m_neut_bb)
-    except ValueError:
-        # This should be glycine!
-        assert get_subgraph_match(m_aa, read_smiles('[CH2](C(=O)[OH])[NH2]', strict=False)) is not None
-        aa2neutral = get_subgraph_matches(m_aa, m_neut_bb)[0]
-    if aa2neutral is None:
-        pro_m_neut_bb = read_smiles('[CH](C(=O)[OH])[NH]', explicit_hydrogen=True, strict=False)
-        aa2neutral = get_subgraph_match(m_aa, pro_m_neut_bb)
-        print_mol(m_aa)
-        tag_mol_graph(pro_m_neut_bb)
-        print_mol(pro_m_neut_bb)
-
-
-    toremove = []
-    for i_aa in aa2neutral:
-        i_neutral = aa2neutral[i_aa]
-        toremove += [i_aa]
-
-        if i_neutral == neutral_ca:
-            for a, b in m_aa.edges(i_aa):
-                try:
-                    assert a == i_aa
-                    c = b
-                except AssertionError:
-                    c = a
-
-                if aa2neutral.get(c, None) is None:
-                    if aa_ca is not None:
-                        raise ValueError("Problem in locating sidechain")
-                    aa_ca = c
-            #print("Side chain joint point is ", c)
-    m_aa.remove_nodes_from(toremove)
-    m_resid_aa = nx.disjoint_union(m_resid_bb, m_aa)
-    tag_mol_graph(m_resid_aa)
-
-    resid2bb = get_subgraph_match(m_resid_aa, m_resid_bb)
-
-    # Exclude the backbone from the next search...
-    resid2sidechain = get_subgraph_match(m_resid_aa, m_aa, exclude_list=[i for i in resid2bb])
-    residaa_s = None
-    residaa_ca = None
-    for i in resid2sidechain:
-        if resid2sidechain[i] == aa_ca:
-            if residaa_s is not None:
-                raise ValueError("Problem in locating sidechain in final mol")
-            residaa_s = i
-    for i in resid2bb:
-        if resid2bb[i] == resid_ca:
-            if residaa_ca is not None:
-                raise ValueError("Problem in locating CA in final mol")
-            residaa_ca = i
-    m_resid_aa.add_edge(residaa_s, residaa_ca)
-    #print_mol(m_resid_aa)
-    smiles_str = write_smiles(m_resid_aa)
-    reload_map = get_subgraph_match(m_resid_aa, read_smiles(smiles_str, strict=False))
-
-    return smiles_str, [reload_map[i] for i in resid_env]
 
 def selection_to_graph(sele):
     # Fix missing informations
