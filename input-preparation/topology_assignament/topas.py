@@ -107,6 +107,7 @@ class PrmAssignament():
             mgs = self.mol_sub_graphs
 
         for mg in mgs:
+
             print("Assigning molecule with {:d} nodes and {:d} arcs".format(len(mg.nodes), len(mg.edges)))
 
             for frag in self.db:
@@ -118,7 +119,7 @@ class PrmAssignament():
 
                 print("Searching for residue {:s} (priority {:d})".format(frag.name,
                                                                         frag.priority))
-                aa_matches = get_subgraph_matches(mg, frag.frag_graph)
+                aa_matches = get_subgraph_matches(mg, frag.frag_graph, full_chemical_equivalence=False)
                 if len(aa_matches) > 0:
                     print("Found {:d} {:s} resids".format(len(aa_matches), frag.name))
 
@@ -139,7 +140,7 @@ class PrmAssignament():
                                 res_to_unassign += [self.assigned_resid[at]]
                                 at_to_unassign += [at]
                             else:
-                                print("Atom {:03d} is not in a residue!")
+                                print("Atom {:03d} is not in a residue!".format(at))
                                 new_assigned_at += [at]
                         #print(set(res_to_unassign))
                         #print(len(at_to_unassign))
@@ -150,12 +151,12 @@ class PrmAssignament():
                             print("No improvement here.")
                             continue
                         else:
-                            #print(np.count_nonzero(resid == res_to_unassign[0]))
+                            #print(np.count_nonzero(self.assigned_resid == res_to_unassign[0]))
                             #print(len(at_to_unassign))
                             #print(len(new_assigned_at))
-                            if np.count_nonzero(resid == res_to_unassign[0]) == len(at_to_unassign):
+                            if np.count_nonzero(self.assigned_resid == res_to_unassign[0]) == len(at_to_unassign):
                                 print("Ok reassigning is needed here!")
-                                exit()
+                                raise NotImplementedError
                             else:
                                 raise NotImplementedError("Partial reassignement is not expected!")
                         continue
@@ -253,10 +254,12 @@ class PrmAssignament():
             resids = []
             s1 = ''
             nuna = 0
-            for atid in mol.nodes:
+            for atid in sorted(mol.nodes):
                 if self.assigned_resid[atid] < 0:
                     if not s1.endswith('UNASSIGNED'):
-                        s1 += '-UNASSIGNED'
+                        if len(s1) > 0:
+                            s1 += '-'
+                        s1 += 'UNASSIGNED'
                     nuna += 1
                 else:
                     if self.assigned_resid[atid] in resids:
@@ -371,7 +374,7 @@ class Fragment():
             self.resname = name
         self.oln = default_oln
         if priority is None:
-            self.priority = (self.natoms - len(env_atm)) * 10 + len(env_atm)
+            self.priority = self.natoms#10 * (self.natoms-len(self.env_atm)) + len(self.env_atm)
         else:
             self.priority = priority
         if atomtypes is None:
@@ -588,6 +591,16 @@ class Fragment():
         tag_mol_graph(bb_graph)
 
         match = get_subgraph_matches(self.frag_graph, bb_graph)
+        if len(match) > 1:
+            minimal_oh_backbone = '[CH]([C]O)([C](=O))[N]'
+            CB_idx = 1
+            
+            bb_graph = read_smiles(minimal_oh_backbone,
+                                   explicit_hydrogen=True,
+                                   strict=False)
+            tag_mol_graph(bb_graph)
+
+            match = get_subgraph_matches(self.frag_graph, bb_graph)
 
         for i in match[0]:
             if match[0][i] == CB_idx:
@@ -788,7 +801,7 @@ class Fragment():
             j_CD = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CD'][0]
             j_N = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_N'][0]
             i_N = [n for n in new_frag if new_frag.nodes[n]['id'] == 'new_N'][0]
-
+        
         new_frag.remove_edge(j_CA, j_CB)
         new_frag.add_edge(i_CA, j_CB)
 
@@ -847,15 +860,15 @@ def tag_mol_graph(g):
     for i in range(len(g.nodes)):
         g.nodes[i]['id'] = i
 
-def get_subgraph_matches(big_g, sub_g, exclude_list=None):
+def get_subgraph_matches(big_g, sub_g, exclude_list=None, full_chemical_equivalence=True):
     sub_iter = nx.isomorphism.GraphMatcher(big_g,
                                            sub_g,
                                            node_match=lambda a, b: compare_atoms(a, b, exclude_list),
                                            edge_match=compare_bonds).subgraph_isomorphisms_iter()
     
-    return remove_chemical_equivalence([a for a in sub_iter], big_g)
+    return remove_chemical_equivalence([a for a in sub_iter], big_g, full_chemical_equivalence)
 
-def remove_chemical_equivalence(subs, big_g):
+def remove_chemical_equivalence(subs, big_g, full_chemical_equivalence=True):
     # Two subgraphs are chemically equivalent if
     #   a) all the nodes in the graph are the same
     cheq = {}
@@ -874,6 +887,9 @@ def remove_chemical_equivalence(subs, big_g):
             if len(s_nodes.intersection(r_nodes)) == len(s_nodes) and j != ii:
                 cheq[ii] += [j]
     
+    if not full_chemical_equivalence:
+        return [subs[i] for i in cheq]
+
     #   b) all the different matched atoms in the big_g are chemically equivalent
     cheq2 = {}
     chemical_equivalent_atoms = {}
