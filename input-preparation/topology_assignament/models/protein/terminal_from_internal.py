@@ -45,10 +45,14 @@ with open('c_terminal_backbones.txt', 'r') as f:
             for f in db:
                 if f.is_aminoacid_residue():
                     smiles_str, env_atm = f.replace_aminoacid_backbone(bb_smiles_str, bb_env_atm)
+                    
+                    env_str = ','.join([str(a) for a in env_atm])
+                    if not env_str:
+                        env_str = '-'
                     print('{:<20s}{:<50s}{:>20}{:>5s}\t{:s}'.format(name_pre+'_'+f.name,
                                                                 smiles_str, 
-                                                                ','.join([str(a) for a in env_atm]),
-                                                                threelc,
+                                                                env_str,
+                                                                f.resname,
                                                                 restype), file=fout)
 
 with open('n_terminal_backbones.txt', 'r') as f:
@@ -70,9 +74,42 @@ with open('n_terminal_backbones.txt', 'r') as f:
             for f in db:
                 if f.is_aminoacid_residue():
                     smiles_str, env_atm = f.replace_aminoacid_backbone(bb_smiles_str, bb_env_atm)
+                    #print(smiles_str, env_atm)
+                    env_str = ','.join([str(a) for a in env_atm])
+                    if not env_str:
+                        env_str = '-'
                     print('{:<20s}{:<50s}{:>20}{:>5s}\t{:s}'.format(name_pre+'_'+f.name,
                                                                 smiles_str, 
-                                                                ','.join([str(a) for a in env_atm]),
-                                                                threelc,
+                                                                env_str,
+                                                                f.resname,
+                                                                restype), file=fout)
+
+
+with open('double_cap_backbones.txt', 'r') as f:
+    for l in f:
+        l = l.split('#')[0]
+        if not l.strip() :
+            continue
+        tok = l.split()
+        name = tok[0]
+        name_pre = name.split('_')[0]
+        bb_smiles_str = tok[1]
+        if tok[2] == '-':
+            bb_env_atm = []
+        else:
+            bb_env_atm = [int(i) for i in tok[2].split(',')]
+        threelc = tok[3]
+        restype = tok[4]
+        with open(name_pre+'_double_cap_res.txt', 'w') as fout:
+            for f in db:
+                if f.is_aminoacid_residue():
+                    smiles_str, env_atm = f.replace_aminoacid_backbone(bb_smiles_str, bb_env_atm)
+                    env_str = ','.join([str(a) for a in env_atm])
+                    if not env_str:
+                        env_str = '-'
+                    print('{:<20s}{:<50s}{:>20}{:>5s}\t{:s}'.format(name_pre+'_'+f.name,
+                                                                smiles_str, 
+                                                                env_str,
+                                                                f.resname,
                                                                 restype), file=fout)
 
