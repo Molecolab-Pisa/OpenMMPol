@@ -1,0 +1,6 @@
+nh3_gly     [N]C(=O)CNH3        1   GLY nh3_n_term
+nh2_gly     [N]C(=O)CNH2        1   GLY nh2_n_term
+for_gly     [N]C(=O)CNC(=O)     1   GLY for_n_term
+ace_gly     [N]C(=O)CNC(=O)C    1   GLY ace_n_term
+
+

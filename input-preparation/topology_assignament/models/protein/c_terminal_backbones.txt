@@ -1,0 +1,4 @@
+coo_gly     [O][C]([O])CN[C](=O)    5,6 GLY coo_c_term
+cooh_gly    O[C](=O)CN[C](=O)       5,6 GLY cooh_c_term
+conh2_gly   NC(=O)CN[C](=O)         5,6 GLY coonh2_c_term
+nme_gly     CNC(=O)CN[C](=O)        6,7 GLY nme_c_term

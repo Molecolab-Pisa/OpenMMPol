@@ -510,6 +510,69 @@ class Fragment():
                 return i
         return None
     
+    def get_C_index(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+
+        minimal_backbone = '[CH]([C](=O))[N]'
+        C_idx = 1
+
+        bb_graph = read_smiles(minimal_backbone,
+                               explicit_hydrogen=True,
+                               strict=False)
+        tag_mol_graph(bb_graph)
+
+        match = get_subgraph_matches(self.frag_graph, bb_graph)
+
+        for i in match[0]:
+            if match[0][i] == C_idx:
+                return i
+        return None
+    
+    def get_O_index(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+
+        minimal_backbone = '[CH]([C](=O))[N]'
+        O_idx = 2
+
+        bb_graph = read_smiles(minimal_backbone,
+                               explicit_hydrogen=True,
+                               strict=False)
+        tag_mol_graph(bb_graph)
+
+        match = get_subgraph_matches(self.frag_graph, bb_graph)
+
+        for i in match[0]:
+            if match[0][i] == O_idx:
+                return i
+        return None
+    
+    def get_N_index(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+
+        minimal_backbone = '[CH]([C](=O))[N]'
+        N_idx = 3
+
+        bb_graph = read_smiles(minimal_backbone,
+                               explicit_hydrogen=True,
+                               strict=False)
+        tag_mol_graph(bb_graph)
+
+        match = get_subgraph_matches(self.frag_graph, bb_graph)
+
+        for i in match[0]:
+            if match[0][i] == N_idx:
+                return i
+        return None
+    
     def get_CB_index(self):
         try:
             assert self.is_aminoacid_residue() and not self.is_glycine_residue()
@@ -530,90 +593,253 @@ class Fragment():
             if match[0][i] == CB_idx:
                 return i
         return None
+    
+    def get_proline_CD_index(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+        
+        i_N = self.get_N_index()
+        i_CA = self.get_CA_index()
+        
+        graph = self.frag_graph.copy()
+        # 2. Try to disconnect the N terminal side
+        to_disconnect = []
+        for ed in graph.edges(i_N):
+            if ed[0] == i_N:
+                i_conn = ed[1]
+            else:
+                i_conn = ed[0]
+            if i_conn == i_CA:
+                continue
+            try:
+                test_graph = graph.copy()
+                test_graph.remove_edge(i_N, i_conn)
+                assert len(list(nx.connected_components(test_graph))) != 1
+            except AssertionError:
+                return i_conn
+        return None
+
+    def get_sidechain(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+
+        if self.is_glycine_residue():
+            gly_side = read_smiles('[H]', 
+                                   explicit_hydrogen=True, 
+                                   strict=False)
+            tag_mol_graph(gly_side)
+            return gly_side
+
+        else:
+            ca_id = self.get_CA_index()
+            cb_id = self.get_CB_index()
+
+            # graph = read_smiles(self.smiles_str,
+            #                     explicit_hydrogen=True,
+            #                     strict=False)
+            # tag_mol_graph(graph)
+            graph = self.frag_graph.copy()
+            graph.remove_edge(ca_id, cb_id)
+            
+            side = nx.node_connected_component(graph, cb_id)
+            side = nx.subgraph(self.frag_graph, side)
+            if len(side) == len(self.frag_graph):
+                # Proline should be treated differently
+                raise NotImplementedError("No idea of how to define sidechain for a proline")
+            return side
+    
+    def get_backbone(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+
+        minimal_backbone = '[C]([C](=O))[N]'
+        ox_id = 2
+
+        bb_graph = read_smiles(minimal_backbone,
+                                explicit_hydrogen=True,
+                                strict=False)
+        tag_mol_graph(bb_graph)
+        matches = get_subgraph_matches(self.frag_graph, bb_graph)
+        spurious_matches = []
+        for ii, i in enumerate(matches):
+            for n in i:
+                if i[n] == ox_id:
+                    if len(self.frag_graph.edges(n)) > 1:
+                        # This is not a carbonyl
+                        spurious_matches += [ii]
+        for i in spurious_matches:
+            matches.pop(i)
+
+        if len(matches) != 1:
+            return None
+        else:
+            return nx.subgraph(self.frag_graph, matches[0].keys())
+
+    def get_base_struct(self):
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+        
+        i_O = self.get_O_index()
+        i_C = self.get_C_index()
+        i_N = self.get_N_index()
+        i_CA = self.get_CA_index()
+        # 1. Disconnect what is connected to CO
+        graph = self.frag_graph.copy()
+        to_disconnect = []
+        for ed in graph.edges(i_C):
+            if ed[0] == i_C:
+                i_conn = ed[1]
+            else:
+                i_conn = ed[0]
+            if i_conn != i_CA and i_conn != i_O:
+                to_disconnect += [i_conn]
+        for i_conn in to_disconnect:
+            graph.remove_edge(i_C, i_conn)
+        
+        # 2. Disconnect the N terminal side
+        to_disconnect = []
+        for ed in graph.edges(i_N):
+            if ed[0] == i_N:
+                i_conn = ed[1]
+            else:
+                i_conn = ed[0]
+            if i_conn == i_CA:
+                continue
+            try:
+                test_graph = graph.copy()
+                test_graph.remove_edge(i_N, i_conn)
+                assert len(list(nx.connected_components(test_graph))) != 1
+            except AssertionError:
+                # This is the proline loop carbon
+                continue
+            to_disconnect += [i_conn]
+
+        for i in to_disconnect:
+            graph.remove_edge(i_N, i)
+        
+        base = nx.subgraph(self.frag_graph, nx.node_connected_component(graph, i_CA))
+        return base
+        
+    def replace_aminoacid_backbone(self, new_backbone, new_backbone_env_atm):
+        # 0. Check input
+        try:
+            assert self.is_aminoacid_residue()
+        except AssertionError:
+            return None
+        
+        bbfrag = Fragment("new_bb",
+                        new_backbone,
+                        env_atm = new_backbone_env_atm)
+        
+        try:
+            assert bbfrag.is_glycine_residue()
+        except AssertionError:
+            print("New backbone should be provide as a glycine residue")
+            return None
+
+        # 1.1 If the aminoacid is glycine, just skip the whole thing
+        #     and return the new_backbone
+        if self.is_glycine_residue():
+            return new_backbone, new_backbone_env_atm
+
+        # 1. Get structural information about the current residue
+        target_base = self.get_base_struct()
+        j_CA = self.get_CA_index()
+        j_CB = self.get_CB_index()
+        j_N = self.get_N_index()
+        j_CD = self.get_proline_CD_index()
+        is_proline = j_CD is not None
+
+        #new_backbone = "[O][C]([O])CN[C](=O)"
+        #          0  1   2  3 4  5   6
+
+        i_CA = bbfrag.get_CA_index()
+        i_N = bbfrag.get_N_index()
+
+        target_base.nodes[j_CA]['id'] = 'old_CA'
+        target_base.nodes[j_CB]['id'] = 'old_CB'
+        bbfrag.frag_graph.nodes[i_CA]['id'] = 'new_CA'
+        if is_proline:
+            target_base.nodes[j_N]['id'] = 'old_N'
+            target_base.nodes[j_CD]['id'] = 'old_CD'
+            bbfrag.frag_graph.nodes[i_N]['id'] = 'new_N'
 
 
-    # def aa_to_resid(in_aa_string,
-    #                 resid_bb='[CH]([C](=O)[N])[NH]([C](=O))',
-    #                 resid_ca=0,
-    #                 resid_env=[3, 5, 6]):
-    #     neutral_bb = '[CH](C(=O)[OH])[NH2]'
-    #     m_neut_bb = read_smiles(neutral_bb,
-    #                             explicit_hydrogen=True,
-    #                             strict=False)
-    #     neutral_ca = 0
-    #     #tag_mol_graph(m_neut_bb)
-    #     #print_mol(m_neut_bb)
-    #     m_resid_bb = read_smiles(resid_bb,
-    #                             explicit_hydrogen=True,
-    #                             strict=False)
+        for i in bbfrag.env_atm:
+            bbfrag.frag_graph.nodes[i]['id'] = 'env'
 
-    #     m_aa = read_smiles(in_aa_string,
-    #                     explicit_hydrogen=True,
-    #                     strict=False)
-    #     tag_mol_graph(m_aa)
+        for i in self.env_atm:
+            if i in target_base.nodes:
+                target_base.nodes[i]['id'] = 'env'
 
-    #     # Find the atom linked to CA and remove the whole backbone
-    #     aa_ca = None
-    #     try:
-    #         aa2neutral = get_subgraph_match(m_aa, m_neut_bb)
-    #     except ValueError:
-    #         # This should be glycine!
-    #         assert get_subgraph_match(m_aa, read_smiles('[CH2](C(=O)[OH])[NH2]', strict=False)) is not None
-    #         aa2neutral = get_subgraph_matches(m_aa, m_neut_bb)[0]
-    #     if aa2neutral is None:
-    #         pro_m_neut_bb = read_smiles('[CH](C(=O)[OH])[NH]', explicit_hydrogen=True, strict=False)
-    #         aa2neutral = get_subgraph_match(m_aa, pro_m_neut_bb)
-    #         print_mol(m_aa)
-    #         tag_mol_graph(pro_m_neut_bb)
-    #         print_mol(pro_m_neut_bb)
+        new_frag = nx.disjoint_union(target_base, bbfrag.frag_graph)
+        i_CA = [n for n in new_frag if new_frag.nodes[n]['id'] == 'new_CA'][0]
+        j_CA = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CA'][0]
+        j_CB = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CB'][0]
+        if is_proline:
+            j_CD = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CD'][0]
+            j_N = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_N'][0]
+            i_N = [n for n in new_frag if new_frag.nodes[n]['id'] == 'new_N'][0]
 
+        new_frag.remove_edge(j_CA, j_CB)
+        new_frag.add_edge(i_CA, j_CB)
 
-    #     toremove = []
-    #     for i_aa in aa2neutral:
-    #         i_neutral = aa2neutral[i_aa]
-    #         toremove += [i_aa]
+        # Remove one H on C-alpha
+        for ed in new_frag.edges(i_CA):
+            if ed[0] == i_CA:
+                i_H = ed[1]
+            else:
+                i_H = ed[0]
 
-    #         if i_neutral == neutral_ca:
-    #             for a, b in m_aa.edges(i_aa):
-    #                 try:
-    #                     assert a == i_aa
-    #                     c = b
-    #                 except AssertionError:
-    #                     c = a
+            if new_frag.nodes[i_H]['element'] == 'H':
+                break
+        new_frag.remove_edge(i_CA, i_H)
 
-    #                 if aa2neutral.get(c, None) is None:
-    #                     if aa_ca is not None:
-    #                         raise ValueError("Problem in locating sidechain")
-    #                     aa_ca = c
-    #             #print("Side chain joint point is ", c)
-    #     m_aa.remove_nodes_from(toremove)
-    #     m_resid_aa = nx.disjoint_union(m_resid_bb, m_aa)
-    #     tag_mol_graph(m_resid_aa)
+        if is_proline:
+            new_frag.remove_edge(j_N, j_CD)
+            new_frag.add_edge(i_N, j_CD)
+            for ed in new_frag.edges(i_N):
+                if ed[0] == i_N:
+                    i_H = ed[1]
+                else:
+                    i_H = ed[0]
 
-    #     resid2bb = get_subgraph_match(m_resid_aa, m_resid_bb)
+                if new_frag.nodes[i_H]['element'] == 'H':
+                    break
+            new_frag.remove_edge(i_N, i_H)
 
-    #     # Exclude the backbone from the next search...
-    #     resid2sidechain = get_subgraph_match(m_resid_aa, m_aa, exclude_list=[i for i in resid2bb])
-    #     residaa_s = None
-    #     residaa_ca = None
-    #     for i in resid2sidechain:
-    #         if resid2sidechain[i] == aa_ca:
-    #             if residaa_s is not None:
-    #                 raise ValueError("Problem in locating sidechain in final mol")
-    #             residaa_s = i
-    #     for i in resid2bb:
-    #         if resid2bb[i] == resid_ca:
-    #             if residaa_ca is not None:
-    #                 raise ValueError("Problem in locating CA in final mol")
-    #             residaa_ca = i
-    #     m_resid_aa.add_edge(residaa_s, residaa_ca)
-    #     #print_mol(m_resid_aa)
-    #     smiles_str = write_smiles(m_resid_aa)
-    #     reload_map = get_subgraph_match(m_resid_aa, read_smiles(smiles_str, strict=False))
+        out_frag = nx.node_connected_component(new_frag, i_CA)
+        out_graph = nx.subgraph(new_frag, out_frag)
+        smiles_str = write_smiles(out_graph)
+        sm_graph = read_smiles(smiles_str, 
+                            strict=False,
+                            explicit_hydrogen=True)
+        tag_mol_graph(sm_graph)
+        eq = get_subgraph_match(out_graph, sm_graph)
+        env_atm = [eq[i] for i in out_graph if out_graph.nodes[i]['id'] == 'env']
+        return smiles_str, env_atm
 
-    #     return smiles_str, [reload_map[i] for i in resid_env]
+def compare_atoms(a, b, exclude_list=None):
+    if exclude_list is not None:
+        if a['id'] in exclude_list:
+            return False
 
+    if a['element'] == b['element']:
+        return True
+    else:
+        return False
 
+def compare_bonds(a, b):
+    # All bonds are equal
+    return True
 
 def tag_mol_graph(g):
     nx.set_node_attributes(g, -1, 'id')
@@ -622,24 +848,11 @@ def tag_mol_graph(g):
         g.nodes[i]['id'] = i
 
 def get_subgraph_matches(big_g, sub_g, exclude_list=None):
-    def compare_atoms(a, b):
-        if exclude_list is not None:
-            if a['id'] in exclude_list:
-                return False
-
-        if a['element'] == b['element']:
-            return True
-        else:
-            return False
-
-    def compare_bonds(a, b):
-        # All bonds are equal
-        return True
-
     sub_iter = nx.isomorphism.GraphMatcher(big_g,
                                            sub_g,
-                                           node_match=compare_atoms,
+                                           node_match=lambda a, b: compare_atoms(a, b, exclude_list),
                                            edge_match=compare_bonds).subgraph_isomorphisms_iter()
+    
     return remove_chemical_equivalence([a for a in sub_iter], big_g)
 
 def remove_chemical_equivalence(subs, big_g):
@@ -660,8 +873,38 @@ def remove_chemical_equivalence(subs, big_g):
             r_nodes = set([i for i in r])
             if len(s_nodes.intersection(r_nodes)) == len(s_nodes) and j != ii:
                 cheq[ii] += [j]
+    
+    #   b) all the different matched atoms in the big_g are chemically equivalent
+    cheq2 = {}
+    chemical_equivalent_atoms = {}
+    tocheck = list(cheq.keys())
+    for i in tocheck:
+        for j in tocheck[i:]: 
+            equivalent = True
+            for at_i in subs[i]:
+                ref_at = subs[i][at_i]
+                for at_j in subs[j]:
+                    if subs[j][at_j] == ref_at:
+                        break
+                if at_i != at_j:
+                    if not are_chemically_equivalent_atoms(big_g, at_i, at_j):
+                        equivalent = False
+                
+                if equivalent:
+                    if i in cheq2:
+                        cheq2[i] += [j]
+                    else:
+                        cheq2[i] = [j]
 
-    return [subs[i] for i in cheq]
+    return [subs[i] for i in cheq2]
+
+def are_chemically_equivalent_atoms(g, i, j):
+    test_graph_1 = g.copy()
+    test_graph_2 = g.copy()
+    test_graph_1.remove_edges_from(g.edges(i))
+    test_graph_2.remove_edges_from(g.edges(j))
+    
+    return nx.is_isomorphic(test_graph_1, test_graph_2, compare_atoms, compare_bonds)
 
 
 def get_subgraph_match(big_g, sub_g, exclude_list=None):
@@ -671,6 +914,7 @@ def get_subgraph_match(big_g, sub_g, exclude_list=None):
     elif len(ms) == 0:
         return None
     else:
+        print(ms)
         raise ValueError("More than one match was found!")
 
 
