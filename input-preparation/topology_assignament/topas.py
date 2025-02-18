@@ -390,7 +390,7 @@ class Fragment():
 
     def has_atomtypes(self, iatm=None):
         if iatm is None:
-            return len(self.atomtypes) == self.assignable_atm
+            return len(self.atomtypes) == len(self.assignable_atm)
         else:
             if iatm in self.atomtypes:
                 return self.atomtypes[iatm] is not None
@@ -937,25 +937,21 @@ def get_subgraph_match(big_g, sub_g, exclude_list=None):
 def selection_to_graph(sele):
     # Fix missing informations
     u = sele.universe
-    if not hasattr(u.atoms, 'elements'):
+    if not hasattr(u.atoms, 'elements') or any(u.atoms.elements == ''):
         u.add_TopologyAttr('element',
                            [guess_atom_element(at.name) for at in u.atoms])
 
     if not hasattr(u.atoms, 'bonds') or sum([len(at.bonds) for at in sele]) == 0:
         # Create a VdW table that only relies on element information
-        u.atoms.guess_bonds()
-        # if hasattr(u.atoms, 'types'):
-        #     vdw_table = {}
-        #     for at in u.atoms:
-        #         if at.type not in vdw_table:
-        #             vdw_table[at.type] = mda.topology.tables.vdwradii[at.element.upper()]
-        # else:
-        #     vdw_table = None
+        if hasattr(u.atoms, 'types'):
+            vdw_table = {}
+            for at in u.atoms:
+                if at.type not in vdw_table:
+                    vdw_table[at.type] = mda.guesser.tables.vdwradii[at.element.upper()]
+        else:
+            vdw_table = None
 
-        # if not hasattr(u.atoms, 'bonds'):
-        #     u.atoms.guess_bonds(vdwradii=vdw_table)
-        # else:
-        #     sele.atoms.guess_bonds(vdwradii=vdw_table)
+        u.atoms.guess_bonds(vdwradii=vdw_table)
 
     G = nx.Graph(attr='element')
     natoms = 0
