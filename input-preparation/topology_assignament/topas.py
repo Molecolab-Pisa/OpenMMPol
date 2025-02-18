@@ -119,7 +119,10 @@ class PrmAssignament():
 
                 print("Searching for residue {:s} (priority {:d})".format(frag.name,
                                                                         frag.priority))
-                aa_matches = get_subgraph_matches(mg, frag.frag_graph, full_chemical_equivalence=False)
+                aa_matches = get_subgraph_matches(mg, 
+                                                  frag.frag_graph,
+                                                  environment_nodes_sub=frag.env_atm,
+                                                  full_chemical_equivalence=False)
                 if len(aa_matches) > 0:
                     print("Found {:d} {:s} resids".format(len(aa_matches), frag.name))
 
@@ -840,9 +843,9 @@ class Fragment():
         env_atm = [eq[i] for i in out_graph if out_graph.nodes[i]['id'] == 'env']
         return smiles_str, env_atm
 
-def compare_atoms(a, b, exclude_list=None):
-    if exclude_list is not None:
-        if a['id'] in exclude_list:
+def compare_atoms(a, b, exclude_list=None, exclude_list_b=None):
+    if exclude_list is not None and a['id'] in exclude_list:
+        if exclude_list_b is not None and b['id'] not in exclude_list_b:
             return False
 
     if a['element'] == b['element']:
@@ -860,12 +863,24 @@ def tag_mol_graph(g):
     for i in range(len(g.nodes)):
         g.nodes[i]['id'] = i
 
-def get_subgraph_matches(big_g, sub_g, exclude_list=None, full_chemical_equivalence=True):
+def get_subgraph_matches(big_g, sub_g, 
+                         exclude_list=None,
+                         environment_nodes_sub=[],
+                         full_chemical_equivalence=True):
+
     sub_iter = nx.isomorphism.GraphMatcher(big_g,
                                            sub_g,
-                                           node_match=lambda a, b: compare_atoms(a, b, exclude_list),
+                                           node_match=lambda a, b: compare_atoms(a, b, exclude_list, environment_nodes_sub),
                                            edge_match=compare_bonds).subgraph_isomorphisms_iter()
     
+    _sub_iter = []
+    exclude_list = []
+    for match in sub_iter:
+        _sub_iter += [match]
+        print(">>", match)
+        exclude_list += [n for n in list(match.keys()) if match[n] not in environment_nodes_sub]
+        print("exclude_list", exclude_list, "(", environment_nodes_sub, ")")
+    sub_iter = _sub_iter
     return remove_chemical_equivalence([a for a in sub_iter], big_g, full_chemical_equivalence)
 
 def remove_chemical_equivalence(subs, big_g, full_chemical_equivalence=True):
@@ -887,7 +902,8 @@ def remove_chemical_equivalence(subs, big_g, full_chemical_equivalence=True):
             if len(s_nodes.intersection(r_nodes)) == len(s_nodes) and j != ii:
                 cheq[ii] += [j]
     
-    if not full_chemical_equivalence:
+    return [subs[i] for i in cheq]
+    if not full_chemical_equivalence or len(cheq) < 2:
         return [subs[i] for i in cheq]
 
     #   b) all the different matched atoms in the big_g are chemically equivalent
