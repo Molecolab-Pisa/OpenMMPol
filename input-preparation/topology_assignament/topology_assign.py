@@ -71,9 +71,9 @@ elif sys.argv[1] == 'database':
                         help='''File(s) containing a list of model to be added to the database.
                         It should be a normal text file with the following space
                         separated fields:
-                        fragment_name smile_string    enviroment_atoms 3-letter_code residue_type
-                        water         O               -                WAT           solvent
-                        gly_intern    O=C([N])CN[C]=O 2,5,6            GLY           protein_res''',
+                        fragment_name smile_string    enviroment_atoms bridge_atoms 3-letter_code residue_type
+                        water         O               -                -             WAT           solvent
+                        gly_intern    O=C([N])CN[C]=O 2,5,6            2,5           GLY           protein_res''',
                         metavar='<models.txt>',
                         dest='models')
     
@@ -133,12 +133,19 @@ elif sys.argv[1] == 'database':
                         env_atm = []
                     else:
                         env_atm = [int(i) for i in tok[2].split(',')]
-                    threelc = tok[3]
-                    restype = tok[4]
+                    
+                    if tok[3] == '-':
+                        bridge_atm = []
+                    else:
+                        bridge_atm = [int(i) for i in tok[3].split(',')]
+
+                    threelc = tok[4]
+                    restype = tok[5]
                     
                     f = Fragment(name,
                                  smiles_str,
                                  env_atm,
+                                 bridge_atm,
                                  default_resname=threelc,
                                  restype=restype)
                     if args.plot_models:

@@ -1,29 +1,29 @@
-nh2_arg+            [NH2]=C(N)NCCCC(N)C(=O)[N]                                          11  ARG	nh2_n_term
-nh2_trp             [N]C(C(N)CC=1c2ccccc2NC1)=O                                          0  TRP	nh2_n_term
-nh2_arg             N=C(N)NCCCC(N)C(=O)[N]                                              11  ARG	nh2_n_term
-nh2_lys+            [NH3]CCCCC(N)C(=O)[N]                                                9  LYS	nh2_n_term
-nh2_lys             NCCCCC(N)C(=O)[N]                                                    9  LYS	nh2_n_term
-nh2_tyr             Oc1ccc(cc1)CC(N)C(=O)[N]                                            12  TYR	nh2_n_term
-nh2_tyd             [O]c1ccc(cc1)CC(N)C(=O)[N]                                          12  TYD	nh2_n_term
-nh2_phe             [N]C(C(N)Cc1ccccc1)=O                                                0  PHE	nh2_n_term
-nh2_ile             [N]C(C(N)C(CC)C)=O                                                   0  ILE	nh2_n_term
-nh2_leu             [N]C(C(N)CC(C)C)=O                                                   0  LEU	nh2_n_term
-nh2_hip             [N]C(C(N)CC1=C[NH]=CN1)=O                                            0  HIP	nh2_n_term
-nh2_hid             [N]C(C(N)CC1=CN=CN1)=O                                               0  HID	nh2_n_term
-nh2_hie             [N]C(C(N)CC1=C[NH]=C[N]1)=O                                          0  HIE	nh2_n_term
-nh2_gln             O=C(N)CCC(N)C(=O)[N]                                                 9  GLN	nh2_n_term
-nh2_met             [N]C(C(N)CCSC)=O                                                     0  MET	nh2_n_term
-nh2_glu             O=C(O)CCC(N)C(=O)[N]                                                 9  GLU	nh2_n_term
-nh2_val             [N]C(C(N)C(C)C)=O                                                    0  VAL	nh2_n_term
-nh2_glu-            O=C([O])CCC(N)C(=O)[N]                                               9  GLU	nh2_n_term
-nh2_thr             OC(C(N)C(=O)[N])C                                                    6  THR	nh2_n_term
-nh2_asn             NC(=O)CC(N)C(=O)[N]                                                  8  ASN	nh2_n_term
-nh2_pro             [N]C(C1CCCN1)=O                                                      0  PRO	nh2_n_term
-nh2_asp             OC(=O)CC(N)C(=O)[N]                                                  8  ASP	nh2_n_term
-nh2_asp-            [O]C(=O)CC(N)C(=O)[N]                                                8  ASP	nh2_n_term
-nh2_cys             SCC(N)C(=O)[N]                                                       6  CYS	nh2_n_term
-nh2_cyx             [S]SCC(N)C(=O)[N]                                                  0,7  CYX	nh2_n_term
-nh2_ser             OCC(N)C(=O)[N]                                                       6  SER	nh2_n_term
-nh2_cyd             [S]CC(N)C(=O)[N]                                                     6  CYD	nh2_n_term
-nh2_ala             [N]C(C(N)C)=O                                                        0  ALA	nh2_n_term
-nh2_gly             [N]C(=O)CNH2                                                         0  GLY	nh2_n_term
+nh2_arg+            [NH2]=C(N)NCCCC(N)C(=O)[N]                                          11                  11  ARG	nh2_n_term
+nh2_trp             [N]C(C(N)CC=1c2ccccc2NC1)=O                                          0                   0  TRP	nh2_n_term
+nh2_arg             N=C(N)NCCCC(N)C(=O)[N]                                              11                  11  ARG	nh2_n_term
+nh2_lys+            [NH3]CCCCC(N)C(=O)[N]                                                9                   9  LYS	nh2_n_term
+nh2_lys             NCCCCC(N)C(=O)[N]                                                    9                   9  LYS	nh2_n_term
+nh2_tyr             Oc1ccc(cc1)CC(N)C(=O)[N]                                            12                  12  TYR	nh2_n_term
+nh2_tyd             [O]c1ccc(cc1)CC(N)C(=O)[N]                                          12                  12  TYD	nh2_n_term
+nh2_phe             [N]C(C(N)Cc1ccccc1)=O                                                0                   0  PHE	nh2_n_term
+nh2_ile             [N]C(C(N)C(CC)C)=O                                                   0                   0  ILE	nh2_n_term
+nh2_leu             [N]C(C(N)CC(C)C)=O                                                   0                   0  LEU	nh2_n_term
+nh2_hip             [N]C(C(N)CC1=C[NH]=CN1)=O                                            0                   0  HIP	nh2_n_term
+nh2_hid             [N]C(C(N)CC1=CN=CN1)=O                                               0                   0  HID	nh2_n_term
+nh2_hie             [N]C(C(N)CC1=C[NH]=C[N]1)=O                                          0                   0  HIE	nh2_n_term
+nh2_gln             O=C(N)CCC(N)C(=O)[N]                                                 9                   9  GLN	nh2_n_term
+nh2_met             [N]C(C(N)CCSC)=O                                                     0                   0  MET	nh2_n_term
+nh2_glu             O=C(O)CCC(N)C(=O)[N]                                                 9                   9  GLU	nh2_n_term
+nh2_val             [N]C(C(N)C(C)C)=O                                                    0                   0  VAL	nh2_n_term
+nh2_glu-            O=C([O])CCC(N)C(=O)[N]                                               9                   9  GLU	nh2_n_term
+nh2_thr             O=[C]C(N)C(=O)[N]                                                    6                   6  THR	nh2_n_term
+nh2_asn             NC(=O)CC(N)C(=O)[N]                                                  8                   8  ASN	nh2_n_term
+nh2_pro             [N]C(C1CCCN1)=O                                                      0                   0  PRO	nh2_n_term
+nh2_asp             OC(=O)CC(N)C(=O)[N]                                                  8                   8  ASP	nh2_n_term
+nh2_asp-            [O]C(=O)CC(N)C(=O)[N]                                                8                   8  ASP	nh2_n_term
+nh2_cys             SCC(N)C(=O)[N]                                                       6                   6  CYS	nh2_n_term
+nh2_cyx             [S]SCC(N)C(=O)[N]                                                  0,7                 0,7  CYX	nh2_n_term
+nh2_ser             O=[C]C(N)C(=O)[N]                                                    6                   6  SER	nh2_n_term
+nh2_cyd             [S]CC(N)C(=O)[N]                                                     6                   6  CYD	nh2_n_term
+nh2_ala             [N]C(C(N)C)=O                                                        0                   0  ALA	nh2_n_term
+nh2_gly             [N]C(=O)CNH2                                                         0                   0  GLY	nh2_n_term

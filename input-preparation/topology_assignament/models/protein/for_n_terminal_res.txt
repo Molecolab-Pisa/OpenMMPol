@@ -1,29 +1,29 @@
-for_arg+            [NH2]=C(N)NCCCC(NC=O)C(=O)[N]                                       13  ARG	for_n_term
-for_trp             [N]C(C(NC=O)CC=1c2ccccc2NC1)=O                                       0  TRP	for_n_term
-for_arg             N=C(N)NCCCC(NC=O)C(=O)[N]                                           13  ARG	for_n_term
-for_lys+            [NH3]CCCCC(NC=O)C(=O)[N]                                            11  LYS	for_n_term
-for_lys             NCCCCC(NC=O)C(=O)[N]                                                11  LYS	for_n_term
-for_tyr             Oc1ccc(cc1)CC(NC=O)C(=O)[N]                                         14  TYR	for_n_term
-for_tyd             [O]c1ccc(cc1)CC(NC=O)C(=O)[N]                                       14  TYD	for_n_term
-for_phe             [N]C(C(NC=O)Cc1ccccc1)=O                                             0  PHE	for_n_term
-for_ile             [N]C(C(NC=O)C(CC)C)=O                                                0  ILE	for_n_term
-for_leu             [N]C(C(NC=O)CC(C)C)=O                                                0  LEU	for_n_term
-for_hip             [N]C(C(NC=O)CC1=C[NH]=CN1)=O                                         0  HIP	for_n_term
-for_hid             [N]C(C(NC=O)CC1=CN=CN1)=O                                            0  HID	for_n_term
-for_hie             [N]C(C(NC=O)CC1=C[NH]=C[N]1)=O                                       0  HIE	for_n_term
-for_gln             O=C(N)CCC(NC=O)C(=O)[N]                                             11  GLN	for_n_term
-for_met             [N]C(C(NC=O)CCSC)=O                                                  0  MET	for_n_term
-for_glu             O=C(O)CCC(NC=O)C(=O)[N]                                             11  GLU	for_n_term
-for_val             [N]C(C(NC=O)C(C)C)=O                                                 0  VAL	for_n_term
-for_glu-            O=C([O])CCC(NC=O)C(=O)[N]                                           11  GLU	for_n_term
-for_thr             OC(C(NC=O)C(=O)[N])C                                                 8  THR	for_n_term
-for_asn             NC(=O)CC(NC=O)C(=O)[N]                                              10  ASN	for_n_term
-for_pro             [N]C(C1CCCN1C=O)=O                                                   0  PRO	for_n_term
-for_asp             OC(=O)CC(NC=O)C(=O)[N]                                              10  ASP	for_n_term
-for_asp-            [O]C(=O)CC(NC=O)C(=O)[N]                                            10  ASP	for_n_term
-for_cys             SCC(NC=O)C(=O)[N]                                                    8  CYS	for_n_term
-for_cyx             [S]SCC(NC=O)C(=O)[N]                                               0,9  CYX	for_n_term
-for_ser             OCC(NC=O)C(=O)[N]                                                    8  SER	for_n_term
-for_cyd             [S]CC(NC=O)C(=O)[N]                                                  8  CYD	for_n_term
-for_ala             [N]C(C(NC=O)C)=O                                                     0  ALA	for_n_term
-for_gly             [N]C(=O)CNC(=O)                                                      0  GLY	for_n_term
+for_arg+            [NH2]=C(N)NCCCC(NC=O)C(=O)[N]                                       13                  13  ARG	for_n_term
+for_trp             [N]C(C(NC=O)CC=1c2ccccc2NC1)=O                                       0                   0  TRP	for_n_term
+for_arg             N=C(N)NCCCC(NC=O)C(=O)[N]                                           13                  13  ARG	for_n_term
+for_lys+            [NH3]CCCCC(NC=O)C(=O)[N]                                            11                  11  LYS	for_n_term
+for_lys             NCCCCC(NC=O)C(=O)[N]                                                11                  11  LYS	for_n_term
+for_tyr             Oc1ccc(cc1)CC(NC=O)C(=O)[N]                                         14                  14  TYR	for_n_term
+for_tyd             [O]c1ccc(cc1)CC(NC=O)C(=O)[N]                                       14                  14  TYD	for_n_term
+for_phe             [N]C(C(NC=O)Cc1ccccc1)=O                                             0                   0  PHE	for_n_term
+for_ile             [N]C(C(NC=O)C(CC)C)=O                                                0                   0  ILE	for_n_term
+for_leu             [N]C(C(NC=O)CC(C)C)=O                                                0                   0  LEU	for_n_term
+for_hip             [N]C(C(NC=O)CC1=C[NH]=CN1)=O                                         0                   0  HIP	for_n_term
+for_hid             [N]C(C(NC=O)CC1=CN=CN1)=O                                            0                   0  HID	for_n_term
+for_hie             [N]C(C(NC=O)CC1=C[NH]=C[N]1)=O                                       0                   0  HIE	for_n_term
+for_gln             O=C(N)CCC(NC=O)C(=O)[N]                                             11                  11  GLN	for_n_term
+for_met             [N]C(C(NC=O)CCSC)=O                                                  0                   0  MET	for_n_term
+for_glu             O=C(O)CCC(NC=O)C(=O)[N]                                             11                  11  GLU	for_n_term
+for_val             [N]C(C(NC=O)C(C)C)=O                                                 0                   0  VAL	for_n_term
+for_glu-            O=C([O])CCC(NC=O)C(=O)[N]                                           11                  11  GLU	for_n_term
+for_thr             O=[C]C(NC=O)C(=O)[N]                                                 8                   8  THR	for_n_term
+for_asn             NC(=O)CC(NC=O)C(=O)[N]                                              10                  10  ASN	for_n_term
+for_pro             [N]C(C1CCCN1C=O)=O                                                   0                   0  PRO	for_n_term
+for_asp             OC(=O)CC(NC=O)C(=O)[N]                                              10                  10  ASP	for_n_term
+for_asp-            [O]C(=O)CC(NC=O)C(=O)[N]                                            10                  10  ASP	for_n_term
+for_cys             SCC(NC=O)C(=O)[N]                                                    8                   8  CYS	for_n_term
+for_cyx             [S]SCC(NC=O)C(=O)[N]                                               0,9                 0,9  CYX	for_n_term
+for_ser             O=[C]C(NC=O)C(=O)[N]                                                 8                   8  SER	for_n_term
+for_cyd             [S]CC(NC=O)C(=O)[N]                                                  8                   8  CYD	for_n_term
+for_ala             [N]C(C(NC=O)C)=O                                                     0                   0  ALA	for_n_term
+for_gly             [N]C(=O)CNC(=O)                                                      0                   0  GLY	for_n_term

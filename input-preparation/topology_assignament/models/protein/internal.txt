@@ -1,36 +1,36 @@
-arg+                           O=C([N])C(CCCNC(=[NH2])N)N[C]=O                    2,12,13              ARG protein_res         
-arg                            O=C([N])C(CCCNC(=N)N)N[C]=O                        2,12,13              ARG protein_res         
+arg+                           O=C([N])C(CCCNC(=[NH2])N)N[C]=O                    2,12,13   2,12        ARG protein_res         
+arg                            O=C([N])C(CCCNC(=N)N)N[C]=O                        2,12,13   2,12        ARG protein_res         
 
-lys+                           O=C([N])C(CCCC[NH3])N[C]=O                         2,10,11              LYS protein_res         
-lys                            O=C([N])C(CCCCN)N[C]=O                             2,10,11              LYS protein_res         
+lys+                           O=C([N])C(CCCC[NH3])N[C]=O                         2,10,11   2,10        LYS protein_res         
+lys                            O=C([N])C(CCCCN)N[C]=O                             2,10,11   2,10        LYS protein_res         
 
-hip                            O=C([N])C(CC1=C[NH]=CN1)N[C]=O                     2,11,12              HIP protein_res         
-hid                            O=C([N])C(CC1=CN=CN1)N[C]=O                        2,11,12              HID protein_res         
-hie                            O=C([N])C(CC1=C[NH]=C[N]1)N[C]=O                   2,11,12              HIE protein_res         
+hip                            O=C([N])C(CC1=C[NH]=CN1)N[C]=O                     2,11,12   2,11        HIP protein_res         
+hid                            O=C([N])C(CC1=CN=CN1)N[C]=O                        2,11,12   2,11        HID protein_res         
+hie                            O=C([N])C(CC1=C[NH]=C[N]1)N[C]=O                   2,11,12   2,11        HIE protein_res         
 
-asp                            O=C([N])C(CC(O)=O)N[C]=O                           2,9,10               ASP protein_res         
-asp-                           O=C([N])C(CC([O])=O)N[C]=O                         2,9,10               ASP protein_res         
+asp                            O=C([N])C(CC(O)=O)N[C]=O                           2,9,10    2,9         ASP protein_res         
+asp-                           O=C([N])C(CC([O])=O)N[C]=O                         2,9,10    2,9         ASP protein_res         
 
-glu                            O=C([N])C(CCC(=O)O)N[C]=O                          2,10,11              GLU protein_res         
-glu-                           O=C([N])C(CCC(=O)[O])N[C]=O                        2,10,11              GLU protein_res         
+glu                            O=C([N])C(CCC(=O)O)N[C]=O                          2,10,11   2,10        GLU protein_res         
+glu-                           O=C([N])C(CCC(=O)[O])N[C]=O                        2,10,11   2,10        GLU protein_res         
 
-cys                            O=C([N])C(CS)N[C]=O                                2,7,8                CYS protein_res         
-cyd                            O=C([N])C(C[S])N[C]=O                              2,7,8                CYD protein_res
-cyx                            O=C([N])C(CS[S])N[C]=O                             2,6,8,9              CYX protein_res
+cys                            O=C([N])C(CS)N[C]=O                                2,7,8     2,7         CYS protein_res         
+cyd                            O=C([N])C(C[S])N[C]=O                              2,7,8     2,7         CYD protein_res
+cyx                            O=C([N])C(CS[S])N[C]=O                             2,6,8,9   2,6,8       CYX protein_res
 
-tyr                            O=C([N])C(Cc1ccc(cc1)O)N[C]=O                      2,13,14              TYR protein_res         
-tyd                            O=C([N])C(Cc1ccc(cc1)[O])N[C]=O                    2,13,14              TYD protein_res         
+tyr                            O=C([N])C(Cc1ccc(cc1)O)N[C]=O                      2,13,14   2,13        TYR protein_res         
+tyd                            O=C([N])C(Cc1ccc(cc1)[O])N[C]=O                    2,13,14   2,13        TYD protein_res         
 
-phe                            O=C([N])C(Cc1ccccc1)N[C]=O                         2,12,13              PHE protein_res         
-ala                            O=C([N])C(C)N[C]=O                                 2,6,7                ALA protein_res         
-gly                            O=C([N])CN[C]=O                                    2,5,6                GLY protein_res         
-gln                            O=C([N])C(CCC(=O)N)N[C]=O                          2,10,11              GLN protein_res         
-ser                            O=C([N])C(CO)N[C]=O                                2,7,8                SER protein_res         
-thr                            O=C([N])C(C(O)C)N[C]=O                             2,8,9                THR protein_res         
-asn                            O=C([N])C(CC(N)=O)N[C]=O                           2,9,10               ASN protein_res         
-val                            O=C([N])C(C(C)C)N[C]=O                             2,8,9                VAL protein_res         
-ile                            O=C([N])C(C(C)CC)N[C]=O                            2,9,10               ILE protein_res         
-leu                            O=C([N])C(CC(C)C)N[C]=O                            2,9,10               LEU protein_res         
-met                            O=C([N])C(CCSC)N[C]=O                              2,9,10               MET protein_res         
-trp                            O=C([N])C(CC=1c2ccccc2NC1)N[C]=O                   2,15,16              TRP protein_res         
-pro                            C1CCN([C](=O))C1C(=O)[N]                           4,5,9                PRO protein_res         
+phe                            O=C([N])C(Cc1ccccc1)N[C]=O                         2,12,13   2,12        PHE protein_res         
+ala                            O=C([N])C(C)N[C]=O                                 2,6,7     2,6         ALA protein_res         
+gly                            O=C([N])CN[C]=O                                    2,5,6     2,5         GLY protein_res         
+gln                            O=C([N])C(CCC(=O)N)N[C]=O                          2,10,11   2,10        GLN protein_res         
+ser                            O=C([N])C(CO)N[C]=O                                2,7,8     2,7         SER protein_res         
+thr                            O=C([N])C(C(O)C)N[C]=O                             2,8,9     2,8         THR protein_res         
+asn                            O=C([N])C(CC(N)=O)N[C]=O                           2,9,10    2,9         ASN protein_res         
+val                            O=C([N])C(C(C)C)N[C]=O                             2,8,9     2,8         VAL protein_res         
+ile                            O=C([N])C(C(C)CC)N[C]=O                            2,9,10    2,9         ILE protein_res         
+leu                            O=C([N])C(CC(C)C)N[C]=O                            2,9,10    2,9         LEU protein_res         
+met                            O=C([N])C(CCSC)N[C]=O                              2,9,10    2,9         MET protein_res         
+trp                            O=C([N])C(CC=1c2ccccc2NC1)N[C]=O                   2,15,16   2,15        TRP protein_res         
+pro                            C1CCN([C](=O))C1C(=O)[N]                           4,5,9     4,9         PRO protein_res         

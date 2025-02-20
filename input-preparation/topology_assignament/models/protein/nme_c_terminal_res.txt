@@ -1,29 +1,29 @@
-nme_arg+            [NH2]=C(N)NCCCC(N[C]=O)C(=O)NC                                    9,10  ARG	nme_c_term
-nme_trp             O=C(C(N[C]=O)CC=1c2ccccc2NC1)NC                                    4,5  TRP	nme_c_term
-nme_arg             N=C(N)NCCCC(N[C]=O)C(=O)NC                                        9,10  ARG	nme_c_term
-nme_lys+            [NH3]CCCCC(N[C]=O)C(=O)NC                                          7,8  LYS	nme_c_term
-nme_lys             NCCCCC(N[C]=O)C(=O)NC                                              7,8  LYS	nme_c_term
-nme_tyr             Oc1ccc(cc1)CC(N[C]=O)C(=O)NC                                     10,11  TYR	nme_c_term
-nme_tyd             [O]c1ccc(cc1)CC(N[C]=O)C(=O)NC                                   10,11  TYD	nme_c_term
-nme_phe             O=C(C(N[C]=O)Cc1ccccc1)NC                                          4,5  PHE	nme_c_term
-nme_ile             O=C(C(N[C]=O)C(CC)C)NC                                             4,5  ILE	nme_c_term
-nme_leu             O=C(C(N[C]=O)CC(C)C)NC                                             4,5  LEU	nme_c_term
-nme_hip             O=C(C(N[C]=O)CC1=C[NH]=CN1)NC                                      4,5  HIP	nme_c_term
-nme_hid             O=C(C(N[C]=O)CC1=CN=CN1)NC                                         4,5  HID	nme_c_term
-nme_hie             O=C(C(N[C]=O)CC1=C[NH]=C[N]1)NC                                    4,5  HIE	nme_c_term
-nme_gln             O=C(N)CCC(N[C]=O)C(=O)NC                                           7,8  GLN	nme_c_term
-nme_met             O=C(C(N[C]=O)CCSC)NC                                               4,5  MET	nme_c_term
-nme_glu             O=C(O)CCC(N[C]=O)C(=O)NC                                           7,8  GLU	nme_c_term
-nme_val             O=C(C(N[C]=O)C(C)C)NC                                              4,5  VAL	nme_c_term
-nme_glu-            O=C([O])CCC(N[C]=O)C(=O)NC                                         7,8  GLU	nme_c_term
-nme_thr             OC(C(N[C]=O)C(=O)NC)C                                              4,5  THR	nme_c_term
-nme_asn             NC(=O)CC(N[C]=O)C(=O)NC                                            6,7  ASN	nme_c_term
-nme_pro             O=C(C1CCCN1[C]=O)NC                                                7,8  PRO	nme_c_term
-nme_asp             OC(=O)CC(N[C]=O)C(=O)NC                                            6,7  ASP	nme_c_term
-nme_asp-            [O]C(=O)CC(N[C]=O)C(=O)NC                                          6,7  ASP	nme_c_term
-nme_cys             SCC(N[C]=O)C(=O)NC                                                 4,5  CYS	nme_c_term
-nme_cyx             [S]SCC(N[C]=O)C(=O)NC                                            0,5,6  CYX	nme_c_term
-nme_ser             OCC(N[C]=O)C(=O)NC                                                 4,5  SER	nme_c_term
-nme_cyd             [S]CC(N[C]=O)C(=O)NC                                               4,5  CYD	nme_c_term
-nme_ala             O=C(C(N[C]=O)C)NC                                                  4,5  ALA	nme_c_term
-nme_gly             CNC(=O)CN[C](=O)                                                   6,7  GLY	nme_c_term
+nme_arg+            [NH2]=C(N)NCCCC(N[C]=O)C(=O)NC                                    9,10                   9  ARG	nme_c_term
+nme_trp             O=C(C(N[C]=O)CC=1c2ccccc2NC1)NC                                    4,5                   4  TRP	nme_c_term
+nme_arg             N=C(N)NCCCC(N[C]=O)C(=O)NC                                        9,10                   9  ARG	nme_c_term
+nme_lys+            [NH3]CCCCC(N[C]=O)C(=O)NC                                          7,8                   7  LYS	nme_c_term
+nme_lys             NCCCCC(N[C]=O)C(=O)NC                                              7,8                   7  LYS	nme_c_term
+nme_tyr             Oc1ccc(cc1)CC(N[C]=O)C(=O)NC                                     10,11                  10  TYR	nme_c_term
+nme_tyd             [O]c1ccc(cc1)CC(N[C]=O)C(=O)NC                                   10,11                  10  TYD	nme_c_term
+nme_phe             O=C(C(N[C]=O)Cc1ccccc1)NC                                          4,5                   4  PHE	nme_c_term
+nme_ile             O=C(C(N[C]=O)C(CC)C)NC                                             4,5                   4  ILE	nme_c_term
+nme_leu             O=C(C(N[C]=O)CC(C)C)NC                                             4,5                   4  LEU	nme_c_term
+nme_hip             O=C(C(N[C]=O)CC1=C[NH]=CN1)NC                                      4,5                   4  HIP	nme_c_term
+nme_hid             O=C(C(N[C]=O)CC1=CN=CN1)NC                                         4,5                   4  HID	nme_c_term
+nme_hie             O=C(C(N[C]=O)CC1=C[NH]=C[N]1)NC                                    4,5                   4  HIE	nme_c_term
+nme_gln             O=C(N)CCC(N[C]=O)C(=O)NC                                           7,8                   7  GLN	nme_c_term
+nme_met             O=C(C(N[C]=O)CCSC)NC                                               4,5                   4  MET	nme_c_term
+nme_glu             O=C(O)CCC(N[C]=O)C(=O)NC                                           7,8                   7  GLU	nme_c_term
+nme_val             O=C(C(N[C]=O)C(C)C)NC                                              4,5                   4  VAL	nme_c_term
+nme_glu-            O=C([O])CCC(N[C]=O)C(=O)NC                                         7,8                   7  GLU	nme_c_term
+nme_thr             O=[C]C(N[C]=O)C(=O)NC                                              4,5                   4  THR	nme_c_term
+nme_asn             NC(=O)CC(N[C]=O)C(=O)NC                                            6,7                   6  ASN	nme_c_term
+nme_pro             O=C(C1CCCN1[C]=O)NC                                                7,8                   7  PRO	nme_c_term
+nme_asp             OC(=O)CC(N[C]=O)C(=O)NC                                            6,7                   6  ASP	nme_c_term
+nme_asp-            [O]C(=O)CC(N[C]=O)C(=O)NC                                          6,7                   6  ASP	nme_c_term
+nme_cys             SCC(N[C]=O)C(=O)NC                                                 4,5                   4  CYS	nme_c_term
+nme_cyx             [S]SCC(N[C]=O)C(=O)NC                                            0,5,6                 0,5  CYX	nme_c_term
+nme_ser             O=[C]C(N[C]=O)C(=O)NC                                              4,5                   4  SER	nme_c_term
+nme_cyd             [S]CC(N[C]=O)C(=O)NC                                               4,5                   4  CYD	nme_c_term
+nme_ala             O=C(C(N[C]=O)C)NC                                                  4,5                   4  ALA	nme_c_term
+nme_gly             CNC(=O)CN[C](=O)                                                   6,7                   6  GLY	nme_c_term

@@ -119,6 +119,7 @@ class PrmAssignament():
                 aa_matches = get_subgraph_matches(mg, 
                                                   frag.frag_graph,
                                                   environment_nodes_sub=frag.env_atm,
+                                                  bridge_atm=frag.bridge_atm,
                                                   full_chemical_equivalence=False)
                 if len(aa_matches) > 0:
                     print("Found {:d} {:s} resids".format(len(aa_matches), frag.name))
@@ -356,10 +357,32 @@ class AssignamentDB():
                 self.id_to_index[fid] -= 1
 
 class Fragment():
+    """A Fragment is litterally a piece of molecule (or even a whole molecule)
+    that is searched during the assignament process. It is represented by a 
+    smiles string.
+    Each fragment could have "environment atoms" (env_atm) which
+    should be there in the topology for getting a match, but are not assigned.
+    Each fragment could have "bridge atoms" (bridge_atm) which are allowed
+    to be connected with atoms that are not matched (neither as env_atm nor as
+    regular atom.
+    Examples: 
+        Water
+            smiles     "O"
+            env_atm    []
+            bridge_atm []
+    
+        Glycine (residue inside a protein chain)
+            smiles     "O=C([N])CN[C]=O"
+            (id)       "0 1  2  34 5  6"
+            env_atm    [2,5,6] (to enforce that is connected with amide bonds)
+            bridge_atm [2, 5] (the bridge to other residues, all the other
+                               atoms are connected only to atoms of the matched 
+                               substructure)"""
     def __init__(self,
                  name,
                  smiles_str,
                  env_atm=[],
+                 bridge_atm=[],
                  atomnames={},
                  atomtypes=None,
                  default_resname='UNK',
@@ -379,6 +402,7 @@ class Fragment():
         tag_mol_graph(self.frag_graph)
         self.fragment_id = None
         self.env_atm = env_atm
+        self.bridge_atm = bridge_atm
         self.natoms = len(self.frag_graph.nodes)
 
         if default_resname is not None:
@@ -424,6 +448,7 @@ class Fragment():
         d['name'] = self.name
         d['smiles_str'] = self.smiles_str
         d['env_atm'] = list(self.env_atm)
+        d['bridge_atm'] = list(self.bridge_atm)
         d['natoms'] = self.natoms
         d['resname'] = self.resname
         d['priority'] = self.priority
@@ -443,6 +468,7 @@ class Fragment():
         return cls(d['name'],
                    d['smiles_str'],
                    env_atm=d['env_atm'],
+                   bridge_atm=d['bridge_atm'],
                    default_resname=d['resname'],
                    priority=d['priority'],
                    atomtypes=atomtypes,
@@ -584,9 +610,10 @@ class Fragment():
 
         match = get_subgraph_matches(self.frag_graph, bb_graph)
 
-        for i in match[0]:
-            if match[0][i] == N_idx:
-                return i
+        for m in match:
+            for i in m:
+                if m[i] == N_idx and i not in self.env_atm:
+                    return i
         return None
     
     def get_CB_index(self):
@@ -754,7 +781,7 @@ class Fragment():
         base = nx.subgraph(self.frag_graph, nx.node_connected_component(graph, i_CA))
         return base
         
-    def replace_aminoacid_backbone(self, new_backbone, new_backbone_env_atm):
+    def replace_aminoacid_backbone(self, new_backbone, new_backbone_env_atm, new_backbone_bridge_atm):
         # 0. Check input
         try:
             assert self.is_aminoacid_residue()
@@ -763,7 +790,8 @@ class Fragment():
         
         bbfrag = Fragment("new_bb",
                         new_backbone,
-                        env_atm = new_backbone_env_atm)
+                        env_atm = new_backbone_env_atm,
+                        bridge_atm = new_backbone_bridge_atm)
         
         try:
             assert bbfrag.is_glycine_residue()
@@ -774,7 +802,7 @@ class Fragment():
         # 1.1 If the aminoacid is glycine, just skip the whole thing
         #     and return the new_backbone
         if self.is_glycine_residue():
-            return new_backbone, new_backbone_env_atm
+            return new_backbone, new_backbone_env_atm, new_backbone_bridge_atm
 
         # 1. Get structural information about the current residue
         target_base = self.get_base_struct()
@@ -783,9 +811,6 @@ class Fragment():
         j_N = self.get_N_index()
         j_CD = self.get_proline_CD_index()
         is_proline = j_CD is not None
-
-        #new_backbone = "[O][C]([O])CN[C](=O)"
-        #          0  1   2  3 4  5   6
 
         i_CA = bbfrag.get_CA_index()
         i_N = bbfrag.get_N_index()
@@ -800,17 +825,40 @@ class Fragment():
 
 
         for i in bbfrag.env_atm:
-            bbfrag.frag_graph.nodes[i]['id'] = 'env'
+            if type(bbfrag.frag_graph.nodes[i]['id']) == str:
+                bbfrag.frag_graph.nodes[i]['id'] += 'env'
+            else:
+                bbfrag.frag_graph.nodes[i]['id'] = 'env'
 
         for i in self.env_atm:
             if i in target_base.nodes:
-                target_base.nodes[i]['id'] = 'env'
+                if type(target_base.nodes[i]['id']) == str:
+                    target_base.nodes[i]['id'] += 'env'
+                else:
+                    target_base.nodes[i]['id'] = 'env'
+
+        for i in bbfrag.bridge_atm:
+            if type(bbfrag.frag_graph.nodes[i]['id']) == str:
+                bbfrag.frag_graph.nodes[i]['id'] += 'bridge'
+            else:
+                bbfrag.frag_graph.nodes[i]['id'] = 'bridge'
+
+        for i in self.bridge_atm:
+            if i in target_base.nodes:
+                if type(target_base.nodes[i]['id']) == str:
+                    target_base.nodes[i]['id'] += 'bridge'
+                else:
+                    target_base.nodes[i]['id'] = 'bridge'
+        
+        print([bbfrag.frag_graph.nodes[n]['id'] for n in bbfrag.frag_graph])
+        print([target_base.nodes[n]['id'] for n in target_base])
 
         new_frag = nx.disjoint_union(target_base, bbfrag.frag_graph)
         i_CA = [n for n in new_frag if new_frag.nodes[n]['id'] == 'new_CA'][0]
         j_CA = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CA'][0]
         j_CB = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CB'][0]
         if is_proline:
+            print([new_frag.nodes[n]['id'] for n in new_frag])
             j_CD = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_CD'][0]
             j_N = [n for n in new_frag if new_frag.nodes[n]['id'] == 'old_N'][0]
             i_N = [n for n in new_frag if new_frag.nodes[n]['id'] == 'new_N'][0]
@@ -850,8 +898,10 @@ class Fragment():
                             explicit_hydrogen=True)
         tag_mol_graph(sm_graph)
         eq = get_subgraph_match(out_graph, sm_graph)
-        env_atm = [eq[i] for i in out_graph if out_graph.nodes[i]['id'] == 'env']
-        return smiles_str, env_atm
+        env_atm = [eq[i] for i in out_graph if 'env' in str(out_graph.nodes[i]['id'])]
+        bridge_atm = [eq[i] for i in out_graph if 'bridge' in str(out_graph.nodes[i]['id'])]
+
+        return smiles_str, env_atm, bridge_atm
 
 def compare_atoms(a, b, exclude_list=None, exclude_list_b=None):
     if exclude_list is not None and a['id'] in exclude_list:
@@ -873,24 +923,47 @@ def tag_mol_graph(g):
     for i in range(len(g.nodes)):
         g.nodes[i]['id'] = i
 
-def get_subgraph_matches(big_g, sub_g, 
-                         exclude_list=None,
-                         environment_nodes_sub=[],
-                         full_chemical_equivalence=True):
+def get_subgraph_matches(big_g, sub_g,
+                         exclude_list = None,
+                         environment_nodes_sub = [],
+                         bridge_atm = None,
+                         full_chemical_equivalence = True):
 
     sub_iter = nx.isomorphism.GraphMatcher(big_g,
                                            sub_g,
                                            node_match=lambda a, b: compare_atoms(a, b, exclude_list, environment_nodes_sub),
                                            edge_match=compare_bonds).subgraph_isomorphisms_iter()
     
+    # NOTE Matches are returned as a generator of dictionaries {N_big: n_small}
+    
     _sub_iter = []
     exclude_list = []
     for match in sub_iter:
+        if bridge_atm is not None:
+            bridge_atm_exc = False
+
+            for at in match:
+                if match[at] in bridge_atm:
+                    continue
+                else:
+                    for ed in big_g.edges(at):
+                        bonded = ed[0]
+                        if bonded == at:
+                            bonded = ed[1]
+                        if bonded not in match:
+                            bridge_atm_exc = True
+                            break
+                if bridge_atm_exc:
+                    break
+            if bridge_atm_exc:
+                break
+        
         _sub_iter += [match]
-        print(">>", match)
+        #print(">>", match)
         exclude_list += [n for n in list(match.keys()) if match[n] not in environment_nodes_sub]
-        print("exclude_list", exclude_list, "(", environment_nodes_sub, ")")
+        #print("exclude_list", exclude_list, "(", environment_nodes_sub, ")")
     sub_iter = _sub_iter
+    
     return remove_chemical_equivalence([a for a in sub_iter], big_g, full_chemical_equivalence)
 
 def remove_chemical_equivalence(subs, big_g, full_chemical_equivalence=True):

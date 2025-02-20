@@ -1,29 +1,29 @@
-nh3_arg+            [NH2]=C(N)NCCCC([NH3])C(=O)[N]                                      11  ARG	nh3_n_term
-nh3_trp             [N]C(C([NH3])CC=1c2ccccc2NC1)=O                                      0  TRP	nh3_n_term
-nh3_arg             N=C(N)NCCCC([NH3])C(=O)[N]                                          11  ARG	nh3_n_term
-nh3_lys+            [NH3]CCCCC([NH3])C(=O)[N]                                            9  LYS	nh3_n_term
-nh3_lys             NCCCCC([NH3])C(=O)[N]                                                9  LYS	nh3_n_term
-nh3_tyr             Oc1ccc(cc1)CC([NH3])C(=O)[N]                                        12  TYR	nh3_n_term
-nh3_tyd             [O]c1ccc(cc1)CC([NH3])C(=O)[N]                                      12  TYD	nh3_n_term
-nh3_phe             [N]C(C([NH3])Cc1ccccc1)=O                                            0  PHE	nh3_n_term
-nh3_ile             [N]C(C([NH3])C(CC)C)=O                                               0  ILE	nh3_n_term
-nh3_leu             [N]C(C([NH3])CC(C)C)=O                                               0  LEU	nh3_n_term
-nh3_hip             [N]C(C([NH3])CC1=C[NH]=CN1)=O                                        0  HIP	nh3_n_term
-nh3_hid             [N]C(C([NH3])CC1=CN=CN1)=O                                           0  HID	nh3_n_term
-nh3_hie             [N]C(C([NH3])CC1=C[NH]=C[N]1)=O                                      0  HIE	nh3_n_term
-nh3_gln             O=C(N)CCC([NH3])C(=O)[N]                                             9  GLN	nh3_n_term
-nh3_met             [N]C(C([NH3])CCSC)=O                                                 0  MET	nh3_n_term
-nh3_glu             O=C(O)CCC([NH3])C(=O)[N]                                             9  GLU	nh3_n_term
-nh3_val             [N]C(C([NH3])C(C)C)=O                                                0  VAL	nh3_n_term
-nh3_glu-            O=C([O])CCC([NH3])C(=O)[N]                                           9  GLU	nh3_n_term
-nh3_thr             OC(C([NH3])C(=O)[N])C                                                6  THR	nh3_n_term
-nh3_asn             NC(=O)CC([NH3])C(=O)[N]                                              8  ASN	nh3_n_term
-nh3_pro             [N]C(C1CCC[NH2]1)=O                                                  0  PRO	nh3_n_term
-nh3_asp             OC(=O)CC([NH3])C(=O)[N]                                              8  ASP	nh3_n_term
-nh3_asp-            [O]C(=O)CC([NH3])C(=O)[N]                                            8  ASP	nh3_n_term
-nh3_cys             SCC([NH3])C(=O)[N]                                                   6  CYS	nh3_n_term
-nh3_cyx             [S]SCC([NH3])C(=O)[N]                                              0,7  CYX	nh3_n_term
-nh3_ser             OCC([NH3])C(=O)[N]                                                   6  SER	nh3_n_term
-nh3_cyd             [S]CC([NH3])C(=O)[N]                                                 6  CYD	nh3_n_term
-nh3_ala             [N]C(C([NH3])C)=O                                                    0  ALA	nh3_n_term
-nh3_gly             [N]C(=O)C[NH3]                                                       0  GLY	nh3_n_term
+nh3_arg+            [NH2]=C(N)NCCCC([NH3])C(=O)[N]                                      11                  11  ARG	nh3_n_term
+nh3_trp             [N]C(C([NH3])CC=1c2ccccc2NC1)=O                                      0                   0  TRP	nh3_n_term
+nh3_arg             N=C(N)NCCCC([NH3])C(=O)[N]                                          11                  11  ARG	nh3_n_term
+nh3_lys+            [NH3]CCCCC([NH3])C(=O)[N]                                            9                   9  LYS	nh3_n_term
+nh3_lys             NCCCCC([NH3])C(=O)[N]                                                9                   9  LYS	nh3_n_term
+nh3_tyr             Oc1ccc(cc1)CC([NH3])C(=O)[N]                                        12                  12  TYR	nh3_n_term
+nh3_tyd             [O]c1ccc(cc1)CC([NH3])C(=O)[N]                                      12                  12  TYD	nh3_n_term
+nh3_phe             [N]C(C([NH3])Cc1ccccc1)=O                                            0                   0  PHE	nh3_n_term
+nh3_ile             [N]C(C([NH3])C(CC)C)=O                                               0                   0  ILE	nh3_n_term
+nh3_leu             [N]C(C([NH3])CC(C)C)=O                                               0                   0  LEU	nh3_n_term
+nh3_hip             [N]C(C([NH3])CC1=C[NH]=CN1)=O                                        0                   0  HIP	nh3_n_term
+nh3_hid             [N]C(C([NH3])CC1=CN=CN1)=O                                           0                   0  HID	nh3_n_term
+nh3_hie             [N]C(C([NH3])CC1=C[NH]=C[N]1)=O                                      0                   0  HIE	nh3_n_term
+nh3_gln             O=C(N)CCC([NH3])C(=O)[N]                                             9                   9  GLN	nh3_n_term
+nh3_met             [N]C(C([NH3])CCSC)=O                                                 0                   0  MET	nh3_n_term
+nh3_glu             O=C(O)CCC([NH3])C(=O)[N]                                             9                   9  GLU	nh3_n_term
+nh3_val             [N]C(C([NH3])C(C)C)=O                                                0                   0  VAL	nh3_n_term
+nh3_glu-            O=C([O])CCC([NH3])C(=O)[N]                                           9                   9  GLU	nh3_n_term
+nh3_thr             O=[C]C([NH3])C(=O)[N]                                                6                   6  THR	nh3_n_term
+nh3_asn             NC(=O)CC([NH3])C(=O)[N]                                              8                   8  ASN	nh3_n_term
+nh3_pro             [N]C(C1CCC[NH2]1)=O                                                  0                   0  PRO	nh3_n_term
+nh3_asp             OC(=O)CC([NH3])C(=O)[N]                                              8                   8  ASP	nh3_n_term
+nh3_asp-            [O]C(=O)CC([NH3])C(=O)[N]                                            8                   8  ASP	nh3_n_term
+nh3_cys             SCC([NH3])C(=O)[N]                                                   6                   6  CYS	nh3_n_term
+nh3_cyx             [S]SCC([NH3])C(=O)[N]                                              0,7                 0,7  CYX	nh3_n_term
+nh3_ser             O=[C]C([NH3])C(=O)[N]                                                6                   6  SER	nh3_n_term
+nh3_cyd             [S]CC([NH3])C(=O)[N]                                                 6                   6  CYD	nh3_n_term
+nh3_ala             [N]C(C([NH3])C)=O                                                    0                   0  ALA	nh3_n_term
+nh3_gly             [N]C(=O)C[NH3]                                                       0                   0  GLY	nh3_n_term
