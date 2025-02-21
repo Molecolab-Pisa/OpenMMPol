@@ -72,6 +72,12 @@ module mod_electrostatics
         !! Scale factor for thole damping (only used by non-AMOEBA FF); all
         !! the element of thole(:) are multiplied by thole_scale ** 0.5
 
+        real(rp), allocatable :: thole_damping(:)
+        !! Damping factor for thole damping in AMOEBA. Correspond to the
+        !! dimensionless parameter A in 10.1021/jp027815 eq. (1) ... (5)
+        !! and should be read from forcefield, even if for most atoms is
+        !! always 0.3900
+
         real(rp), allocatable :: cpol(:,:)
         !! Coordinates of polarizable atoms (3:pol_atoms)
         
@@ -311,6 +317,8 @@ module mod_electrostatics
                        eel_obj%mm_polar)
         call mallocate('electrostatics_init [thole]', mm_atoms, &
                        eel_obj%thole)
+        call mallocate('electrostatics_init [thole_damping]', eel_obj%pol_atoms, &
+                       eel_obj%thole_damping)
         
         call mallocate('electrostatics_init [idp]', 3_ip, eel_obj%pol_atoms, &
                        eel_obj%n_ipd, eel_obj%ipd) 
@@ -350,6 +358,7 @@ module mod_electrostatics
         call mfree('electrostatics_terminate [polar_mm]', eel_obj%polar_mm)
         call mfree('electrostatics_terminate [mm_polar]', eel_obj%mm_polar)
         call mfree('electrostatics_terminate [thole]', eel_obj%thole)
+        call mfree('electrostatics_terminate [thole_damping]', eel_obj%thole_damping)
         call mfree('electrostatics_terminate [idp]', eel_obj%ipd) 
 
         if (eel_obj%amoeba) then
@@ -855,9 +864,8 @@ module mod_electrostatics
     end subroutine
 
     subroutine thole_init(eel)
-        ! This routine compute the thole factors and stores
-        ! them in a vector. TODO add reference
-        ! TODO in AMOEBA should be read from FF
+        ! This routine computes the thole factors and stores
+        ! them in a vector.
        
         use mod_constants, only: OMMP_VERBOSE_LOW, eps_rp
         implicit none
@@ -1029,9 +1037,21 @@ module mod_electrostatics
         real(rp), intent(out), dimension(3) :: dr
         !! Distance vector between i and j
         
-        real(rp) :: s, u, u3, u4, fexp, eexp
+        real(rp) :: a, s, u, u3, u4, fexp, eexp
         
         s = eel%thole(i) * eel%thole(j)
+        ! The following combination rule has been extrapolated from Tinker
+        ! code
+        if(eel%mm_polar(i) > 0 .and. eel%mm_polar(j) > 0) then
+            a = min(eel%thole_damping(eel%mm_polar(i)), &
+                    eel%thole_damping(eel%mm_polar(j)))
+        else if(eel%mm_polar(i) > 0) then
+            a = eel%thole_damping(eel%mm_polar(i))
+        else if(eel%mm_polar(j) > 0) then
+            a = eel%thole_damping(eel%mm_polar(j))
+        else
+            call fatal_error("Computing damped kernel between two mm atoms")
+        end if
         
         ! Compute undamped kernels
         dr = eel%top%cmm(:,j) - eel%top%cmm(:,i)
@@ -1046,13 +1066,11 @@ module mod_electrostatics
         u = 1.0_rp / (res(1) * s)
         u3 = u**3
 
-        if(eel%amoeba .and. u3 * 0.39_rp < 50.0_rp) then
-            ! 1.0 / (res(1) * s)**3 * 0.39_rp < 50_rp TODO Remove 0.39, this is a
-            ! FF constants, ask someone why this condition is here.
+        if(eel%amoeba .and. u3 * a < 50.0_rp) then
             ! Here basically we multiply the standard interactions kernel for
             ! dumping coefficients. The equations implemented here correspond to 
             ! eq. (5) of 10.1021/jp027815
-            fexp = -0.39_rp * u3
+            fexp = - a * u3
             eexp = exp(fexp)
             if(maxder >= 1) res(2) = res(2) * (1.0_rp - eexp)
             if(maxder >= 2) res(3) = res(3) * (1.0_rp - (1.0_rp - fexp) * eexp)

@@ -3111,7 +3111,7 @@ module mod_prm
             do j=1, npolarize
                 if(polat(j) == top%attype(i)) then
                     eel%pol(i) = isopol(j) * angstrom2au**3
-                    !TODO Thole factors.
+                    eel%thole_damping(i) = thf(j)
                     ! Assign a polgroup label to each atom
                     if(eel%mmat_polgrp(i) == 0) then
                         ipg = ipg+1
