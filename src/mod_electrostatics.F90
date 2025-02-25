@@ -804,7 +804,7 @@ module mod_electrostatics
 
                         do j=eel%polgrp_mmat%ri(grp), &
                              eel%polgrp_mmat%ri(grp+1)-1
-                            jp = eel%mm_polar(j)
+                            jp = eel%mm_polar(eel%polgrp_mmat%ci(j))
                             if(jp > 0) then
                                 scalf = screening_rules(eel, i, 'S', jp, 'P', 'D')
                                 if(abs(scalf-1.0) > eps_rp) then
