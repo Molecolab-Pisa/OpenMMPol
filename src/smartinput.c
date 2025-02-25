@@ -519,8 +519,7 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
     
     if(qmz != NULL && nucq != NULL){
         if(xyz_path != NULL){
-            ommp_fatal("Both qm_atoms, qm_coords and xyz_file are set, this is ambiguous.", 
-                         OMMP_VERBOSE_LOW, "SI QMH");
+            ommp_fatal("Both qm_atoms, qm_coords and xyz_file are set, this is ambiguous.");
             return false;
         }
         if(coords == NULL){
