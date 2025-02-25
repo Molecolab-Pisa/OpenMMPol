@@ -11,6 +11,7 @@
         "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
     },
     "verbosity": "high",
+    "ignore_duplicated_prm": "true",
     "vdw_cutoff": 12.0,
     "fmm_distance_thr": 8.0,
     "fmm_max_l": 18,

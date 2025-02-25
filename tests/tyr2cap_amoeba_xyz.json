@@ -55,5 +55,6 @@
             "md5sum": "18b942176d18f77e5c10d3ed13490f7b"
         }
     },
-    "verbosity": "high"
+    "verbosity": "high",
+    "ignore_duplicated_prm": "true"
 }

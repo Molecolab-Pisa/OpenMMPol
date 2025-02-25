@@ -2573,7 +2573,7 @@ module mod_prm
         use mod_memory, only: mallocate, mfree
         use mod_io, only: fatal_error
         use mod_nonbonded, only: ommp_nonbonded_type, vdw_init, vdw_set_pair
-        use mod_constants, only: angstrom2au, kcalmol2au, OMMP_DEFAULT_NL_CUTOFF
+        use mod_constants, only: angstrom2au, kcalmol2au, OMMP_DEFAULT_NL_CUTOFF,eps_rp
         
         implicit none
        
@@ -2741,6 +2741,7 @@ module mod_prm
                         call fatal_error(errstring)
                     end if
                     read(line(tokb:toke), *) vdw_f_prm(ivdw)
+                    if(abs(vdw_f_prm(ivdw)) < eps_rp) vdw_f_prm(ivdw) = 1.0
                 endif
 
                 ivdw = ivdw + 1
@@ -3111,7 +3112,7 @@ module mod_prm
             do j=1, npolarize
                 if(polat(j) == top%attype(i)) then
                     eel%pol(i) = isopol(j) * angstrom2au**3
-                    !TODO Thole factors.
+                    eel%thole_damping(i) = thf(j)
                     ! Assign a polgroup label to each atom
                     if(eel%mmat_polgrp(i) == 0) then
                         ipg = ipg+1

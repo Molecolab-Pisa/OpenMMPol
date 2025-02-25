@@ -11,5 +11,6 @@
         "md5sum": "69bab8d2c8b74f1488465541b7811b2f"
     },
     "verbosity": "high",
+    "ignore_duplicated_prm": "true",
     "ignore_duplicated_angle_prm": "true"
 }
