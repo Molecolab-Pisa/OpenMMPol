@@ -1,0 +1,9 @@
+#File name              Format           Description
+ pcp_1.pdb              pdb              Structure of pcp taken from QMIP tests
+ flavone_dmso.pdb       pdb              Structure of flavone in DMSO solvent
+ ocpo.mol2              mol2             Structure of OCPo containing CAN, likely from some Amber-tools related treatment
+ 4xb5.arc               tinker-xyz       Structure of RCP without carotenoid already assigned with pdb2xyz
+ T2_ntd.gro             gro              Structure of NTD passed through GROMACS toolchain
+ flavone_mecy.mol2      mol2             Structure of flavone in methyl-cyclohexane
+ flavone_meoh.mol2      mol2             Structure of flavone in methanol
+ drompa.xyz             xyz              Structure of solvated DRONPA GFP in water with sodium/chloride ions
