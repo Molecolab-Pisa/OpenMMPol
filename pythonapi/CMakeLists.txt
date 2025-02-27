@@ -5,11 +5,11 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml DESTINATION ${CMAKE_CURRENT
 set(prefix ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_PREFIX})
 set(cmake-command "
   execute_process(
-    COMMAND ${Python_EXECUTABLE} -m pip install .
+    COMMAND ${Python3_EXECUTABLE} -m pip install .
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ")
 add_custom_target(PythonPackage
-                  COMMAND ${Python_EXECUTABLE} -m build ${CMAKE_CURRENT_BINARY_DIR}
+                  COMMAND ${Python3_EXECUTABLE} -m build ${CMAKE_CURRENT_BINARY_DIR}
                   DEPENDS "py${PROJECT_NAME}"
                   COMMENT "Generate Python Dist Files"
                  )

@@ -53,8 +53,7 @@ if(NOT TARGET OpenSSL::SSL)
   find_package(OpenSSL REQUIRED)
 endif()
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
+find_package(Python3 COMPONENTS Development Interpreter REQUIRED)
 setup_build_type()
 load_toolchain_settings()
 setup_global_compiler_flags()
