@@ -1055,32 +1055,3 @@ def selection_to_graph(sele):
             G.add_edge(at.index, b.partner(at).index)
             nbond += 1
     return G
-
-def three2one(strin):
-    three_one = {'phe': 'F',
-                 'ala': 'A',
-                 'gly': 'G',
-                 'arg': 'R',
-                 'hi':  'H',
-                 'lys': 'K',
-                 'asp': 'D',
-                 'gln': 'Q',
-                 'ser': 'S',
-                 'thr': 'T',
-                 'asn': 'N',
-                 'glu': 'E',
-                 'cys': 'C',
-                 'pro': 'P',
-                 'val': 'V',
-                 'ile': 'I',
-                 'leu': 'L',
-                 'met': 'M',
-                 'tyr': 'Y',
-                 'trp': 'W',
-                 'wat': 'O',
-                 'Mg': 'Mg',
-                 'Zn': 'Zn'}
-    for t in three_one:
-        if strin.startswith(t):
-            return three_one[t]
-    return '-'
