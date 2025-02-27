@@ -3,7 +3,6 @@ import MDAnalysis as mda
 import json
 import argparse
 from scipy.spatial.distance import cdist
-import matplotlib.pyplot as plt
 from time import time
 import hashlib
 
@@ -194,8 +193,8 @@ def file_md5sum(fname):
         md5sum = hashlib.md5(f.read().encode()).hexdigest()
     return md5sum
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog='OMMP-IP',
+def ommp_ip_main():
+    parser = argparse.ArgumentParser(prog='ommp-ip',
                         description="""OpenMMPol Input Preparation program, 
                                     this script should assist the process 
                                     creating input for OpenMMPol library 
@@ -392,7 +391,8 @@ if __name__ == "__main__":
     if len(frozen.atoms) > 0:
         frozen.atoms.write(frozenpdb_path)
 
-
+if __name__ == '__main__':
+    ommp_ip_main()
 
 
 

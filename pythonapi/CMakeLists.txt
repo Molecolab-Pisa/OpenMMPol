@@ -2,6 +2,8 @@ find_package(pybind11 CONFIG REQUIRED)
 add_subdirectory("pyopenmmpol")
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/pyopenmmpol/ommp_ip DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/pyopenmmpol/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/pyopenmmpol/topology_prm_assign DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/pyopenmmpol/)
 set(prefix ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_PREFIX})
 set(cmake-command "
   execute_process(

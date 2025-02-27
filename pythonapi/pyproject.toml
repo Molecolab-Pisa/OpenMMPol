@@ -15,6 +15,10 @@ classifiers = [
 
 dependencies = [
   "numpy >= 1.17,< 2.0.0",
+  "scipy >= 1.13",
+  "MDAnalysis >= 2.7.0",
+  "pysmiles >= 2.0.0",
+  "networkx >= 3.2.1"
 ]
 
 dynamic = [
@@ -44,6 +48,8 @@ exclude = [
 [tool.hatch.build]
 include = [
   "pyopenmmpol/*.so",
+  "pyopenmmpol/ommp_ip",
+  "pyopenmmpol/topology_prm_assign"
 ]
 artifacts = [
   "pyopenmmpol/*.so"
@@ -51,3 +57,7 @@ artifacts = [
 
 [tool.hatch.version]
 path = "pyopenmmpol/__version__.py"
+
+[project.scripts]
+ommp-ip = "pyopenmmpol.ommp_ip:ommp_ip_main"
+ommp-tpa = "pyopenmmpol.topology_prm_assign.ommp_tpa:ommp_tpa_main"
