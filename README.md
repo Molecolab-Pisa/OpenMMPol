@@ -90,7 +90,7 @@ At configuration time you can control several build options:
 
 ``-DCMAKE_BUILD_TYPE=<Debug|Release|RelWithDebInfo|Coverage> # to control the compiler flags (debug generate a much slower code with a more strict control)``
 
-``-CMAKE_INSTALL_PREFIX=<PATH_TO_INSTALL> # eg. / /usr /usr/local /home/user/.local etc.``
+``-DCMAKE_INSTALL_PREFIX=<PATH_TO_INSTALL> # eg. / /usr /usr/local /home/user/.local etc.``
 
 ``-DTESTLANG=<C|F03> # Tests are run with the programs implemented in the selected language``
   
