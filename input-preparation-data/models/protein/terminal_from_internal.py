@@ -1,6 +1,5 @@
-from pysmiles import read_smiles, write_smiles
-from topas import *
 import sys
+from pyopenmmpol.topology_prm_assign import *
 
 db = AssignamentDB()
 with open('internal.txt', 'r') as f:
