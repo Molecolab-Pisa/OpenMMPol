@@ -1040,6 +1040,7 @@ def selection_to_graph(sele):
             vdw_table = None
 
         u.atoms.guess_bonds(vdwradii=vdw_table)
+    check_for_overconnected_atoms(u)
 
     G = nx.Graph(attr='element')
     natoms = 0
@@ -1055,3 +1056,32 @@ def selection_to_graph(sele):
             G.add_edge(at.index, b.partner(at).index)
             nbond += 1
     return G
+
+def check_for_overconnected_atoms(u):
+    oct = {'H': 1,
+           'C': 4,
+           'N': 4,
+           'O': 2,
+           'P': 4,
+           'S': 4
+           }
+    for a in u.atoms:
+        if a.element in oct:
+            if len(a.bonds) > oct[a.element]:
+                dists = np.zeros(len(a.bonds))
+                for i, b in enumerate(a.bonds):
+                    dists[i] = np.linalg.norm(b[0].position - b[1].position)
+                logger.warning("Atom {} ({}) has {} bonds (max {}). The {} longest bond(s) will be removed".format(a.index, 
+                                                                                                                   a.element, 
+                                                                                                                   len(a.bonds), 
+                                                                                                                   oct[a.element],
+                                                                                                                   len(a.bonds)-oct[a.element]))
+                bond_to_del = np.argsort(dists)[::-1][:len(a.bonds)-oct[a.element]]
+                for i in bond_to_del:
+                    b = a.bonds[i]
+                    logger.info("Removing bond between atom {:d} ({:s}) and {:d} ({:s}) with length of {:.2f}A".format(b[0].index,
+                                                                                                                       b[0].element,
+                                                                                                                       b[1].index,
+                                                                                                                       b[1].element,
+                                                                                                                       dists[i]))
+                u.delete_bonds(a.bonds[bond_to_del])
