@@ -1,4 +1,3 @@
-
 # Adapted from Chromium source code:
 # https://chromium.googlesource.com/external/github.com/google/benchmark/+/refs/tags/v1.4.1/cmake/GetGitVersion.cmake
 # 
@@ -24,12 +23,8 @@ if(__get_git_version)
 endif()
 set(__get_git_version INCLUDED)
 function(get_git_version var1 var2 var3)
-  
-  set(GIT_VERSION "0.0.0.0")
-  set(GIT_COMMIT "notfound")
-  set(GIT_VERSION_INTERNAL "0.0.0")
-  
   if(GIT_EXECUTABLE)
+
       # 1. git describe --tags | sed "s/\-/./g" | rev | cut -d"." -f2-  | rev | tr -d "\n"
       execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags
           COMMAND sed "s/\-/./g"
@@ -59,10 +54,25 @@ function(get_git_version var1 var2 var3)
           OUTPUT_VARIABLE GIT_VERSION_INTERNAL
           ERROR_QUIET
       )
-  endif() 
+        
+  else()
+      set(GIT_VERSION "0.0.0.0")
+      set(GIT_COMMIT "notfound")
+      set(GIT_VERSION_INTERNAL "0.0.0")
+  endif()
+  
+  if("${GIT_VERSION}" STREQUAL "" )
+      set(GIT_VERSION "0.0.0.0")
+  endif()
+  
+  if("${GIT_VERSION_INTERNAL}" STREQUAL "" )
+      set(GIT_VERSION_INTERNAL "0.0.0")
+  endif()
 
-  message(VERBOSE "-- git Version: ${GIT_VERSION}, commit: ${GIT_COMMIT}")
+  message(VERBOSE "-- git Version: ${GIT_VERSION}, commit: ${GIT_COMMIT}, internal ${GIT_VERSION_INTERNAL}")
   set(${var1} ${GIT_VERSION} PARENT_SCOPE)
   set(${var2} ${GIT_COMMIT} PARENT_SCOPE)
   set(${var3} ${GIT_VERSION_INTERNAL} PARENT_SCOPE)
 endfunction()
+
+

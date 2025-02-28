@@ -24,7 +24,8 @@ module mod_inputloader
         use mod_io, only: iof_mmpinp
         use mod_adjacency_mat, only: adj_mat_from_conn
         use mod_utils, only: skip_lines
-        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG
+        use mod_constants, only: angstrom2au, OMMP_VERBOSE_DEBUG, &
+                                 OMMP_VERBOSE_HIGH
         use mod_constants, only: mscale_wang_al, &
                                  pscale_wang_al, &
                                  dscale_wang_al, &
@@ -242,6 +243,8 @@ module mod_inputloader
                                    sys_obj%eel%iz(i), sys_obj%eel%ix(i), &
                                    sys_obj%eel%iy(i)
             end do
+            call ommp_message("With deprecated .mmp input, thole damping factors are assumed to be 0.39", OMMP_VERBOSE_HIGH)
+            sys_obj%eel%thole_damping = 0.39_rp
         end if
         ! now, process the input, create all the required arrays 
         ! and the correspondence lists:

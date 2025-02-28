@@ -31,7 +31,9 @@ cmake-config:
     stage: configure
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - cmake -B build -DCMAKE_BUILD_TYPE=DEBUG --log-level verbose
+        - mkdir build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=DEBUG --log-level verbose ..
     artifacts:
         paths:
             - build
@@ -58,7 +60,8 @@ cmake-config-nvidia:
     before_script:
         - export NVARCH=`uname -s`_`uname -m`
         - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export PATH=$NVCOMPILERS/$NVARCH/2024/compilers/bin:$PATH
+        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
+        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
     script:
         - mkdir build_nvidia
         - cd build_nvidia
@@ -161,7 +164,8 @@ make-lib-nvidia:
     before_script:
         - export NVARCH=`uname -s`_`uname -m`
         - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
+        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
     script:
         - cd build_nvidia
         - make openmmpol
@@ -177,7 +181,8 @@ compile-C-nvidia:
     before_script:
         - export NVARCH=`uname -s`_`uname -m`
         - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
+        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
     script:
         - cd build_nvidia
         - make C_test_programs
@@ -195,7 +200,8 @@ compile-FORTRAN-nvidia:
     before_script:
         - export NVARCH=`uname -s`_`uname -m`
         - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export PATH=$NVCOMPILERS/$NVARCH/2022/compilers/bin:$PATH
+        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
+        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
     script:
         - cd build_nvidia
         - make F03_test_programs
@@ -292,3 +298,5 @@ code_coverage:
             coverage_report:
                 coverage_format: cobertura
                 path: coverage/coverage.xml
+    only:
+        - schedules
