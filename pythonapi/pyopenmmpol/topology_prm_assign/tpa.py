@@ -1035,6 +1035,7 @@ def selection_to_graph(sele):
             vdw_table = {}
             for at in u.atoms:
                 if at.type not in vdw_table:
+                    # TODO this differs in different version of MDAnalysis, check.
                     vdw_table[at.type] = mda.guesser.tables.vdwradii[at.element.upper()]
         else:
             vdw_table = None
