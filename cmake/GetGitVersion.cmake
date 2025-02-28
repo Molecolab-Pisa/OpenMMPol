@@ -24,8 +24,12 @@ if(__get_git_version)
 endif()
 set(__get_git_version INCLUDED)
 function(get_git_version var1 var2 var3)
+  
+  set(GIT_VERSION "0.0.0.0")
+  set(GIT_COMMIT "notfound")
+  set(GIT_VERSION_INTERNAL "0.0.0")
+  
   if(GIT_EXECUTABLE)
-
       # 1. git describe --tags | sed "s/\-/./g" | rev | cut -d"." -f2-  | rev | tr -d "\n"
       execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags
           COMMAND sed "s/\-/./g"
@@ -55,12 +59,7 @@ function(get_git_version var1 var2 var3)
           OUTPUT_VARIABLE GIT_VERSION_INTERNAL
           ERROR_QUIET
       )
-        
-  else()
-      set(GIT_VERSION "0.0.0.0")
-      set(GIT_COMMIT "notfound")
-      set(GIT_VERSION_INTERNAL "0.0.0")
-  endif()
+  endif() 
 
   message(VERBOSE "-- git Version: ${GIT_VERSION}, commit: ${GIT_COMMIT}")
   set(${var1} ${GIT_VERSION} PARENT_SCOPE)
