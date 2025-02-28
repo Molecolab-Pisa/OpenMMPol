@@ -1038,6 +1038,7 @@ module mod_iohdf5
                 call hdf5_add_array(hg, "fixed_mmpoles_rot_CONV", eel%mol_frame)
 
                 call hdf5_add_array(hg, "polarization_group_id", eel%mmat_polgrp)
+                call hdf5_add_array(hg, "thole_damping", eel%thole_damping)
             else
                 call hdf5_add_array(hg, "fixed_multipoles", eel%q)
             end if
@@ -1439,6 +1440,9 @@ module mod_iohdf5
 
         ! AMOEBA
         if(amoeba) then
+            call hdf5_read_array(iof_hdf5, &
+                                  namespace//'/electrostatics/thole_damping', &
+                                  s%eel%thole_damping)
             call hdf5_read_array(iof_hdf5, &
                                   namespace//'/electrostatics/polarization_group_id', &
                                   s%eel%mmat_polgrp)
