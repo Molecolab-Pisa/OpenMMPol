@@ -512,15 +512,14 @@ bool smartinput_qm(cJSON *qm_json, OMMP_QM_HELPER_PRT *qmh){
         }
         else{
             sprintf(errstring, "Unrecognized qm attribute %s", qm_data->string);
-            ommp_message(errstring, OMMP_VERBOSE_LOW, "SI QMH");
+            ommp_fatal(errstring);
         }
         qm_data = qm_data->next;
     }
     
     if(qmz != NULL && nucq != NULL){
         if(xyz_path != NULL){
-            ommp_message("Both qm_atoms, qm_coords and xyz_file are set, this is ambiguous.", 
-                         OMMP_VERBOSE_LOW, "SI QMH");
+            ommp_fatal("Both qm_atoms, qm_coords and xyz_file are set, this is ambiguous.");
             return false;
         }
         if(coords == NULL){
