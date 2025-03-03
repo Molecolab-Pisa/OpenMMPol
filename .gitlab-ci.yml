@@ -114,6 +114,17 @@ compile-FORTRAN:
         - pushes
         - schedules
 
+install-python:
+    stage: compile-bin
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - python -m virtualenv venv
+        - source venv/bin/activate
+        - cmake --install build --component Python
+    only:
+        - pushes
+        - schedule
+
 make-lib-intel:
     stage: compile-lib
     image: $CI_REGISTRY_IMAGE:latest
