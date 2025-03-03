@@ -52,7 +52,6 @@ cmake-config-intel:
             - build_intel
     only:
         - schedules
-        - pushes
 
 cmake-config-nvidia:
     stage: configure
@@ -71,7 +70,6 @@ cmake-config-nvidia:
             - build_nvidia
     only:
         - schedules
-        - pushes
 
 make-lib:
     stage: compile-lib
@@ -114,11 +112,11 @@ compile-FORTRAN:
         - pushes
         - schedules
 
-install-python:
+install-python311:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - python -m virtualenv venv
+        - python311 -m virtualenv venv
         - source venv/bin/activate
         - cmake --install build --component Python
     only:
