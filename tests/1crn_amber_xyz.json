@@ -1,7 +1,6 @@
 {
     "name": "1CRN_AMBER_XYZ",
     "description": "1CRN, amber, FF, from XYZ file",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1crn/input_AMBER99SB.xyz",
         "md5sum": "ef23dcb5bdd91790216dcb93ee6ff4bc"

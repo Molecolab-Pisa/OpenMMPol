@@ -1,7 +1,6 @@
 {
     "name": "NMACUT_AMBER_MMP",
     "description": "N-methylacetamide, cut on polarizabilities, amber FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/N-methylacetamide/input_WANG_AL_CUT.mmp",
         "md5sum": "2b840ef54889e619ff4a1b65239b836e"

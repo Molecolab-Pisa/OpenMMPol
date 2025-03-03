@@ -1,7 +1,6 @@
 {
     "name": "1EI7_AMOEBA_XYZ_LS",
     "description": "1EI7, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1ei7/input.xyz",
         "md5sum": "c0c6395db57e2e72bd935c47e955adde"

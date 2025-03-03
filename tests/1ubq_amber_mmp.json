@@ -1,7 +1,6 @@
 {
     "name": "1UBQ_AMBER_MMP",
     "description": "1UBQ, AMBER FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/1ubq/input_WANG_AL.mmp",
         "md5sum": "c14f98ba4a97bcc6969942d8af8713fd"

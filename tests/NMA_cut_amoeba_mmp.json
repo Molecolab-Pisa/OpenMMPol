@@ -1,7 +1,6 @@
 {
     "name": "NMACUT_AMOEBA_MMP",
     "description": "N-methylacetamide, cut on polarizabilities, amoeba FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/N-methylacetamide/input_AMOEBA_CUT.mmp",
         "md5sum": "1a6f9762ed644388c3bd6aa180567e8a"

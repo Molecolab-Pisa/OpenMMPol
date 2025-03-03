@@ -1,7 +1,6 @@
 {
     "name": "1AO6CUT_AMBER_MMP",
     "description": "1AO6 (CUT at 10 Ang), AMBER FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/1ao6/input_WANG_AL_CUT10.mmp",
         "md5sum": "a4d314a441c131842acfb21462685417"

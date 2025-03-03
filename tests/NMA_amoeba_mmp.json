@@ -1,7 +1,6 @@
 {
     "name": "NMA_AMOEBA_MMP",
     "description": "N-methylacetamide, amoeba FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/N-methylacetamide/input_AMOEBA.mmp",
         "md5sum": "72a6a2cd0fa3c01861ee93ec2b8c3253"

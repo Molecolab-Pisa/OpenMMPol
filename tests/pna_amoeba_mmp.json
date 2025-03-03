@@ -1,7 +1,6 @@
 {
     "name": "PNA4H2O_AMOEBA_XYZ",
     "description": "p-nitroaniline + 4 water, AMOEBA FF, from MMP",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/p-nitroaniline/input.mmp",
         "md5sum": "d7b80df22fd5769e3e4401e03c834177"

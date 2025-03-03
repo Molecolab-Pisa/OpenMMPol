@@ -1,7 +1,6 @@
 {
     "name": "NMA_AMOEBA_XYZ",
     "description": "N-methylacetamide, amoeba FF, from XYZ file",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/N-methylacetamide/input.xyz",
         "md5sum": "a076d1a13ae7b10ecafdf0eee6c976a8"

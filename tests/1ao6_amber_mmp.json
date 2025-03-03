@@ -1,7 +1,6 @@
 {
     "name": "1AO6_AMBER_MMP",
     "description": "1AO6, AMBER FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/1ao6/input_WANG_AL.mmp",
         "md5sum": "9f5c1e97cdc87e337a9ab5603237c19d"

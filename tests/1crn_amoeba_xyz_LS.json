@@ -1,7 +1,6 @@
 {
     "name": "1CRN_AMOEBA_XYZ_LS",
     "description": "1CRN, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1crn/input.xyz",
         "md5sum": "801ee35f18665b2caffcba947e43b8b3"

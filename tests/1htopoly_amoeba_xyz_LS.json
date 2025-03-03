@@ -1,7 +1,6 @@
 {
     "name": "1HTOPOLY_AMOEBA_XYZ_LS",
     "description": "1HTO polymer, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1hto/input_poly.xyz",
         "md5sum": "c5094a4eee8ea681924cbd334fa4a60f"

@@ -1,7 +1,6 @@
 {
     "name": "TYRCAP_AMOEBA_XYZ",
     "description": "TYROSINE Capped, AMOEBA FF, from XYZ file w/ LINK ATOM",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/tyrosine_cap/input_LA_MM_AMOEBA.xyz",
         "md5sum": "17abe2a8947c90bae79959ec53911b10"

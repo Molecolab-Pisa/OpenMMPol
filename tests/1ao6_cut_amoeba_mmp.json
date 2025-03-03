@@ -1,7 +1,6 @@
 {
     "name": "1AO6CUT_AMOEBA_MMP",
     "description": "1AO6 (CUT at 10 Ang), AMOEBA FF, from MMP file",
-    "version": "0.4.0",
     "mmpol_file": {
         "path": "tests/1ao6/input_AMOEBA_CUT10.mmp",
         "md5sum": "842a5598f0f4d14b63beeebc8ce582a5"

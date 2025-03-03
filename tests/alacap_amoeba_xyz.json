@@ -1,7 +1,6 @@
 {
     "name": "ALACAP_AMOEBA_XYZ",
     "description": "ALANINE Capped, AMOEBA FF, from XYZ file w/ LINK ATOM",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/alanine_cap/input_LA_MM_AMOEBA.xyz",
         "md5sum": "7331b5a6f149ceeec95c806104d3f016"

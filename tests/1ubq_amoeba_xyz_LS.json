@@ -1,7 +1,6 @@
 {
     "name": "1UBQ_AMOEBA_XYZ_LS",
     "description": "1UBQ, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1ubq/input.xyz",
         "md5sum": "b1721806b14134acf36e19a5bc7b70ae"

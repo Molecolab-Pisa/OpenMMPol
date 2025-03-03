@@ -1,7 +1,6 @@
 {
     "name": "3KICPOLY_AMOEBA_XYZ_LS",
     "description": "3KIC polymer, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/3kic/input_poly.xyz",
         "md5sum": "ae99b870a6f9ec756a771539723df6bc"

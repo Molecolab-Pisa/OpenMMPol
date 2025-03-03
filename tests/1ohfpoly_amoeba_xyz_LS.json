@@ -1,7 +1,6 @@
 {
     "name": "1OHFPOLY_AMOEBA_XYZ_LS",
     "description": "1OHF polymer, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1ohf/input_poly.xyz",
         "md5sum": "2d7dbd32aca96689e880395f2cdd687e"

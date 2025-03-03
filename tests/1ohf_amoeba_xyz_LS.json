@@ -1,7 +1,6 @@
 {
     "name": "1OHF_AMOEBA_XYZ_LS",
     "description": "1OHF, amoeba, FF, from XYZ file, with VdW cutoff at 12.0 A",
-    "version": "0.4.0",
     "xyz_file": {
         "path": "tests/1ohf/input.xyz",
         "md5sum": "b2c50f72ce78a3fecba0b7a8ef84e532"
