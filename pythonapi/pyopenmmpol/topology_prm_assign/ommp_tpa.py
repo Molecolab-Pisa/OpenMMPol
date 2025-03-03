@@ -71,7 +71,7 @@ def ommp_tpa_main():
         elif not args.no_overconnected_check:
             check_for_overconnected_atoms(universe, False)
 
-        mya = PrmAssignament(mda.Universe(args.molf))
+        mya = PrmAssignament(universe)
         logger.info("Number of molecule in the system {:d}".format(mya.nmol))
 
         logger.info("Loading db from file")
