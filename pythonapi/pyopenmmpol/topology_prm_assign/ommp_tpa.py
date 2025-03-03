@@ -31,14 +31,45 @@ def ommp_tpa_main():
                                     Any kind of structural file that can be read by MDAnalysis is accepted.''',
                             metavar='<mol_file.xyz>',
                             dest='molf')
-        
         parser.add_argument('--out-txyz-file',
                             type=str,
                             help='''Output Tinker xyz file containing the assignament information.''',
                             metavar='<out_file.xyz>',
                             default=None,
                             dest='out_txyz')
+        parser.add_argument('--no-guess-elements',
+                            action='store_true',
+                            help='''Do not guess elements of atoms in input structure.''',
+                            default=False,
+                            dest='no_guess_elements')
+        parser.add_argument('--no-guess-bonds',
+                            action='store_true',
+                            help='''Do not guess bonds of input structure.''',
+                            default=False,
+                            dest='no_guess_bonds')
+        parser.add_argument('--no-overconnected-correction',
+                            action='store_true',
+                            help='''Do not correct bonds on overconnected atoms.''',
+                            default=False,
+                            dest='no_overconnected_corr')
+        parser.add_argument('--no-overconnected-check',
+                            action='store_true',
+                            help='''Do not check bonds on overconnected atoms.''',
+                            default=False,
+                            dest='no_overconnected_check')
+
         args = parser.parse_args(args=sys.argv[2:])
+        
+        universe = mda.Universe(args.molf)
+        
+        if not args.no_guess_elements:
+            guess_elements(universe)
+        if not args.no_guess_bonds:
+            guess_bonds(universe)
+        if not args.no_overconnected_corr and not args.no_overconnected_check:
+            check_for_overconnected_atoms(universe, True)
+        elif not args.no_overconnected_check:
+            check_for_overconnected_atoms(universe, False)
 
         mya = PrmAssignament(mda.Universe(args.molf))
         logger.info("Number of molecule in the system {:d}".format(mya.nmol))

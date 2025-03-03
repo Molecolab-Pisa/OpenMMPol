@@ -3,7 +3,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import MDAnalysis as mda
-from MDAnalysis.topology.guessers import guess_atom_element
 import json
 import logging
 
@@ -24,7 +23,6 @@ class PrmAssignament():
         self.assigned_atomid = np.zeros(self.natoms, dtype=np.int64) - 1
         # Molecule graph
         self.mol_graph = selection_to_graph(self.u.atoms)
-        self.save_tinker_xyz('porcamadonna.arc')
         # Tag the mol graph
         tag_mol_graph(self.mol_graph)
         # Check for correctness
@@ -76,22 +74,21 @@ class PrmAssignament():
         """For each atom in the molecular structure, returns the assigned atomtypes"""
         at = []
         for i in range(self.natoms):
-            at += [1]
-            #if self.is_assigned(i):
-            #    try:
-            #        frag = self.db[self.assigned_fragid[i]]
-            #    except KeyError:
-            #        logger.error("Can't find fragment with fragment id {:d}".format(self.assigned_fragid[i]))
-            #        return None
-            #    try:
-            #        at += [frag.atomtypes[self.assigned_atomid[i]]]
-            #    except KeyError:
-            #        logger.warning("Atom {:d} assigned as atom {:d} of residue {:d} (...) hasn't an atomtype".format(i, 
-            #                                                                                                self.assigned_atomid[i],
-            #                                                                                                frag.fragment_id))
-            #        return None
-            #else:
-            #    return None
+            if self.is_assigned(i):
+                try:
+                    frag = self.db[self.assigned_fragid[i]]
+                except KeyError:
+                    logger.error("Can't find fragment with fragment id {:d}".format(self.assigned_fragid[i]))
+                    return None
+                try:
+                    at += [frag.atomtypes[self.assigned_atomid[i]]]
+                except KeyError:
+                    logger.warning("Atom {:d} assigned as atom {:d} of residue {:d} (...) hasn't an atomtype".format(i, 
+                                                                                                            self.assigned_atomid[i],
+                                                                                                            frag.fragment_id))
+                    return None
+            else:
+                return None
         return at
 
     def topology_assign(self):
@@ -99,7 +96,8 @@ class PrmAssignament():
         try:
             assert self.db is not None
         except AssertionError:
-            raise ValueError("A database should be set before starting the assignament")
+            logger.critical("A database should be set before starting the assignament")
+            raise
         
         
         if self.mol_sub_graphs is None:
@@ -208,7 +206,7 @@ class PrmAssignament():
                     except AssertionError:
                         logger.critical("""Inconsistent information between learning input 
                         and database for atom {:d} (atom {:d} of residue {:s})""".format(i, self.assigned_atomid[i], frag.name))
-                        raise ValueError
+                        raise
                 else:
                     frag.set_atomtype(self.assigned_atomid[i], self.u.atoms[i].type)
                     logger.info("Inserting in db")
@@ -1025,6 +1023,44 @@ def get_subgraph_match(big_g, sub_g, exclude_list=None):
 
 
 def selection_to_graph(sele):
+    u = sele.universe
+    try:
+        assert hasattr(u.atoms, 'elements') or any(u.atoms.elements == '')
+    except AssertionError:
+        logger.critical("Cannot create a molecule graph without element informations in selection")
+        raise
+
+    G = nx.Graph(attr='element')
+    natoms = 0
+    for i, at in enumerate(sele):
+        e = at.element
+        if len(e) > 1:
+            e = e[0] + e[1:].lower()
+        G.add_node(at.index, element=e)
+        natoms += 1
+    nbond = 0
+    for at in sele:
+        for b in at.bonds:
+            G.add_edge(at.index, b.partner(at).index)
+            nbond += 1
+    return G
+
+def guess_elements(u):
+    """Interface to the standard function to guess element for each atom
+    present in MDAnalysis"""
+    
+    from MDAnalysis.topology.guessers import guess_atom_element
+
+    if not hasattr(u.atoms, 'elements') or any(u.atoms.elements == ''):
+        logger.info("Guessing atom elements")
+        u.add_TopologyAttr('element',
+                           [guess_atom_element(at.name) for at in u.atoms])
+
+def guess_bonds(u):
+    """Modified algorithm to guess bonds from coordinates, it basically
+    uses standard MDAnalysis functions adapted to implement the first two
+    steps of the algorithm proposed in 10.1186/1758-2946-4-26"""
+
     # Covalent radii from 10.1186/1758-2946-4-26
     COVALENT_RADII = {
             'H':	0.23,
@@ -1096,53 +1132,41 @@ def selection_to_graph(sele):
             'ER':	1.73,
             'TM':	1.72}
     
-    # Fix missing informations
-    u = sele.universe
-    if not hasattr(u.atoms, 'elements') or any(u.atoms.elements == ''):
-        u.add_TopologyAttr('element',
-                           [guess_atom_element(at.name) for at in u.atoms])
-
     if not hasattr(u.atoms, 'bonds') or sum([len(at.bonds) for at in sele]) == 0:
-        # Create a VdW table that only relies on element information
+        logger.info("Guessing bonds")
         if hasattr(u.atoms, 'types'):
             vdw_table = {}
             for at in u.atoms:
                 if at.type not in vdw_table:
                     vdw_table[at.type] = COVALENT_RADII[at.element.upper()]
         else:
+            logger.warning("VdW radii table cannot be created as the universe has no atom-type information")
             vdw_table = None
 
-        # To guess bonds we are basically using a modified version of eq. (1) from
-        # 10.1186/1758-2946-4-26.
-        #
-        # A bond is present if 
-        #     d_ij < ff * (Ri + Rj) + delta
-        # To be compliant with MDAnalysis scheme delta is incorparated in Ri and Rj
+        if vdw_table is not None:
+            # To guess bonds we are basically using a modified version of eq. (1) from
+            # 10.1186/1758-2946-4-26.
+            #
+            # A bond is present if 
+            #     d_ij < ff * (Ri + Rj) + delta
+            # To be compliant with MDAnalysis scheme delta is incorparated in Ri and Rj
 
-        delta = .4
-        ff = 1.0
-        u.atoms.guess_bonds(vdwradii={el: vdw_table[el] + delta/(2.0 * ff) for el in vdw_table},
-                            fudge_factor=ff)
+            logger.info("Guessing bonds with algorithm by Zhang et al. (10.1186/1758-2946-4-26)")
+            delta = .4
+            ff = 1.0
+            u.atoms.guess_bonds(vdwradii={el: vdw_table[el] + delta/(2.0 * ff) for el in vdw_table},
+                                fudge_factor=ff)
+        else:
+            logger.warning("Guessing bonds with default MDAnalysis algorithm, this could have some issues")
+            u.atoms.guess_bonds()
 
-    check_for_overconnected_atoms(u)
 
-    G = nx.Graph(attr='element')
-    natoms = 0
-    for i, at in enumerate(sele):
-        e = at.element
-        if len(e) > 1:
-            e = e[0] + e[1:].lower()
-        G.add_node(at.index, element=e)
-        natoms += 1
-    nbond = 0
-    for at in sele:
-        for b in at.bonds:
-            G.add_edge(at.index, b.partner(at).index)
-            nbond += 1
-    return G
+def check_for_overconnected_atoms(u, remove=True):
+    
+    """This function check if there are some atoms with a number of bonds 
+    too high for the element, in case it can either remove the bonds or 
+    rise an error"""
 
-def check_for_overconnected_atoms(u):
-    # TODO this should be moved in database (?)
     oct = {'H': 1,
            'C': 4,
            'N': 4,
@@ -1150,23 +1174,34 @@ def check_for_overconnected_atoms(u):
            'P': 4,
            'S': 4,
            }
+    
     for a in u.atoms:
         if a.element in oct:
             if len(a.bonds) > oct[a.element.upper()]:
                 dists = np.zeros(len(a.bonds))
                 for i, b in enumerate(a.bonds):
                     dists[i] = np.linalg.norm(b[0].position - b[1].position)
-                logger.warning("Atom {} ({}) has {} bonds (max {}). The {} longest bond(s) will be removed".format(a.index, 
-                                                                                                                   a.element, 
-                                                                                                                   len(a.bonds), 
-                                                                                                                   oct[a.element.upper()],
-                                                                                                                   len(a.bonds)-oct[a.element]))
+                if remove:
+                    logger.warning("Atom {} ({}) has {} bonds (max {}). The {} longest bond(s) will be removed".format(a.index, 
+                                                                                                                    a.element, 
+                                                                                                                    len(a.bonds), 
+                                                                                                                    oct[a.element.upper()],
+                                                                                                                    len(a.bonds)-oct[a.element]))
+                else:
+                    logger.error("Atom {} ({}) has {} bonds (max {}). The {} longest bond(s) will be removed".format(a.index, 
+                                                                                                                     a.element, 
+                                                                                                                     len(a.bonds), 
+                                                                                                                     oct[a.element.upper()],
+                                                                                                                     len(a.bonds)-oct[a.element]))
+                    raise ValueError
+
                 bond_to_del = np.argsort(dists)[::-1][:len(a.bonds)-oct[a.element.upper()]]
                 for i in bond_to_del:
                     b = a.bonds[i]
-                    logger.info("Removing bond between atom {:d} ({:s}) and {:d} ({:s}) with length of {:.2f}A".format(b[0].index,
-                                                                                                                       b[0].element,
-                                                                                                                       b[1].index,
-                                                                                                                       b[1].element,
-                                                                                                                       dists[i]))
+                    if remove:
+                        logger.info("Removing bond between atom {:d} ({:s}) and {:d} ({:s}) with length of {:.2f}A".format(b[0].index,
+                                                                                                                        b[0].element,
+                                                                                                                        b[1].index,
+                                                                                                                        b[1].element,
+                                                                                                                        dists[i]))
                 u.delete_bonds(a.bonds[bond_to_del])
