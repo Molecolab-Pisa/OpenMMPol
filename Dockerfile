@@ -19,7 +19,6 @@ RUN zypper --non-interactive install \
                                 lcov \
                                 liblapack3 \
                                 make \
-                                python-pybind11-common-devel \
                                 python311-numpy \
                                 python311-pip \
                                 python311-pybind11 \
