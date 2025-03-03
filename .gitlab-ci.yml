@@ -116,7 +116,7 @@ install-python311:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
-        - python311 -m virtualenv venv
+        - python3.11 -m virtualenv venv
         - source venv/bin/activate
         - cmake --install build --component Python
     only:
