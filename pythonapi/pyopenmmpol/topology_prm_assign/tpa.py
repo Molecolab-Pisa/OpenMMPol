@@ -1132,7 +1132,7 @@ def guess_bonds(u):
             'ER':	1.73,
             'TM':	1.72}
     
-    if not hasattr(u.atoms, 'bonds') or sum([len(at.bonds) for at in sele]) == 0:
+    if not hasattr(u.atoms, 'bonds') or sum([len(at.bonds) for at in u.atoms]) == 0:
         logger.info("Guessing bonds")
         if hasattr(u.atoms, 'types'):
             vdw_table = {}
