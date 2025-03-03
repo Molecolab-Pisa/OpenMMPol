@@ -112,13 +112,16 @@ compile-FORTRAN:
         - pushes
         - schedules
 
-install-python311:
+install-python3-11:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
     script:
         - python3.11 -m virtualenv venv
         - source venv/bin/activate
         - cmake --install build --component Python
+    artifacts:
+        paths:
+          - venv
     only:
         - pushes
         - schedule
@@ -261,6 +264,14 @@ run_tests:
         - ctest --output-on-failure
     only:
         - schedules
+
+run-python-tests:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - source venv/bin/activate
+        - ommp-ip --help
+        - ommp-tpa --help
 
 run_tests-intel:
     stage: test
