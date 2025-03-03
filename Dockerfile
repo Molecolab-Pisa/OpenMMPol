@@ -19,7 +19,9 @@ RUN zypper --non-interactive install \
                                 lapack-devel \
                                 lcov \
                                 liblapack3 \
+                                libopenssl-devel \
                                 make \
+                                openssl \
                                 procps \
                                 python311-numpy \
                                 python311-pip \
