@@ -24,6 +24,7 @@ RUN zypper --non-interactive install \
                                 openssl \
                                 procps \
                                 python3-pybind11-common-devel \
+                                python3-numpy \
                                 python311-numpy \
                                 python311-pip \
                                 python311-pybind11 \
