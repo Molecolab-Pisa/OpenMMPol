@@ -1,5 +1,5 @@
-FROM opensuse/leap:15.5
-LABEL version="1.7"
+FROM opensuse/leap:15.6
+LABEL version="1.8"
 LABEL description="Dockerfile to build and run open-mmpol library"
 RUN zypper --non-interactive install \
                                 cJSON-devel \
@@ -20,11 +20,12 @@ RUN zypper --non-interactive install \
                                 liblapack3 \
                                 make \
                                 python-pybind11-common-devel \
-                                python3-numpy \
-                                python3-pip \
-                                python3-pybind11 \
-                                python3-pybind11-devel \
-                                python3 \
+                                python311-numpy \
+                                python311-pip \
+                                python311-pybind11 \
+                                python311-pybind11-devel \
+                                python311-virtualenv \
+                                python311 \
                                 tar \
                                 wget \
                                 zlib-devel
