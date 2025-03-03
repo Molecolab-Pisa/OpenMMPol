@@ -13,6 +13,7 @@ RUN zypper --non-interactive install \
                                 gzip \
                                 hdf5 \
                                 hdf5-devel \
+                                hdf5-devel-static \
                                 kernel-devel \
                                 kmod \
                                 lapack-devel \
