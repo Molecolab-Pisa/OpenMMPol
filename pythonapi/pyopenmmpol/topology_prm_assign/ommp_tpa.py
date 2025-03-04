@@ -196,7 +196,13 @@ def ommp_tpa_main():
 
             for molsf in args.learn_struct:
                 logger.info("Learning from {:s}".format(molsf))
-                mya = PrmAssignament(mda.Universe(molsf))
+                
+                universe = mda.Universe(molsf)
+                guess_elements(universe)
+                guess_bonds(universe)
+                check_for_overconnected_atoms(universe, True)
+                
+                mya = PrmAssignament(universe)
                 mya.set_db(db)
                 mya.topology_assign()
                 mya.learn_from(use_name=learn_name, 

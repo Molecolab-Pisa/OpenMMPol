@@ -177,12 +177,10 @@ class PrmAssignament():
         """Use the assignement and the atom types/names present in the
         structure to improve the database and verify it against the new
         set of data""" 
-        if use_name:
-            # TODO Learning function for atom name
-            logger.critical("Learning atomnames is still not implemented")
-            raise NotImplementedError
         if use_type:
             self.learn_type()
+        if use_name:
+            self.learn_names()
 
     def learn_type(self):
         """Use the assignement and the atom types present in the
@@ -209,6 +207,39 @@ class PrmAssignament():
                         raise
                 else:
                     frag.set_atomtype(self.assigned_atomid[i], self.u.atoms[i].type)
+                    logger.info("Inserting in db")
+
+            else:
+                logger.info("Atom {:03d} is unassigned".format(i))
+    
+    def learn_names(self):
+        """Use the assignement and the atom names present in the
+        structure to improve the database and verify it against the new
+        set of data""" 
+        
+        if not hasattr(self.u.atoms[0], 'name'):
+            logger.critical("Cannot learn, since your input file has no atom names")
+            raise ValueError
+
+        for i in range(self.natoms):
+            if self.is_assigned(i):
+                logger.debug("Correct atom name for atom {:03d} is {}".format(i, self.u.atoms[i].name))
+                # Find the correct fragment
+                frag = self.db[self.assigned_fragid[i]]
+                logger.info("Atom is assigned to frag {:s} - id {:d}".format(frag.name, self.assigned_atomid[i]))
+                if frag.has_atomnames(self.assigned_atomid[i]):
+                    try:
+                        assert self.u.atoms[i].name == frag.atomnames[self.assigned_atomid[i]]
+                        logger.info("Already in DB with consistent atomname")
+                    except AssertionError:
+                        logger.critical("""Inconsistent information between learning input 
+                        and database for atom {:d} (atom {:d} of residue {:s} - name {:s})""".format(i, 
+                                                                                                     self.assigned_atomid[i], 
+                                                                                                     frag.name,
+                                                                                                     frag.atomnames[self.assigned_atomid[i]]))
+                        raise
+                else:
+                    frag.set_atomname(self.assigned_atomid[i], self.u.atoms[i].name)
                     logger.info("Inserting in db")
 
             else:
@@ -390,7 +421,7 @@ class Fragment():
                  smiles_str,
                  env_atm=[],
                  bridge_atm=[],
-                 atomnames={},
+                 atomnames=None,
                  atomtypes=None,
                  default_resname='UNK',
                  restype='unknown',
@@ -417,15 +448,22 @@ class Fragment():
         else:
             self.resname = name
         self.oln = default_oln
+        
         if priority is None:
             self.priority = self.natoms#10 * (self.natoms-len(self.env_atm)) + len(self.env_atm)
         else:
             self.priority = priority
+        
         if atomtypes is None:
-            self.atomtypes = {}
+            self.atomtypes = dict()
         else:
             self.atomtypes = atomtypes
-        self.atomnames = atomnames
+        
+        if atomnames is None:
+            self.atomnames = dict()
+        else:
+            self.atomnames = atomnames
+
         self.restype = restype
 
     @property
@@ -449,6 +487,24 @@ class Fragment():
     
     def reset_atomtype(self, iatm):
         self.atomtypes[iatm] = None
+    
+    def has_atomnames(self, iatm=None):
+        if iatm is None:
+            return len(self.atomnames) == len(self.assignable_atm)
+        else:
+            if iatm in self.atomnames:
+                return self.atomnames[iatm] is not None
+            else:
+                return False
+
+    def set_atomname(self, iatm, atomname):
+        if iatm in self.atomnames and self.atomnames[iatm] is not None:
+            raise ValueError("Cannot reassign atomname")
+        else:
+            self.atomnames[iatm] = atomname
+    
+    def reset_atomname(self, iatm):
+        self.atomnames[iatm] = None
 
     def asdict(self):
         d = {}
@@ -1043,7 +1099,8 @@ def get_subgraph_match(big_g, sub_g, exclude_list=None):
 def selection_to_graph(sele):
     u = sele.universe
     try:
-        assert hasattr(u.atoms, 'elements') or any(u.atoms.elements == '')
+        assert hasattr(u.atoms, 'elements')
+        assert all(u.atoms.elements != '')
     except AssertionError:
         logger.critical("Cannot create a molecule graph without element informations in selection")
         raise
