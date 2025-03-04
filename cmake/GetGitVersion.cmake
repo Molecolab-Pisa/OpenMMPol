@@ -69,7 +69,7 @@ function(get_git_version var1 var2 var3)
       set(GIT_VERSION_INTERNAL "0.0.0")
   endif()
 
-  message(VERBOSE "-- git Version: ${GIT_VERSION}, commit: ${GIT_COMMIT}, internal ${GIT_VERSION_INTERNAL}")
+  message(VERBOSE "git Version: ${GIT_VERSION}, commit: ${GIT_COMMIT}, internal ${GIT_VERSION_INTERNAL}")
   set(${var1} ${GIT_VERSION} PARENT_SCOPE)
   set(${var2} ${GIT_COMMIT} PARENT_SCOPE)
   set(${var3} ${GIT_VERSION_INTERNAL} PARENT_SCOPE)
