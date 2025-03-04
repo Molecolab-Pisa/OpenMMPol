@@ -1,5 +1,6 @@
 stages:
     - docker-building
+    - docker-building-adv
     - configure
     - compile-lib
     - compile-bin
@@ -7,11 +8,12 @@ stages:
     - packaging
     - documentation
     - coverage
+
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE
   DOCKER_TLS_CERTDIR: "/certs"
 
-build_docker_env:
+build-docker-env:
     stage: docker-building
     image: docker:24.0.5
     services:
@@ -19,7 +21,7 @@ build_docker_env:
         alias: docker
     script:
         - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-        - docker build --load -t $IMAGE_TAG .
+        - docker build --load -t $IMAGE_TAG -f Dockerfile .
         - docker push $IMAGE_TAG
     only:
         refs:
@@ -27,6 +29,7 @@ build_docker_env:
         changes:
             - Dockerfile
 
+# STANDARD GNU COMPILER
 cmake-config:
     stage: configure
     image: $CI_REGISTRY_IMAGE:latest
@@ -164,6 +167,23 @@ code_coverage:
     only:
         - schedules
 
+## INTEL COMPILER
+build-docker-env-intel:
+    stage: docker-building-adv
+    image: docker:24.0.5
+    services:
+      - name: docker:24.0.5-dind
+        alias: docker
+    script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+        - docker build --load -t $IMAGE_TAG -f Dockerfile-intel .
+        - docker push $IMAGE_TAG
+    only:
+        refs:
+            - pushes
+        changes:
+            - Dockerfile-intel
+
 cmake-config-intel:
     stage: configure
     image: $CI_REGISTRY_IMAGE:latest
@@ -178,26 +198,6 @@ cmake-config-intel:
             - build_intel
     only:
         - schedules
-
-cmake-config-nvidia:
-    stage: configure
-    image: $CI_REGISTRY_IMAGE:latest
-    before_script:
-        - export NVARCH=`uname -s`_`uname -m`
-        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
-        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
-    script:
-        - mkdir build_nvidia
-        - cd build_nvidia
-        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
-    artifacts:
-        paths:
-            - build_nvidia
-    only:
-        - schedules
-
-
 
 make-lib-intel:
     stage: compile-lib
@@ -240,6 +240,36 @@ compile-FORTRAN-intel:
     artifacts:
         paths:
             - build_intel/bin
+    only:
+        - schedules
+
+run-tests-intel:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - source /opt/intel/oneapi/setvars.sh
+    script:
+        - cd build_intel
+        - ctest --output-on-failure
+    only:
+        - schedules
+
+## NVIDIA COMPILER
+cmake-config-nvidia:
+    stage: configure
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export NVARCH=`uname -s`_`uname -m`
+        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
+        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
+        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
+    script:
+        - mkdir build_nvidia
+        - cd build_nvidia
+        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
+    artifacts:
+        paths:
+            - build_nvidia
     only:
         - schedules
 
@@ -296,19 +326,7 @@ compile-FORTRAN-nvidia:
     only:
         - schedules
 
-
-run_tests-intel:
-    stage: test
-    image: $CI_REGISTRY_IMAGE:latest
-    before_script:
-        - source /opt/intel/oneapi/setvars.sh
-    script:
-        - cd build_intel
-        - ctest --output-on-failure
-    only:
-        - schedules
-
-run_tests-nvidia:
+run-tests-nvidia:
     stage: test
     image: $CI_REGISTRY_IMAGE:latest
     before_script:
@@ -318,4 +336,3 @@ run_tests-nvidia:
         - ctest -E memcheck --output-on-failure
     only:
         - schedules
-
