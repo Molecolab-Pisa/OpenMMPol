@@ -30,49 +30,16 @@ build_docker_env:
 cmake-config:
     stage: configure
     image: $CI_REGISTRY_IMAGE:latest
-    script:
+    before_script:
         - python3.11 -m virtualenv venv
         - source venv/bin/activate
+    script:
         - mkdir build
         - cd build
         - cmake -DCMAKE_BUILD_TYPE=DEBUG --log-level verbose ..
     artifacts:
         paths:
             - build
-            - venv
-
-cmake-config-intel:
-    stage: configure
-    image: $CI_REGISTRY_IMAGE:latest
-    before_script:
-        - source /opt/intel/oneapi/setvars.sh
-    script:
-        - mkdir build_intel
-        - cd build_intel
-        - cmake -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
-    artifacts:
-        paths:
-            - build_intel
-    only:
-        - schedules
-
-cmake-config-nvidia:
-    stage: configure
-    image: $CI_REGISTRY_IMAGE:latest
-    before_script:
-        - export NVARCH=`uname -s`_`uname -m`
-        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
-        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
-        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
-    script:
-        - mkdir build_nvidia
-        - cd build_nvidia
-        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
-    artifacts:
-        paths:
-            - build_nvidia
-    only:
-        - schedules
 
 make-lib:
     stage: compile-lib
@@ -115,17 +82,122 @@ compile-FORTRAN:
         - pushes
         - schedules
 
-install-python3-11:
+buid-pkg-python3-11:
     stage: compile-bin
     image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - python3.11 -m virtualenv venv
+        - source venv/bin/activate
     script:
-        - cmake --install build --component Python
-    artifacts:
-        paths:
-          - venv
+        - pip install build twine
+        - cd build
+        - make PythonPackage
     only:
         - pushes
-        - schedule
+    artifacts:
+        paths:
+            - build/pythonapi/dist/
+
+make-doc:
+    stage: documentation
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - ford DOC.md 
+    artifacts:
+        paths:
+            - doc
+    only:
+        - pushes
+
+run_short_test:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build
+        - ctest -R 'NMA|1crn|2d94' -E memcheck --output-on-failure
+    only:
+        - pushes
+
+run_tests:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - cd build
+        - ctest --output-on-failure
+    only:
+        - schedules
+
+run-python-tests:
+    stage: test
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - python3.11 -m virtualenv venv
+        - source venv/bin/activate
+        - pip install build/pythonapi/dist/pyopenmmpol-*.whl
+    script:
+        - ommp-ip --help
+        - ommp-tpa --help
+
+code_coverage:
+    stage: coverage
+    image: $CI_REGISTRY_IMAGE:latest
+    script:
+        - mkdir build_cov coverage
+        - cd build_cov
+        - cmake .. -DCMAKE_BUILD_TYPE=COVERAGE
+        - make 
+        - ctest -E "memcheck|1AO6"
+        - find . -iname '*.gcda' | xargs gcov > gcov.out
+        - echo "CODECOVERAGE" `cat gcov.out | tail -n 1 | grep --only-matching -P '.{0,5}%'`
+        - lcov --gcov-tool gcov --capture --directory . --output-file ../coverage/coverage.info
+        - cd ../coverage
+        - lcov_cobertura coverage.info -o coverage.xml
+        - genhtml --output-directory html coverage.info
+    coverage: '/CODECOVERAGE \d+.\d+%/'
+    artifacts:
+        paths:
+            - coverage
+        reports:
+            coverage_report:
+                coverage_format: cobertura
+                path: coverage/coverage.xml
+    only:
+        - schedules
+
+cmake-config-intel:
+    stage: configure
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - source /opt/intel/oneapi/setvars.sh
+    script:
+        - mkdir build_intel
+        - cd build_intel
+        - cmake -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
+    artifacts:
+        paths:
+            - build_intel
+    only:
+        - schedules
+
+cmake-config-nvidia:
+    stage: configure
+    image: $CI_REGISTRY_IMAGE:latest
+    before_script:
+        - export NVARCH=`uname -s`_`uname -m`
+        - export NVCOMPILERS=/opt/nvidia/hpc_sdk
+        - export NVVERSION=`ls $NVCOMPILERS/$NVARCH | head -n 1`
+        - export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH
+    script:
+        - mkdir build_nvidia
+        - cd build_nvidia
+        - cmake -DCMAKE_C_COMPILER=`which nvc` -DCMAKE_CXX_COMPILER=`which nvcc` -DCMAKE_Fortran_COMPILER=`which nvfortran` -DCMAKE_BUILD_TYPE=RELEASE -DWITH_HDF5=FALSE ..
+    artifacts:
+        paths:
+            - build_nvidia
+    only:
+        - schedules
+
+
 
 make-lib-intel:
     stage: compile-lib
@@ -224,55 +296,6 @@ compile-FORTRAN-nvidia:
     only:
         - schedules
 
-build-python-pkg:
-    stage: packaging
-    image: $CI_REGISTRY_IMAGE:latest
-    only: 
-        - tags
-    script:
-        - pip install wheel twine build
-        - python3 -m build
-        - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python3 -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
-    artifacts:
-        paths:
-            - dist/*
-
-make-doc:
-    stage: documentation
-    image: $CI_REGISTRY_IMAGE:latest
-    script:
-        - ford DOC.md 
-    artifacts:
-        paths:
-            - doc
-    only:
-        - pushes
-
-run_short_test:
-    stage: test
-    image: $CI_REGISTRY_IMAGE:latest
-    script:
-        - cd build
-        - ctest -R 'NMA|1crn|2d94' -E memcheck --output-on-failure
-    only:
-        - pushes
-
-run_tests:
-    stage: test
-    image: $CI_REGISTRY_IMAGE:latest
-    script:
-        - cd build
-        - ctest --output-on-failure
-    only:
-        - schedules
-
-run-python-tests:
-    stage: test
-    image: $CI_REGISTRY_IMAGE:latest
-    script:
-        - source venv/bin/activate
-        - ommp-ip --help
-        - ommp-tpa --help
 
 run_tests-intel:
     stage: test
@@ -296,28 +319,3 @@ run_tests-nvidia:
     only:
         - schedules
 
-code_coverage:
-    stage: coverage
-    image: $CI_REGISTRY_IMAGE:latest
-    script:
-        - mkdir build_cov coverage
-        - cd build_cov
-        - cmake .. -DCMAKE_BUILD_TYPE=COVERAGE
-        - make 
-        - ctest -E "memcheck|1AO6"
-        - find . -iname '*.gcda' | xargs gcov > gcov.out
-        - echo "CODECOVERAGE" `cat gcov.out | tail -n 1 | grep --only-matching -P '.{0,5}%'`
-        - lcov --gcov-tool gcov --capture --directory . --output-file ../coverage/coverage.info
-        - cd ../coverage
-        - lcov_cobertura coverage.info -o coverage.xml
-        - genhtml --output-directory html coverage.info
-    coverage: '/CODECOVERAGE \d+.\d+%/'
-    artifacts:
-        paths:
-            - coverage
-        reports:
-            coverage_report:
-                coverage_format: cobertura
-                path: coverage/coverage.xml
-    only:
-        - schedules
