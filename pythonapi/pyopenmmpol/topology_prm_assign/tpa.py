@@ -311,6 +311,22 @@ class AssignamentDB():
         else:
             raise KeyError
 
+    def __contains__(self, item):
+        if type(item) != Fragment:
+            logger.critical("Only fragments can be contained in database")
+            raise TypeError
+        else:
+            for fr in self:
+                # check if current fragment is isomorphic to some other fragments
+                if nx.faster_could_be_isomorphic(item.frag_graph, fr.frag_graph):
+                    isom = nx.is_isomorphic(item.frag_graph, 
+                                            fr.frag_graph, 
+                                            node_match=compare_atoms, 
+                                            edge_match=compare_bonds)
+                    if isom:
+                        return True
+            return False
+
     def save_as_json(self, fout):
         """Save database as json file"""
         json_out = {}
@@ -326,11 +342,13 @@ class AssignamentDB():
         return len(self.id_to_index)
 
     def add_fragment(self, frag):
-        # TODO add check on new added fragments
-        self.db += [frag]
-        fragment_id = self.get_min_free_id()
-        self.id_to_index[fragment_id] = len(self.db) - 1
-        self.db[-1].fragment_id = fragment_id
+        if not frag in self:
+            self.db += [frag]
+            fragment_id = self.get_min_free_id()
+            self.id_to_index[fragment_id] = len(self.db) - 1
+            self.db[-1].fragment_id = fragment_id
+        else:
+            logger.warning("An isomorphic fragment is already present in db, skipping {}".format(frag.name))
 
     def remove_fragment(self, frag):
         fragment_id = frag.fragment_id
