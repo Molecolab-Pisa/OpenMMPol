@@ -1,6 +1,5 @@
 stages:
     - docker-building
-    - docker-building-adv
     - configure
     - compile-lib
     - compile-bin
@@ -166,23 +165,6 @@ code_coverage:
                 path: coverage/coverage.xml
     only:
         - schedules
-
-## INTEL COMPILER
-build-docker-env-intel:
-    stage: docker-building-adv
-    image: docker:24.0.5
-    services:
-      - name: docker:24.0.5-dind
-        alias: docker
-    script:
-        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-        - docker build --load -t $IMAGE_TAG -f Dockerfile-intel .
-        - docker push $IMAGE_TAG
-    only:
-        refs:
-            - pushes
-        changes:
-            - Dockerfile-intel
 
 cmake-config-intel:
     stage: configure

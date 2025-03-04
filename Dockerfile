@@ -40,19 +40,19 @@ RUN pip install lcov_cobertura
 RUN pip install -Iv ford==6.1.11
 
 #Intel Compilers suite
-RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
-RUN curl https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB > intel.key
-RUN rpm --import intel.key
-RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
-                                                            intel-hpckit
-RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; \
-    tar xvf hdf5-1_12_2.tar.gz; \
-    rm hdf5-1_12_2.tar.gz;
-WORKDIR hdf5-hdf5-1_12_2
-RUN source /opt/intel/oneapi/setvars.sh; \
-    CC=icx CXX=icpx FC=ifx ./configure --prefix /opt/intel/hdf5-1.12.2 --enable-fortran --enable-build-mode=production --enable-shared;
-RUN make
-RUN make install
+#RUN zypper --non-interactive addrepo https://yum.repos.intel.com/oneapi oneAPI
+#RUN curl https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB > intel.key
+#RUN rpm --import intel.key
+#RUN zypper --non-interactive --gpg-auto-import-keys install intel-basekit \
+#                                                            intel-hpckit
+#RUN wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_2.tar.gz; \
+#    tar xvf hdf5-1_12_2.tar.gz; \
+#    rm hdf5-1_12_2.tar.gz;
+#WORKDIR hdf5-hdf5-1_12_2
+#RUN source /opt/intel/oneapi/setvars.sh; \
+#    CC=icx CXX=icpx FC=ifx ./configure --prefix /opt/intel/hdf5-1.12.2 --enable-fortran --enable-build-mode=production --enable-shared;
+#RUN make
+#RUN make install
 
 # NVCompilers suite
 # RUN zypper --non-interactive addrepo https://developer.download.nvidia.com/hpc-sdk/sles/nvhpc.repo
