@@ -80,8 +80,8 @@ def ommp_tpa_main():
 
         mya.topology_assign()
 
-        logger.info("Assigned {:d} / {:d}".format(mya.tot_assigned, mya.natoms))
         logger.info(mya.assignament_log())
+        logger.info("Assigned {:d} / {:d} - {:.2f} %".format(mya.tot_assigned, mya.natoms, 100 * mya.tot_assigned/mya.natoms))
 
         if hasattr(args, 'out_txyz') and args.out_txyz is not None:
             mya.save_tinker_xyz(args.out_txyz)

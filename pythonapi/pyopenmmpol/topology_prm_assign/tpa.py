@@ -278,10 +278,14 @@ class PrmAssignament():
 
     def assignament_log(self):
         """Write a log for the structure identification"""
-        s = ''
+        s = '\n'
+        # First write completely assigned molecules
+        mol_stat = {}
+        mol_repo = {}
         for i, mol in enumerate(self.mol_sub_graphs):
-            s += 'Molecule {:d} ({:d} atoms): '.format(i, len(mol.nodes))
+            mol_stat[i] = np.sum(self.assigned_resid[mol.nodes]>=0) / len(mol.nodes)
             resids = []
+            s0 = 'Molecule {:d} ({:d} atoms) {:.1f} % assigned: '.format(i, len(mol.nodes), mol_stat[i]*100)
             s1 = ''
             nuna = 0
             for atid in sorted(mol.nodes):
@@ -307,7 +311,11 @@ class PrmAssignament():
                         s1 += self.db[self.assigned_fragid[atid]].resname
             if s1.endswith('UNASSIGNED'):
                 s1 = s1.replace('UNASSIGNED', '?({:d} unassigned atoms)'.format(nuna))
-            s += s1 + '\n'
+            mol_repo[i] = s0 + s1 + '\n'
+        
+        sorted_mol_repo = sorted(mol_stat, key=lambda k: mol_stat[k], reverse=True)
+        for i in sorted_mol_repo:
+            s += mol_repo[i]
         return s
 
 
