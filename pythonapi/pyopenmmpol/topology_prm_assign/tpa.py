@@ -1251,6 +1251,11 @@ def check_for_overconnected_atoms(u, remove=True):
     rise an error"""
 
     oct = {'H': 1,
+           'NA': 0,
+           'K': 0,
+           'CL': 0,
+           'MG': 0,
+           'ZN': 0,
            'C': 4,
            'N': 4,
            'O': 2,
