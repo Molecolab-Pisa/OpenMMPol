@@ -12,6 +12,7 @@ module mod_mmpol
     use mod_nonbonded, only: ommp_nonbonded_type
     use mod_bonded, only: ommp_bonded_type
     use mod_link_atom, only: ommp_link_atom_type
+    use mod_density_fit, only: ommp_density_fit_type, df_terminate
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -42,6 +43,10 @@ module mod_mmpol
         type(ommp_link_atom_type), allocatable :: la
         !! Data structure containing all the information needed to handle 
         !! link atoms with a certain QM part described by a QM Helper object
+        logical(lp) :: use_density_fit = .false.
+        type(ommp_density_fit_type), allocatable :: df
+        !! Data structure containing all the information needed for
+        !! density fitting of the QM charge distribution
     end type ommp_system
     
     contains
@@ -134,6 +139,20 @@ module mod_mmpol
 
         allocate(sys_obj%la)
         sys_obj%use_linkatoms = .true.
+    end subroutine
+        
+    subroutine mmpol_init_density_fit(sys_obj)
+        !! Enable density fitting part
+        implicit none
+
+        type(ommp_system), intent(inout), target :: sys_obj
+        !! The object to be initialized
+        
+        if(sys_obj%use_density_fit .and. allocated(sys_obj%df)) return
+        if(allocated(sys_obj%df)) deallocate(sys_obj%df)
+
+        allocate(sys_obj%df)
+        sys_obj%use_density_fit = .true.
     end subroutine
         
     subroutine mmpol_prepare(sys_obj)
@@ -262,6 +281,11 @@ module mod_mmpol
         if(sys_obj%use_bonded) then
             call bonded_terminate(sys_obj%bds)
             sys_obj%use_bonded = .false.
+        end if
+
+        if(sys_obj%use_density_fit) then
+            call df_terminate(sys_obj%df)
+            sys_obj%use_density_fit = .false.
         end if
 
         sys_obj%mmpol_is_init = .false.

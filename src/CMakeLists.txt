@@ -14,6 +14,7 @@ list(
   "${dir}/mod_bonded.F90"
   "${dir}/mod_c_interface.F90"
   "${dir}/mod_constants.F90"
+  "${dir}/mod_density_fit.F90"
   "${dir}/mod_electrostatics.F90"
   "${dir}/mod_geomgrad.F90"
   "${dir}/mod_inputloader.F90"
