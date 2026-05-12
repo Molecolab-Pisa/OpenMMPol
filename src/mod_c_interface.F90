@@ -1895,4 +1895,143 @@ module mod_ommp_C_interface
             call ommp_ignore_duplicated_opb_prm
         end subroutine
 
+        subroutine C_ommp_init_density_fit(s_prt, charge_crd_prt, &
+                                           n_charges, fit_crd_prt, &
+                                           n_pts) &
+                bind(c, name='ommp_init_density_fit')
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: s_prt
+            type(c_ptr), value, intent(in) :: charge_crd_prt
+            integer(ommp_integer), value :: n_charges, n_pts
+            type(c_ptr), value, intent(in) :: fit_crd_prt
+
+            type(ommp_system), pointer :: s
+            real(ommp_real), dimension(:,:), pointer :: charge_crd
+            real(ommp_real), dimension(:,:), pointer :: fit_crd
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(charge_crd_prt, charge_crd, [3, n_charges])
+            call c_f_pointer(fit_crd_prt, fit_crd, [3, n_pts])
+
+            call ommp_init_density_fit(s, charge_crd, fit_crd)
+
+        end subroutine
+
+        function C_ommp_get_df_n_pts(s_prt) bind(c, name='ommp_get_df_n_pts')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_df_n_pts
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_n_pts = s%df%n_pts
+            else
+                C_ommp_get_df_n_pts = 0
+            end if
+        end function C_ommp_get_df_n_pts
+
+        function C_ommp_get_df_n_charges(s_prt) bind(c, name='ommp_get_df_n_charges')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_df_n_charges
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_n_charges = s%df%n_charges
+            else
+                C_ommp_get_df_n_charges = 0
+            end if
+        end function C_ommp_get_df_n_charges
+
+        function C_ommp_get_df_initialized(s_prt) bind(c, name='ommp_get_df_initialized')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_get_df_initialized
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_initialized = s%df%initialized
+            else
+                C_ommp_get_df_initialized = .false.
+            end if
+        end function C_ommp_get_df_initialized
+
+        function C_ommp_get_df_charge_coord(s_prt) bind(c, name='ommp_get_df_charge_coord')
+            !! Return the c-pointer to the charge coordinates array
+            !! (3 x n_charges). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_charge_coord
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_charge_coord = c_loc(s%df%charge_coord)
+            else
+                C_ommp_get_df_charge_coord = c_null_ptr
+            end if
+        end function C_ommp_get_df_charge_coord
+
+        function C_ommp_get_df_fit_point_coord(s_prt) bind(c, name='ommp_get_df_fit_point_coord')
+            !! Return the c-pointer to the fitting point coordinates
+            !! array (3 x n_pts). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_fit_point_coord
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_fit_point_coord = c_loc(s%df%fit_point_coord)
+            else
+                C_ommp_get_df_fit_point_coord = c_null_ptr
+            end if
+        end function C_ommp_get_df_fit_point_coord
+
+        function C_ommp_get_df_target_charges(s_prt) bind(c, name='ommp_get_df_target_charges')
+            !! Return the c-pointer to the target charges array
+            !! (n_charges). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_target_charges
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_target_charges = c_loc(s%df%target_charges)
+            else
+                C_ommp_get_df_target_charges = c_null_ptr
+            end if
+        end function C_ommp_get_df_target_charges
+
+        function C_ommp_get_df_X(s_prt) bind(c, name='ommp_get_df_X')
+            !! Return the c-pointer to the design matrix X
+            !! (n_charges x n_pts). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_X
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_X = c_loc(s%df%X)
+            else
+                C_ommp_get_df_X = c_null_ptr
+            end if
+        end function C_ommp_get_df_X
+
+        function C_ommp_get_df_Xinv(s_prt) bind(c, name='ommp_get_df_Xinv')
+            !! Return the c-pointer to the inverse/pseudoinverse
+            !! design matrix Xinv (n_pts x n_charges). Null if not
+            !! available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_Xinv
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_Xinv = c_loc(s%df%Xinv)
+            else
+                C_ommp_get_df_Xinv = c_null_ptr
+            end if
+        end function C_ommp_get_df_Xinv
+
 end module mod_ommp_C_interface

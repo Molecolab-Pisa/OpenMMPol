@@ -1535,4 +1535,30 @@ module ommp_interface
         end if
     end subroutine
 
+    subroutine ommp_init_density_fit(s, charge_coord, fit_point_coord)
+        !! Initialize the density fitting submodule with charge and fitting
+        !! point coordinates. The number of charges and fitting points is
+        !! derived from the size of the input arrays.
+        use mod_mmpol, only: mmpol_init_density_fit
+        use mod_density_fit, only: df_init
+
+        implicit none
+
+        type(ommp_system), intent(inout), pointer :: s
+        real(ommp_real), intent(in) :: charge_coord(:,:)
+        !! Coordinates of charge positions (3 x n_charges)
+        real(ommp_real), intent(in) :: fit_point_coord(:,:)
+        !! Coordinates of fitting points (3 x n_pts)
+
+        ! Enable density fitting submodule if not already done
+        if(.not. s%use_density_fit) then
+            call ommp_message("Initializing density fit module", &
+                              OMMP_VERBOSE_DEBUG, 'density_fit')
+            call mmpol_init_density_fit(s)
+        end if
+
+        ! Initialize the density fit object
+        call df_init(s%df, charge_coord, fit_point_coord)
+    end subroutine ommp_init_density_fit
+
 end module ommp_interface

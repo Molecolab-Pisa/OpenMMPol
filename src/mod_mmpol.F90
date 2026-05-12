@@ -285,6 +285,7 @@ module mod_mmpol
 
         if(sys_obj%use_density_fit) then
             call df_terminate(sys_obj%df)
+            deallocate(sys_obj%df)
             sys_obj%use_density_fit = .false.
         end if
 

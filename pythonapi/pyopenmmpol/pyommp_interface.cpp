@@ -255,6 +255,69 @@ class OMMPSystem{
             return ommp_use_linkatoms(handler);
         }
 
+        // Density fit accessors
+        int32_t get_df_n_pts(){
+            return ommp_get_df_n_pts(handler);
+        }
+
+        int32_t get_df_n_charges(){
+            return ommp_get_df_n_charges(handler);
+        }
+
+        bool get_df_initialized(){
+            return ommp_get_df_initialized(handler);
+        }
+
+        py_cdarray get_df_charge_coord(){
+            double *mem = ommp_get_df_charge_coord(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_df_n_charges(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray get_df_fit_point_coord(){
+            double *mem = ommp_get_df_fit_point_coord(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_df_n_pts(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray get_df_target_charges(){
+            double *mem = ommp_get_df_target_charges(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {get_df_n_charges()},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray get_df_X(){
+            double *mem = ommp_get_df_X(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_df_n_charges(), get_df_n_pts()},
+                                    {get_df_n_pts()*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray get_df_Xinv(){
+            double *mem = ommp_get_df_Xinv(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_df_n_pts(), get_df_n_charges()},
+                                    {get_df_n_charges()* sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
         py_cdarray get_ipd(){
             double *mem = ommp_get_ipd(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
@@ -1533,7 +1596,17 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def_property_readonly("polar_mm", &OMMPSystem::get_polar_mm, "Index of polarizable atoms in atom list [pol_atoms]")
         .def_property_readonly("use_frozen", &OMMPSystem::use_frozen, "Flag to check if frozen atoms are used")
         .def_property_readonly("frozen", &OMMPSystem::get_frozen, "Logical array, for each atom True means frozen False means mobile.")
-        .def_property_readonly("use_linkatoms", &OMMPSystem::use_linkatoms, "Flag to check if link atoms are used");
+        .def_property_readonly("use_linkatoms", &OMMPSystem::use_linkatoms, "Flag to check if link atoms are used")
+
+        // Density fit
+        .def_property_readonly("df_n_pts", &OMMPSystem::get_df_n_pts, "Number of density fitting points")
+        .def_property_readonly("df_n_charges", &OMMPSystem::get_df_n_charges, "Number of density fit charge positions")
+        .def_property_readonly("df_initialized", &OMMPSystem::get_df_initialized, "Whether density fit is initialized")
+        .def_property_readonly("df_charge_coord", &OMMPSystem::get_df_charge_coord, "Charge coordinates (n_charges, 3), read-only")
+        .def_property_readonly("df_fit_point_coord", &OMMPSystem::get_df_fit_point_coord, "Fitting point coordinates (n_pts, 3), read-only")
+        .def_property_readonly("df_target_charges", &OMMPSystem::get_df_target_charges, "Target charges (n_charges, read-only)")
+        .def_property_readonly("df_X", &OMMPSystem::get_df_X, "Design matrix X (n_charges x n_pts, read-only)")
+        .def_property_readonly("df_Xinv", &OMMPSystem::get_df_Xinv, "Inverse/pseudoinverse design matrix Xinv (n_pts x n_charges, read-only)");
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 

@@ -145,6 +145,18 @@ extern "C"
     extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
     extern void ommp_update_link_atoms_position(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 
+    extern void ommp_init_density_fit(OMMP_SYSTEM_PRT, const double *, int32_t, const double *, int32_t);
+
+    /* Density fit read-only accessors */
+    extern int32_t ommp_get_df_n_pts(OMMP_SYSTEM_PRT);
+    extern int32_t ommp_get_df_n_charges(OMMP_SYSTEM_PRT);
+    extern bool ommp_get_df_initialized(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_charge_coord(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_fit_point_coord(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_target_charges(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_X(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_Xinv(OMMP_SYSTEM_PRT);
+
     extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT *, OMMP_QM_HELPER_PRT *);
     extern void ommp_smartinput_cpstr(const char *, char *, char **);
     extern OMMP_SYSTEM_PRT ommp_system_from_qm_helper(OMMP_QM_HELPER_PRT, const char *);

@@ -618,6 +618,11 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     unsigned int nfrozen = 0, nla = 0, nremovepol=0;
     int32_t *frozenat=NULL, *removepolat=NULL;
     double *la_bl=NULL;
+    
+    // Density fit configuration
+    char *df_charge_points = NULL;
+    char *df_fit_points = NULL;
+    bool df_enabled = false;
     double vdw_cutoff = OMMP_DEFAULT_NL_CUTOFF;
     *ommp_qmh = NULL;
     bool force_fmm = false, fmm_enabled = false;
@@ -906,6 +911,48 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 ommp_fatal("ignore_duplicated_prm should be one of the following values [true, false]");
             }
         }
+        else if(strcmp(cur->string, "density_fit") == 0){
+            if(df_enabled){
+                ommp_fatal("Only a single density_fit section should be present");
+            }
+            if(!cJSON_IsObject(cur)){
+                ommp_fatal("density_fit should be a JSON object!");
+            }
+            df_enabled = true;
+            
+            cJSON *df_data = cur->child;
+            while(df_data != NULL){
+                if(strcmp(df_data->string, "charge_points") == 0){
+                    if(cJSON_IsString(df_data)){
+                        df_charge_points = df_data->valuestring;
+                        ommp_message("Density fit charge_points strategy: ", OMMP_VERBOSE_DEBUG, "SI");
+                        ommp_message(df_charge_points, OMMP_VERBOSE_DEBUG, "SI");
+                    }
+                    else{
+                        ommp_fatal("charge_points should be a string.");
+                    }
+                }
+                else if(strcmp(df_data->string, "fit_points") == 0){
+                    if(cJSON_IsString(df_data)){
+                        df_fit_points = df_data->valuestring;
+                        ommp_message("Density fit fit_points strategy: ", OMMP_VERBOSE_DEBUG, "SI");
+                        ommp_message(df_fit_points, OMMP_VERBOSE_DEBUG, "SI");
+                    }
+                    else{
+                        ommp_fatal("fit_points should be a string.");
+                    }
+                }
+                else{
+                    sprintf(msg, "Unrecognized field %s in density_fit section.", df_data->string);
+                    ommp_message(msg, OMMP_VERBOSE_LOW, "SI");
+                }
+                df_data = df_data->next;
+            }
+            
+            if(df_charge_points == NULL || df_fit_points == NULL){
+                ommp_fatal("density_fit section must contain at least charge_points or fit_points.");
+            }
+        }
         else{
             sprintf(msg, "Unrecognized JSON element \"%s\".", cur->string);
             ommp_fatal(msg);
@@ -1044,6 +1091,66 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
         free(la_bl);
         free(la_ner);
     }
+    
+    // Handle density fitting
+    if(df_enabled){
+        ommp_message("Initializing density fitting", OMMP_VERBOSE_DEBUG, "SI");
+        
+        if(*ommp_qmh == NULL){
+            ommp_fatal("Density fitting requested but no qm section is defined!");
+        }
+        
+        // Build charge coordinates array
+        int32_t n_charges = 0;
+        double *charge_crd = NULL;
+        
+        if(df_charge_points != NULL && strcmp(df_charge_points, "qm_atoms") == 0){
+            n_charges = ommp_qm_helper_get_qm_atoms(*ommp_qmh);
+            charge_crd = (double *) malloc(sizeof(double) * 3 * n_charges);
+            
+            double *qm_crd = ommp_qm_helper_get_cqm(*ommp_qmh);
+            // QM coordinates are stored as (3, n_atoms) in column-major format
+            for(int i=0; i<3*n_charges; i++){
+                charge_crd[i] = qm_crd[i];
+            }
+            ommp_message("Using QM atoms as charge points", OMMP_VERBOSE_DEBUG, "SI");
+        }
+        else{
+            sprintf(msg, "Unrecognized charge_points strategy: %s", 
+                    df_charge_points != NULL ? df_charge_points : "(null)");
+            ommp_fatal(msg);
+        }
+        
+        // Build fit coordinates array
+        int32_t n_pts = 0;
+        double *fit_crd = NULL;
+        
+        if(df_fit_points != NULL && strcmp(df_fit_points, "mm_atoms") == 0){
+            n_pts = ommp_get_mm_atoms(*ommp_sys);
+            fit_crd = (double *) malloc(sizeof(double) * 3 * n_pts);
+            
+            double *mm_crd = ommp_get_cmm(*ommp_sys);
+            // MM coordinates are stored as (3, n_atoms) in column-major format
+            for(int i=0; i<3*n_pts; i++){
+                fit_crd[i] = mm_crd[i];
+            }
+            ommp_message("Using MM atoms as fit points", OMMP_VERBOSE_DEBUG, "SI");
+        }
+        else if(df_fit_points != NULL){
+            sprintf(msg, "Unrecognized fit_points strategy: %s", df_fit_points);
+            ommp_fatal(msg);
+        }
+        
+        // Initialize density fit
+        if(df_charge_points != NULL && df_fit_points != NULL){
+            ommp_init_density_fit(*ommp_sys, charge_crd, n_charges, 
+                                 fit_crd, n_pts);
+        }
+        
+        free(charge_crd);
+        if(df_fit_points != NULL) free(fit_crd);
+    }
+    
     cJSON_Delete(input_json);
     return;
 }
