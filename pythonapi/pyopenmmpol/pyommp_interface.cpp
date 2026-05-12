@@ -216,6 +216,13 @@ class OMMPSystem{
             ommp_set_frozen_atoms(handler, frozen.shape(0), frozen.data());
         }
 
+        void set_fit_potential(py_cdarray fit_potential){
+            if(fit_potential.ndim() != 1){
+                throw py::value_error("fit_potential should be shaped [:]");
+            }
+            ommp_set_fit_potential(handler, fit_potential.data(), fit_potential.shape(0));
+        }
+
         void turn_pol_off(py_ciarray nopol){
             if(nopol.ndim() != 1){
                 throw py::value_error("nopol should be shaped [:]");
@@ -1481,6 +1488,11 @@ PYBIND11_MODULE(__pyopenmmpol, m){
              py::arg("nomm") = false,
              py::arg("solver") = "none",
              py::arg("matv") = "none")
+        
+        .def("set_fit_potential", 
+             &OMMPSystem::set_fit_potential,
+             "Set the electrostatic potential at the density fitting points.",
+             py::arg("fit_potential"))
         
         .def("get_bond_energy", &OMMPSystem::get_bond_energy, "Compute the energy of bond stretching")
         .def("get_angle_energy", &OMMPSystem::get_angle_energy, "Compute the energy of angle bending")

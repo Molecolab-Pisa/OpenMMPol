@@ -246,7 +246,41 @@ module ommp_interface
 
             call ommp_set_external_field(sys_obj, ext_field, solver, matv, .false.)
         end subroutine
-        
+
+        subroutine ommp_set_fit_potential(sys_obj, fit_potential)
+            !! Set the electrostatic potential at the density fitting points.
+            !! The potential values are stored in the df module for subsequent
+            !! charge fitting (e.g. via least-squares using Xinv).
+
+            use mod_mmpol, only: mmpol_init_density_fit
+
+            implicit none
+
+            type(ommp_system), intent(inout), target :: sys_obj
+            real(ommp_real), intent(in) :: fit_potential(:)
+            !! Potential values at each fitting point (n_pts)
+
+            ! Enable density fitting submodule if not already done
+            if(.not. sys_obj%use_density_fit) then
+                call ommp_message("Initializing density fit module", &
+                                  OMMP_VERBOSE_DEBUG, 'density_fit')
+                call mmpol_init_density_fit(sys_obj)
+            end if
+
+            if(.not. sys_obj%df%initialized) then
+                call ommp_fatal("Density fit object is not initialized!", &
+                                'ommp_set_fit_potential')
+            end if
+
+            if(size(fit_potential) /= sys_obj%df%n_pts) then
+                call ommp_fatal('ommp_set_fit_potential: size of fit_potential'//&
+                                ' does not match n_pts', &
+                                'ommp_set_fit_potential')
+            end if
+
+            sys_obj%df%fit_potential = fit_potential
+        end subroutine ommp_set_fit_potential
+
         subroutine ommp_potential_mmpol2ext(s, n, cext, v)
             ! Compute the electric potential of static sites at
             ! arbitrary coordinates

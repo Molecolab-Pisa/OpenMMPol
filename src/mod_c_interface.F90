@@ -324,6 +324,24 @@ module mod_ommp_C_interface
             call ommp_set_external_field(s, ext_field, solver, matv, .false.)
         end subroutine C_ommp_set_external_field_nomm
 
+        subroutine C_ommp_set_fit_potential(s_prt, fit_pot_prt, n_pts) &
+                bind(c, name='ommp_set_fit_potential')
+            !! Set the electrostatic potential at the density fitting points.
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: fit_pot_prt
+            integer(ommp_integer), intent(in), value :: n_pts
+
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: fit_pot(:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(fit_pot_prt, fit_pot, [n_pts])
+
+            call ommp_set_fit_potential(s, fit_pot)
+        end subroutine C_ommp_set_fit_potential
+
         subroutine C_ommp_potential_mmpol2ext(s_prt, n, cext, v) &
                 bind(c, name='ommp_potential_mmpol2ext')
             ! Compute the electric potential of static sites at
