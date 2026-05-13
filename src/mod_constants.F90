@@ -134,6 +134,12 @@ module mod_constants
     real(rp), parameter :: ommp_fmm_min_cellsize = OMMP_FMM_MIN_CELLSIZE
     real(rp), parameter :: ommp_fmm_far_thr = OMMP_FMM_FAR_THR
 
+    ! Density fitting constants
+    integer(ip), parameter :: ommp_df_solver_svd = OMMP_DF_SOLVER_SVD 
+    integer(ip), parameter :: ommp_df_svd_rcond_default = OMMP_DF_SVD_RCOND_DEFAULT
+    !! Default relative condition number threshold for SVD-based pseudoinverse
+
+
     contains
 
     function amoeba_rotation_convention_to_str(c) result(s)

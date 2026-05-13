@@ -1618,7 +1618,7 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def_property_readonly("df_fit_point_coord", &OMMPSystem::get_df_fit_point_coord, "Fitting point coordinates (n_pts, 3), read-only")
         .def_property_readonly("df_target_charges", &OMMPSystem::get_df_target_charges, "Target charges (n_charges, read-only)")
         .def_property_readonly("df_X", &OMMPSystem::get_df_X, "Design matrix X (n_charges x n_pts, read-only)")
-        .def_property_readonly("df_Xinv", &OMMPSystem::get_df_Xinv, "Inverse/pseudoinverse design matrix Xinv (n_pts x n_charges, read-only)");
+        .def_property_readonly("df_Xinv", &OMMPSystem::get_df_Xinv, "Pseudoinverse design matrix Xinv (n_pts x n_charges), read-only");
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 

@@ -2027,7 +2027,6 @@ module mod_ommp_C_interface
             type(c_ptr), value :: s_prt
             type(ommp_system), pointer :: s
             type(c_ptr) :: C_ommp_get_df_X
-
             call c_f_pointer(s_prt, s)
             if(allocated(s%df)) then
                 C_ommp_get_df_X = c_loc(s%df%X)
@@ -2051,5 +2050,4 @@ module mod_ommp_C_interface
                 C_ommp_get_df_Xinv = c_null_ptr
             end if
         end function C_ommp_get_df_Xinv
-
 end module mod_ommp_C_interface

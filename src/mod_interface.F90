@@ -253,6 +253,7 @@ module ommp_interface
             !! charge fitting (e.g. via least-squares using Xinv).
 
             use mod_mmpol, only: mmpol_init_density_fit
+            use mod_density_fit, only: df_solve
 
             implicit none
 
@@ -268,17 +269,20 @@ module ommp_interface
             end if
 
             if(.not. sys_obj%df%initialized) then
-                call ommp_fatal("Density fit object is not initialized!", &
-                                'ommp_set_fit_potential')
+                call ommp_fatal("Density fit object is not initialized!")
             end if
 
             if(size(fit_potential) /= sys_obj%df%n_pts) then
                 call ommp_fatal('ommp_set_fit_potential: size of fit_potential'//&
-                                ' does not match n_pts', &
-                                'ommp_set_fit_potential')
+                                ' does not match n_pts')
             end if
 
             sys_obj%df%fit_potential = fit_potential
+
+            !! Reset fit status: potential changed, charges need recomputation
+            sys_obj%df%fit_done = .false.
+
+            call df_solve(sys_obj%df)
         end subroutine ommp_set_fit_potential
 
         subroutine ommp_potential_mmpol2ext(s, n, cext, v)
