@@ -2062,4 +2062,39 @@ module mod_ommp_C_interface
                 C_ommp_get_df_Xinv = c_null_ptr
             end if
         end function C_ommp_get_df_Xinv
+
+        function C_ommp_get_df_VXI_m(s_prt) bind(c, name='ommp_get_df_VXI_m')
+            !! Return the c-pointer to the projected static quantity
+            !! VXI_m = V_m2q @ Xinv. Null if not available.
+            !! Triggers computation via the Fortran interface.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_VXI_m
+
+            call c_f_pointer(s_prt, s)
+            call ommp_df_get_VXI_m(s)
+            if(s%df%VXI_m_done .and. allocated(s%df%VXI_m)) then
+                C_ommp_get_df_VXI_m = c_loc(s%df%VXI_m)
+            else
+                C_ommp_get_df_VXI_m = c_null_ptr
+            end if
+        end function C_ommp_get_df_VXI_m
+
+        function C_ommp_get_df_VXI_p(s_prt) bind(c, name='ommp_get_df_VXI_p')
+            !! Return the c-pointer to the projected dipole quantity
+            !! VXI_p = V_p2q @ Xinv. Null if not available.
+            !! Triggers computation via the Fortran interface.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_VXI_p
+
+            call c_f_pointer(s_prt, s)
+            call ommp_df_get_VXI_p(s)
+            if(s%df%VXI_p_done .and. allocated(s%df%VXI_p)) then
+                C_ommp_get_df_VXI_p = c_loc(s%df%VXI_p)
+            else
+                C_ommp_get_df_VXI_p = c_null_ptr
+            end if
+        end function C_ommp_get_df_VXI_p
+
 end module mod_ommp_C_interface

@@ -1559,6 +1559,54 @@ module ommp_interface
         call ommp_message('QMH->SYS Completed', OMMP_VERBOSE_DEBUG)
     end subroutine ommp_system_from_qm_helper
 
+    subroutine ommp_df_get_VXI_m(s)
+        !! Trigger VXI_m computation and return pointer to the array.
+        !! This is the public Fortran interface for C/Python access.
+
+        use mod_io, only: fatal_error
+        use mod_density_fit, only: df_project_static
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+
+        if(.not. s%use_density_fit) then
+            call fatal_error("ommp_df_get_VXI_m: density fitting not enabled.")
+        end if
+        if(.not. allocated(s%df)) then
+            call fatal_error("ommp_df_get_VXI_m: density fit object not allocated.")
+        end if
+        if(.not. s%df%initialized) then
+            call fatal_error("ommp_df_get_VXI_m: density fit not initialized.")
+        end if
+
+        call df_project_static(s%df, s%eel)
+    end subroutine ommp_df_get_VXI_m
+
+    subroutine ommp_df_get_VXI_p(s)
+        !! Trigger VXI_p computation and return pointer to the array.
+        !! This is the public Fortran interface for C/Python access.
+
+        use mod_io, only: fatal_error
+        use mod_density_fit, only: df_project_dipoles
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+
+        if(.not. s%use_density_fit) then
+            call fatal_error("ommp_df_get_VXI_p: density fitting not enabled.")
+        end if
+        if(.not. allocated(s%df)) then
+            call fatal_error("ommp_df_get_VXI_p: density fit object not allocated.")
+        end if
+        if(.not. s%df%initialized) then
+            call fatal_error("ommp_df_get_VXI_p: density fit not initialized.")
+        end if
+
+        call df_project_dipoles(s%df, s%eel)
+    end subroutine ommp_df_get_VXI_p
+
     subroutine ommp_set_vdw_cutoff(s, cutoff)
         use mod_nonbonded, only: vdw_set_cutoff
         use mod_constants, only: OMMP_DEFAULT_NL_SUB

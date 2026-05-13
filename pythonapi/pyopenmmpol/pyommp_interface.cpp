@@ -328,6 +328,32 @@ class OMMPSystem{
                                     {get_df_n_charges()* sizeof(double), sizeof(double)});
             return py_cdarray(bufinfo);
         }
+        
+        py_cdarray get_df_VXI_m(){
+            double *mem = ommp_get_df_VXI_m(handler);
+            if(mem == nullptr){
+                throw std::runtime_error("VXI_m not available.");
+            }
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {get_df_n_pts()},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+        
+        py_cdarray get_df_VXI_p(){
+            double *mem = ommp_get_df_VXI_p(handler);
+            if(mem == nullptr){
+                throw std::runtime_error("VXI_p not available.");
+            }
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {get_df_n_pts()},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
 
         py_cdarray get_ipd(){
             double *mem = ommp_get_ipd(handler);
@@ -1623,7 +1649,9 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def_property_readonly("df_fit_point_coord", &OMMPSystem::get_df_fit_point_coord, "Fitting point coordinates (n_pts, 3), read-only")
         .def_property_readonly("df_target_charges", &OMMPSystem::get_df_target_charges, "Target charges (n_charges, read-only)")
         .def_property_readonly("df_X", &OMMPSystem::get_df_X, "Design matrix X (n_charges x n_pts, read-only)")
-        .def_property_readonly("df_Xinv", &OMMPSystem::get_df_Xinv, "Pseudoinverse design matrix Xinv (n_pts x n_charges), read-only");
+        .def_property_readonly("df_Xinv", &OMMPSystem::get_df_Xinv, "Pseudoinverse design matrix Xinv (n_pts x n_charges), read-only")
+        .def_property_readonly("df_VXI_m", &OMMPSystem::get_df_VXI_m, "Projected static quantity VXI_m = V_m2q @ Xinv")
+        .def_property_readonly("df_VXI_p", &OMMPSystem::get_df_VXI_p, "Projected dipole quantity VXI_p = V_p2q @ Xinv");
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 
