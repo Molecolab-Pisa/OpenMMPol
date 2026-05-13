@@ -166,6 +166,7 @@ extern "C"
     extern void ommp_enable_fmm(OMMP_SYSTEM_PRT);
     extern void ommp_disable_fmm(OMMP_SYSTEM_PRT);
     extern bool ommp_use_fmm(OMMP_SYSTEM_PRT);
+    extern bool ommp_use_density_fit(OMMP_SYSTEM_PRT);
     extern void ommp_set_fmm_lmax_pol(OMMP_SYSTEM_PRT, int32_t);
     extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);
     extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);

@@ -262,6 +262,10 @@ class OMMPSystem{
             return ommp_use_linkatoms(handler);
         }
 
+        bool use_density_fit(){
+            return ommp_use_density_fit(handler);
+        }
+
         // Density fit accessors
         int32_t get_df_n_pts(){
             return ommp_get_df_n_pts(handler);
@@ -1609,6 +1613,7 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def_property_readonly("use_frozen", &OMMPSystem::use_frozen, "Flag to check if frozen atoms are used")
         .def_property_readonly("frozen", &OMMPSystem::get_frozen, "Logical array, for each atom True means frozen False means mobile.")
         .def_property_readonly("use_linkatoms", &OMMPSystem::use_linkatoms, "Flag to check if link atoms are used")
+        .def_property_readonly("use_density_fit", &OMMPSystem::use_density_fit, "Flag to check if density fitting is enabled")
 
         // Density fit
         .def_property_readonly("df_n_pts", &OMMPSystem::get_df_n_pts, "Number of density fitting points")

@@ -1897,6 +1897,18 @@ module mod_ommp_C_interface
             s%eel%use_fmm = .false.
         end subroutine
 
+        function C_ommp_use_density_fit(s_prt) bind(c, name='ommp_use_density_fit')
+            !! Return true if density fitting is enabled, false otherwise.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_use_density_fit
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_use_density_fit = s%use_density_fit
+        end function C_ommp_use_density_fit
+
         subroutine C_ommp_ignore_duplicated_angle_prm() &
                 bind(c, name='ommp_ignore_duplicated_angle_prm')
 

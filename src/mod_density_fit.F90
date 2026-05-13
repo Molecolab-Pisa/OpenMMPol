@@ -35,14 +35,11 @@ module mod_density_fit
         !! Potential values at fitting points
 
         real(rp), allocatable :: X(:,:)
-        !! Design matrix, dimensions (n_charges x n_pts)
+        !! Design matrix, dimensions (n_pts x n_charges)
 
         real(rp), allocatable :: Xinv(:,:)
         !! Pseudoinverse design matrix, dimensions (n_charges x n_pts).
         !! Satisfies fitted_charges = Xinv @ fit_potential
-
-        real(rp), allocatable :: fitted_charges(:)
-        !! Fitted charges
 
         logical(lp) :: initialized = .false.
         !! Flag indicating whether the object is initialized
@@ -173,11 +170,20 @@ contains
         !!   - Xinv is computed from X on first request (if not already done)
         !!   - Matrix-vector multiply is performed every time (fit_done is reset
         !!     when fit_potential changes, so this runs after every update)
+        !!
+        !! Residual metric (local, not stored):
+        !!   residual_norm = || fit_potential - X @ fitted_charges || / || fit_potential ||
+        !!   This is computed from local temporaries and discarded after df_solve returns.
+
+        use mod_memory, only: mallocate, mfree
 
         implicit none
 
         type(ommp_density_fit_type), intent(inout) :: df
-        real(rp) :: alpha
+        real(rp), allocatable :: predicted_pot(:)
+        real(rp) :: fit_norm, residual_norm
+        integer(ip) :: i
+        character(len=256) :: msg
 
         if(.not. df%initialized) then
             call fatal_error("Density fit object not initialized!")
@@ -195,8 +201,33 @@ contains
             df%xinv_done = .true.
         end if
 
+        !! Solve: fitted_charges = Xinv @ fit_potential
         call dgemv('N', df%n_charges, df%n_pts, 1.0_rp, df%Xinv, df%n_charges, df%fit_potential, 1, 0.0_rp, df%target_charges, 1)
+
+        !! Forward: predicted_potential = X @ fitted_charges
+        call mallocate('df_solve [predicted_pot]', df%n_pts, predicted_pot)
+        call dgemv('N', df%n_pts, df%n_charges, 1.0_rp, df%X, df%n_pts, df%target_charges, 1, 0.0_rp, predicted_pot, 1)
+
+        !! Residual L2 norm: || fit_potential - predicted_potential || / || fit_potential ||
+        fit_norm = 0.0_rp
+        residual_norm = 0.0_rp
+        do i = 1, df%n_pts
+            residual_norm = residual_norm + (df%fit_potential(i) - predicted_pot(i))**2
+            fit_norm = fit_norm + df%fit_potential(i)**2
+        end do
+        residual_norm = sqrt(residual_norm / fit_norm)
+
+        call mfree('df_solve [predicted_pot]', predicted_pot)
+
         df%fit_done = .true.
+
+        !! Report residual norm as percentage
+        write(msg, '(A,F10.6,A)') 'Density fit residual norm = ', residual_norm * 100.0_rp, ' %'
+        call ommp_message(trim(msg), 1, 'df')
+
+        !! Report total fitted charge
+        write(msg, '(A,F10.6)') 'Total fitted charge = ', sum(df%target_charges)
+        call ommp_message(trim(msg), 1, 'df')
     end subroutine df_solve
 
     subroutine df_compute_Xinv_svd(df)
@@ -204,8 +235,7 @@ contains
         implicit none
 
         type(ommp_density_fit_type), intent(inout) :: df
-        real(rp) :: svd_rcond, max_sv
-        integer(ip) :: min_dim, lwork, info, i, j, k
+        integer(ip) :: min_dim, lwork, info, i
         integer(ip), dimension(:), allocatable :: iwork
         real(rp), dimension(:), allocatable :: s, work
         real(rp), dimension(:,:), allocatable :: u, vt, tmp_X
@@ -217,8 +247,6 @@ contains
         if(.not. df%x_done) then
             call df_build_X(df)
         end if
-
-        svd_rcond = df%svd_rcond
 
         !! Edge case: nothing to do
         if(df%n_charges == 0 .or. df%n_pts == 0) call fatal_error("Either target or fit grids in density-fitting have no points.")
