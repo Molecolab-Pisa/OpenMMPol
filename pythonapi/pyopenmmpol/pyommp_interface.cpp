@@ -349,10 +349,38 @@ class OMMPSystem{
             }
             py::buffer_info bufinfo(mem, sizeof(double),
                                     py::format_descriptor<double>::format(),
-                                    1,
-                                    {get_df_n_pts()},
-                                    {sizeof(double)});
+                                    2,
+                                    {get_n_ipd(), get_df_n_pts()},
+                                    {get_df_n_pts()*sizeof(double), sizeof(double)});
             return py_cdarray(bufinfo);
+        }
+        
+        void df_compute_induced_dipoles(bool nomm = false,
+                                            std::string solver = "none",
+                                            std::string matv = "none",
+                                            bool add_nuclei_field = true,
+                                            OMMPQmHelper* qm_helper = nullptr){ 
+            if(solvers.find(solver) == solvers.end()){
+                throw py::value_error("Selected solver is not available!");
+            }
+            
+            if(matvs.find(matv) == matvs.end()){
+                throw py::value_error("Selected matrix-vector method is not available!");
+            }
+
+            if(! nomm)
+                ommp_df_compute_induced_dipoles(handler, solvers[solver], matvs[matv], 1,
+                                                  add_nuclei_field ? 1 : 0,
+                                                  qm_helper ? qm_helper->get_handler() : nullptr);
+            else
+                ommp_df_compute_induced_dipoles(handler, solvers[solver], matvs[matv], 0,
+                                                  add_nuclei_field ? 1 : 0,
+                                                  qm_helper ? qm_helper->get_handler() : nullptr);
+            return ;
+        }
+        
+        double get_df_e_field_pol_ene(){
+            return ommp_get_df_e_field_pol_ene(handler);
         }
 
         py_cdarray get_ipd(){
@@ -1651,7 +1679,14 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def_property_readonly("df_X", &OMMPSystem::get_df_X, "Design matrix X (n_charges x n_pts, read-only)")
         .def_property_readonly("df_Xinv", &OMMPSystem::get_df_Xinv, "Pseudoinverse design matrix Xinv (n_pts x n_charges), read-only")
         .def_property_readonly("df_VXI_m", &OMMPSystem::get_df_VXI_m, "Projected static quantity VXI_m = V_m2q @ Xinv")
-        .def_property_readonly("df_VXI_p", &OMMPSystem::get_df_VXI_p, "Projected dipole quantity VXI_p = V_p2q @ Xinv");
+        .def_property_readonly("df_VXI_p", &OMMPSystem::get_df_VXI_p, "Projected dipole quantity VXI_p = V_p2q @ Xinv")
+        .def("df_compute_induced_dipoles", &OMMPSystem::df_compute_induced_dipoles, 
+             py::arg("nomm")=false, py::arg("solver")="none", py::arg("matv")="none",
+             py::arg("add_nuclei_field")=true, py::arg("qm_helper")=nullptr,
+             "Compute induced dipoles from fitted charges electric field.")
+        .def_property_readonly("df_e_field_pol_ene", &OMMPSystem::get_df_e_field_pol_ene,
+             "Polarization energy from fitted-charge electric field (E = -0.5 * ipd .dot. E_q2p)")
+        ;
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
         .def(py::init<py_cdarray, py_cdarray, py_ciarray>(), 

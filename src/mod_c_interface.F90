@@ -2067,12 +2067,15 @@ module mod_ommp_C_interface
             !! Return the c-pointer to the projected static quantity
             !! VXI_m = V_m2q @ Xinv. Null if not available.
             !! Triggers computation via the Fortran interface.
+            use mod_density_fit, only: df_project_static
+
             type(c_ptr), value :: s_prt
             type(ommp_system), pointer :: s
             type(c_ptr) :: C_ommp_get_df_VXI_m
 
             call c_f_pointer(s_prt, s)
-            call ommp_df_get_VXI_m(s)
+            call df_project_static(s%df, s%eel)
+
             if(s%df%VXI_m_done .and. allocated(s%df%VXI_m)) then
                 C_ommp_get_df_VXI_m = c_loc(s%df%VXI_m)
             else
@@ -2084,17 +2087,70 @@ module mod_ommp_C_interface
             !! Return the c-pointer to the projected dipole quantity
             !! VXI_p = V_p2q @ Xinv. Null if not available.
             !! Triggers computation via the Fortran interface.
+            use mod_density_fit, only: df_project_dipoles
+
             type(c_ptr), value :: s_prt
             type(ommp_system), pointer :: s
             type(c_ptr) :: C_ommp_get_df_VXI_p
 
             call c_f_pointer(s_prt, s)
-            call ommp_df_get_VXI_p(s)
+            call df_project_dipoles(s%df, s%eel)
+
             if(s%df%VXI_p_done .and. allocated(s%df%VXI_p)) then
                 C_ommp_get_df_VXI_p = c_loc(s%df%VXI_p)
             else
                 C_ommp_get_df_VXI_p = c_null_ptr
             end if
         end function C_ommp_get_df_VXI_p
+
+        subroutine C_ommp_df_compute_induced_dipoles(s_prt, solver, matv, add_mm_field, &
+                                                      add_nuclei_field, qm_helper_prt) &
+                bind(c, name='ommp_df_compute_induced_dipoles')
+            !! Compute induced dipoles from fitted charges electric field.
+            !! Wrapper for ommp_df_compute_induced_dipoles.
+            type(c_ptr), value :: s_prt
+            integer(ommp_integer), value :: solver
+            integer(ommp_integer), value :: matv
+            integer(ommp_integer), value :: add_mm_field
+            integer(ommp_integer), value :: add_nuclei_field
+            type(c_ptr), value :: qm_helper_prt
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm_help
+            logical :: do_mm_f
+            logical :: do_nuc_f
+            logical :: has_qm
+
+            call c_f_pointer(s_prt, s)
+            do_mm_f = (add_mm_field /= 0)
+            do_nuc_f = (add_nuclei_field /= 0)
+
+            has_qm = (c_associated(qm_helper_prt))
+
+            if(has_qm) then
+                call c_f_pointer(qm_helper_prt, qm_help)
+            end if
+
+            if(has_qm) then
+                call ommp_df_compute_induced_dipoles(s, solver, matv, do_mm_f, &
+                                                    do_nuc_f, qm_help)
+            else
+                call ommp_df_compute_induced_dipoles(s, solver, matv, do_mm_f, &
+                                                    do_nuc_f)
+            end if
+        end subroutine C_ommp_df_compute_induced_dipoles
+
+        function C_ommp_get_df_e_field_pol_ene(s_prt) bind(c, name='ommp_get_df_e_field_pol_ene')
+            !! Return the polarization energy from fitted-charge electric field.
+            !! Wrapper for ommp_df_get_e_field_pol_ene.
+            type(c_ptr), value :: s_prt
+            real(c_double) :: C_ommp_get_df_e_field_pol_ene
+
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, s)
+            call ommp_df_get_e_field_pol_ene(s, ene)
+            C_ommp_get_df_e_field_pol_ene = real(ene, c_double)
+        end function C_ommp_get_df_e_field_pol_ene
 
 end module mod_ommp_C_interface

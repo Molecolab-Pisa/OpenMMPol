@@ -159,6 +159,9 @@ extern "C"
     extern double *ommp_get_df_Xinv(OMMP_SYSTEM_PRT);
     extern double *ommp_get_df_VXI_m(OMMP_SYSTEM_PRT);
     extern double *ommp_get_df_VXI_p(OMMP_SYSTEM_PRT);
+    extern double ommp_get_df_e_field_pol_ene(OMMP_SYSTEM_PRT);
+    extern void ommp_df_compute_induced_dipoles(OMMP_SYSTEM_PRT, int, int, int,                                                                                                                                   
+                                                int, OMMP_QM_HELPER_PRT); 
 
     extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT *, OMMP_QM_HELPER_PRT *);
     extern void ommp_smartinput_cpstr(const char *, char *, char **);

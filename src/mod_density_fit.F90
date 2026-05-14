@@ -1,8 +1,9 @@
+#include "f_cart_components.h"
 module mod_density_fit
 !! This module implements density fitting of QM charge distributions
 !! onto a set of fitting points (typically MM atom positions).
 
-    use mod_memory, only: ip, rp, lp
+    use mod_memory, only: ip, rp, lp, mallocate, mfree
     use mod_constants, only: ommp_df_solver_svd, ommp_df_svd_rcond_default
     use mod_io, only: fatal_error, ommp_message
 
@@ -56,7 +57,7 @@ module mod_density_fit
         real(rp), allocatable :: V_m2q(:)
         !! Electrostatic potential from MM static multipoles at charge coordinates
 
-        real(rp), allocatable :: V_p2q(:)
+        real(rp), allocatable :: V_p2q(:,:)
         !! Electrostatic potential from MM induced dipoles at charge coordinates
 
         logical(lp) :: V_m2q_done = .false.
@@ -68,7 +69,7 @@ module mod_density_fit
         real(rp), allocatable :: VXI_m(:)
         !! Projected static quantity: V_m2q @ Xinv, for Fock matrix
 
-        real(rp), allocatable :: VXI_p(:)
+        real(rp), allocatable :: VXI_p(:,:)
         !! Projected dipole quantity: V_p2q @ Xinv, for Fock matrix
 
         logical(lp) :: VXI_m_done = .false.
@@ -77,6 +78,19 @@ module mod_density_fit
         logical(lp) :: VXI_p_done = .false.
         !! Flag indicating whether VXI_p has been computed
 
+        real(rp), allocatable :: E_q2p(:,:)
+        !! Electric field from fitted charges at polarizable sites
+
+        logical(lp) :: E_q2p_done = .false.
+        !! Flag indicating whether E_q2p has been computed
+
+        real(rp) :: E_pol_ene
+        !! Polarization energy from fitted-charge electric field:
+        !! E = -0.5 * sum_j ipd(:,j) .dot. E_q2p(:,j)
+
+        logical(lp) :: E_pol_ene_done = .false.
+        !! Flag indicating whether E_pol_ene has been computed
+
     end type ommp_density_fit_type
 
     public :: ommp_density_fit_type
@@ -84,6 +98,7 @@ module mod_density_fit
     public :: df_solve
     public :: df_electrostatic_static, df_electrostatic_dipoles
     public :: df_project_static, df_project_dipoles
+    public :: df_e_field_to_pol, df_e_field_pol_ene
 
 contains
 
@@ -135,6 +150,9 @@ contains
         df%V_p2q_done = .false.
         df%VXI_m_done = .false.
         df%VXI_p_done = .false.
+        df%E_q2p_done = .false.
+        df%E_pol_ene_done = .false.
+        df%E_pol_ene = 0.0_rp
 
         df%initialized = .true.
     end subroutine df_init
@@ -160,6 +178,7 @@ contains
         call mfree('df_terminate [V_pd2df]', df%V_p2q)
         call mfree('df_terminate [VXI_m]', df%VXI_m)
         call mfree('df_terminate [VXI_p]', df%VXI_p)
+        call mfree('df_terminate [E_q2p]', df%E_q2p)
 
     end subroutine df_terminate
 
@@ -227,6 +246,12 @@ contains
         if(.not. df%xinv_done) then
             call df_compute_Xinv_svd(df)
         end if
+
+        df%fit_done = .false.
+        df%V_p2q_done = .false.
+        df%VXI_p_done = .false.
+        df%E_q2p_done = .false.
+        df%E_pol_ene_done = .false.
 
         !! Solve: fitted_charges = Xinv @ fit_potential
         call dgemv('N', df%n_charges, df%n_pts, 1.0_rp, df%Xinv, df%n_charges, df%fit_potential, 1, 0.0_rp, df%target_charges, 1)
@@ -362,11 +387,16 @@ contains
         if(.not. df%V_p2q_done .and. eel%ipd_done) then
             if(.not. allocated(df%V_p2q)) then
                 call mallocate('df_electrostatic_dipoles [V_pd2df]', &
-                               df%n_charges, df%V_p2q)
+                               df%n_charges, eel%n_ipd, df%V_p2q)
             end if
 
             df%V_p2q = 0.0_rp
-            call potential_D2E(eel, df%charge_coord, df%V_p2q)
+            if(eel%amoeba) then
+                call potential_D2E(eel, df%charge_coord, df%V_p2q(:,_amoeba_D_))
+                call potential_D2E(eel, df%charge_coord, df%V_p2q(:,_amoeba_P_), .true.)
+            else
+                call potential_D2E(eel, df%charge_coord, df%V_p2q(:,1))
+            end if
             df%V_p2q_done = .true.
         end if
     end subroutine df_electrostatic_dipoles
@@ -426,15 +456,109 @@ contains
             end if
 
             if(.not. allocated(df%VXI_p)) then
-                call mallocate('df_project_dipoles [VXI_p]', df%n_pts, df%VXI_p)
+                call mallocate('df_project_dipoles [VXI_p]', df%n_pts, eel%n_ipd, df%VXI_p)
             end if
 
             df%VXI_p = 0.0_rp
-            call dgemv('T', df%n_charges, df%n_pts, 1.0_rp, &
-                       df%Xinv, df%n_charges, &
-                       df%V_p2q, 1, 0.0_rp, df%VXI_p, 1)
+            if(eel%amoeba) then
+                call dgemv('T', df%n_charges, df%n_pts, 1.0_rp, &
+                        df%Xinv, df%n_charges, &
+                        df%V_p2q(:,_amoeba_D_), 1, 0.0_rp, df%VXI_p(:,_amoeba_D_), 1)
+                call dgemv('T', df%n_charges, df%n_pts, 1.0_rp, &
+                        df%Xinv, df%n_charges, &
+                        df%V_p2q(:,_amoeba_P_), 1, 0.0_rp, df%VXI_p(:,_amoeba_P_), 1)
+            else
+                call dgemv('T', df%n_charges, df%n_pts, 1.0_rp, &
+                        df%Xinv, df%n_charges, &
+                        df%V_p2q(:,1), 1, 0.0_rp, df%VXI_p(:,1), 1)
+            endif
             df%VXI_p_done = .true.
         end if
     end subroutine df_project_dipoles
+
+    subroutine df_e_field_to_pol(df, eel)
+        !! Compute the electric field generated by fitted charges at
+        !! polarizable sites. Analogous to E_n2p in mod_qm_helper.F90.
+
+        use mod_memory, only: mallocate
+        use mod_electrostatics, only: q_elec_prop, coulomb_kernel, ommp_electrostatics_type
+
+        implicit none
+
+        type(ommp_density_fit_type), intent(inout) :: df
+        type(ommp_electrostatics_type), intent(in) :: eel
+
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        integer(ip) :: i, j
+
+        if(.not. df%E_q2p_done) then
+            if(.not. allocated(df%E_q2p)) then
+                call mallocate('df_e_field_to_pol [E_q2p]', &
+                               3_ip, eel%pol_atoms, df%E_q2p)
+            end if
+
+            df%E_q2p = 0.0_rp
+            do i = 1, df%n_charges
+                do j = 1, eel%pol_atoms
+                    dr = eel%cpol(:,j) - df%charge_coord(:,i)
+                    call coulomb_kernel(dr, 1, kernel)
+
+                    tmpE = 0.0
+                    call q_elec_prop(df%target_charges(i), dr, kernel, &
+                                     .false., tmpV, &
+                                     .true., tmpE, &
+                                     .false., tmpEgr, &
+                                     .false., tmpHE)
+
+                    df%E_q2p(:,j) = df%E_q2p(:,j) + tmpE
+                end do
+            end do
+            df%E_q2p_done = .true.
+        end if
+    end subroutine df_e_field_to_pol
+
+    subroutine df_e_field_pol_ene(df, eel)
+        !! Compute the polarization energy from the electric field generated
+        !! by fitted charges: E = -0.5 * sum_j ipd(:,j) .dot. E_q2p(:,j).
+        !! Follows the same pattern as energy_MM_pol in mod_electrostatics.F90.
+
+        use mod_memory, only: mallocate
+        use mod_electrostatics, only: ommp_electrostatics_type
+
+        implicit none
+
+        type(ommp_density_fit_type), intent(inout) :: df
+        type(ommp_electrostatics_type), intent(in) :: eel
+
+        real(rp) :: eMM
+        integer(ip) :: i, j
+
+        if(.not. df%E_pol_ene_done) then
+            !! Ensure E_q2p is computed first
+            if(.not. df%E_q2p_done) then
+                call df_e_field_to_pol(df, eel)
+            end if
+
+            ! TODO improve this double loop.
+            eMM = 0.0_rp
+            if(eel%amoeba) then
+                !! Use only _amoeba_D_ dipoles, contracted with E_q2p
+                do i = 1, 3
+                    do j = 1, eel%pol_atoms
+                        eMM = eMM - eel%ipd(i,j,_amoeba_D_) * df%E_q2p(i,j)
+                    end do
+                end do
+            else
+                do i = 1, 3
+                    do j = 1, eel%pol_atoms
+                        eMM = eMM - eel%ipd(i,j,1) * df%E_q2p(i,j)
+                    end do
+                end do
+            end if
+
+            df%E_pol_ene = 0.5_rp * eMM
+            df%E_pol_ene_done = .true.
+        end if
+    end subroutine df_e_field_pol_ene
 
 end module
