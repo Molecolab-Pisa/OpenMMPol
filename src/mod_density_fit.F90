@@ -126,10 +126,37 @@ module mod_density_fit
         logical(lp) :: E_pol_ene_done = .false.
         !! Flag indicating whether E_pol_ene has been computed
 
+        real(rp), allocatable :: nabla_g_mm(:,:,:) 
+        !! Gradient matrix: grid wrt MM coordinates
+        logical(lp) :: nabla_g_mm_is_null = .false.
+        !! .true. if nabla_g_mm is the null matrix
+        logical(lp) :: nabla_g_mm_is_identity = .false.
+        !! .true. if nabla_g_mm is the identity matrix
+
+        real(rp), allocatable :: nabla_g_qm(:,:,:)
+        !! Gradient matrix: grid wrt QM coordinates
+        logical(lp) :: nabla_g_qm_is_null = .false.
+        !! .true. if nabla_g_qm is the null matrix
+        logical(lp) :: nabla_g_qm_is_identity = .false.
+        !! .true. if nabla_g_qm is the identity matrix
+
+        real(rp), allocatable :: nabla_q_qm(:,:,:)
+        !! Gradient matrix: q wrt QM coordinates
+        logical(lp) :: nabla_q_qm_is_null = .false.
+        !! .true. if nabla_q_qm is the null matrix
+        logical(lp) :: nabla_q_qm_is_identity = .false.
+        !! .true. if nabla_q_qm is the identity matrix
+
+        real(rp), allocatable :: nabla_q_mm(:,:,:)
+        !! Gradient matrix: q wrt MM coordinates
+        logical(lp) :: nabla_q_mm_is_null = .false.
+        !! .true. if nabla_q_mm is the null matrix
+        logical(lp) :: nabla_q_mm_is_identity = .false.
+        !! .true. if nabla_q_mm is the identity matrix
+
     end type ommp_density_fit_type
 
     public :: ommp_density_fit_type
-    public :: OMMP_DF_CHARGE_QM_ATOMS, OMMP_DF_CHARGE_FIBONACCI, OMMP_DF_CHARGE_CUBIC, OMMP_DF_FIT_MM_ATOMS, OMMP_DF_FIT_CUBIC
     public :: df_init, df_terminate
     public :: df_solve, df_generate_grid
     public :: df_electrostatic_static, df_electrostatic_dipoles
@@ -172,6 +199,10 @@ contains
         integer(ip) :: n_atoms, ii, i, idx
         real(rp) :: x0, y0, z0, theta, phi, y
         character(len=256) :: msg
+
+        real(rp), parameter :: golden_angle = 2.0_rp * atan(1.0_rp) * (3.0_rp - sqrt(5.0_rp))
+        !! Golden angle in radians (~2.39996 rad) for fibonacci sphere distribution
+
 
         if(.not. associated(top)) then
             call fatal_error('generate_grid_from_topo: topology is not associated.')
@@ -406,6 +437,10 @@ contains
         call mfree('df_terminate [VXI_m]', df%VXI_m)
         call mfree('df_terminate [VXI_p]', df%VXI_p)
         call mfree('df_terminate [E_q2p]', df%E_q2p)
+        call mfree('df_terminate [nabla_g_mm]', df%nabla_g_mm)
+        call mfree('df_terminate [nabla_g_qm]', df%nabla_g_qm)
+        call mfree('df_terminate [nabla_q_qm]', df%nabla_q_qm)
+        call mfree('df_terminate [nabla_q_mm]', df%nabla_q_mm)
 
     end subroutine df_terminate
 
