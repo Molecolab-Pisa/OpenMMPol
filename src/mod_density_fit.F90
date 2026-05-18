@@ -4,8 +4,15 @@ module mod_density_fit
 !! onto a set of fitting points (typically MM atom positions).
 
     use mod_memory, only: ip, rp, lp, mallocate, mfree
-    use mod_constants, only: ommp_df_solver_svd, ommp_df_svd_rcond_default
+    use mod_constants, only: ommp_df_solver_svd, &
+                             ommp_df_svd_rcond_default, &
+                             ommp_df_charge_qm_atoms, &
+                             ommp_df_charge_fibonacci, &
+                             ommp_df_charge_cubic, &
+                             ommp_df_fit_mm_atoms, &
+                             ommp_df_fit_cubic
     use mod_io, only: fatal_error, ommp_message
+    use mod_topology, only: ommp_topology_type
 
     implicit none
     private
@@ -22,6 +29,32 @@ module mod_density_fit
 
         real(rp) :: svd_rcond = ommp_df_svd_rcond_default
         !! SVD truncation threshold (singular values < rcond * max are zeroed)
+
+        !! Point generation strategies
+        integer(ip) :: charge_point_type = 0
+        !! Type of charge points: OMMP_DF_CHARGE_QM_ATOMS = 1, etc.
+
+        integer(ip) :: charge_n_pts_per_atom = 0
+        !! Number of charge points per source atom (for grid-based strategies)
+
+        real(rp) :: charge_radius = 0.0_rp
+        !! Radius parameter for charge point generation
+
+        integer(ip) :: fit_point_type = 0
+        !! Type of fit points: OMMP_DF_FIT_MM_ATOMS = 1, etc.
+
+        integer(ip) :: fit_n_pts_per_atom = 0
+        !! Number of fit points per source atom (for grid-based strategies)
+
+        real(rp) :: fit_radius = 0.0_rp
+        !! Radius parameter for fit point generation
+
+        !! Source topologies for grid generation
+        type(ommp_topology_type), pointer :: qm_top
+        !! Pointer to QM topology (source of charge points)
+
+        type(ommp_topology_type), pointer :: mm_top
+        !! Pointer to MM topology (source of fit points)
 
         real(rp), allocatable :: charge_coord(:,:)
         !! Coordinates of the charge positions (3 x n_charges)
@@ -94,54 +127,252 @@ module mod_density_fit
     end type ommp_density_fit_type
 
     public :: ommp_density_fit_type
+    public :: OMMP_DF_CHARGE_QM_ATOMS, OMMP_DF_CHARGE_FIBONACCI, OMMP_DF_CHARGE_CUBIC, OMMP_DF_FIT_MM_ATOMS, OMMP_DF_FIT_CUBIC
     public :: df_init, df_terminate
-    public :: df_solve
+    public :: df_solve, df_generate_grid
     public :: df_electrostatic_static, df_electrostatic_dipoles
     public :: df_project_static, df_project_dipoles
     public :: df_e_field_to_pol, df_e_field_pol_ene
 
 contains
 
-    subroutine df_init(df, charge_coord, fit_point_coord)
-        !! Initialize the density fit object
+    subroutine df_generate_grid(df)
+        !! Generate charge and fit point coordinates from the stored
+        !! topology pointers and generation parameters.
+        !! This is called internally by df_init and can be called again
+        !! if topologies have changed (e.g. after coordinate update).
+
+        implicit none
+
+        type(ommp_density_fit_type), intent(inout) :: df
+        integer(ip) :: n_qm, n_mm, i, j, idx, ii
+        real(rp) :: r(3), theta, phi, y, x0, y0, z0
+        character(len=256) :: msg
+
+        real(rp), parameter :: golden_angle = 2.0_rp * atan(1.0_rp) * (3.0_rp - sqrt(5.0_rp))
+
+        !! Free previously generated coordinates
+        if(allocated(df%charge_coord)) call mfree('[df_generate_grid] charge_coord', df%charge_coord)
+        if(allocated(df%fit_point_coord)) call mfree('[df_generate_grid] fit_point_coord', df%fit_point_coord)
+
+        !! Generate charge points
+        select case(df%charge_point_type)
+        case(OMMP_DF_CHARGE_QM_ATOMS)
+            
+            if(.not. associated(df%qm_top)) then
+                call fatal_error('df_generate_grid: OMMP_DF_CHARGE_QM_ATOMS selected but qm_top is not associated.')
+            end if
+            n_qm = df%qm_top%mm_atoms
+            if(n_qm == 0) then
+                call fatal_error('df_generate_grid: QM topology has no atoms.')
+            end if
+            call mallocate('[df_generate_grid] charge_coord', 3_ip, n_qm, df%charge_coord)
+            df%charge_coord = df%qm_top%cmm(:,1:n_qm)
+            df%n_charges = n_qm
+            write(msg, '(A,I0,A)') 'Generated ', n_qm, ' charge points from QM atoms'
+            call ommp_message(trim(msg), 1, 'df')
+
+        case(OMMP_DF_CHARGE_FIBONACCI)
+            if(.not. associated(df%qm_top)) then
+                call fatal_error('df_generate_grid: OMMP_DF_CHARGE_FIBONACCI selected but qm_top is not associated.')
+            end if
+            n_qm = df%qm_top%mm_atoms
+            if(n_qm == 0) then
+                call fatal_error('df_generate_grid: QM topology has no atoms.')
+            end if
+            if(df%charge_n_pts_per_atom <= 0) then
+                call fatal_error('df_generate_grid: OMMP_DF_CHARGE_FIBONACCI requires n_pts_per_atom > 0.')
+            end if
+            if(df%charge_radius <= 0.0_rp) then
+                call fatal_error('df_generate_grid: OMMP_DF_CHARGE_FIBONACCI requires radius > 0.')
+            end if
+            call mallocate('[df_generate_grid] charge_coord', 3_ip, &
+                           n_qm * df%charge_n_pts_per_atom, df%charge_coord)
+            do i = 1, n_qm
+                x0 = df%qm_top%cmm(1, i)
+                y0 = df%qm_top%cmm(2, i)
+                z0 = df%qm_top%cmm(3, i)
+                do j = 1, df%charge_n_pts_per_atom
+                    y = (2.0_rp * real(j, rp) - 1.0_rp) / real(df%charge_n_pts_per_atom, rp) - 1.0_rp
+                    theta = real(golden_angle, rp) * real(j, rp)
+                    phi = sqrt(1.0_rp - y**2)
+                    idx = (i - 1) * df%charge_n_pts_per_atom + j
+                    df%charge_coord(1, idx) = x0 + cos(theta) * phi * df%charge_radius
+                    df%charge_coord(2, idx) = y0 + y * df%charge_radius
+                    df%charge_coord(3, idx) = z0 + sin(theta) * phi * df%charge_radius
+                end do
+            end do
+            df%n_charges = n_qm * df%charge_n_pts_per_atom
+            write(msg, '(A,I0,A,I0,A)') 'Generated ', df%charge_n_pts_per_atom, ' fibonacci points per atom (', &
+                   n_qm, ' atoms)'
+            call ommp_message(trim(msg), 1, 'df')
+
+        case(OMMP_DF_CHARGE_CUBIC)
+            if(.not. associated(df%qm_top)) then
+                call fatal_error('df_generate_grid: OMMP_DF_CHARGE_CUBIC selected but qm_top is not associated.')
+            end if
+            n_qm = df%qm_top%mm_atoms
+            if(n_qm == 0) then
+                call fatal_error('df_generate_grid: QM topology has no atoms.')
+            end if
+            if(df%charge_radius <= 0.0_rp) then
+                call fatal_error('df_generate_grid: OMMP_DF_CHARGE_CUBIC requires radius > 0.')
+            end if
+            !! 7 points per atom: 1 center + 6 face centers of a cube
+            call mallocate('[df_generate_grid] charge_coord', 3_ip, n_qm * 7_ip, df%charge_coord)
+            do ii = 1, n_qm
+                i = (ii-1) * 7 + 1
+                x0 = df%qm_top%cmm(1, ii)
+                y0 = df%qm_top%cmm(2, ii)
+                z0 = df%qm_top%cmm(3, ii)
+
+                df%charge_coord(1, i:i+6) = x0
+                df%charge_coord(2, i:i+6) = y0
+                df%charge_coord(3, i:i+6) = z0
+                df%charge_coord(1, i+1) = x0 + df%charge_radius
+                df%charge_coord(1, i+2) = x0 - df%charge_radius
+                df%charge_coord(2, i+3) = y0 + df%charge_radius
+                df%charge_coord(2, i+4) = y0 - df%charge_radius
+                df%charge_coord(3, i+5) = z0 + df%charge_radius
+                df%charge_coord(3, i+6) = z0 - df%charge_radius
+
+            end do
+            df%n_charges = n_qm * 7_ip
+            write(msg, '(A,I0,A)') 'Generated 7 cubic points per atom (', &
+                   n_qm, ' atoms)'
+            call ommp_message(trim(msg), 1, 'df')
+        case default
+            call fatal_error('df_generate_grid: unknown charge_point_type.')
+        end select
+
+        !! Generate fit points
+        select case(df%fit_point_type)
+        case(OMMP_DF_FIT_MM_ATOMS)
+            if(.not. associated(df%mm_top)) then
+                call fatal_error('df_generate_grid: OMMP_DF_FIT_MM_ATOMS selected but mm_top is not associated.')
+            end if
+            n_mm = df%mm_top%mm_atoms
+            if(n_mm == 0) then
+                call fatal_error('df_generate_grid: MM topology has no atoms.')
+            end if
+            call mallocate('[df_generate_grid] fit_point_coord', 3_ip, n_mm, df%fit_point_coord)
+            df%fit_point_coord = df%mm_top%cmm(:,1:n_mm)
+            df%n_pts = n_mm
+            write(msg, '(A,I0,A)') 'Generated ', n_mm, ' fit points from MM atoms'
+            call ommp_message(trim(msg), 1, 'df')
+            
+        case(OMMP_DF_FIT_CUBIC)
+            if(.not. associated(df%mm_top)) then
+                call fatal_error('df_generate_grid: OMMP_DF_FIT_CUBIC selected but mm_top is not associated.')
+            end if
+            n_mm = df%mm_top%mm_atoms
+            if(n_mm == 0) then
+                call fatal_error('df_generate_grid: MM topology has no atoms.')
+            end if
+            if(df%fit_radius <= 0.0_rp) then
+                call fatal_error('df_generate_grid: OMMP_DF_FIT_CUBIC requires radius > 0.')
+            end if
+            !! 7 points per atom: 1 center + 6 face centers of a cube
+            call mallocate('[df_generate_grid] fit_point_coord', 3_ip, n_mm * 7_ip, df%fit_point_coord)
+            do ii = 1, n_mm
+                x0 = df%mm_top%cmm(1, ii)
+                y0 = df%mm_top%cmm(2, ii)
+                z0 = df%mm_top%cmm(3, ii)
+                i = (ii-1) * 7 + 1
+                df%fit_point_coord(1, i:i+6) = x0
+                df%fit_point_coord(2, i:i+6) = y0
+                df%fit_point_coord(3, i:i+6) = z0
+                df%fit_point_coord(1, i+1) = x0 + df%fit_radius
+                df%fit_point_coord(1, i+2) = x0 - df%fit_radius
+                df%fit_point_coord(2, i+3) = y0 + df%fit_radius
+                df%fit_point_coord(2, i+4) = y0 - df%fit_radius
+                df%fit_point_coord(3, i+5) = z0 + df%fit_radius
+                df%fit_point_coord(3, i+6) = z0 - df%fit_radius
+            end do
+            df%n_pts = n_mm * 7_ip
+            write(msg, '(A,I0,A)') 'Generated 7 cubic fit points per atom (', &
+                   n_mm, ' atoms)'
+            call ommp_message(trim(msg), 1, 'df')
+
+        case default
+            call fatal_error('df_generate_grid: unknown fit_point_type.')
+        end select
+
+        !! Invalidate dependent computed quantities
+        df%xinv_done = .false.
+        df%x_done = .false.
+        df%fit_done = .false.
+        df%V_m2q_done = .false.
+        df%V_p2q_done = .false.
+        df%VXI_m_done = .false.
+        df%VXI_p_done = .false.
+        df%E_q2p_done = .false.
+        df%E_pol_ene_done = .false.
+    end subroutine df_generate_grid
+
+    subroutine df_init(df, qm_top, mm_top, &
+                       charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                       fit_point_type, fit_n_pts_per_atom, fit_radius)
+        !! Initialize the density fit object.
+        !! Coordinates are generated from the provided topology pointers
+        !! according to the point generation strategy.
 
         use mod_memory, only: mallocate
 
         implicit none
 
         type(ommp_density_fit_type), intent(inout) :: df
-        real(rp), intent(in) :: charge_coord(:,:)
-        !! Coordinates of the charge positions (3 x n_charges)
-        real(rp), intent(in) :: fit_point_coord(:,:)
-        !! Coordinates of the fitting points (3 x n_pts)
+        type(ommp_topology_type), intent(in), target :: qm_top
+        !! QM topology providing charge point coordinates
+        type(ommp_topology_type), intent(in), target :: mm_top
+        !! MM topology providing fit point coordinates
+        integer(ip), intent(in) :: charge_point_type
+        !! Type of charge point source
+        integer(ip), intent(in) :: charge_n_pts_per_atom
+        !! Number of charge points per source atom
+        real(rp), intent(in) :: charge_radius
+        !! Radius parameter for charge point generation
+        integer(ip), intent(in) :: fit_point_type
+        !! Type of fit point source
+        integer(ip), intent(in) :: fit_n_pts_per_atom
+        !! Number of fit points per source atom
+        real(rp), intent(in) :: fit_radius
+        !! Radius parameter for fit point generation
 
-        integer(ip) :: n_pts
-        integer(ip) :: n_charges
+        integer(ip) :: i, j, idx
+        real(rp) :: x0, y0, z0, theta, phi, y
 
         if(df%initialized) then
             call fatal_error("Density fit object already initialized!")
         end if
 
-        n_charges = size(charge_coord, 2)
-        n_pts = size(fit_point_coord, 2)
+        if(qm_top%mm_atoms == 0) then
+            call fatal_error('df_init: QM topology has no atoms.')
+        end if
+        if(mm_top%mm_atoms == 0) then
+            call fatal_error('df_init: MM topology has no atoms.')
+        end if            
 
-        df%n_pts = n_pts
-        df%n_charges = n_charges
+        !! Store point generation configuration
+        df%charge_point_type = charge_point_type
+        df%charge_n_pts_per_atom = charge_n_pts_per_atom
+        df%charge_radius = charge_radius
+        df%fit_point_type = fit_point_type
+        df%fit_n_pts_per_atom = fit_n_pts_per_atom
+        df%fit_radius = fit_radius
+        df%qm_top => qm_top
+        df%mm_top => mm_top
 
-        call mallocate('df_init [charge_coord]', 3_ip, n_charges, df%charge_coord)
-        df%charge_coord = charge_coord
+        call df_generate_grid(df)
 
-        call mallocate('df_init [fit_point_coord]', 3_ip, n_pts, df%fit_point_coord)
-        df%fit_point_coord = fit_point_coord
-
-        call mallocate('df_init [target_charges]', n_charges, df%target_charges)
+        call mallocate('df_init [target_charges]', df%n_charges, df%target_charges)
         df%target_charges = 0.0_rp
 
-        call mallocate('df_init [fit_potential]', n_pts, df%fit_potential)
+        call mallocate('df_init [fit_potential]', df%n_pts, df%fit_potential)
         df%fit_potential = 0.0_rp
 
-        call mallocate('df_init [X]', n_pts, n_charges, df%X)
-        call mallocate('df_init [Xinv]', n_charges, n_pts, df%Xinv)
+        call mallocate('df_init [X]', df%n_pts, df%n_charges, df%X)
+        call mallocate('df_init [Xinv]', df%n_charges, df%n_pts, df%Xinv)
 
         df%xinv_done = .false.
         df%x_done = .false.

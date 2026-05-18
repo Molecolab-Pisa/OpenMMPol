@@ -1925,27 +1925,32 @@ module mod_ommp_C_interface
             call ommp_ignore_duplicated_opb_prm
         end subroutine
 
-        subroutine C_ommp_init_density_fit(s_prt, charge_crd_prt, &
-                                           n_charges, fit_crd_prt, &
-                                           n_pts) &
+        subroutine C_ommp_init_density_fit(s_prt, qmh_prt, &
+                                           charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                                           fit_point_type, fit_n_pts_per_atom, fit_radius) &
                 bind(c, name='ommp_init_density_fit')
 
+            use mod_topology, only: ommp_topology_type
             implicit none
 
             type(c_ptr), value, intent(in) :: s_prt
-            type(c_ptr), value, intent(in) :: charge_crd_prt
-            integer(ommp_integer), value :: n_charges, n_pts
-            type(c_ptr), value, intent(in) :: fit_crd_prt
+            type(c_ptr), value, intent(in) :: qmh_prt
+            integer(ommp_integer), intent(in), value :: charge_point_type
+            integer(ommp_integer), intent(in), value :: charge_n_pts_per_atom
+            real(ommp_real), intent(in), value :: charge_radius
+            integer(ommp_integer), intent(in), value :: fit_point_type
+            integer(ommp_integer), intent(in), value :: fit_n_pts_per_atom
+            real(ommp_real), intent(in), value :: fit_radius
 
             type(ommp_system), pointer :: s
-            real(ommp_real), dimension(:,:), pointer :: charge_crd
-            real(ommp_real), dimension(:,:), pointer :: fit_crd
+            type(ommp_qm_helper), pointer :: qmh
 
             call c_f_pointer(s_prt, s)
-            call c_f_pointer(charge_crd_prt, charge_crd, [3, n_charges])
-            call c_f_pointer(fit_crd_prt, fit_crd, [3, n_pts])
+            call c_f_pointer(qmh_prt, qmh)
 
-            call ommp_init_density_fit(s, charge_crd, fit_crd)
+            call ommp_init_density_fit(s, qmh%qm_top, s%top, &
+                                       charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                                       fit_point_type, fit_n_pts_per_atom, fit_radius)
 
         end subroutine
 
@@ -2152,5 +2157,21 @@ module mod_ommp_C_interface
             call ommp_df_get_e_field_pol_ene(s, ene)
             C_ommp_get_df_e_field_pol_ene = real(ene, c_double)
         end function C_ommp_get_df_e_field_pol_ene
+
+        function C_ommp_get_df_E_q2p(s_prt) bind(c, name='ommp_get_df_E_q2p')
+            !! Return the c-pointer to the electric field from fitted charges
+            !! at polarizable sites array (3 x n_polarizable_atoms).
+            !! Null if not available or not computed.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_E_q2p
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df) .and. s%df%E_q2p_done) then
+                C_ommp_get_df_E_q2p = c_loc(s%df%E_q2p)
+            else
+                C_ommp_get_df_E_q2p = c_null_ptr
+            end if
+        end function C_ommp_get_df_E_q2p
 
 end module mod_ommp_C_interface

@@ -54,4 +54,11 @@
 #define OMMP_DF_SVD_RCOND 1.0e-13
 #define OMMP_DF_SVD_RCOND_DEFAULT OMMP_DF_SVD_RCOND
 
+/* Density fitting point types */
+#define OMMP_DF_CHARGE_QM_ATOMS 1
+#define OMMP_DF_CHARGE_FIBONACCI 2
+#define OMMP_DF_CHARGE_CUBIC 3
+#define OMMP_DF_FIT_MM_ATOMS 1
+#define OMMP_DF_FIT_CUBIC 2
+
 #endif

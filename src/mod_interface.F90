@@ -1699,20 +1699,38 @@ module ommp_interface
         end if
     end subroutine
 
-    subroutine ommp_init_density_fit(s, charge_coord, fit_point_coord)
-        !! Initialize the density fitting submodule with charge and fitting
-        !! point coordinates. The number of charges and fitting points is
-        !! derived from the size of the input arrays.
+    subroutine ommp_init_density_fit(s, qm_top, mm_top, &
+                                     charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                                     fit_point_type, fit_n_pts_per_atom, fit_radius)
+        !! Initialize the density fitting submodule.
+        !! Coordinates are generated from the provided topology pointers.
         use mod_mmpol, only: mmpol_init_density_fit
         use mod_density_fit, only: df_init
+    use mod_constants, only: ommp_df_charge_qm_atoms, &
+                             ommp_df_charge_fibonacci, &
+                             ommp_df_charge_cubic, &
+                             ommp_df_fit_mm_atoms, &
+                             ommp_df_fit_cubic
 
         implicit none
 
         type(ommp_system), intent(inout), pointer :: s
-        real(ommp_real), intent(in) :: charge_coord(:,:)
-        !! Coordinates of charge positions (3 x n_charges)
-        real(ommp_real), intent(in) :: fit_point_coord(:,:)
-        !! Coordinates of fitting points (3 x n_pts)
+        type(ommp_topology_type), intent(in) :: qm_top
+        !! QM topology providing charge point coordinates
+        type(ommp_topology_type), intent(in) :: mm_top
+        !! MM topology providing fit point coordinates
+        integer(ommp_integer), intent(in) :: charge_point_type
+        !! Type of charge point source
+        integer(ommp_integer), intent(in) :: charge_n_pts_per_atom
+        !! Number of charge points per source atom
+        real(ommp_real), intent(in) :: charge_radius
+        !! Radius parameter for charge point generation
+        integer(ommp_integer), intent(in) :: fit_point_type
+        !! Type of fit point source
+        integer(ommp_integer), intent(in) :: fit_n_pts_per_atom
+        !! Number of fit points per source atom
+        real(ommp_real), intent(in) :: fit_radius
+        !! Radius parameter for fit point generation
 
         ! Enable density fitting submodule if not already done
         if(.not. s%use_density_fit) then
@@ -1721,8 +1739,10 @@ module ommp_interface
             call mmpol_init_density_fit(s)
         end if
 
-        ! Initialize the density fit object
-        call df_init(s%df, charge_coord, fit_point_coord)
+        ! Initialize the density fit object with topologies
+        call df_init(s%df, qm_top, mm_top, &
+                     charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                     fit_point_type, fit_n_pts_per_atom, fit_radius)
     end subroutine ommp_init_density_fit
 
 end module ommp_interface

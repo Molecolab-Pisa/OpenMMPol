@@ -383,6 +383,16 @@ class OMMPSystem{
             return ommp_get_df_e_field_pol_ene(handler);
         }
 
+        py_cdarray get_df_E_q2p(){
+            double *mem = ommp_get_df_E_q2p(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2,
+                                    {get_pol_atoms(), 3},
+                                    {3*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
         py_cdarray get_ipd(){
             double *mem = ommp_get_ipd(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
@@ -1686,6 +1696,8 @@ PYBIND11_MODULE(__pyopenmmpol, m){
              "Compute induced dipoles from fitted charges electric field.")
         .def_property_readonly("df_e_field_pol_ene", &OMMPSystem::get_df_e_field_pol_ene,
              "Polarization energy from fitted-charge electric field (E = -0.5 * ipd .dot. E_q2p)")
+        .def_property_readonly("df_E_q2p", &OMMPSystem::get_df_E_q2p,
+             "Electric field from fitted charges at polarizable sites (3 x n_pol, read-only)")
         ;
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")

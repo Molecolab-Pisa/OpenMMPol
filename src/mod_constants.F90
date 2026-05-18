@@ -138,6 +138,11 @@ module mod_constants
     integer(ip), parameter :: ommp_df_solver_svd = OMMP_DF_SOLVER_SVD 
     integer(ip), parameter :: ommp_df_svd_rcond_default = OMMP_DF_SVD_RCOND_DEFAULT
     !! Default relative condition number threshold for SVD-based pseudoinverse
+    integer(ip), parameter :: ommp_df_charge_qm_atoms = OMMP_DF_CHARGE_QM_ATOMS
+    integer(ip), parameter :: ommp_df_charge_fibonacci = OMMP_DF_CHARGE_FIBONACCI
+    integer(ip), parameter :: ommp_df_charge_cubic = OMMP_DF_CHARGE_CUBIC
+    integer(ip), parameter :: ommp_df_fit_mm_atoms = OMMP_DF_FIT_MM_ATOMS
+    integer(ip), parameter :: ommp_df_fit_cubic = OMMP_DF_FIT_CUBIC
 
 
     contains
