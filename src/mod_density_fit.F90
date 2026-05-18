@@ -8,7 +8,8 @@ module mod_density_fit
                              ommp_df_svd_rcond_default, &
                              ommp_df_atoms, &
                              ommp_df_fibonacci, &
-                             ommp_df_cubic
+                             ommp_df_cubic, &
+                             ommp_df_mm_top, ommp_df_qm_top
     use mod_io, only: fatal_error, ommp_message
     use mod_topology, only: ommp_topology_type
 
@@ -51,12 +52,18 @@ module mod_density_fit
         type(ommp_topology_type), pointer :: charge_top
         !! Pointer to topology providing charge point coordinates
         integer(ip) :: charge_top_type = 0
-        !! Type of charge point topology
+        !! Type of charge point topology: ommp_df_mm_top (1) or ommp_df_qm_top (2)
 
         type(ommp_topology_type), pointer :: fit_top
         !! Pointer to topology providing fit point coordinates
         integer(ip) :: fit_top_type = 0
-        !! Type of fit point topology
+        !! Type of fit point topology: ommp_df_mm_top (1) or ommp_df_qm_top (2)
+
+        !! Full QM and MM topology pointers (always set at init, used by gradient routines)
+        type(ommp_topology_type), pointer :: top_qm
+        !! Pointer to the QM topology (used in gradient computations)
+        type(ommp_topology_type), pointer :: top_mm
+        !! Pointer to the MM topology (used in gradient computations)
 
         real(rp), allocatable :: charge_coord(:,:)
         !! Coordinates of the charge positions (3 x n_charges)
@@ -126,28 +133,29 @@ module mod_density_fit
         logical(lp) :: E_pol_ene_done = .false.
         !! Flag indicating whether E_pol_ene has been computed
 
-        real(rp), allocatable :: nabla_g_mm(:,:,:) 
+        !! Gradient matrices all shaped 3 ngrid (or ncharges) x 3 nmm (or nqm)
+        real(rp), allocatable :: nabla_g_mm(:,:) 
         !! Gradient matrix: grid wrt MM coordinates
         logical(lp) :: nabla_g_mm_is_null = .false.
         !! .true. if nabla_g_mm is the null matrix
         logical(lp) :: nabla_g_mm_is_identity = .false.
         !! .true. if nabla_g_mm is the identity matrix
 
-        real(rp), allocatable :: nabla_g_qm(:,:,:)
+        real(rp), allocatable :: nabla_g_qm(:,:)
         !! Gradient matrix: grid wrt QM coordinates
         logical(lp) :: nabla_g_qm_is_null = .false.
         !! .true. if nabla_g_qm is the null matrix
         logical(lp) :: nabla_g_qm_is_identity = .false.
         !! .true. if nabla_g_qm is the identity matrix
 
-        real(rp), allocatable :: nabla_q_qm(:,:,:)
+        real(rp), allocatable :: nabla_q_qm(:,:)
         !! Gradient matrix: q wrt QM coordinates
         logical(lp) :: nabla_q_qm_is_null = .false.
         !! .true. if nabla_q_qm is the null matrix
         logical(lp) :: nabla_q_qm_is_identity = .false.
         !! .true. if nabla_q_qm is the identity matrix
 
-        real(rp), allocatable :: nabla_q_mm(:,:,:)
+        real(rp), allocatable :: nabla_q_mm(:,:)
         !! Gradient matrix: q wrt MM coordinates
         logical(lp) :: nabla_q_mm_is_null = .false.
         !! .true. if nabla_q_mm is the null matrix
@@ -162,6 +170,7 @@ module mod_density_fit
     public :: df_electrostatic_static, df_electrostatic_dipoles
     public :: df_project_static, df_project_dipoles
     public :: df_e_field_to_pol, df_e_field_pol_ene
+    public :: compute_nabla_matrices
 
 contains
 
@@ -284,6 +293,112 @@ contains
 
     end subroutine generate_grid_from_topo
 
+    subroutine compute_nabla_matrices(df)
+
+        implicit none
+
+        type(ommp_density_fit_type), intent(inout) :: df
+        integer(ip) :: i
+
+        select case(df%charge_top_type)
+        case(ommp_df_qm_top)
+            
+            df%nabla_q_mm_is_null = .true.
+            df%nabla_q_mm_is_identity = .false.
+
+            select case(df%charge_point_type)
+            case(ommp_df_atoms)
+                df%nabla_q_qm_is_null = .false.
+                df%nabla_q_qm_is_identity = .true.
+
+            case(ommp_df_fibonacci)
+                
+                df%nabla_q_qm_is_null = .false.
+                df%nabla_q_qm_is_identity = .false.
+
+                if(.not. allocated(df%nabla_q_qm)) then
+                    call mallocate('compute_nabla_matrices [nabla_q_qm]', 3 * df%n_charges, 3 * df%top_qm%mm_atoms, df%nabla_q_qm)
+                end if
+                df%nabla_q_qm = 0.0
+
+                do i=1, df%charge_top%mm_atoms
+                    df%nabla_q_qm((i-1)*3*df%charge_n_pts_per_atom:(i)*3*df%charge_n_pts_per_atom, (i-1)*3:i*3) = 1.0_rp
+                end do
+
+            case(ommp_df_cubic)
+                
+                df%nabla_q_qm_is_null = .false.
+                df%nabla_q_qm_is_identity = .false.
+
+                if(.not. allocated(df%nabla_q_qm)) then
+                    call mallocate('compute_nabla_matrices [nabla_q_qm]', 3 * df%n_charges, 3 * df%top_qm%mm_atoms, df%nabla_q_qm)
+                end if
+                df%nabla_q_qm = 0.0
+
+                do i=1, df%charge_top%mm_atoms
+                    df%nabla_q_qm((i-1)*3*7:(i)*3*7, (i-1)*3:i*3) = 1.0_rp
+                end do
+
+            case default
+                call fatal_error('compute_nabla_matrices: unknown charge_point_type.')
+            end select
+        case(ommp_df_mm_top)
+            call fatal_error("Unsupported case: charge points generated from MM topology.")
+        case default
+            call fatal_error('compute_nabla_matrices: unknown charge_top_type.')
+        end select
+
+        select case(df%fit_top_type)
+        case(ommp_df_mm_top)
+            ! Obvius case fit grid is built on mm atoms
+            
+            df%nabla_g_qm_is_null = .true.
+            df%nabla_g_qm_is_identity = .false.
+
+            select case(df%fit_point_type)
+            case(ommp_df_atoms)
+                df%nabla_g_mm_is_null = .false.
+                df%nabla_g_mm_is_identity = .true.
+
+            case(ommp_df_fibonacci)
+                
+                df%nabla_g_mm_is_null = .false.
+                df%nabla_g_mm_is_identity = .false.
+
+                if(.not. allocated(df%nabla_g_mm)) then
+                    call mallocate('compute_nabla_matrices [nabla_g_mm]', 3 * df%n_pts, 3 * df%top_mm%mm_atoms, df%nabla_g_mm)
+                end if
+                df%nabla_g_mm = 0.0
+
+                do i=1, df%fit_top%mm_atoms
+                    df%nabla_g_mm((i-1)*3*df%fit_n_pts_per_atom:(i)*3*df%fit_n_pts_per_atom, (i-1)*3:i*3) = 1.0_rp
+                end do
+
+            case(ommp_df_cubic)
+                
+                df%nabla_g_mm_is_null = .false.
+                df%nabla_g_mm_is_identity = .false.
+
+                if(.not. allocated(df%nabla_g_mm)) then
+                    call mallocate('compute_nabla_matrices [nabla_g_mm]', 3 * df%n_pts, 3 * df%top_mm%mm_atoms, df%nabla_g_mm)
+                end if
+                df%nabla_g_mm = 0.0
+
+                do i=1, df%fit_top%mm_atoms
+                    df%nabla_g_mm((i-1)*3*7:(i)*3*7, (i-1)*3:i*3) = 1.0_rp
+                end do
+
+            case default
+                call fatal_error('compute_nabla_matrices: unknown fit_point_type.')
+            end select
+        case(ommp_df_qm_top)
+            call fatal_error("Unsupported case: grid points generated from QM topology.")
+        case default
+            call fatal_error('compute_nabla_matrices: unknown fit_top_type.')
+        end select
+
+    end subroutine compute_nabla_matrices
+
     subroutine df_generate_grid(df)
         !! Generate charge and fit point coordinates from the stored
         !! topology pointers and generation parameters.
@@ -329,7 +444,7 @@ contains
         if(allocated(df%nabla_q_mm)) call mfree('[df_generate_grid] nabla_q_mm', df%nabla_q_mm)
     end subroutine df_generate_grid
 
-    subroutine df_init(df, charge_top, fit_top, &
+    subroutine df_init(df, mm_top, qm_top, &
                        charge_point_type, charge_n_pts_per_atom, charge_radius, &
                        fit_point_type, fit_n_pts_per_atom, fit_radius, &
                        charge_top_type, fit_top_type)
@@ -343,10 +458,10 @@ contains
         implicit none
 
         type(ommp_density_fit_type), intent(inout) :: df
-        type(ommp_topology_type), intent(in), target :: charge_top
-        !! Topology providing charge point coordinates
-        type(ommp_topology_type), intent(in), target :: fit_top
-        !! Topology providing fit point coordinates
+        type(ommp_topology_type), intent(in), target :: mm_top
+        !! MM topology (always provided, used when charge/fit type = ommp_df_mm_top)
+        type(ommp_topology_type), intent(in), target :: qm_top
+        !! QM topology (always provided, used when charge/fit type = ommp_df_qm_top)
         integer(ip), intent(in) :: charge_point_type
         !! Type of charge point source
         integer(ip), intent(in) :: charge_n_pts_per_atom
@@ -371,6 +486,27 @@ contains
             call fatal_error("Density fit object already initialized!")
         end if
 
+        df%top_mm => mm_top
+        df%top_qm => qm_top
+
+        select case(charge_top_type)
+        case(ommp_df_mm_top)
+            df%charge_top => mm_top
+        case(ommp_df_qm_top)
+            df%charge_top => qm_top
+        case default
+            call fatal_error('df_init: unknown charge_top_type.')
+        end select
+
+        select case(fit_top_type)
+        case(ommp_df_mm_top)
+            df%fit_top => mm_top
+        case(ommp_df_qm_top)
+            df%fit_top => qm_top
+        case default
+            call fatal_error('df_init: unknown fit_top_type.')
+        end select
+
         if(charge_top%mm_atoms == 0) then
             call fatal_error('df_init: charge topology has no atoms.')
         end if
@@ -385,8 +521,6 @@ contains
         df%fit_point_type = fit_point_type
         df%fit_n_pts_per_atom = fit_n_pts_per_atom
         df%fit_radius = fit_radius
-        df%charge_top => charge_top
-        df%fit_top => fit_top
         df%charge_top_type = charge_top_type
         df%fit_top_type = fit_top_type
 

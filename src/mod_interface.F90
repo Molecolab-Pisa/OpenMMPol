@@ -1736,53 +1736,34 @@ module ommp_interface
         character(len=*), intent(in) :: fit_top_source
         !! Source of fit point topology: 'qm' or 'mm'
 
-        type(ommp_topology_type), pointer :: charge_top, fit_top
         integer(ommp_integer) :: charge_top_type, fit_top_type
-        character(len=2) :: charge_src, fit_src
 
         ! Trim and validate source strings
-        charge_src = adjustl(charge_top_source)
-        fit_src = adjustl(fit_top_source)
-        if(charge_src == '') charge_src = 'qm'
-        if(fit_src == '') fit_src = 'mm'
-
-        ! Select charge topology and type based on source
-        select case(charge_src)
-        case('qm')
-            if(.not. allocated(qmh%qm_top)) then
-                call fatal_error('ommp_init_density_fit: charge_top_source="qm" but qm_top is not allocated.')
-            end if
-            charge_top => qmh%qm_top
+        charge_top_type = ommp_df_qm_top
+        
+        if(adjustl(charge_top_source) == 'qm') then
             charge_top_type = ommp_df_qm_top
-        case('mm')
-            charge_top => s%top
+        else if(adjustl(charge_top_source) == 'mm') then
             charge_top_type = ommp_df_mm_top
-        case default
+        else if(adjustl(charge_top_source) /= '') then
             call fatal_error('ommp_init_density_fit: unknown charge_top_source, use "qm" or "mm".')
-        end select
+        end if
 
-        ! Select fit topology and type based on source
-        select case(fit_src)
-        case('mm')
-            fit_top => s%top
-            fit_top_type = ommp_df_mm_top
-        case('qm')
-            if(.not. allocated(qmh%qm_top)) then
-                call fatal_error('ommp_init_density_fit: fit_top_source="qm" but qm_top is not allocated.')
-            end if
-            fit_top => qmh%qm_top
+        fit_top_type = ommp_df_mm_top
+        if(adjustl(fit_top_source) == 'qm') then
             fit_top_type = ommp_df_qm_top
-        case default
-            call fatal_error('ommp_init_density_fit: unknown fit_top_source, use "mm" or "qm".')
-        end select
-
+        else if(adjustl(fit_top_source) == 'mm') then
+            fit_top_type = ommp_df_mm_top
+        else if(adjustl(fit_top_source) /= '') then
+            call fatal_error('ommp_init_density_fit: unknown charge_top_source, use "qm" or "mm".')
+        end if
+        
         ! Enable density fitting submodule if not already done
         if(.not. s%use_density_fit) then
             call mmpol_init_density_fit(s)
         end if
 
-        ! Initialize the density fit object with selected topologies and types
-        call df_init(s%df, charge_top, fit_top, &
+        call df_init(s%df, s%top, qmh%qm_top, &
                      charge_point_type, charge_n_pts_per_atom, charge_radius, &
                      fit_point_type, fit_n_pts_per_atom, fit_radius, &
                      charge_top_type, fit_top_type)
