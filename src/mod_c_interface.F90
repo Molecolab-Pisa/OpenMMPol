@@ -1927,10 +1927,10 @@ module mod_ommp_C_interface
 
         subroutine C_ommp_init_density_fit(s_prt, qmh_prt, &
                                            charge_point_type, charge_n_pts_per_atom, charge_radius, &
-                                           fit_point_type, fit_n_pts_per_atom, fit_radius) &
+                                           fit_point_type, fit_n_pts_per_atom, fit_radius, &
+                                           charge_top_source, fit_top_source) &
                 bind(c, name='ommp_init_density_fit')
 
-            use mod_topology, only: ommp_topology_type
             implicit none
 
             type(c_ptr), value, intent(in) :: s_prt
@@ -1941,16 +1941,25 @@ module mod_ommp_C_interface
             integer(ommp_integer), intent(in), value :: fit_point_type
             integer(ommp_integer), intent(in), value :: fit_n_pts_per_atom
             real(ommp_real), intent(in), value :: fit_radius
+            character(kind=c_char), intent(in) :: charge_top_source(OMMP_STR_CHAR_MAX)
+            character(kind=c_char), intent(in) :: fit_top_source(OMMP_STR_CHAR_MAX)
 
             type(ommp_system), pointer :: s
             type(ommp_qm_helper), pointer :: qmh
+            character(len=OMMP_STR_CHAR_MAX) :: charge_src, fit_src
 
             call c_f_pointer(s_prt, s)
             call c_f_pointer(qmh_prt, qmh)
 
-            call ommp_init_density_fit(s, qmh%qm_top, s%top, &
+            !! Convert C strings to Fortran strings
+            call c2f_string(charge_top_source, charge_src)
+            call c2f_string(fit_top_source, fit_src)
+
+            !! Delegate topology selection and initialization to ommp_init_density_fit
+            call ommp_init_density_fit(s, qmh, &
                                        charge_point_type, charge_n_pts_per_atom, charge_radius, &
-                                       fit_point_type, fit_n_pts_per_atom, fit_radius)
+                                       fit_point_type, fit_n_pts_per_atom, fit_radius, &
+                                       charge_src, fit_src)
 
         end subroutine
 

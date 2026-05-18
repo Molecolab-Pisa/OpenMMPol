@@ -134,15 +134,15 @@ module mod_constants
     real(rp), parameter :: ommp_fmm_min_cellsize = OMMP_FMM_MIN_CELLSIZE
     real(rp), parameter :: ommp_fmm_far_thr = OMMP_FMM_FAR_THR
 
-    ! Density fitting constants
+    ! Density fitting constants (unified grid types)
     integer(ip), parameter :: ommp_df_solver_svd = OMMP_DF_SOLVER_SVD 
     integer(ip), parameter :: ommp_df_svd_rcond_default = OMMP_DF_SVD_RCOND_DEFAULT
     !! Default relative condition number threshold for SVD-based pseudoinverse
-    integer(ip), parameter :: ommp_df_charge_qm_atoms = OMMP_DF_CHARGE_QM_ATOMS
-    integer(ip), parameter :: ommp_df_charge_fibonacci = OMMP_DF_CHARGE_FIBONACCI
-    integer(ip), parameter :: ommp_df_charge_cubic = OMMP_DF_CHARGE_CUBIC
-    integer(ip), parameter :: ommp_df_fit_mm_atoms = OMMP_DF_FIT_MM_ATOMS
-    integer(ip), parameter :: ommp_df_fit_cubic = OMMP_DF_FIT_CUBIC
+    integer(ip), parameter :: ommp_df_atoms = OMMP_DF_ATOMS
+    integer(ip), parameter :: ommp_df_fibonacci = OMMP_DF_FIBONACCI
+    integer(ip), parameter :: ommp_df_cubic = OMMP_DF_CUBIC
+    integer(ip), parameter :: ommp_df_mm_top = OMMP_DF_MM_TOP
+    integer(ip), parameter :: ommp_df_qm_top = OMMP_DF_QM_TOP
 
 
     contains

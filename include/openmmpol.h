@@ -150,7 +150,8 @@ extern "C"
                                       int32_t charge_point_type, int32_t charge_n_pts_per_atom,
                                       double charge_radius,
                                       int32_t fit_point_type, int32_t fit_n_pts_per_atom,
-                                      double fit_radius);
+                                      double fit_radius,
+                                      const char *charge_top_source, const char *fit_top_source);
 
     /* Density fit read-only accessors */
     extern double *ommp_get_df_charge_coord(OMMP_SYSTEM_PRT);

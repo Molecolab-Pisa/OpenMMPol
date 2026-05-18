@@ -1699,26 +1699,26 @@ module ommp_interface
         end if
     end subroutine
 
-    subroutine ommp_init_density_fit(s, qm_top, mm_top, &
+    subroutine ommp_init_density_fit(s, qmh, &
                                      charge_point_type, charge_n_pts_per_atom, charge_radius, &
-                                     fit_point_type, fit_n_pts_per_atom, fit_radius)
+                                     fit_point_type, fit_n_pts_per_atom, fit_radius, &
+                                     charge_top_source, fit_top_source)
         !! Initialize the density fitting submodule.
-        !! Coordinates are generated from the provided topology pointers.
+        !! Topology selection is based on 'charge_top_source' and 'fit_top_source' strings:
+        !!   'qm' -> uses qmh%qm_top, charge_top_type = ommp_df_qm_top
+        !!   'mm' -> uses s%top, charge_top_type = ommp_df_mm_top
         use mod_mmpol, only: mmpol_init_density_fit
         use mod_density_fit, only: df_init
-    use mod_constants, only: ommp_df_charge_qm_atoms, &
-                             ommp_df_charge_fibonacci, &
-                             ommp_df_charge_cubic, &
-                             ommp_df_fit_mm_atoms, &
-                             ommp_df_fit_cubic
+        use mod_constants, only: ommp_df_atoms, &
+                                 ommp_df_fibonacci, &
+                                 ommp_df_cubic, &
+                                 ommp_df_mm_top, ommp_df_qm_top
+        use mod_io, only: fatal_error
 
         implicit none
 
         type(ommp_system), intent(inout), pointer :: s
-        type(ommp_topology_type), intent(in) :: qm_top
-        !! QM topology providing charge point coordinates
-        type(ommp_topology_type), intent(in) :: mm_top
-        !! MM topology providing fit point coordinates
+        type(ommp_qm_helper), intent(in), pointer :: qmh
         integer(ommp_integer), intent(in) :: charge_point_type
         !! Type of charge point source
         integer(ommp_integer), intent(in) :: charge_n_pts_per_atom
@@ -1731,18 +1731,61 @@ module ommp_interface
         !! Number of fit points per source atom
         real(ommp_real), intent(in) :: fit_radius
         !! Radius parameter for fit point generation
+        character(len=*), intent(in) :: charge_top_source
+        !! Source of charge point topology: 'qm' or 'mm'
+        character(len=*), intent(in) :: fit_top_source
+        !! Source of fit point topology: 'qm' or 'mm'
+
+        type(ommp_topology_type), pointer :: charge_top, fit_top
+        integer(ommp_integer) :: charge_top_type, fit_top_type
+        character(len=2) :: charge_src, fit_src
+
+        ! Trim and validate source strings
+        charge_src = adjustl(charge_top_source)
+        fit_src = adjustl(fit_top_source)
+        if(charge_src == '') charge_src = 'qm'
+        if(fit_src == '') fit_src = 'mm'
+
+        ! Select charge topology and type based on source
+        select case(charge_src)
+        case('qm')
+            if(.not. allocated(qmh%qm_top)) then
+                call fatal_error('ommp_init_density_fit: charge_top_source="qm" but qm_top is not allocated.')
+            end if
+            charge_top => qmh%qm_top
+            charge_top_type = ommp_df_qm_top
+        case('mm')
+            charge_top => s%top
+            charge_top_type = ommp_df_mm_top
+        case default
+            call fatal_error('ommp_init_density_fit: unknown charge_top_source, use "qm" or "mm".')
+        end select
+
+        ! Select fit topology and type based on source
+        select case(fit_src)
+        case('mm')
+            fit_top => s%top
+            fit_top_type = ommp_df_mm_top
+        case('qm')
+            if(.not. allocated(qmh%qm_top)) then
+                call fatal_error('ommp_init_density_fit: fit_top_source="qm" but qm_top is not allocated.')
+            end if
+            fit_top => qmh%qm_top
+            fit_top_type = ommp_df_qm_top
+        case default
+            call fatal_error('ommp_init_density_fit: unknown fit_top_source, use "mm" or "qm".')
+        end select
 
         ! Enable density fitting submodule if not already done
         if(.not. s%use_density_fit) then
-            call ommp_message("Initializing density fit module", &
-                              OMMP_VERBOSE_DEBUG, 'density_fit')
             call mmpol_init_density_fit(s)
         end if
 
-        ! Initialize the density fit object with topologies
-        call df_init(s%df, qm_top, mm_top, &
+        ! Initialize the density fit object with selected topologies and types
+        call df_init(s%df, charge_top, fit_top, &
                      charge_point_type, charge_n_pts_per_atom, charge_radius, &
-                     fit_point_type, fit_n_pts_per_atom, fit_radius)
+                     fit_point_type, fit_n_pts_per_atom, fit_radius, &
+                     charge_top_type, fit_top_type)
     end subroutine ommp_init_density_fit
 
 end module ommp_interface
