@@ -158,6 +158,7 @@ extern "C"
     extern double *ommp_get_df_fit_point_coord(OMMP_SYSTEM_PRT);
     extern int32_t ommp_get_df_n_pts(OMMP_SYSTEM_PRT);
     extern int32_t ommp_get_df_n_charges(OMMP_SYSTEM_PRT);
+    extern int32_t ommp_get_df_n_qm_atoms(OMMP_SYSTEM_PRT);
     extern bool ommp_get_df_initialized(OMMP_SYSTEM_PRT);
 
     extern double *ommp_get_df_target_charges(OMMP_SYSTEM_PRT);
@@ -167,8 +168,17 @@ extern "C"
     extern double *ommp_get_df_VXI_p(OMMP_SYSTEM_PRT);
     extern double ommp_get_df_e_field_pol_ene(OMMP_SYSTEM_PRT);
     extern double *ommp_get_df_E_q2p(OMMP_SYSTEM_PRT);
-    extern void ommp_df_compute_induced_dipoles(OMMP_SYSTEM_PRT, int, int, int,                                                                                                                                   
+    extern void ommp_df_compute_induced_dipoles(OMMP_SYSTEM_PRT, int, int, int,                                                                                                                                    
                                                 int, OMMP_QM_HELPER_PRT); 
+
+    extern void ommp_df_geomgrad(OMMP_SYSTEM_PRT, double *, double *);
+    extern double *ommp_get_df_lambda(OMMP_SYSTEM_PRT);
+    extern void ommp_compute_df_lambda(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_dX_dr(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_nabla_g_mm(OMMP_SYSTEM_PRT, bool *, bool *);
+    extern double *ommp_get_df_nabla_g_qm(OMMP_SYSTEM_PRT, bool *, bool *);
+    extern double *ommp_get_df_nabla_q_qm(OMMP_SYSTEM_PRT, bool *, bool *);
+    extern double *ommp_get_df_nabla_q_mm(OMMP_SYSTEM_PRT, bool *, bool *);
 
     extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT *, OMMP_QM_HELPER_PRT *);
     extern void ommp_smartinput_cpstr(const char *, char *, char **);

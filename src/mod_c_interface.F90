@@ -1989,6 +1989,19 @@ module mod_ommp_C_interface
             end if
         end function C_ommp_get_df_n_charges
 
+        function C_ommp_get_df_n_qm_atoms(s_prt) bind(c, name='ommp_get_df_n_qm_atoms')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_df_n_qm_atoms
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_n_qm_atoms = s%df%qm_top%mm_atoms
+            else
+                C_ommp_get_df_n_qm_atoms = 0
+            end if
+        end function C_ommp_get_df_n_qm_atoms
+
         function C_ommp_get_df_initialized(s_prt) bind(c, name='ommp_get_df_initialized')
             type(c_ptr), value :: s_prt
             type(ommp_system), pointer :: s
@@ -2167,6 +2180,16 @@ module mod_ommp_C_interface
             C_ommp_get_df_e_field_pol_ene = real(ene, c_double)
         end function C_ommp_get_df_e_field_pol_ene
 
+        subroutine C_ommp_compute_df_lambda(s_prt) &
+                bind(c, name='ommp_compute_df_lambda')
+            !! Compute and store the Lagrange multiplier vector lambda = Xinv^T @ V_m2q.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+            call ommp_df_compute_lambda(s)
+        end subroutine C_ommp_compute_df_lambda
+
         function C_ommp_get_df_E_q2p(s_prt) bind(c, name='ommp_get_df_E_q2p')
             !! Return the c-pointer to the electric field from fitted charges
             !! at polarizable sites array (3 x n_polarizable_atoms).
@@ -2182,5 +2205,179 @@ module mod_ommp_C_interface
                 C_ommp_get_df_E_q2p = c_null_ptr
             end if
         end function C_ommp_get_df_E_q2p
+
+        subroutine C_ommp_df_geomgrad(s_prt, qmg_prt, mmg_prt) &
+                bind(c, name='ommp_df_geomgrad')
+            !! Compute the gradient (force) contribution from density fitting.
+            !! Wrapper for ommp_df_geomgrad.
+            !!
+            !! qmg (3, n_qm)   - QM atom gradient/output array
+            !! mmg (3, n_mm)   - MM atom gradient/output array
+            !!
+            !! The electric field at grid points and Lagrange multipliers
+            !! are computed internally.
+
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: qmg_prt
+            type(c_ptr), value :: mmg_prt
+
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: qmg(:,:)
+            real(ommp_real), pointer :: mmg(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qmg_prt, qmg, [3_ommp_integer, s%df%qm_top%mm_atoms])
+            call c_f_pointer(mmg_prt, mmg, [3_ommp_integer, s%df%mm_top%mm_atoms])
+
+            call ommp_df_geomgrad(s, qmg, mmg, .true., .true.)
+        end subroutine C_ommp_df_geomgrad
+
+        function C_ommp_get_df_lambda(s_prt) &
+                bind(c, name='ommp_get_df_lambda')
+            !! Get the Lagrange multiplier vector.
+            !! If not yet computed, calls ommp_df_compute_lambda first.
+
+            use mod_memory, only: mallocate
+            use mod_constants, only: ip, rp
+            use mod_density_fit, only: df_electrostatics_for_geomgrad
+
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(c_ptr) :: C_ommp_get_df_lambda
+
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            !! Compute lambda if not yet available
+            if(.not. s%df%lambda_done) then
+                call df_electrostatics_for_geomgrad(s%df, s%eel)
+                call ommp_df_compute_lambda(s)
+            end if
+
+            C_ommp_get_df_lambda = c_loc(s%df%lambda)
+            
+        end function C_ommp_get_df_lambda
+
+        function C_ommp_get_df_dX_dr(s_prt) result(ptr) bind(c, name='ommp_get_df_dX_dr')
+            !! Get the dX_dr matrix (n_charges x 3 x n_pts).
+            !! Returns c_null_ptr if dX_dr is not yet computed.
+            type(c_ptr), value :: s_prt
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+            call c_f_pointer(s_prt, s)
+            if(.not. s%df%dX_dr_done) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%dX_dr)
+            end if
+        end function C_ommp_get_df_dX_dr
+
+        function C_ommp_get_df_nabla_g_mm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_g_mm')
+
+            use mod_density_fit, only: compute_nabla_matrices
+
+            !! Get the gradient-grid w.r.t. MM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call compute_nabla_matrices(s%df)
+
+            is_null = s%df%nabla_g_mm_is_null
+            is_identity = s%df%nabla_g_mm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_g_mm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_g_mm)
+            end if
+        end function C_ommp_get_df_nabla_g_mm
+
+        function C_ommp_get_df_nabla_g_qm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_g_qm')
+
+            use mod_density_fit, only: compute_nabla_matrices
+
+            !! Get the gradient-grid w.r.t. QM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call compute_nabla_matrices(s%df)
+
+            is_null = s%df%nabla_g_qm_is_null
+            is_identity = s%df%nabla_g_qm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_g_qm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_g_qm)
+            end if
+        end function C_ommp_get_df_nabla_g_qm
+
+        function C_ommp_get_df_nabla_q_qm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_q_qm')
+
+            use mod_density_fit, only: compute_nabla_matrices
+
+            !! Get the fit-charge w.r.t. QM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call compute_nabla_matrices(s%df)
+
+            is_null = s%df%nabla_q_qm_is_null
+            is_identity = s%df%nabla_q_qm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_q_qm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_q_qm)
+            end if
+        end function C_ommp_get_df_nabla_q_qm
+
+        function C_ommp_get_df_nabla_q_mm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_q_mm')
+
+            use mod_density_fit, only: compute_nabla_matrices
+
+            !! Get the fit-charge w.r.t. MM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call compute_nabla_matrices(s%df)
+
+            is_null = s%df%nabla_q_mm_is_null
+            is_identity = s%df%nabla_q_mm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_q_mm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_q_mm)
+            end if
+        end function C_ommp_get_df_nabla_q_mm
 
 end module mod_ommp_C_interface

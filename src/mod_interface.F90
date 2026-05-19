@@ -58,6 +58,8 @@ module ommp_interface
                        ommp_ignore_duplicated_opb_prm => set_ignore_duplicated_opb_prm
     use mod_iohdf5, only: mmpol_init_from_hdf5, save_system_as_hdf5
     
+    use iso_c_binding, only: c_bool
+    
     implicit none
     
     character(*), parameter :: ommp_version_string = _OMMP_VERSION
@@ -1595,13 +1597,13 @@ module ommp_interface
         logical :: do_nuc_f
 
         if(.not. s%use_density_fit) then
-            call fatal_error("ommp_df_compute_induced_dipoles: density fitting not enabled.")
+            call ommp_fatal("ommp_df_compute_induced_dipoles: density fitting not enabled.")
         end if
         if(.not. allocated(s%df)) then
-            call fatal_error("ommp_df_compute_induced_dipoles: density fit object not allocated.")
+            call ommp_fatal("ommp_df_compute_induced_dipoles: density fit object not allocated.")
         end if
         if(.not. s%df%initialized) then
-            call fatal_error("ommp_df_compute_induced_dipoles: density fit not initialized.")
+            call ommp_fatal("ommp_df_compute_induced_dipoles: density fit not initialized.")
         end if
 
         eel => s%eel
@@ -1637,7 +1639,7 @@ module ommp_interface
                         ef(:,:,i) = ef(:,:,i) + qm_helper%E_n2p
                     end do 
             else
-                call fatal_error("ommp_df_compute_induced_dipoles: add_nuclei_field is "//&
+                call ommp_fatal("ommp_df_compute_induced_dipoles: add_nuclei_field is "//&
                                  "true but qm_helper is not provided.")
             end if
         end if
@@ -1672,18 +1674,45 @@ module ommp_interface
         real(ommp_real), intent(out) :: ene
 
         if(.not. s%use_density_fit) then
-            call fatal_error("ommp_df_get_e_field_pol_ene: density fitting not enabled.")
+            call ommp_fatal("ommp_df_get_e_field_pol_ene: density fitting not enabled.")
         end if
         if(.not. allocated(s%df)) then
-            call fatal_error("ommp_df_get_e_field_pol_ene: density fit object not allocated.")
+            call ommp_fatal("ommp_df_get_e_field_pol_ene: density fit object not allocated.")
         end if
         if(.not. s%df%initialized) then
-            call fatal_error("ommp_df_get_e_field_pol_ene: density fit not initialized.")
+            call ommp_fatal("ommp_df_get_e_field_pol_ene: density fit not initialized.")
         end if
 
         call df_e_field_pol_ene(s%df, s%eel)
         ene = s%df%E_pol_ene
     end subroutine ommp_df_get_e_field_pol_ene
+
+    subroutine ommp_df_compute_lambda(s)
+        !! Compute and store the Lagrange multiplier vector: lambda = Xinv^T @ V_m2q.
+        !! Triggers lazy computation of Xinv and V_m2q if not yet available.
+
+        use mod_density_fit, only: df_compute_lambda, df_electrostatic_static
+
+        implicit none
+
+        type(ommp_system), intent(inout) :: s
+
+        if(.not. s%use_density_fit) then
+            call ommp_fatal("ommp_df_compute_lambda: density fitting not enabled.")
+        end if
+        if(.not. allocated(s%df)) then
+            call ommp_fatal("ommp_df_compute_lambda: density fit object not allocated.")
+        end if
+        if(.not. s%df%initialized) then
+            call ommp_fatal("ommp_df_compute_lambda: density fit not initialized.")
+        end if
+
+        !! Ensure V_m2q is populated (needed for lambda computation)
+        call df_electrostatic_static(s%df, s%eel)
+
+        !! Compute lambda = Xinv^T @ V_m2q
+        call df_compute_lambda(s%df)
+    end subroutine ommp_df_compute_lambda
 
     subroutine ommp_set_vdw_cutoff(s, cutoff)
         use mod_nonbonded, only: vdw_set_cutoff
@@ -1746,7 +1775,7 @@ module ommp_interface
         else if(adjustl(charge_top_source) == 'mm') then
             charge_top_type = ommp_df_mm_top
         else if(adjustl(charge_top_source) /= '') then
-            call fatal_error('ommp_init_density_fit: unknown charge_top_source, use "qm" or "mm".')
+            call ommp_fatal('ommp_init_density_fit: unknown charge_top_source, use "qm" or "mm".')
         end if
 
         fit_top_type = ommp_df_mm_top
@@ -1755,9 +1784,9 @@ module ommp_interface
         else if(adjustl(fit_top_source) == 'mm') then
             fit_top_type = ommp_df_mm_top
         else if(adjustl(fit_top_source) /= '') then
-            call fatal_error('ommp_init_density_fit: unknown charge_top_source, use "qm" or "mm".')
+            call ommp_fatal('ommp_init_density_fit: unknown fit_top_source, use "qm" or "mm".')
         end if
-        
+
         ! Enable density fitting submodule if not already done
         if(.not. s%use_density_fit) then
             call mmpol_init_density_fit(s)
@@ -1768,5 +1797,61 @@ module ommp_interface
                      fit_point_type, fit_n_pts_per_atom, fit_radius, &
                      charge_top_type, fit_top_type)
     end subroutine ommp_init_density_fit
+
+    subroutine ommp_df_geomgrad(s, qmg, mmg, doqm, domm)
+        !! Compute the gradient (force) contribution from density fitting
+        !! with respect to nuclear coordinates.
+        !!
+        !! Forces are accumulated into qmg (3, n_qm_atoms) and
+        !! mmg (3, n_mm_atoms).  The electric field at grid points and
+        !! the Lagrange multipliers are computed internally.
+        !! The doqm / domm flags control which sub-blocks are updated,
+        !! allowing the caller to compose this gradient with other
+        !! contributors (e.g. QM forces) without double-counting.
+
+        use mod_io, only: fatal_error
+        use mod_density_fit, only: df_electrostatics_for_geomgrad, df_geomgrad, &
+                                   compute_nabla_matrices
+
+        implicit none
+
+        type(ommp_system), intent(inout), target :: s
+        real(ommp_real), intent(inout) :: qmg(:,:)   ! (3, n_qm_atoms)
+        real(ommp_real), intent(inout) :: mmg(:,:)   ! (3, n_mm_atoms)
+        logical, intent(in), optional :: doqm
+        logical, intent(in), optional :: domm
+
+        logical :: do_qm, do_mm
+
+        if(.not. s%use_density_fit) then
+            call ommp_fatal("ommp_df_geomgrad: density fitting not enabled.")
+        end if
+        if(.not. allocated(s%df)) then
+            call ommp_fatal("ommp_df_geomgrad: density fit object not allocated.")
+        end if
+        if(.not. s%df%initialized) then
+            call ommp_fatal("ommp_df_geomgrad: density fit not initialized.")
+        end if
+
+        !! Default: update both sides
+        if(present(doqm)) then
+            do_qm = doqm
+        else
+            do_qm = .true.
+        end if
+        if(present(domm)) then
+            do_mm = domm
+        else
+            do_mm = .true.
+        end if
+
+        !! Compute all gradient-related quantities
+        call compute_nabla_matrices(s%df)
+        call df_electrostatics_for_geomgrad(s%df, s%eel)
+
+
+
+        call df_geomgrad(s%df, qmg, mmg, do_qm, do_mm)
+    end subroutine ommp_df_geomgrad
 
 end module ommp_interface

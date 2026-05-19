@@ -279,6 +279,10 @@ class OMMPSystem{
             return ommp_get_df_initialized(handler);
         }
 
+        int32_t get_df_n_qm_atoms(){
+            return ommp_get_df_n_qm_atoms(handler);
+        }
+
         py_cdarray get_df_charge_coord(){
             double *mem = ommp_get_df_charge_coord(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
@@ -383,6 +387,10 @@ class OMMPSystem{
             return ommp_get_df_e_field_pol_ene(handler);
         }
 
+        void df_compute_lambda(){
+            ommp_compute_df_lambda(handler);
+        }
+
         py_cdarray get_df_E_q2p(){
             double *mem = ommp_get_df_E_q2p(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
@@ -391,6 +399,128 @@ class OMMPSystem{
                                     {get_pol_atoms(), 3},
                                     {3*sizeof(double), sizeof(double)});
             return py_cdarray(bufinfo);
+        }
+
+        std::map<std::string, py_cdarray> df_geomgrad(){
+            int32_t n_qm = get_df_n_qm_atoms();
+            int32_t n_mm = get_mm_atoms();
+
+            double *qmg = new double[n_qm * 3];
+            double *mmg = new double[n_mm * 3];
+            for(int i = 0; i < n_qm * 3; i++) qmg[i] = 0.0;
+            for(int i = 0; i < n_mm * 3; i++) mmg[i] = 0.0;
+
+            ommp_df_geomgrad(handler, qmg, mmg);
+
+            py::buffer_info bufinfo_qm(qmg, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {n_qm, 3},
+                                        {3*sizeof(double), sizeof(double)});
+            py::buffer_info bufinfo_mm(mmg, sizeof(double),
+                                        py::format_descriptor<double>::format(),
+                                        2,
+                                        {n_mm, 3},
+                                        {3*sizeof(double), sizeof(double)});
+            std::map<std::string, py_cdarray> res{
+                {"qm", py_cdarray(bufinfo_qm)},
+                {"mm", py_cdarray(bufinfo_mm)}
+            };
+
+            return res;
+        }
+
+        py_cdarray df_get_lambda(){
+            int32_t n_pts = get_df_n_pts();
+            double *mem = ommp_get_df_lambda(handler);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    1,
+                                    {n_pts},
+                                    {sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray df_get_dX_dr(){
+            int32_t n_charges = get_df_n_charges();
+            int32_t n_pts = get_df_n_pts();
+            double *mem = ommp_get_df_dX_dr(handler);
+            if(mem == nullptr)
+                return py::int_(0);
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    3,
+                                    {n_charges, 3, n_pts},
+                                    {3*n_pts*sizeof(double), n_pts*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray df_get_nabla_g_mm(){
+            bool is_null = false, is_identity = false;
+            double *mem = ommp_get_df_nabla_g_mm(handler, &is_null, &is_identity);
+            if(is_identity)  return py::int_(1);
+            if(is_null)      return py::int_(0);
+            if(mem == nullptr) return py::none();
+            int32_t n_pts = get_df_n_pts();
+            int32_t n_mm = get_mm_atoms();
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2, {n_pts * 3, n_mm},
+                                    {n_mm*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray df_get_nabla_g_qm(){
+            bool is_null = false, is_identity = false;
+            double *mem = ommp_get_df_nabla_g_qm(handler, &is_null, &is_identity);
+            if(is_identity)  return py::int_(1);
+            if(is_null)      return py::int_(0);
+            if(mem == nullptr) return py::none();
+            int32_t n_pts = get_df_n_pts();
+            int32_t n_qm = get_df_n_qm_atoms();
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2, {n_pts * 3, n_qm},
+                                    {n_qm*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray df_get_nabla_q_qm(){
+            bool is_null = false, is_identity = false;
+            double *mem = ommp_get_df_nabla_q_qm(handler, &is_null, &is_identity);
+            if(is_identity)  return py::int_(1);
+            if(is_null)      return py::int_(0);
+            if(mem == nullptr) return py::none();
+            int32_t n_charges = get_df_n_charges();
+            int32_t n_qm = get_df_n_qm_atoms();
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2, {n_charges * 3, n_qm},
+                                    {n_qm*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray df_get_nabla_q_mm(){
+            bool is_null = false, is_identity = false;
+            double *mem = ommp_get_df_nabla_q_mm(handler, &is_null, &is_identity);
+            if(is_identity)  return py::int_(1);
+            if(is_null)      return py::int_(0);
+            if(mem == nullptr) return py::none();
+            int32_t n_charges = get_df_n_charges();
+            int32_t n_mm = get_mm_atoms();
+            py::buffer_info bufinfo(mem, sizeof(double),
+                                    py::format_descriptor<double>::format(),
+                                    2, {n_charges * 3, n_mm},
+                                    {n_mm*sizeof(double), sizeof(double)});
+            return py_cdarray(bufinfo);
+        }
+
+        py_cdarray df_get_nabla(const std::string &mat_name){
+            if(mat_name == "g_mm")      return df_get_nabla_g_mm();
+            if(mat_name == "g_qm")      return df_get_nabla_g_qm();
+            if(mat_name == "q_qm")      return df_get_nabla_q_qm();
+            if(mat_name == "q_mm")      return df_get_nabla_q_mm();
+            throw py::value_error("Invalid nabla name: use 'g_mm', 'g_qm', 'q_qm', or 'q_mm'.");
         }
 
         py_cdarray get_ipd(){
@@ -1696,8 +1826,34 @@ PYBIND11_MODULE(__pyopenmmpol, m){
              "Compute induced dipoles from fitted charges electric field.")
         .def_property_readonly("df_e_field_pol_ene", &OMMPSystem::get_df_e_field_pol_ene,
              "Polarization energy from fitted-charge electric field (E = -0.5 * ipd .dot. E_q2p)")
+        .def("df_compute_lambda", &OMMPSystem::df_compute_lambda,
+             "Compute and store the Lagrange multiplier vector: lambda = Xinv^T @ V_m2q.")
         .def_property_readonly("df_E_q2p", &OMMPSystem::get_df_E_q2p,
              "Electric field from fitted charges at polarizable sites (3 x n_pol, read-only)")
+        .def("df_geomgrad", &OMMPSystem::df_geomgrad,
+             "Compute the gradient (force) contribution from density fitting.\n"
+             "Returns a dict with keys 'qm' [n_qm_atoms, 3] and 'mm' [n_mm_atoms, 3].")
+        .def_property_readonly("df_lambda", &OMMPSystem::df_get_lambda,
+             "Lagrange multiplier vector lambda = Xinv^T @ V_m2q (n_pts,).")
+        .def_property_readonly("df_dX_dr", &OMMPSystem::df_get_dX_dr,
+             "dX_dr matrix [n_charges, 3, n_pts].")
+        .def_property_readonly("df_nabla_g_mm", &OMMPSystem::df_get_nabla_g_mm,
+             "Gradient-grid w.r.t. MM coordinates nabla matrix.\n"
+             "Returns 1 if identity, 0 if null, None if unallocated, else a 2D ndarray.")
+        .def_property_readonly("df_nabla_g_qm", &OMMPSystem::df_get_nabla_g_qm,
+             "Gradient-grid w.r.t. QM coordinates nabla matrix.\n"
+             "Returns 1 if identity, 0 if null, None if unallocated, else a 2D ndarray.")
+        .def_property_readonly("df_nabla_q_qm", &OMMPSystem::df_get_nabla_q_qm,
+             "Fit-charge w.r.t. QM coordinates nabla matrix.\n"
+             "Returns 1 if identity, 0 if null, None if unallocated, else a 2D ndarray.")
+        .def_property_readonly("df_nabla_q_mm", &OMMPSystem::df_get_nabla_q_mm,
+             "Fit-charge w.r.t. MM coordinates nabla matrix.\n"
+             "Returns 1 if identity, 0 if null, None if unallocated, else a 2D ndarray.")
+        .def("df_get_nabla", &OMMPSystem::df_get_nabla,
+             py::arg("mat_name"),
+             "Get a nabla matrix by name.\n"
+             "mat_name: 'g_mm', 'g_qm', 'q_qm', or 'q_mm'.\n"
+             "Returns a 2D array, 0 (null), or 1 (identity).")
         ;
 
     py::class_<OMMPQmHelper, std::shared_ptr<OMMPQmHelper>>(m, "OMMPQmHelper", "Object to handle information about the QM system and simplify the QM/MM interface.")
