@@ -649,23 +649,23 @@ contains
 
         type(ommp_density_fit_type), intent(inout) :: df
         integer(ip) :: i, j
-        real(rp) :: dr_x, dr_y, dr_z, dist2, dist
+        real(rp) :: dr(3), dist
 
         if(.not. df%initialized) then
             call fatal_error("Density fit object not initialized!")
         end if
 
-        !! TODO parallelize
+        !$omp parallel do default(shared) schedule(static) &
+        !$omp private(i,j,dr,dist)
         do i = 1, df%n_charges
             do j = 1, df%n_pts
-                dr_x = df%charge_coord(1,i) - df%fit_point_coord(1,j)
-                dr_y = df%charge_coord(2,i) - df%fit_point_coord(2,j)
-                dr_z = df%charge_coord(3,i) - df%fit_point_coord(3,j)
-                dist2 = dr_x*dr_x + dr_y*dr_y + dr_z*dr_z
-                if(dist2 < eps_rp) then
+                dr = df%charge_coord(:,i) - df%fit_point_coord(:,j)
+                dist = norm2(dr)
+                if(dist < eps_rp) then
+                    !$omp critical
                     call fatal_error('Charge and fitting point coincide!')
+                    !$omp end critical
                 end if
-                dist = sqrt(dist2)
                 df%X(j,i) = 1.0_rp / dist
             end do
         end do
@@ -843,20 +843,20 @@ contains
         type(ommp_density_fit_type), intent(inout) :: df
         type(ommp_electrostatics_type), intent(in) :: eel
 
-        if(.not. df%V_p2q_done .and. (eel%ipd_done .or. eel%pol_atoms == 0)) then
+        if(eel%pol_atoms == 0) return
+        
+        if(.not. df%V_p2q_done .and. eel%ipd_done) then
             if(.not. allocated(df%V_p2q)) then
                 call mallocate('df_electrostatic_dipoles [V_pd2df]', &
                                df%n_charges, eel%n_ipd, df%V_p2q)
             end if
 
             df%V_p2q = 0.0_rp
-            if(eel%pol_atoms > 0) then
-                if(eel%amoeba) then
-                    call potential_D2E(eel, df%charge_coord, df%V_p2q(:,_amoeba_D_))
-                    call potential_D2E(eel, df%charge_coord, df%V_p2q(:,_amoeba_P_), .true.)
-                else
-                    call potential_D2E(eel, df%charge_coord, df%V_p2q(:,1))
-                end if
+            if(eel%amoeba) then
+                call potential_D2E(eel, df%charge_coord, df%V_p2q(:,_amoeba_D_))
+                call potential_D2E(eel, df%charge_coord, df%V_p2q(:,_amoeba_P_), .true.)
+            else
+                call potential_D2E(eel, df%charge_coord, df%V_p2q(:,1))
             end if
             df%V_p2q_done = .true.
         end if
@@ -907,6 +907,8 @@ contains
 
         type(ommp_density_fit_type), intent(inout) :: df
         type(ommp_electrostatics_type), intent(in) :: eel
+
+        if(eel%pol_atoms < 1) return
 
         if(.not. df%VXI_p_done .and. eel%ipd_done) then
             if(.not. df%Xinv_done) then
@@ -1006,8 +1008,11 @@ contains
             df%E_q2M = 0.0_rp
             df%GEF_q2M = 0.0_rp
 
-            do i = 1, df%n_charges
-                do j = 1, n_mm
+
+            !$omp parallel do default(shared) schedule(static) &
+            !$omp private(i,j,dr,kernel,tmpE,tmpV,tmpEgr,tmpHE)
+            do j = 1, n_mm
+                do i = 1, df%n_charges
                     dr = eel%top%cmm(:,j) - df%charge_coord(:,i)
                     call coulomb_kernel(dr, 2, kernel)
 
@@ -1054,20 +1059,33 @@ contains
                 call df_e_field_to_pol(df, eel)
             end if
 
-            ! TODO improve this double loop.
             eMM = 0.0_rp
-            if(eel%amoeba) then
+            ! if(eel%amoeba) then
                 !! Use only _amoeba_D_ dipoles, contracted with E_q2p
-                do i = 1, 3
-                    do j = 1, eel%pol_atoms
-                        eMM = eMM - eel%ipd(i,j,_amoeba_D_) * df%E_q2p(i,j)
-                    end do
+            !    do i = 1, 3
+            !        do j = 1, eel%pol_atoms
+            !           eMM = eMM - eel%ipd(i,j,_amoeba_D_) * df%E_q2p(i,j)
+            !        end do
+            !    end do
+            !else
+            !    do i = 1, 3
+            !        do j = 1, eel%pol_atoms
+            !            eMM = eMM - eel%ipd(i,j,1) * df%E_q2p(i,j)
+            !        end do
+            !    end do
+            !end if
+
+            if(eel%amoeba) then
+                !$omp parallel do default(shared) schedule(static) &
+                !$omp private(i) reduction(+:eMM)
+                do i=1, eel%pol_atoms
+                    eMM = eMM - dot_product(eel%ipd(:,i,_amoeba_D_), df%E_q2p(:,i)) 
                 end do
             else
-                do i = 1, 3
-                    do j = 1, eel%pol_atoms
-                        eMM = eMM - eel%ipd(i,j,1) * df%E_q2p(i,j)
-                    end do
+                !$omp parallel do default(shared) schedule(static) &
+                !$omp private(i) reduction(+:eMM)
+                do i=1, eel%pol_atoms
+                    eMM = eMM - dot_product(eel%ipd(:,i,1), df%E_q2p(:,i)) 
                 end do
             end if
 
@@ -1199,8 +1217,8 @@ contains
             df%dX_dr_done = .true.
         end if
 
-        if(.not. df%V_m2q_done) call df_electrostatic_static(df, eel)
-        if(.not. df%V_p2q_done) call df_electrostatic_dipoles(df, eel)
+        if(.not. df%V_m2q_done) call df_project_static(df, eel)
+        if(.not. df%V_p2q_done) call df_project_dipoles(df, eel)
         if(.not. df%E_q2M_done .or. .not. df%GEF_q2M_done) call df_ef_gef_q2M(df, eel)
     end subroutine df_electrostatics_for_geomgrad
 
@@ -1240,16 +1258,18 @@ contains
             mmg = 0.0_rp
         end if
 
-        !! Compute electric field at grid points from fitted charges:
-        !! ef_grid(a,j) = sum_i target_charges(i) * dX_dr(i,a,j)
-        ef_grid = 0.0_rp
-        n_pts = df%n_pts
         do a = 1, 3
-            do j = 1, n_pts
-                do l = 1, df%n_charges
-                    ef_grid(a,j) = ef_grid(a,j) + df%target_charges(l) * df%dX_dr(a,l,j)
-                end do
-            end do
+            !do j = 1, df%n_pts
+            !    do l = 1, df%n_charges
+            !        ef_grid(a,j) = ef_grid(a,j) + df%target_charges(l) * df%dX_dr(a,l,j)
+            !    end do
+            !end do
+
+            call dgemv('T', &                                                                                                                                                                                               
+                        df%n_charges, df%n_pts, 1.0_rp, df%dX_dr(a,:,:), df%n_charges, &                                                                                                                                     
+                        df%target_charges, 1_ip, &                                                                                                                                                                           
+                        0.0_rp, ef_grid(a,:), 1_ip)  
+        
         end do
 
         !! Ensure lambda is computed
@@ -1258,13 +1278,17 @@ contains
         ! There are three components:
         ! 1. [ d/dr V(MM+POL) at q] @ q
 
-        do i=1, df%mm_top%mm_atoms
-            do a=1, 3
-                do l=1, df%n_charges
-                    mmg(a,i) = mmg(a,i) + df%target_charges(l) * df%E_MM2Q(l,a,i)
-                end do
-            end do
-        end do
+        !do l=1, df%n_charges
+            !do a=1, 3
+            !   do i=1, df%mm_top%mm_atoms  
+            !        mmg(a,i) = mmg(a,i) + df%target_charges(l) * df%E_MM2Q(l,a,i)
+            !    end do
+            !end do
+        !end do 
+        call dgemv('T', &
+                   df%n_charges, df%mm_top%mm_atoms*3_ip, 1.0_rp, df%E_MM2Q, df%n_charges, &
+                   df%target_charges, 1, 1.0_rp, &
+                   mmg, 1)
 
         if(.not. df%nabla_q_mm_is_null) then
             ! It should be something really similar to the derivatives on QM atoms
@@ -1272,13 +1296,18 @@ contains
         end if
 
         if(df%nabla_q_qm_is_identity) then
-            do i=1, df%mm_top%mm_atoms
-                do l=1, df%n_charges ! Same of QM atoms
-                    do a=1, 3
-                        qmg(a,l) = qmg(a,l) - df%target_charges(l) * df%E_MM2Q(l,a,i)
-                    end do
-                end do
-            end do    
+            !do i=1, df%mm_top%mm_atoms
+            !    do l=1, df%n_charges ! Same of QM atoms
+            !        do a=1, 3
+            !            qmg(a,l) = qmg(a,l) - df%target_charges(l) * df%E_MM2Q(l,a,i)
+            !        end do
+            !    end do
+            !end do    
+            
+            do l=1, df%n_charges ! Same of QM atoms
+                qmg(:,l) = qmg(:,l) - df%target_charges(l) * sum(df%E_MM2Q(l,:,:), dim=2)
+            end do  
+
         else if(df%nabla_q_qm_is_null) then
             ! nothing to do
             continue
@@ -1301,13 +1330,18 @@ contains
         !! lambda is already computed and stored in df%lambda
         
         if(df%nabla_g_mm_is_identity) then
-            do i=1, df%mm_top%mm_atoms
-                do a=1, 3
-                    do l=1, df%n_charges
-                        mmg(a,i) = mmg(a,i) - df%dX_dr(a,l,i) * df%lambda(i) * df%target_charges(l)
-                    end do
-                end do
-            end do
+            !do i=1, df%mm_top%mm_atoms
+            !    do a=1, 3
+            !        do l=1, df%n_charges
+            !            mmg(a,i) = mmg(a,i) - df%dX_dr(a,l,i) * df%lambda(i) * df%target_charges(l)
+            !        end do
+            !    end do
+            !end do
+            
+            !$omp parallel do default(shared) schedule(static)                                                                                                                                                          
+            do i = 1, df%mm_top%mm_atoms                                                                                                                                                                                
+                mmg(:,i) = mmg(:,i) - df%lambda(i) * ef_grid(:,i)                                                                                                                                               
+            end do  
 
         else if(df%nabla_g_mm_is_null) then
             continue
@@ -1327,13 +1361,20 @@ contains
         end if
 
         if(df%nabla_q_qm_is_identity) then
-            do i=1, df%qm_top%mm_atoms
-                do a=1, 3
-                    do s=1, df%n_pts
-                        qmg(a,i) = qmg(a,i) + df%dX_dr(a,i,s) * df%lambda(s) * df%target_charges(i)
-                    end do
-                end do
-            end do
+            !do i=1, df%qm_top%mm_atoms
+            !    do a=1, 3
+            !        do s=1, df%n_pts
+            !            qmg(a,i) = qmg(a,i) + df%dX_dr(a,i,s) * df%lambda(s) * df%target_charges(i)
+            !        end do
+            !    end do
+            !end do
+            !$omp parallel do default(shared) schedule(static)                                                                                                                                                          
+            do i = 1, df%qm_top%mm_atoms                                                                                                                                                                                
+                do a = 1, 3                                                                                                                                                                                             
+                    qmg(a,i) = qmg(a,i) + df%target_charges(i) * &                                                                                                                                                      
+                                dot_product(df%dX_dr(a,i,:), df%lambda)                                                                                                                                                  
+                end do                                                                                                                                                                                                  
+            end do            
 
         else if(df%nabla_g_mm_is_null) then
             continue
@@ -1361,13 +1402,13 @@ contains
         if(df%nabla_g_qm_is_identity) then
             call fatal_error("Dependency of grid points from QM atoms' coordinates is not implemented.")
             ! Wired dependency from QM atoms positions and grid points, this should not happen for now
-            do i=1, df%qm_top%mm_atoms
-                do a=1, 3
-                    do l=1, df%n_charges
-                        qmg(a,i) = qmg(a,i) + df%dX_dr(a,l,i) * df%lambda(i) * df%target_charges(l)
-                    end do
-                end do
-            end do
+            !do i=1, df%qm_top%mm_atoms
+            !    do a=1, 3
+            !        do l=1, df%n_charges
+            !            qmg(a,i) = qmg(a,i) + df%dX_dr(a,l,i) * df%lambda(i) * df%target_charges(l)
+            !        end do
+            !    end do
+            !end do
 
         else if(df%nabla_g_qm_is_null) then
             continue
@@ -1410,11 +1451,7 @@ contains
         type(ommp_density_fit_type), intent(inout) :: df
         integer(ip) :: i, j
 
-        if(.not. df%xinv_done) then
-            call df_compute_Xinv_svd(df)
-        end if
-
-        if(.not. df%V_m2q_done .or. .not. df%V_p2q_done) then
+        if(.not. df%VXI_m_done) then
             call fatal_error("Call df_electrostatics_for_geomgrad before df_compute_lambda")
         end if
 
@@ -1424,25 +1461,22 @@ contains
                 call mallocate('[df_compute_lambda] lambda', df%n_pts, df%lambda)
             end if
             df%lambda = 0.0_rp
+            
+            df%lambda = df%VXI_m
 
-            if(size(df%V_p2q, 2) == 2) then
-                ! Amoeba
-                do i=1, df%n_pts
-                    do j=1, df%n_charges
-                        df%lambda(i) = df%lambda(i) + &
-                                       (df%V_m2q(j) + 0.5 * df%V_p2q(j,_amoeba_D_) + 0.5 * df%V_p2q(j,_amoeba_P_)) * df%Xinv(j,i)
-                    end do
-                end do
-            else if(size(df%V_p2q, 2) == 1) then
-                ! Non-amoeba
-                do i=1, df%n_pts
-                    do j=1, df%n_charges
-                        df%lambda(i) = df%lambda(i) + (df%V_m2q(j) + df%V_p2q(1,j)) * df%Xinv(j,i)
-                    end do
-                end do
-            else
-                call fatal_error("Unexpected error when computing Lagrange Multiplier. This is a bug in the OpenMMPol code.")
+            if(df%VXI_p_done) then
+                if(size(df%V_p2q, 2) == 2) then
+                    ! Amoeba
+                    call daxpy(df%n_pts, 0.5_rp, df%VXI_p(:,_amoeba_D_), 1, df%lambda, 1)                                                                                                                                   
+                    call daxpy(df%n_pts, 0.5_rp, df%VXI_p(:,_amoeba_P_), 1, df%lambda, 1)   
+                else if(size(df%V_p2q, 2) == 1) then
+                    ! Non-amoeba
+                    call daxpy(df%n_pts, 1.0_rp, df%VXI_p(:,1), 1, df%lambda, 1)  
+                else
+                    call fatal_error("Unexpected error when computing Lagrange Multiplier. This is a bug in the OpenMMPol code.")
+                end if
             end if
+
             df%lambda_done = .true.
         end if
     end subroutine df_compute_lambda
