@@ -1849,9 +1849,8 @@ module ommp_interface
         call compute_nabla_matrices(s%df)
         call df_electrostatics_for_geomgrad(s%df, s%eel)
 
-
-
         call df_geomgrad(s%df, qmg, mmg, do_qm, do_mm)
+        if(s%eel%amoeba) call rotation_geomgrad(s%eel, s%df%E_q2m, s%df%GEF_q2M, mmg)
     end subroutine ommp_df_geomgrad
 
 end module ommp_interface
