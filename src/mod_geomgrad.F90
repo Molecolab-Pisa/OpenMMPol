@@ -85,7 +85,7 @@ module mod_geomgrad
                 end do
                 call time_push
                 ! Torque forces from multipoles rotation
-                call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
+!fl               call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
                 call time_pull("Rotation grad")
             else
                 !$omp parallel do 

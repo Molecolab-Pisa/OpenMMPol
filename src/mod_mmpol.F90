@@ -364,7 +364,7 @@ module mod_mmpol
         eel%ipd_use_guess = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
-        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
+!fl        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
         ! 2.3 Update coordinates inside link atom object
         if(sys_obj%use_linkatoms) call link_atom_update_merged_topology(sys_obj%la)
         ! 2.4 Update fast-multipoles tree if needed

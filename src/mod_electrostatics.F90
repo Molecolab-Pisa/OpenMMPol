@@ -160,6 +160,9 @@ module mod_electrostatics
         logical(lp) :: M2Mgg_done = .false.
         !! flag to set when M2M electrostatic quantities for geometrical
         !! gradients are computed.
+        logical(lp) :: M2Mhh_done
+        !! flag to set when M2M electrostatic quantities for geometrical
+        !! hessians are computed.
         real(rp), allocatable :: V_M2M(:)
         !! potential of MM permanent multipoles at MM sites; 
         real(rp), allocatable :: E_M2M(:,:)
@@ -168,11 +171,16 @@ module mod_electrostatics
         !! electric_field gradient of MM permanent multipoles at MM sites;
         real(rp), allocatable :: EHes_M2M(:,:) 
         !! electric field Hessian of MM permanent multipoles at MM sites;
+        real(rp), allocatable :: E3D_M2M(:,:) 
+        !! electric field third derivative of MM permanent multipoles at MM sites;
 
         logical(lp) :: M2D_done = .false.
         !! Flag to set when M2D electrostatics have been computed.
         logical(lp) :: M2Dgg_done = .false.
         !! Flag to set when M2D electrostatics for geometrical gradients 
+        !! have been computed.
+        logical(lp) :: M2Dhh_done = .false.
+        !! Flag to set when M2D electrostatics for geometrical hessians
         !! have been computed.
         real(rp), allocatable :: V_M2D(:,:)
         ! electrostatic potential of MM permanent multipoles at POL sites; unused.
@@ -184,12 +192,15 @@ module mod_electrostatics
         ! electric field Hessian of MM permanent multipoles at POL sites; unused.
 
         logical(lp) :: D2Mgg_done = .false.
+        logical(lp) :: D2Mhh_done = .false.
         real(rp), allocatable :: V_D2M(:)
         real(rp), allocatable :: E_D2M(:,:)
         real(rp), allocatable :: Egrd_D2M(:,:)
         real(rp), allocatable :: EHes_D2M(:,:)
+        real(rp), allocatable :: E3D_D2M(:,:)
 
         logical(lp) :: D2Dgg_done = .false.
+        logical(lp) :: D2Dhh_done = .false.
         real(rp), allocatable :: V_D2D(:,:)
         real(rp), allocatable :: E_D2D(:,:,:)
         real(rp), allocatable :: Egrd_D2D(:,:,:)
@@ -1095,7 +1106,7 @@ module mod_electrostatics
     end subroutine damped_coulomb_kernel
 
     subroutine q_elec_prop(q, dr, kernel, &
-                           do_V, V, do_E, E, do_grdE, grdE, do_HE, HE)
+                           do_V, V, do_E, E, do_grdE, grdE, do_HE, HE, do_D3E, D3E)
         !! TODO
         !! Computes the electric potential of a charge \(q\) at position
         !! \(\mathbf{dr}\) from the charge itself. Pre-computed kernel should
@@ -1111,10 +1122,10 @@ module mod_electrostatics
         !! Distance vector
         real(rp), intent(in) :: kernel(:)
         !! Array of coulomb kernel (either damped or undamped)
-        logical, intent(in) :: do_V, do_E, do_grdE, do_HE
+        logical, intent(in) :: do_V, do_E, do_grdE, do_HE, do_D3E
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10)
+        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10), D3E(15)
         !! Electric potential
         
         if(do_V) then
@@ -1173,10 +1184,93 @@ module mod_electrostatics
                                9.0_rp * kernel(3) * dr(3)) * q
         end if
 
+        if(do_D3E) then
+            ! xxxx
+            D3E(1) = D3E(1) + q * ( &
+                105.0_rp * kernel(5) * dr(1)**4 &
+              - 90.0_rp  * kernel(4) * dr(1)**2 &
+              + 9.0_rp   * kernel(3) )
+
+            ! xxxy
+            D3E(2) = D3E(2) + q * ( &
+                105.0_rp * kernel(5) * dr(1)**3 * dr(2) &
+              - 45.0_rp  * kernel(4) * dr(1) * dr(2) )
+
+            ! xxxz
+            D3E(3) = D3E(3) + q * ( &
+                105.0_rp * kernel(5) * dr(1)**3 * dr(3) &
+              - 45.0_rp  * kernel(4) * dr(1) * dr(3) )
+
+            ! xxyy
+            D3E(4) = D3E(4) + q * ( &
+                105.0_rp * kernel(5) * dr(1)**2 * dr(2)**2 &
+              - 15.0_rp  * kernel(4) * (dr(1)**2 + dr(2)**2) &
+              + 3.0_rp   * kernel(3) )
+
+            ! xxyz
+            D3E(5) = D3E(5) + q * ( &
+                105.0_rp * kernel(5) * dr(1)**2 * dr(2) * dr(3) &
+              - 15.0_rp  * kernel(4) * dr(2) * dr(3) )
+
+            ! xxzz
+            D3E(6) = D3E(6) + q * ( &
+                105.0_rp * kernel(5) * dr(1)**2 * dr(3)**2 &
+              - 15.0_rp  * kernel(4) * (dr(1)**2 + dr(3)**2) &
+              + 3.0_rp   * kernel(3) )
+
+            ! xyyy
+            D3E(7) = D3E(7) + q * ( &
+                105.0_rp * kernel(5) * dr(1) * dr(2)**3 &
+              - 45.0_rp  * kernel(4) * dr(1) * dr(2) )
+
+            ! xyyz
+            D3E(8) = D3E(8) + q * ( &
+                105.0_rp * kernel(5) * dr(1) * dr(2)**2 * dr(3) &
+              - 15.0_rp  * kernel(4) * dr(1) * dr(3) )
+
+            ! xyzz
+            D3E(9) = D3E(9) + q * ( &
+                105.0_rp * kernel(5) * dr(1) * dr(2) * dr(3)**2 &
+              - 15.0_rp  * kernel(4) * dr(1) * dr(2) )
+
+            ! xzzz
+            D3E(10) = D3E(10) + q * ( &
+                105.0_rp * kernel(5) * dr(1) * dr(3)**3 &
+              - 45.0_rp  * kernel(4) * dr(1) * dr(3) )
+
+            ! yyyy
+            D3E(11) = D3E(11) + q * ( &
+                105.0_rp * kernel(5) * dr(2)**4 &
+              - 90.0_rp  * kernel(4) * dr(2)**2 &
+              + 9.0_rp   * kernel(3) )
+
+            ! yyyz
+            D3E(12) = D3E(12) + q * ( &
+                105.0_rp * kernel(5) * dr(2)**3 * dr(3) &
+              - 45.0_rp  * kernel(4) * dr(2) * dr(3) )
+
+            ! yyzz
+            D3E(13) = D3E(13) + q * ( &
+                105.0_rp * kernel(5) * dr(2)**2 * dr(3)**2 &
+              - 15.0_rp  * kernel(4) * (dr(2)**2 + dr(3)**2) &
+              + 3.0_rp   * kernel(3) )
+
+            ! yzzz
+            D3E(14) = D3E(14) + q * ( &
+                105.0_rp * kernel(5) * dr(2) * dr(3)**3 &
+              - 45.0_rp  * kernel(4) * dr(2) * dr(3) )
+
+            ! zzzz
+            D3E(15) = D3E(15) + q * ( &
+                105.0_rp * kernel(5) * dr(3)**4 &
+              - 90.0_rp  * kernel(4) * dr(3)**2 &
+              + 9.0_rp   * kernel(3) )
+        end if
+
     end subroutine q_elec_prop
     
     subroutine mu_elec_prop(mu, dr, kernel, &
-                            do_V, V, do_E, E, do_grdE, grdE, do_HE, HE)
+                            do_V, V, do_E, E, do_grdE, grdE, do_HE, HE, do_D3E, D3E)
         
         implicit none
 
@@ -1186,10 +1280,10 @@ module mod_electrostatics
         !! Distance vector
         real(rp), intent(in) :: kernel(:)
         !! Array of coulomb kernel (either damped or undamped)
-        logical, intent(in) :: do_V, do_E, do_grdE, do_HE
+        logical, intent(in) :: do_V, do_E, do_grdE, do_HE, do_D3E
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10)
+        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10), D3E(15)
         !! Electric potential
         
         real(rp) :: mu_dot_dr
@@ -1281,10 +1375,129 @@ module mod_electrostatics
                             - 45.0_rp * kernel(4) * dr(3) * (mu(3)*dr(3) + mu_dot_dr) &
                             + 9.0_rp * kernel(3) * mu(3)
         end if
+!
+        if(do_D3E) then
+            ! xxxx
+            D3E(1) = D3E(1) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)**4 &
+              - 105.0_rp * kernel(5) * (4.0_rp*mu(1)*dr(1)**3 + 6.0_rp*mu_dot_dr*dr(1)**2) &
+              + 15.0_rp  * kernel(4) * (12.0_rp*mu(1)*dr(1) + 3.0_rp*mu_dot_dr)
+
+            ! xxxy
+            D3E(2) = D3E(2) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)**3 * dr(2) &
+              - 105.0_rp * kernel(5) * (mu(2)*dr(1)**3 + &
+                                       3.0_rp*(mu(1)*dr(1)**2*dr(2) + &
+                                       mu_dot_dr*dr(1)*dr(2))) &
+              + 15.0_rp  * kernel(4) * 3.0_rp*(mu(2)*dr(1) + mu(1)*dr(2))
+
+            ! xxxz
+            D3E(3) = D3E(3) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)**3 * dr(3) &
+              - 105.0_rp * kernel(5) * (mu(3)*dr(1)**3 + &
+                                       3.0_rp*mu(1)*dr(1)**2*dr(3) + &
+                                       3.0_rp*mu_dot_dr*dr(1)*dr(3)) &
+              + 15.0_rp  * kernel(4) * 3.0_rp*(mu(3)*dr(1)+mu(1)*dr(3))
+
+            ! xxyy
+            D3E(4) = D3E(4) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)**2 * dr(2)**2 &
+              - 105.0_rp * kernel(5) * (2.0_rp*(mu(1)*dr(1)*dr(2)**2 + &
+                                       mu(2)*dr(2)*dr(1)**2) + &
+                                       mu_dot_dr*(dr(1)**2+dr(2)**2)) &
+              + 15.0_rp  * kernel(4) * (mu_dot_dr + 2.0_rp*(mu(1)*dr(1) + mu(2)*dr(2)))
+
+            ! xxyz
+            D3E(5) = D3E(5) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)**2 * dr(2)*dr(3) &
+              - 105.0_rp * kernel(5) * (mu_dot_dr*dr(2)*dr(3) + &
+                                       2.0_rp * mu(1)*dr(1)*dr(2)*dr(3) + &
+                                       mu(2)*dr(1)*dr(1)*dr(3) + &
+                                       mu(3)*dr(1)*dr(1)*dr(2)) &
+              + 15.0_rp  * kernel(4) * (mu(3)*dr(2) + mu(2)*dr(3))
+
+            ! xxzz
+            D3E(6) = D3E(6) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)**2 * dr(3)**2 &
+              - 105.0_rp * kernel(5) * (2.0_rp*(mu(1)*dr(1)*dr(3)**2 + &
+                                       mu(3)*dr(3)*dr(1)**2) + &
+                                       mu_dot_dr*(dr(1)**2+dr(3)**2)) &
+              + 15.0_rp  * kernel(4) * (mu_dot_dr + 2.0_rp*(mu(1)*dr(1) + mu(3)*dr(3)))
+
+            ! xyyy
+            D3E(7) = D3E(7) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)*dr(2)**3 &
+              - 105.0_rp * kernel(5) * (mu(1)*dr(2)**3 + &
+                                       3.0_rp*(mu(2)*dr(2)**2*dr(1) + &
+                                       mu_dot_dr*dr(2)*dr(1))) &
+              + 15.0_rp  * kernel(4) * 3.0_rp*(mu(1)*dr(2)+mu(2)*dr(1))
+
+            ! xyyz
+            D3E(8) = D3E(8) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)*dr(2)**2*dr(3) &
+              - 105.0_rp * kernel(5) * (mu_dot_dr*dr(1)*dr(3) + &
+                                       mu(1)*dr(2)**2*dr(3) + &
+                                       2.0_rp*mu(2)*dr(1)*dr(2)*dr(3) + &
+                                       mu(3)*dr(1)*dr(2)*dr(2)) &
+              + 15.0_rp  * kernel(4) * (mu(1)*dr(3) + mu(3)*dr(1))
+
+            ! xyzz
+            D3E(9) = D3E(9) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)*dr(2)*dr(3)**2 &
+              - 105.0_rp * kernel(5) * (mu_dot_dr*dr(1)*dr(2) + &
+                                       mu(1)*dr(2)*dr(3)**2 + &
+                                       mu(2)*dr(1)*dr(3)**2 + &
+                                       2.0_rp*mu(3)*dr(1)*dr(2)*dr(3)) &
+              + 15.0_rp  * kernel(4) * (mu(1)*dr(2)+mu(2)*dr(1))
+
+            ! xzzz
+            D3E(10) = D3E(10) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(1)*dr(3)**3 &
+              - 105.0_rp * kernel(5) * (mu(1)*dr(3)**3 + &
+                                       3.0_rp*(mu(3)*dr(3)**2*dr(1) + &
+                                       mu_dot_dr*dr(3)*dr(1))) &
+              + 15.0_rp  * kernel(4) * 3.0_rp*(mu(1)*dr(3)+mu(3)*dr(1))
+
+            ! yyyy
+            D3E(11) = D3E(11) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(2)**4 &
+              - 105.0_rp * kernel(5) * (4.0_rp * mu(2)*dr(2)**3 + 6.0_rp*mu_dot_dr*dr(2)**2) &
+              + 15.0_rp  * kernel(4) * (3.0_rp*mu_dot_dr + 12.0_rp*mu(2)*dr(2))
+
+            ! yyyz
+            D3E(12) = D3E(12) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(2)**3 * dr(3) &
+              - 105.0_rp * kernel(5) * (mu(3)*dr(2)**3 + &
+                                       3.0_rp*(mu(2)*dr(2)**2*dr(3) + &
+                                       mu_dot_dr*dr(2)*dr(3))) &
+              + 15.0_rp  * kernel(4) * 3.0_rp*(mu(3)*dr(2)+mu(2)*dr(3))
+
+            ! yyzz
+            D3E(13) = D3E(13) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(2)**2 * dr(3)**2 &
+              - 105.0_rp * kernel(5) * (2.0_rp*(mu(2)*dr(2)*dr(3)**2 + &
+                                       mu(3)*dr(3)*dr(2)**2) + &
+                                       mu_dot_dr*(dr(2)**2+dr(3)**2)) &
+              + 15.0_rp  * kernel(4) * (mu_dot_dr + 2.0_rp*(mu(2)*dr(2) + mu(3)*dr(3)))
+
+            ! yzzz
+            D3E(14) = D3E(14) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(2)*dr(3)**3 &
+              - 105.0_rp * kernel(5) * (mu(2)*dr(3)**3 + &
+                                       3.0_rp*(mu(3)*dr(3)**2*dr(2) + &
+                                       mu_dot_dr*dr(3)*dr(2))) &
+              + 15.0_rp  * kernel(4) * 3.0_rp*(mu(2)*dr(3)+mu(3)*dr(2))
+
+            ! zzzz
+            D3E(15) = D3E(15) + &
+                945.0_rp * kernel(6) * mu_dot_dr * dr(3)**4 &
+              - 105.0_rp * kernel(5) * (4.0_rp*mu(3)*dr(3)**3 + 6.0_rp*mu_dot_dr*dr(3)**2) &
+              + 15.0_rp  * kernel(4) * (12.0_rp*mu(3)*dr(3) + 3.0_rp*mu_dot_dr)
+        end if
     end subroutine mu_elec_prop
     
     subroutine quad_elec_prop(quad, dr, kernel, &
-                              do_V, V, do_E, E, do_grdE, grdE, do_HE, HE)
+                              do_V, V, do_E, E, do_grdE, grdE, do_HE, HE, do_D3E, D3E)
         
         implicit none
 
@@ -1294,10 +1507,10 @@ module mod_electrostatics
         !! Distance vector
         real(rp), intent(in) :: kernel(:)
         !! Array of coulomb kernel (either damped or undamped)
-        logical, intent(in) :: do_V, do_E, do_grdE, do_HE
+        logical, intent(in) :: do_V, do_E, do_grdE, do_HE, do_D3E
         !! Flags to enable/disable calculation of different electrostatic 
         !! properties
-        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10)
+        real(rp), intent(inout) :: V, E(3), grdE(6), HE(10), D3E(15)
         !! Electric potential
         
         real(rp) :: quadxr(3), quadxr_dot_r
@@ -1402,9 +1615,203 @@ module mod_electrostatics
                                            quadxr(_z_)*dr(_x_)*dr(_y_)) &
                           + 30*kernel(4)*(quad(_xy_)*dr(_z_) + quad(_xz_)*dr(_y_) + quad(_yz_)*dr(_x_))  
         end if
+
+        if(do_D3E) then
+            ! xxxx
+            D3E(_xxxx_) = D3E(_xxxx_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)**4 &
+              - 945.0_rp*kernel(6)*(6.0_rp*quadxr_dot_r*dr(_x_)**2 + &
+                                      8.0_rp*quadxr(_x_)*dr(_x_)**3) &
+              + 105.0_rp*kernel(5)*(3.0_rp*quadxr_dot_r + &
+                                      24.0_rp*quadxr(_x_)*dr(_x_) + &
+                                      12.0_rp*quad(_xx_)*dr(_x_)**2) &
+              - 30.0_rp*kernel(4)*(6.0_rp*quad(_xx_))
+
+            ! xxxy
+            D3E(_xxxy_) = D3E(_xxxy_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)**3*dr(_y_) &
+              - 945.0_rp*kernel(6)*(3.0_rp*quadxr_dot_r*dr(_x_)*dr(_y_) + &
+                                      6.0_rp*quadxr(_x_)*dr(_x_)**2*dr(_y_) + &
+                                      2.0_rp*quadxr(_y_)*dr(_x_)**3) &
+              + 105.0_rp*kernel(5)*(6.0_rp*quadxr(_x_)*dr(_y_) + &
+                                      6.0_rp*quadxr(_y_)*dr(_x_) + &
+                                      6.0_rp*quad(_xx_)*dr(_x_)*dr(_y_) + &
+                                      6.0_rp*quad(_xy_)*dr(_x_)**2) &
+              - 30.0_rp*kernel(4)*(3.0_rp*quad(_xy_))
+
+            ! xxxz
+            D3E(_xxxz_) = D3E(_xxxz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)**3*dr(_z_) &
+              - 945.0_rp*kernel(6)*(3.0_rp*quadxr_dot_r*dr(_x_)*dr(_z_) + &
+                                      6.0_rp*quadxr(_x_)*dr(_x_)**2*dr(_z_) + &
+                                      2.0_rp*quadxr(_z_)*dr(_x_)**3) &
+              + 105.0_rp*kernel(5)*(6.0_rp*quadxr(_x_)*dr(_z_) + &
+                                      6.0_rp*quadxr(_z_)*dr(_x_) + &
+                                      6.0_rp*quad(_xx_)*dr(_x_)*dr(_z_) + &
+                                      6.0_rp*quad(_xz_)*dr(_x_)**2) &
+              - 30.0_rp*kernel(4)*(3.0_rp*quad(_xz_))
+
+            ! xxyy
+            D3E(_xxyy_) = D3E(_xxyy_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)**2*dr(_y_)**2 &
+              - 945.0_rp*kernel(6)*(quadxr_dot_r*dr(_x_)**2 + &
+                                      quadxr_dot_r*dr(_y_)**2 + &
+                                      4.0_rp*quadxr(_x_)*dr(_x_)*dr(_y_)**2 + &
+                                      4.0_rp*quadxr(_y_)*dr(_x_)**2*dr(_y_)) &
+              + 105.0_rp*kernel(5)*(quadxr_dot_r + &
+                                      4.0_rp*quadxr(_x_)*dr(_x_) + &
+                                      4.0_rp*quadxr(_y_)*dr(_y_) + &
+                                      2.0_rp*quad(_xx_)*dr(_y_)**2 + &
+                                      8.0_rp*quad(_xy_)*dr(_x_)*dr(_y_) + &
+                                      2.0_rp*quad(_yy_)*dr(_x_)**2) &
+              - 30.0_rp*kernel(4)*(quad(_xx_) + quad(_yy_))
+
+            ! xxyz
+            D3E(_xxyz_) = D3E(_xxyz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)**2*dr(_y_)*dr(_z_) &
+              - 945.0_rp*kernel(6)*(quadxr_dot_r*dr(_y_)*dr(_z_) + &
+                                      4.0_rp*quadxr(_x_)*dr(_x_)*dr(_y_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_y_)*dr(_x_)**2*dr(_z_) + &
+                                      2.0_rp*quadxr(_z_)*dr(_x_)**2*dr(_y_)) &
+              + 105.0_rp*kernel(5)*(2.0_rp*quadxr(_y_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_z_)*dr(_y_) + &
+                                      2.0_rp*quad(_xx_)*dr(_y_)*dr(_z_) + &
+                                      4.0_rp*quad(_xy_)*dr(_x_)*dr(_z_) + &
+                                      4.0_rp*quad(_xz_)*dr(_x_)*dr(_y_) + &
+                                      2.0_rp*quad(_yz_)*dr(_x_)**2) &
+              - 30.0_rp*kernel(4)*quad(_yz_)
+
+            ! xxzz
+            D3E(_xxzz_) = D3E(_xxzz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)**2*dr(_z_)**2 &
+              - 945.0_rp*kernel(6)*(quadxr_dot_r*dr(_x_)**2 + &
+                                      quadxr_dot_r*dr(_z_)**2 + &
+                                      4.0_rp*quadxr(_x_)*dr(_x_)*dr(_z_)**2 + &
+                                      4.0_rp*quadxr(_z_)*dr(_x_)**2*dr(_z_)) &
+              + 105.0_rp*kernel(5)*(quadxr_dot_r + &
+                                      4.0_rp*quadxr(_x_)*dr(_x_) + &
+                                      4.0_rp*quadxr(_z_)*dr(_z_) + &
+                                      2.0_rp*quad(_xx_)*dr(_z_)**2 + &
+                                      8.0_rp*quad(_xz_)*dr(_x_)*dr(_z_) + &
+                                      2.0_rp*quad(_zz_)*dr(_x_)**2) &
+              - 30.0_rp*kernel(4)*(quad(_xx_) + quad(_zz_))
+
+            ! xyyy
+            D3E(_xyyy_) = D3E(_xyyy_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)*dr(_y_)**3 &
+              - 945.0_rp*kernel(6)*(3.0_rp*quadxr_dot_r*dr(_x_)*dr(_y_) + &
+                                      2.0_rp*quadxr(_x_)*dr(_y_)**3 + &
+                                      6.0_rp*quadxr(_y_)*dr(_x_)*dr(_y_)**2) &
+              + 105.0_rp*kernel(5)*(6.0_rp*quadxr(_x_)*dr(_y_) + &
+                                      6.0_rp*quadxr(_y_)*dr(_x_) + &
+                                      6.0_rp*quad(_xy_)*dr(_y_)**2 + &
+                                      6.0_rp*quad(_yy_)*dr(_x_)*dr(_y_)) &
+              - 30.0_rp*kernel(4)*(3.0_rp*quad(_xy_))
+
+            ! xyyz
+            D3E(_xyyz_) = D3E(_xyyz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)*dr(_y_)**2*dr(_z_) &
+              - 945.0_rp*kernel(6)*(quadxr_dot_r*dr(_x_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_x_)*dr(_y_)**2*dr(_z_) + &
+                                      4.0_rp*quadxr(_y_)*dr(_x_)*dr(_y_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_z_)*dr(_x_)*dr(_y_)**2) &
+              + 105.0_rp*kernel(5)*(2.0_rp*quadxr(_x_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_z_)*dr(_x_) + &
+                                      4.0_rp*quad(_xy_)*dr(_y_)*dr(_z_) + &
+                                      2.0_rp*quad(_xz_)*dr(_y_)**2 + &
+                                      2.0_rp*quad(_yy_)*dr(_x_)*dr(_z_) + &
+                                      4.0_rp*quad(_yz_)*dr(_x_)*dr(_y_)) &
+              - 30.0_rp*kernel(4)*quad(_xz_)
+
+            ! xyzz
+            D3E(_xyzz_) = D3E(_xyzz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)*dr(_y_)*dr(_z_)**2 &
+              - 945.0_rp*kernel(6)*(quadxr_dot_r*dr(_x_)*dr(_y_) + &
+                                      2.0_rp*quadxr(_x_)*dr(_y_)*dr(_z_)**2 + &
+                                      2.0_rp*quadxr(_y_)*dr(_x_)*dr(_z_)**2 + &
+                                      4.0_rp*quadxr(_z_)*dr(_x_)*dr(_y_)*dr(_z_)) &
+              + 105.0_rp*kernel(5)*(2.0_rp*quadxr(_x_)*dr(_y_) + &
+                                      2.0_rp*quadxr(_y_)*dr(_x_) + &
+                                      2.0_rp*quad(_xy_)*dr(_z_)**2 + &
+                                      4.0_rp*quad(_xz_)*dr(_y_)*dr(_z_) + &
+                                      4.0_rp*quad(_yz_)*dr(_x_)*dr(_z_) + &
+                                      2.0_rp*quad(_zz_)*dr(_x_)*dr(_y_)) &
+              - 30.0_rp*kernel(4)*quad(_xy_)
+
+            ! xzzz
+            D3E(_xzzz_) = D3E(_xzzz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_x_)*dr(_z_)**3 &
+              - 945.0_rp*kernel(6)*(3.0_rp*quadxr_dot_r*dr(_x_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_x_)*dr(_z_)**3 + &
+                                      6.0_rp*quadxr(_z_)*dr(_x_)*dr(_z_)**2) &
+              + 105.0_rp*kernel(5)*(6.0_rp*quadxr(_x_)*dr(_z_) + &
+                                      6.0_rp*quadxr(_z_)*dr(_x_) + &
+                                      6.0_rp*quad(_xz_)*dr(_z_)**2 + &
+                                      6.0_rp*quad(_zz_)*dr(_x_)*dr(_z_)) &
+              - 30.0_rp*kernel(4)*(3.0_rp*quad(_xz_))
+
+            ! yyyy
+            D3E(_yyyy_) = D3E(_yyyy_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_y_)**4 &
+              - 945.0_rp*kernel(6)*(6.0_rp*quadxr_dot_r*dr(_y_)**2 + &
+                                      8.0_rp*quadxr(_y_)*dr(_y_)**3) &
+              + 105.0_rp*kernel(5)*(3.0_rp*quadxr_dot_r + &
+                                      24.0_rp*quadxr(_y_)*dr(_y_) + &
+                                      12.0_rp*quad(_yy_)*dr(_y_)**2) &
+              - 30.0_rp*kernel(4)*(6.0_rp*quad(_yy_))
+
+            ! yyyz
+            D3E(_yyyz_) = D3E(_yyyz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_y_)**3*dr(_z_) &
+              - 945.0_rp*kernel(6)*(3.0_rp*quadxr_dot_r*dr(_y_)*dr(_z_) + &
+                                      6.0_rp*quadxr(_y_)*dr(_y_)**2*dr(_z_) + &
+                                      2.0_rp*quadxr(_z_)*dr(_y_)**3) &
+              + 105.0_rp*kernel(5)*(6.0_rp*quadxr(_y_)*dr(_z_) + &
+                                      6.0_rp*quadxr(_z_)*dr(_y_) + &
+                                      6.0_rp*quad(_yy_)*dr(_y_)*dr(_z_) + &
+                                      6.0_rp*quad(_yz_)*dr(_y_)**2) &
+              - 30.0_rp*kernel(4)*(3.0_rp*quad(_yz_))
+
+            ! yyzz
+            D3E(_yyzz_) = D3E(_yyzz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_y_)**2*dr(_z_)**2 &
+              - 945.0_rp*kernel(6)*(quadxr_dot_r*dr(_y_)**2 + &
+                                      quadxr_dot_r*dr(_z_)**2 + &
+                                      4.0_rp*quadxr(_y_)*dr(_y_)*dr(_z_)**2 + &
+                                      4.0_rp*quadxr(_z_)*dr(_y_)**2*dr(_z_)) &
+              + 105.0_rp*kernel(5)*(quadxr_dot_r + &
+                                      4.0_rp*quadxr(_y_)*dr(_y_) + &
+                                      4.0_rp*quadxr(_z_)*dr(_z_) + &
+                                      2.0_rp*quad(_yy_)*dr(_z_)**2 + &
+                                      8.0_rp*quad(_yz_)*dr(_y_)*dr(_z_) + &
+                                      2.0_rp*quad(_zz_)*dr(_y_)**2) &
+              - 30.0_rp*kernel(4)*(quad(_yy_) + quad(_zz_))
+
+            ! yzzz
+            D3E(_yzzz_) = D3E(_yzzz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_y_)*dr(_z_)**3 &
+              - 945.0_rp*kernel(6)*(3.0_rp*quadxr_dot_r*dr(_y_)*dr(_z_) + &
+                                      2.0_rp*quadxr(_y_)*dr(_z_)**3 + &
+                                      6.0_rp*quadxr(_z_)*dr(_y_)*dr(_z_)**2) &
+              + 105.0_rp*kernel(5)*(6.0_rp*quadxr(_y_)*dr(_z_) + &
+                                      6.0_rp*quadxr(_z_)*dr(_y_) + &
+                                      6.0_rp*quad(_yz_)*dr(_z_)**2 + &
+                                      6.0_rp*quad(_zz_)*dr(_y_)*dr(_z_)) &
+              - 30.0_rp*kernel(4)*(3.0_rp*quad(_yz_))
+
+            ! zzzz
+            D3E(_zzzz_) = D3E(_zzzz_) &
+              + 10395.0_rp*kernel(7)*quadxr_dot_r*dr(_z_)**4 &
+              - 945.0_rp*kernel(6)*(6.0_rp*quadxr_dot_r*dr(_z_)**2 + &
+                                      8.0_rp*quadxr(_z_)*dr(_z_)**3) &
+              + 105.0_rp*kernel(5)*(3.0_rp*quadxr_dot_r + &
+                                      24.0_rp*quadxr(_z_)*dr(_z_) + &
+                                      12.0_rp*quad(_zz_)*dr(_z_)**2) &
+              - 30.0_rp*kernel(4)*(6.0_rp*quad(_zz_))
+        end if
     end subroutine quad_elec_prop
 
-    subroutine prepare_fixedelec(eel, arg_dogg) 
+    subroutine prepare_fixedelec(eel, arg_dogg, arg_dohh) 
         !! This function allocate and populate array of electrostatic 
         !! properties of static multipoles at static multipoles sites.
         !! It should be called blindly before any calculation that requires
@@ -1415,10 +1822,14 @@ module mod_electrostatics
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
-        logical, optional, intent(in) :: arg_dogg
+        logical, optional, intent(in) :: arg_dogg, arg_dohh
 
-        integer(ip) :: mm_atoms
-        logical :: do_gg
+        integer(ip) :: mm_atoms, ider
+        logical :: do_gg, do_hh
+!fl
+        real(rp), allocatable :: d2enum(:,:), hep(:,:), hem(:,:)
+        integer(ip) :: i
+        real(rp), parameter :: delta = 1.0e-4_rp
 
         mm_atoms = eel%top%mm_atoms
 
@@ -1427,9 +1838,19 @@ module mod_electrostatics
         if(present(arg_dogg)) then
             if(arg_dogg) do_gg = .true.
         end if
+        do_hh = .false.
+        if(present(arg_dohh)) then
+            if(arg_dohh) do_hh = .true.
+        end if
+        ider = 0
+        if (do_gg) ider = 1
+        if (do_hh) ider = 2
+!
+        write(6,*) 'in prepare_fixedelec, do_gg, do_hh=', do_gg, do_hh, ider
 
-        if(.not. do_gg .and. eel%M2M_done) return
-        if(do_gg .and. eel%M2M_done .and. eel%M2Mgg_done) return
+        if (ider.eq.0 .and. eel%M2M_done) return
+        if (ider.eq.1 .and. eel%M2M_done .and. eel%M2Mgg_done) return
+        if (ider.eq.2 .and. eel%M2M_done .and. eel%M2Mgg_done .and. eel%M2Mhh_done) return
 
         if(eel%amoeba) then
             if(.not. allocated(eel%V_M2M)) then
@@ -1444,21 +1865,82 @@ module mod_electrostatics
                 call mallocate('prepare_fixedelec [Egrd_M2M]', 6_ip, mm_atoms, eel%Egrd_M2M)
             end if
             
-            if(do_gg .and. .not. allocated(eel%EHes_M2M)) then
+            if(ider.ge.1 .and. .not. allocated(eel%EHes_M2M)) then
                 call mallocate('prepare_fixedelec [EHes_M2M]', 10_ip, mm_atoms, eel%EHes_M2M)
+            end if
+
+            if(do_hh .and. .not. allocated(eel%E3D_M2M)) then
+                call mallocate('prepare_fixedelec [E3D_M2M]', 15_ip, mm_atoms, eel%E3D_M2M)
             end if
             
             eel%V_M2M = 0.0_rp
             eel%E_M2M = 0.0_rp
             eel%Egrd_M2M = 0.0_rp
-            if(do_gg) eel%EHes_M2M = 0.0_rp
-            
-            if(do_gg) then
+            if(ider.ge.1) eel%EHes_M2M = 0.0_rp
+            if(ider.ge.2) eel%E3D_M2M = 0.0_rp
+
+            if (do_hh) then
                 call time_push
-                call elec_prop_M2M(eel, .true., .true., .true., .true.)
+!               write(6,*) 'calling elec_prop_M2M.'
+                call elec_prop_M2M(eel, .true., .true., .true., .true., .true.)
+!               write(6,'(15f8.4)')  eel%E3D_M2M
+!fl debug
+!               allocate (d2enum(15,eel%top%mm_atoms), hep(10,eel%top%mm_atoms), hem(10,eel%top%mm_atoms))
+!               do i = 1, eel%top%mm_atoms
+!                 write(6,'(a,15f14.8)') 'analytical:', eel%E3D_M2M(:,i)
+!                 eel%top%cmm(1,i) = eel%top%cmm(1,i) + delta
+!                 eel%EHes_M2M = 0.0_rp
+!                 call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
+!                 hep = eel%EHes_M2M
+!                 eel%top%cmm(1,i) = eel%top%cmm(1,i) - 2.0_rp * delta
+!                 eel%EHes_M2M = 0.0_rp
+!                 call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
+!                 hem = eel%EHes_M2M
+!                 eel%top%cmm(1,i) = eel%top%cmm(1,i) + delta
+!                 d2enum( 1,i) = (hep( 1,i) - hem( 1,i)) / (2.0_rp * delta)
+!                 d2enum( 2,i) = (hep( 2,i) - hem( 2,i)) / (2.0_rp * delta)
+!                 d2enum( 3,i) = (hep( 3,i) - hem( 3,i)) / (2.0_rp * delta)
+!                 d2enum( 4,i) = (hep( 4,i) - hem( 4,i)) / (2.0_rp * delta)
+!                 d2enum( 5,i) = (hep( 5,i) - hem( 5,i)) / (2.0_rp * delta)
+!                 d2enum( 6,i) = (hep( 6,i) - hem( 6,i)) / (2.0_rp * delta)
+!                 d2enum( 7,i) = (hep( 7,i) - hem( 7,i)) / (2.0_rp * delta)
+!                 d2enum( 8,i) = (hep( 8,i) - hem( 8,i)) / (2.0_rp * delta)
+!                 d2enum( 9,i) = (hep( 9,i) - hem( 9,i)) / (2.0_rp * delta)
+!                 d2enum(10,i) = (hep(10,i) - hem(10,i)) / (2.0_rp * delta)
+!                 eel%top%cmm(2,i) = eel%top%cmm(2,i) + delta
+!                 eel%EHes_M2M = 0.0_rp
+!                 call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
+!                 hep = eel%EHes_M2M
+!                 eel%top%cmm(2,i) = eel%top%cmm(2,i) - 2.0_rp * delta
+!                 eel%EHes_M2M = 0.0_rp
+!                 call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
+!                 hem = eel%EHes_M2M
+!                 eel%top%cmm(2,i) = eel%top%cmm(2,i) + delta
+!                 d2enum(11,i) = (hep( 7,i) - hem( 7,i)) / (2.0_rp * delta)
+!                 d2enum(12,i) = (hep( 8,i) - hem( 8,i)) / (2.0_rp * delta)
+!                 d2enum(13,i) = (hep( 9,i) - hem( 9,i)) / (2.0_rp * delta)
+!                 d2enum(14,i) = (hep(10,i) - hem(10,i)) / (2.0_rp * delta)
+!                 eel%top%cmm(3,i) = eel%top%cmm(3,i) + delta
+!                 eel%EHes_M2M = 0.0_rp
+!                 call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
+!                 hep = eel%EHes_M2M
+!                 eel%top%cmm(3,i) = eel%top%cmm(3,i) - 2.0_rp * delta
+!                 eel%EHes_M2M = 0.0_rp
+!                 call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
+!                 hem = eel%EHes_M2M
+!                 eel%top%cmm(3,i) = eel%top%cmm(3,i) + delta
+!                 d2enum(15,i) = (hep(10,i) - hem(10,i)) / (2.0_rp * delta)
+!                 write(6,'(a,15f14.8)') 'numerical:', d2enum(:,i)
+!                 d2enum(:,i) = d2enum(:,i) + eel%E3D_M2M(:,i)
+!                 write(6,'(a,d10.2)') 'error:', sqrt(dot_product(d2enum(:,i),d2enum(:,i)))
+!               end do
+                call time_pull('elec prop M2M')
+            else if(do_gg) then
+                call time_push
+                call elec_prop_M2M(eel, .true., .true., .true., .true., .false.)
                 call time_pull('elec prop M2M')
             else
-                call elec_prop_M2M(eel, .true., .true., .true., .false.)
+                call elec_prop_M2M(eel, .true., .true., .true., .false., .false.)
             end if
         else
             if(.not. allocated(eel%V_M2M)) then
@@ -1469,38 +1951,54 @@ module mod_electrostatics
                 call mallocate('prepare_fixedelec [E_M2M]', 3_ip, mm_atoms, eel%E_M2M)
             end if
 
+            if(do_hh .and. .not. allocated(eel%Egrd_M2M)) then
+                call mallocate('prepare_fixedelec [Egrd_M2M]', 6_ip, mm_atoms, eel%Egrd_M2M)
+            end if
+
             eel%V_M2M = 0.0_rp
             if(do_gg) eel%E_M2M = 0.0_rp
+            if(do_hh) eel%Egrd_M2M = 0.0_rp
 
-            if(do_gg) then
-                call elec_prop_M2M(eel, .true., .true., .false., .false.)
+            if(do_hh) then
+                call elec_prop_M2M(eel, .true., .true., .true., .false., .false.)
+            else if(do_gg) then
+                call elec_prop_M2M(eel, .true., .true., .false., .false., .false.)
             else
-                call elec_prop_M2M(eel, .true., .false., .false., .false.)
+                call elec_prop_M2M(eel, .true., .false., .false., .false., .false.)
             end if
         end if
         
         eel%M2M_done = .true.
         if(do_gg) eel%M2Mgg_done = .true.
+        if(do_hh) eel%M2Mhh_done = .true.
 
     end subroutine prepare_fixedelec
 
-    subroutine prepare_polelec(eel, arg_dogg)
+    subroutine prepare_polelec(eel, arg_dogg, arg_dohh)
         use mod_memory, only: mallocate
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
-        logical, optional, intent(in) :: arg_dogg
+        logical, optional, intent(in) :: arg_dogg, arg_dohh
 
-        logical :: do_gg
+        integer(ip) :: ider
+        logical :: do_gg, do_hh
 
         do_gg = .false.
         if(present(arg_dogg)) then
             if(arg_dogg) do_gg = .true.
         end if
+        do_hh = .false.
+        if(present(arg_dohh)) then
+            if(arg_dohh) do_hh = .true.
+        end if
+        ider = 0
+        if (do_gg) ider = 1
+        if (do_hh) ider = 2
         
-        if(.not. do_gg .and. eel%M2D_done) return
-        if(do_gg .and. eel%M2D_done .and. eel%M2Dgg_done) return
-        
+        if (ider.eq.0 .and. eel%M2D_done) return
+        if (ider.eq.1 .and. eel%M2D_done .and. eel%M2Dgg_done) return
+        if (ider.eq.2 .and. eel%M2D_done .and. eel%M2Dgg_done .and. eel%M2Dhh_done) return
         if(.not. allocated(eel%V_M2D) .and. eel%use_fmm) then
             ! This is needed just as a placeholder in fmm calls
             call mallocate('prepare_polelec [V_M2D]', eel%pol_atoms, &
@@ -1512,7 +2010,7 @@ module mod_electrostatics
                             eel%n_ipd, eel%E_M2D)
         end if
         
-        if(do_gg .or. eel%use_fmm) then
+        if(ider.ge.1 .or. eel%use_fmm) then
             if(.not. eel%ipd_done .and. do_gg) call fatal_error("IPD should be computed &
                 &before computing analytical geometrical gradients of &
                 &polarization energy.")
@@ -1562,10 +2060,24 @@ module mod_electrostatics
 
         end if
         
-        if(.not. do_gg) then
+        if (ider.ge.2) then
+            if(.not. allocated(eel%Egrd_M2D)) then
+                call mallocate('prepare_polelec [EHes_M2D]', 10_ip, eel%pol_atoms, &
+                                eel%n_ipd, eel%EHes_M2D)
+            end if
+            if(.not. allocated(eel%EHes_D2D)) then
+                call mallocate('prepare_polelec [EHes_D2D]', 10_ip, eel%pol_atoms, &
+                               eel%n_ipd, eel%EHes_D2D)
+            end if
+            if(.not. allocated(eel%E3D_D2M) .and. eel%amoeba) then
+                call mallocate('prepare_polelec [E3D_D2M]', 10_ip, eel%top%mm_atoms, &
+                               eel%E3D_D2M)
+            end if
+        end if
+        if(ider.eq.0) then
             eel%E_M2D = 0.0_rp
             call elec_prop_M2D(eel, .false., .true., .false., .false.)
-        else
+        elseif(ider.eq.1) then
             eel%E_M2D = 0.0_rp
             eel%Egrd_M2D = 0.0_rp
             call elec_prop_M2D(eel, .false., .true., .true., .false.)
@@ -1576,8 +2088,8 @@ module mod_electrostatics
             if(eel%amoeba) then
                 eel%Egrd_D2M = 0.0_rp
                 eel%EHes_D2M = 0.0_rp
-                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true.)
-                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true.)
+                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true., .false.)
+                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true., .false.)
         
                 eel%E_D2M = eel%E_D2M * 0.5
                 eel%Egrd_D2M = eel%Egrd_D2M * 0.5
@@ -1586,9 +2098,38 @@ module mod_electrostatics
                 call elec_prop_D2D(eel, 'P', .false., .false., .true., .false.)
                 call elec_prop_D2D(eel, 'D', .false., .false., .true., .false.)
             else
-                call elec_prop_D2M(eel, '-', .false., .true., .false., .false.)
+                call elec_prop_D2M(eel, '-', .false., .true., .false., .false., .false.)
                 call elec_prop_D2D(eel, '-', .false., .false., .true., .false.)
             end if
+        elseif(ider.eq.2) then
+            eel%E_M2D = 0.0_rp
+            eel%Egrd_M2D = 0.0_rp
+            eel%EHes_M2D = 0.0_rp
+            call elec_prop_M2D(eel, .false., .true., .true., .true.)
+
+            eel%E_D2M = 0.0_rp
+            eel%Egrd_D2D = 0.0_rp
+            eel%EHes_D2D = 0.0_rp
+            
+            if(eel%amoeba) then
+                eel%Egrd_D2M = 0.0_rp
+                eel%EHes_D2M = 0.0_rp
+                eel%E3D_D2M = 0.0_rp
+                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true., .true.)
+                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true., .true.)
+        
+                eel%E_D2M = eel%E_D2M * 0.5
+                eel%Egrd_D2M = eel%Egrd_D2M * 0.5
+                eel%EHes_D2M = eel%EHes_D2M * 0.5
+                eel%E3D_D2M = eel%E3D_D2M * 0.5
+
+                call elec_prop_D2D(eel, 'P', .false., .false., .true., .false.)
+                call elec_prop_D2D(eel, 'D', .false., .false., .true., .false.)
+            else
+                call elec_prop_D2M(eel, '-', .false., .true., .true., .false., .false.)
+                call elec_prop_D2D(eel, '-', .false., .false., .true., .false.)
+            end if
+        elseif(ider.eq.2) then
         end if
         
         if(do_gg) eel%M2Dgg_done = .true.
@@ -1675,7 +2216,7 @@ module mod_electrostatics
         end if
     end subroutine
 
-    subroutine elec_prop_M2M(eel, do_V, do_E, do_Egrd, do_EHes)
+    subroutine elec_prop_M2M(eel, do_V, do_E, do_Egrd, do_EHes, do_E3D)
         !! Computes the electric potential, field and field gradients of 
         !! static multipoles at all sites (polarizable sites are a 
         !! subset of static ones)
@@ -1683,18 +2224,22 @@ module mod_electrostatics
         
         type(ommp_electrostatics_type), intent(inout) :: eel
         !! Electrostatics data structure
-        logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
+        logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes, do_E3D
         !! Flags to enable/disable the calculation of different components
 
 
-        real(rp) :: kernel(6), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
+        real(rp) :: scalf
         integer(ip) :: i, j, idx, sidx, ikernel
         logical :: to_do, to_scale
         type(ommp_topology_type), pointer :: top
 
         top => eel%top
 
-        if(do_EHes) then
+!       write(6,*) 'in elec_prop_M2M V,E,EG,EH,E3D=', do_V, do_E, do_Egrd, do_EHes, do_E3D
+        if(do_E3D) then
+            ikernel = 4
+        elseif(do_EHes) then
             ikernel = 3 
         elseif(do_Egrd) then
             ikernel = 2
@@ -1708,6 +2253,10 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%use_fmm) then
+!fl
+!           no fmm for second derivatives yet...
+!
+            if (do_E3D) call fatal_error("fmm NYI for analytical second derivatives.")
             call preapare_fmm_static(eel)
 
             !$omp parallel do default(shared) schedule(dynamic) &
@@ -1719,10 +2268,11 @@ module mod_electrostatics
                 !                        do_Egrd, eel%Egrd_M2M(:,i), &
                 !                        do_EHes, eel%EHes_M2M(:,i))
                 
-                if(do_V) tmpV = 0.0
-                if(do_E) tmpE = 0.0
-                if(do_Egrd) tmpEgr = 0.0
-                if(do_EHes) tmpHE = 0.0
+                if(do_V) tmpV = 0.0_rp
+                if(do_E) tmpE = 0.0_rp
+                if(do_Egrd) tmpEgr = 0.0_rp
+                if(do_EHes) tmpHE = 0.0_rp
+                if(do_E3D) tmpD3E = 0.0_rp
 
                 call cart_propfar_at_ipart(eel%fmm_static, i, &
                                         do_V, tmpV, &
@@ -1734,6 +2284,7 @@ module mod_electrostatics
                 if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) + tmpE
                 if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) + tmpEgr
                 if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) + tmpHE
+                if(do_E3D) eel%E3D_M2M(:,i) = eel%E3D_M2M(:,i) + tmpD3E * scalf
             end do
 
             if(allocated(eel%list_S_S_fmm_far)) then
@@ -1751,30 +2302,35 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call q_elec_prop(eel%q(1,j), dr, kernel, &
                                             do_V, tmpV, & 
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
                         if(eel%amoeba) then
                             call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
 
                             call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
                         end if
 
                         if(do_V) eel%V_M2M(i) = eel%V_M2M(i) + tmpV * scalf
                         if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) + tmpE * scalf
                         if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) + tmpEgr * scalf
                         if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) + tmpHE * scalf
+                        if(do_E3D) eel%E3D_M2M(:,i) = eel%E3D_M2M(:,i) + tmpD3E * scalf
                     end do
                 end do
             end if
@@ -1787,6 +2343,7 @@ module mod_electrostatics
                 if(do_E) tmpE = 0.0_rp
                 if(do_Egrd) tmpEgr = 0.0_rp
                 if(do_EHes) tmpHE = 0.0_rp
+                if(do_E3D) tmpD3E = 0.0_rp
 
                 do idx=eel%fmm_near_field_list%ri(i), &
                        eel%fmm_near_field_list%ri(i+1)-1
@@ -1818,34 +2375,44 @@ module mod_electrostatics
                                             do_V, tmpV, & 
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
                         if(eel%amoeba) then
                             call mu_elec_prop(eel%q(2:4,j) * scalf, dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
 
                             call quad_elec_prop(eel%q(5:10,j) * scalf, dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
                         end if
                         
-                        end if
+                    end if
                 end do
 
                 if(do_V) eel%V_M2M(i) = eel%V_M2M(i) + tmpV
                 if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) + tmpE
                 if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) + tmpEgr
                 if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) + tmpHE
+                if(do_E3D) eel%E3D_M2M(:,i) = eel%E3D_M2M(:,i) + tmpD3E
 
             end do
         else
+!
+!       O(n^2) code:
+!
         if(eel%amoeba) then
-            !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+!fl
+!           write(6,*) 'toscale=', to_scale
+!           write(6,*) 'size of EH:', size(tmpHE), size(eel%EHes_M2M,1)
+!           !$omp parallel do default(shared) schedule(dynamic) &
+!           !$omp private(i,j,idx,to_do,to_scale,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E)
             do j=1, top%mm_atoms
                 ! loop on sources
                 do i=1, top%mm_atoms
@@ -1878,35 +2445,41 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call q_elec_prop(eel%q(1,i), dr, kernel, &
                                          do_V, tmpV, & 
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
 
                         call mu_elec_prop(eel%q(2:4,i), dr, kernel, &
                                           do_V, tmpV, & 
                                           do_E, tmpE, &
                                           do_Egrd, tmpEgr, &
-                                          do_EHes, tmpHE)
+                                          do_EHes, tmpHE, &
+                                          do_E3D, tmpD3E)
 
                         call quad_elec_prop(eel%q(5:10,i), dr, kernel, &
                                             do_V, tmpV, & 
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
 
                         if(to_scale) then
                             if(do_V) eel%V_M2M(j) = eel%V_M2M(j) + tmpV * scalf
                             if(do_E) eel%E_M2M(:,j) = eel%E_M2M(:,j) + tmpE * scalf
                             if(do_Egrd) eel%Egrd_M2M(:,j) = eel%Egrd_M2M(:,j) + tmpEgr * scalf
                             if(do_EHes) eel%EHes_M2M(:,j) = eel%EHes_M2M(:,j) + tmpHE * scalf
+                            if(do_E3D) eel%E3D_M2M(:,j) = eel%E3D_M2M(:,j) + tmpD3E * scalf
                         else
                             if(do_V) eel%V_M2M(j) = eel%V_M2M(j) + tmpV
                             if(do_E) eel%E_M2M(:,j) = eel%E_M2M(:,j) + tmpE
                             if(do_Egrd) eel%Egrd_M2M(:,j) = eel%Egrd_M2M(:,j) + tmpEgr
                             if(do_EHes) eel%EHes_M2M(:,j) = eel%EHes_M2M(:,j) + tmpHE
+                            if(do_E3D) eel%E3D_M2M(:,j) = eel%E3D_M2M(:,j) + tmpD3E
                         end if
                     end if
                 end do
@@ -1950,7 +2523,8 @@ module mod_electrostatics
                                          do_V, tmpV, & 
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
 
                         if(to_scale) then
                             if(do_V) eel%V_M2M(j) = eel%V_M2M(j) + tmpV * scalf
@@ -1986,7 +2560,8 @@ module mod_electrostatics
 
         integer(ip) :: i, j, ipol, jpol, ij, idx
         logical :: to_scale, to_do
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
+        real(rp) :: scalf
         type(fmm_type), allocatable :: fmm_ipd
 
         if(eel%use_fmm) then
@@ -2046,7 +2621,7 @@ module mod_electrostatics
 
                         call mu_elec_prop(ext_ipd(:,jpol), dr, kernel, .false., tmpV, &
                                         .true., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, .false., tmpD3E)
                         if(to_scale) then
                             E(:, ipol) = E(:, ipol) + tmpE * scalf
                         else
@@ -2073,7 +2648,7 @@ module mod_electrostatics
                         tmpE = 0.0_rp
                         call mu_elec_prop(ext_ipd(:,jpol), dr, kernel, .false., tmpV, &
                                         .true., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, .false., tmpD3E)
                         
                         E(:, ipol) = E(:, ipol) - tmpE * scalf
                     end do
@@ -2117,7 +2692,7 @@ module mod_electrostatics
 
                     call mu_elec_prop(ext_ipd(:,i), dr, kernel, .false., tmpV, &
                                       .true., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE)
+                                      .false., tmpHE, .false., tmpD3E)
                     if(to_scale) then
                         E(:, j) = E(:, j) + tmpE * scalf
                     else
@@ -2142,8 +2717,9 @@ module mod_electrostatics
         character, intent(in) :: in_kind
 
         integer(ip) :: i, j, jpol, ipol, ij, idx, ikernel, knd
-        logical :: to_scale, to_do
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), scalf
+        logical :: to_scale, to_do, do_E3D
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
+        real(rp) :: scalf
 
         knd = 1 ! Default
         if(in_kind == 'P') then
@@ -2169,16 +2745,20 @@ module mod_electrostatics
             return
         end if
 
+        do_E3D = .false.
+
         if(eel%use_fmm) then
             call prepare_fmm_ipd(eel, knd)
+            if (do_E3D) call fatal_error("FMM for analytical second derivatives NYI.")
 
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do ipol=1, eel%pol_atoms 
-                if(do_V) tmpV = 0.0
-                if(do_E) tmpE = 0.0
-                if(do_Egrd) tmpEgr = 0.0
-                if(do_EHes) tmpHE = 0.0
+                if(do_V) tmpV = 0.0_rp
+                if(do_E) tmpE = 0.0_rp
+                if(do_Egrd) tmpEgr = 0.0_rp
+                if(do_EHes) tmpHE = 0.0_rp
+                if(do_E3D) tmpD3E = 0.0_rp
                 
                 i = eel%polar_mm(ipol)
                
@@ -2233,12 +2813,14 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call mu_elec_prop(eel%ipd(:,jpol,knd), dr, kernel, &
                                         do_V, tmpV, &
                                         do_E, tmpE, &
                                         do_Egrd, tmpEgr, & 
-                                        do_EHes, tmpHE)
+                                        do_EHes, tmpHE, &
+                                        do_E3D, tmpD3E)
                         if(to_scale) then
                             if(do_V) eel%V_D2D(ipol,knd) = eel%V_D2D(ipol,knd) + tmpV * scalf
                             if(do_E) eel%E_D2D(:, ipol,knd) = eel%E_D2D(:, ipol,knd) + tmpE * scalf
@@ -2272,12 +2854,14 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call mu_elec_prop(eel%ipd(:,jpol,knd), dr, kernel, &
                                         do_V, tmpV, &
                                         do_E, tmpE, &
                                         do_Egrd, tmpEgr, & 
-                                        do_EHes, tmpHE)
+                                        do_EHes, tmpHE, &
+                                        do_E3D, tmpD3E)
 
                         if(do_V) eel%V_D2D(ipol,knd) = eel%V_D2D(ipol,knd) + tmpV * scalf
                         if(do_E) eel%E_D2D(:, ipol,knd) = eel%E_D2D(:, ipol,knd) + tmpE * scalf
@@ -2320,12 +2904,14 @@ module mod_electrostatics
                     if(do_E) tmpE = 0.0_rp
                     if(do_Egrd) tmpEgr = 0.0_rp
                     if(do_EHes) tmpHE = 0.0_rp
+                    if(do_E3D) tmpD3E = 0.0_rp
 
                     call mu_elec_prop(eel%ipd(:,i,knd), dr, kernel, &
                                       do_V, tmpV, &
                                       do_E, tmpE, &
                                       do_Egrd, tmpEgr, & 
-                                      do_EHes, tmpHE)
+                                      do_EHes, tmpHE, &
+                                      do_E3D, tmpD3E)
                     if(to_scale) then
                         if(do_V) eel%V_D2D(j,knd) = eel%V_D2D(j,knd) + tmpV * scalf
                         if(do_E) eel%E_D2D(:, j,knd) = eel%E_D2D(:, j,knd) + tmpE * scalf
@@ -2358,16 +2944,20 @@ module mod_electrostatics
 
         integer(ip) :: i, ipol, j, jnode, ij, idx, ikernel
         logical :: to_do_p, to_scale_p, to_do_d, to_scale_d, to_do, to_scale, &
-                   amoeba
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
+                   amoeba, do_E3D
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15), &
                     scalf_p, scalf_d, scalf
         type(ommp_topology_type), pointer :: top
       
         ! Shortcuts
         top => eel%top
         amoeba = eel%amoeba
+!
+        do_E3D = .false.
 
-        if(do_EHes) then
+        if(do_E3D) then
+            ikernel = 4
+        elseif(do_EHes) then
             ikernel = 3 
         elseif(do_Egrd) then
             ikernel = 2
@@ -2381,15 +2971,17 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2_ip
         
         if(eel%use_fmm) then
+            if(do_E3D) call fatal_error("FMM and analytical second derivatives NYI.")
             call preapare_fmm_static(eel)
 
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
             do ipol=1, eel%pol_atoms 
-                if(do_V) tmpV = 0.0
-                if(do_E) tmpE = 0.0
-                if(do_Egrd) tmpEgr = 0.0
-                if(do_EHes) tmpHE = 0.0
+                if(do_V) tmpV = 0.0_rp
+                if(do_E) tmpE = 0.0_rp
+                if(do_Egrd) tmpEgr = 0.0_rp
+                if(do_EHes) tmpHE = 0.0_rp
+                if(do_E3D) tmpD3E = 0.0_rp
                 
                 i = eel%polar_mm(ipol)
                 call cart_propfar_at_ipart(eel%fmm_static, i, &
@@ -2471,19 +3063,22 @@ module mod_electrostatics
                                             do_V, tmpV, & 
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
                         if(eel%amoeba) then
                             call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
 
                             call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
                         end if
 
                         if(eel%amoeba) then
@@ -2520,7 +3115,7 @@ module mod_electrostatics
                                 if(do_V) eel%V_M2D(ipol, 1) = eel%V_M2D(ipol, 1) + tmpV 
                                 if(do_E) eel%E_M2D(:, ipol, 1) = eel%E_M2D(:, ipol, 1) + tmpE
                                 if(do_Egrd) eel%Egrd_M2D(:, ipol, 1) = eel%Egrd_M2D(:, ipol, 1) + tmpEgr
-                                if(do_EHes) eel%EHes_M2D(:, ipol, 1) = eel%EHes_M2D(:, ipol, 1) + tmpHE
+                                if(do_EHes) eel%EHes_M2D(:, ipol, 1) = eel%EHes_M2D(:, ipol, 1) + tmpHE 
                             end if
                         end if
 
@@ -2546,24 +3141,28 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call q_elec_prop(eel%q(1,j), dr, kernel, &
                                             do_V, tmpV, & 
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
                         if(eel%amoeba) then
                             call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
 
                             call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
                         end if
 
                         if(do_V) eel%V_M2D(ipol, _amoeba_P_) = eel%V_M2D(ipol, _amoeba_P_) - tmpV * scalf_p 
@@ -2597,19 +3196,22 @@ module mod_electrostatics
                                             do_V, tmpV, & 
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, &
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
                         if(eel%amoeba) then
                             call mu_elec_prop(eel%q(2:4,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
 
                             call quad_elec_prop(eel%q(5:10,j), dr, kernel, &
                                                 do_V, tmpV, & 
                                                 do_E, tmpE, &
                                                 do_Egrd, tmpEgr, &
-                                                do_EHes, tmpHE)
+                                                do_EHes, tmpHE, &
+                                                do_E3D, tmpD3E)
                         end if
 
                         if(do_V) eel%V_M2D(ipol, _amoeba_D_) = eel%V_M2D(ipol, _amoeba_D_) - tmpV * scalf_d
@@ -2672,22 +3274,26 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call q_elec_prop(eel%q(1,i), dr, kernel, &
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, & 
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
                         call mu_elec_prop(eel%q(2:4,i), dr, kernel, &
                                           do_V, tmpV, &
                                           do_E, tmpE, &
                                           do_Egrd, tmpEgr, & 
-                                          do_EHes, tmpHE)
+                                          do_EHes, tmpHE, &
+                                          do_E3D, tmpD3E)
                         call quad_elec_prop(eel%q(5:10,i), dr, kernel, &
                                             do_V, tmpV, &
                                             do_E, tmpE, &
                                             do_Egrd, tmpEgr, & 
-                                            do_EHes, tmpHE)
+                                            do_EHes, tmpHE, &
+                                            do_E3D, tmpD3E)
 
                         if(to_do_p) then
                             if(to_scale_p) then
@@ -2753,12 +3359,14 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
                         
                         call q_elec_prop(eel%q(1,i), dr, kernel, & 
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
                         if(to_scale) then
                             if(do_V) eel%V_M2D(j, 1) = eel%V_M2D(j, 1) + tmpV * scalf
                             if(do_E) eel%E_M2D(:, j, 1) = eel%E_M2D(:, j, 1) + tmpE * scalf
@@ -2777,7 +3385,7 @@ module mod_electrostatics
         end if
     end subroutine
     
-    subroutine elec_prop_D2M(eel, in_kind, do_V, do_E, do_Egrd, do_EHes)
+    subroutine elec_prop_D2M(eel, in_kind, do_V, do_E, do_Egrd, do_EHes, do_E3D)
 
         implicit none
 
@@ -2785,12 +3393,12 @@ module mod_electrostatics
         !! Electrostatics data structure
         character, intent(in) :: in_kind
 
-        logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes
+        logical, intent(in) :: do_V, do_E, do_Egrd, do_EHes, do_E3D
         !! Flag to control which properties have to be computed.
 
         integer(ip) :: i, j, ij, ipol, jpol, idx, ikernel, knd
         logical :: to_do, to_scale, amoeba
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), &
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15), &
                     scalf
         type(ommp_topology_type), pointer :: top
         character :: screening_type
@@ -2815,7 +3423,9 @@ module mod_electrostatics
             call fatal_error("Unexpected error in elec_prop_D2M.")
         end if
 
-        if(do_EHes) then
+        if(do_E3D) then
+            ikernel = 5
+        elseif(do_EHes) then
             ikernel = 4 
         elseif(do_Egrd) then
             ikernel = 3
@@ -2829,15 +3439,18 @@ module mod_electrostatics
         
         if(eel%use_fmm) then
             
+!fl
+            if(do_E3D) call fatal_error("FMM and analytical second derivatives NYI.")
             call prepare_fmm_ipd(eel, knd)
 
             !$omp parallel do default(shared) schedule(dynamic) &
             !$omp private(i,j,ij,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
             do i=1, top%mm_atoms
-                if(do_V) tmpV = 0.0
-                if(do_E) tmpE = 0.0
-                if(do_Egrd) tmpEgr = 0.0
-                if(do_EHes) tmpHE = 0.0
+                if(do_V) tmpV = 0.0_rp
+                if(do_E) tmpE = 0.0_rp
+                if(do_Egrd) tmpEgr = 0.0_rp
+                if(do_EHes) tmpHE = 0.0_rp
+                if(do_E3D) tmpD3E = 0.0_rp
                
                 call cart_propfar_at_ipart(eel%fmm_ipd(knd), i, &
                 !                           do_V, eel%V_D2M(i), &
@@ -2907,22 +3520,26 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
                         
                         call mu_elec_prop(eel%ipd(:,jpol, knd), dr, kernel, & 
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
                         if(to_scale) then
                             if(do_V) eel%V_D2M(i) = eel%V_D2M(i) + tmpV * scalf
                             if(do_E) eel%E_D2M(:, i) = eel%E_D2M(:, i) + tmpE * scalf
                             if(do_Egrd) eel%Egrd_D2M(:, i) = eel%Egrd_D2M(:, i) + tmpEgr * scalf
                             if(do_EHes) eel%EHes_D2M(:, i) = eel%EHes_D2M(:, i) + tmpHE * scalf
+                            if(do_E3D) eel%E3D_D2M(:, i) = eel%E3D_D2M(:, i) + tmpD3E * scalf
                         else
                             if(do_V) eel%V_D2M(i) = eel%V_D2M(i) + tmpV
                             if(do_E) eel%E_D2M(:, i) = eel%E_D2M(:, i) + tmpE
                             if(do_Egrd) eel%Egrd_D2M(:, i) = eel%Egrd_D2M(:, i) + tmpEgr
                             if(do_EHes) eel%EHes_D2M(:, i) = eel%EHes_D2M(:, i) + tmpHE
+                            if(do_E3D) eel%E3D_D2M(:, i) = eel%E3D_D2M(:, i) + tmpD3E
                         end if 
                     end if
                 end do
@@ -2944,17 +3561,20 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpD3E = 0.0_rp
 
                         call mu_elec_prop(eel%ipd(:,jpol,knd), dr, kernel, &
                                         do_V, tmpV, &
                                         do_E, tmpE, &
                                         do_Egrd, tmpEgr, & 
-                                        do_EHes, tmpHE)
+                                        do_EHes, tmpHE, &
+                                        do_E3D, tmpD3E)
 
                         if(do_V) eel%V_D2M(i) = eel%V_D2M(i) - tmpV * scalf
                         if(do_E) eel%E_D2M(:, i) = eel%E_D2M(:, i) - tmpE * scalf
                         if(do_Egrd) eel%Egrd_D2M(:, i) = eel%Egrd_D2M(:, i) - tmpEgr * scalf
                         if(do_EHes) eel%EHes_D2M(:, i) = eel%EHes_D2M(:, i) - tmpHE * scalf
+                        if(do_E3D) eel%E3D_D2M(:, i) = eel%E3D_D2M(:, i) - tmpD3E * scalf
                     end do
                 end do
             else if(screening_type == 'D'.and. allocated(eel%scalef_S_P_D_fmm_far)) then
@@ -2972,17 +3592,20 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
+                        if(do_E3D) tmpHE = 0.0_rp
 
                         call mu_elec_prop(eel%ipd(:,jpol,knd), dr, kernel, &
                                         do_V, tmpV, &
                                         do_E, tmpE, &
                                         do_Egrd, tmpEgr, & 
-                                        do_EHes, tmpHE)
+                                        do_EHes, tmpHE, &
+                                        do_E3D, tmpD3E)
 
                         if(do_V) eel%V_D2M(i) = eel%V_D2M(i) - tmpV * scalf
                         if(do_E) eel%E_D2M(:, i) = eel%E_D2M(:, i) - tmpE * scalf
                         if(do_Egrd) eel%Egrd_D2M(:, i) = eel%Egrd_D2M(:, i) - tmpEgr * scalf
                         if(do_EHes) eel%EHes_D2M(:, i) = eel%EHes_D2M(:, i) - tmpHE * scalf
+                        if(do_E3D) eel%E3D_D2M(:, i) = eel%E3D_D2M(:, i) - tmpD3E * scalf
                     end do
                 end do
             end if
@@ -3047,17 +3670,20 @@ module mod_electrostatics
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
                         if(to_scale) then
                             if(do_V) eel%V_D2M(j) = eel%V_D2M(j) + tmpV * scalf
                             if(do_E) eel%E_D2M(:, j) = eel%E_D2M(:, j) + tmpE * scalf
                             if(do_Egrd) eel%Egrd_D2M(:, j) = eel%Egrd_D2M(:, j) + tmpEgr * scalf
                             if(do_EHes) eel%EHes_D2M(:, j) = eel%EHes_D2M(:, j) + tmpHE * scalf
+                            if(do_E3D) eel%E3D_D2M(:, j) = eel%E3D_D2M(:, j) + tmpD3E * scalf
                         else
                             if(do_V) eel%V_D2M(j) = eel%V_D2M(j) + tmpV
                             if(do_E) eel%E_D2M(:, j) = eel%E_D2M(:, j) + tmpE
                             if(do_Egrd) eel%Egrd_D2M(:, j) = eel%Egrd_D2M(:, j) + tmpEgr
                             if(do_EHes) eel%EHes_D2M(:, j) = eel%EHes_D2M(:, j) + tmpHE
+                            if(do_E3D) eel%E3D_D2M(:, j) = eel%E3D_D2M(:, j) + tmpD3E
                         end if 
                     end if
                 end do
@@ -3101,17 +3727,20 @@ module mod_electrostatics
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
-                                         do_EHes, tmpHE)
+                                         do_EHes, tmpHE, &
+                                         do_E3D, tmpD3E)
                         if(to_scale) then
                             if(do_V) eel%V_D2M(j) = eel%V_D2M(j) + tmpV * scalf
                             if(do_E) eel%E_D2M(:, j) = eel%E_D2M(:, j) + tmpE * scalf
                             if(do_Egrd) eel%Egrd_D2M(:, j) = eel%Egrd_D2M(:, j) + tmpEgr * scalf
                             if(do_EHes) eel%EHes_D2M(:, j) = eel%EHes_D2M(:, j) + tmpHE * scalf
+                            if(do_E3D) eel%E3D_D2M(:, j) = eel%E3D_D2M(:, j) + tmpD3E * scalf
                         else
                             if(do_V) eel%V_D2M(j) = eel%V_D2M(j) + tmpV
                             if(do_E) eel%E_D2M(:, j) = eel%E_D2M(:, j) + tmpE
                             if(do_Egrd) eel%Egrd_D2M(:, j) = eel%Egrd_D2M(:, j) + tmpEgr
                             if(do_EHes) eel%EHes_D2M(:, j) = eel%EHes_D2M(:, j) + tmpHE
+                            if(do_E3D) eel%E3D_D2M(:, j) = eel%E3D_D2M(:, j) + tmpD3E
                         end if 
                     end if
                 end do
@@ -3139,7 +3768,7 @@ module mod_electrostatics
 
         integer(ip) :: i, j, n_cpt
         logical :: amoeba_P_insted_of_D
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
 
         if(eel%pol_atoms < 1) return
 
@@ -3166,7 +3795,7 @@ module mod_electrostatics
                         call mu_elec_prop(eel%ipd(:,i,_amoeba_D_), &
                                         dr, kernel, .true., tmpV, &
                                         .false., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, .false., tmpD3E)
 
                         V(j) = V(j) + tmpV
                     end do
@@ -3183,7 +3812,7 @@ module mod_electrostatics
                         call mu_elec_prop(eel%ipd(:,i,_amoeba_P_), &
                                         dr, kernel, .true., tmpV, &
                                         .false., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, .false., tmpD3E)
 
                         V(j) = V(j) + tmpV
                     end do
@@ -3202,7 +3831,7 @@ module mod_electrostatics
                     call mu_elec_prop(eel%ipd(:,i,1), &
                                       dr, kernel, .true., tmpV, &
                                       .false., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE)
+                                      .false., tmpHE, .false., tmpD3E)
                     
                     V(j) = V(j) + tmpV
                 end do
@@ -3225,7 +3854,7 @@ module mod_electrostatics
         !! Coordinates at which the electric field is requested
 
         integer(ip) :: i, j, n_cpt
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
 
         n_cpt = size(cpt, 2)
 
@@ -3240,13 +3869,13 @@ module mod_electrostatics
                     
                     call q_elec_prop(eel%q(1,i), dr, kernel, .true., tmpV, &
                                      .false., tmpE, .false., tmpEgr, & 
-                                     .false., tmpHE)
+                                     .false., tmpHE, .false., tmpD3E)
                     call mu_elec_prop(eel%q(2:4,i), dr, kernel, .true., tmpV, &
                                       .false., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE)
+                                      .false., tmpHE, .false., tmpD3E)
                     call quad_elec_prop(eel%q(5:10,i), dr, kernel, .true., tmpV, &
                                         .false., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, .false., tmpD3E)
 
                     V(j) = V(j) + tmpV
                 end do
@@ -3263,7 +3892,7 @@ module mod_electrostatics
                     
                     call q_elec_prop(eel%q(1,i), dr, kernel, .true., tmpV, &
                                      .false., tmpE, .false., tmpEgr, & 
-                                     .false., tmpHE)
+                                     .false., tmpHE, .false., tmpD3E)
                     
                     V(j) = V(j) + tmpV
                 end do
@@ -3286,7 +3915,7 @@ module mod_electrostatics
         !! Coordinates at which the electric field is requested
 
         integer(ip) :: i, j, n_cpt
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
 
         if(eel%pol_atoms < 1) return
 
@@ -3305,7 +3934,7 @@ module mod_electrostatics
                     !TODO
                     call mu_elec_prop(0.5*(eel%ipd(:,i, _amoeba_P_) + eel%ipd(:,i, _amoeba_D_)), dr, kernel, .false., tmpV, &
                                       .true., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE)
+                                      .false., tmpHE, .false., tmpD3E)
 
                     E(:,j) = E(:,j) + tmpE 
                 end do
@@ -3322,7 +3951,7 @@ module mod_electrostatics
                     
                     call mu_elec_prop(eel%ipd(:,i,1), dr, kernel, .false., tmpV, &
                                      .true., tmpE, .false., tmpEgr, & 
-                                     .false., tmpHE)
+                                     .false., tmpHE, .false., tmpD3E)
                     
                     E(:,j) = E(:,j) + tmpE
                 end do
@@ -3345,7 +3974,7 @@ module mod_electrostatics
         !! Coordinates at which the electric field is requested
 
         integer(ip) :: i, j, n_cpt
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
 
         n_cpt = size(cpt, 2)
 
@@ -3360,13 +3989,13 @@ module mod_electrostatics
                     
                     call q_elec_prop(eel%q(1,i), dr, kernel, .false., tmpV, &
                                      .true., tmpE, .false., tmpEgr, & 
-                                     .false., tmpHE)
+                                     .false., tmpHE, .false., tmpD3E)
                     call mu_elec_prop(eel%q(2:4,i), dr, kernel, .false., tmpV, &
                                       .true., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE)
+                                      .false., tmpHE, .false., tmpD3E)
                     call quad_elec_prop(eel%q(5:10,i), dr, kernel, .false., tmpV, &
                                         .true., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, .false., tmpD3E)
 
                     E(:,j) = E(:,j) + tmpE
                 end do
@@ -3383,7 +4012,7 @@ module mod_electrostatics
                     
                     call q_elec_prop(eel%q(1,i), dr, kernel, .false., tmpV, &
                                      .true., tmpE, .false., tmpEgr, & 
-                                     .false., tmpHE)
+                                     .false., tmpHE, .false., tmpD3E)
                     
                     E(:,j) = E(:,j) + tmpE
                 end do

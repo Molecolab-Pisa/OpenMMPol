@@ -369,7 +369,7 @@ module mod_qm_helper
             type(ommp_qm_helper), intent(inout) :: qm
             
             real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), &
-                        tmpHE(10)
+                        tmpHE(10), tmpD3E(15)
             integer(ip) :: i, j
            
             if(.not. qm%E_n2p_done) then
@@ -389,7 +389,8 @@ module mod_qm_helper
                                         .false., tmpV, &
                                         .true., tmpE, &
                                         .false., tmpEgr, & 
-                                        .false., tmpHE)
+                                        .false., tmpHE, &
+                                        .false., tmpD3E)
                         
                         qm%E_n2p(:,j) = qm%E_n2p(:,j) + tmpE
                     end do
@@ -449,7 +450,7 @@ module mod_qm_helper
             type(ommp_qm_helper), intent(inout) :: qm
             
             real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), &
-                        tmpHE(10)
+                        tmpHE(10), tmpD3E(15)
             integer(ip) :: i, j
            
             if(.not. allocated(qm%G_n2p)) then
@@ -485,7 +486,8 @@ module mod_qm_helper
                                      .false., tmpV, &
                                      .true., tmpE, &
                                      .true., tmpEgr, & 
-                                     .true., tmpHE)
+                                     .true., tmpHE, &
+                                     .false., tmpD3E)
                     
                     qm%E_n2m(:,j) = qm%E_n2m(:,j) + tmpE
                     qm%G_n2m(:,j) = qm%G_n2m(:,j) + tmpEgr

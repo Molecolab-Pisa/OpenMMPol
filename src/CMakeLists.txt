@@ -16,6 +16,7 @@ list(
   "${dir}/mod_constants.F90"
   "${dir}/mod_electrostatics.F90"
   "${dir}/mod_geomgrad.F90"
+  "${dir}/mod_geomhess.F90"
   "${dir}/mod_inputloader.F90"
   "${dir}/mod_interface.F90"
   "${dir}/mod_io.F90"
