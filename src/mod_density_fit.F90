@@ -1303,15 +1303,15 @@ contains
 
         call compute_nabla_matrices(df)
 
-        call df_rotation_geomgrad(df, eel, mmg)
-
-
         if(doqm) then
             qmg= 0.0_rp
         end if
         if(domm) then
             mmg = 0.0_rp
         end if
+
+        call df_rotation_geomgrad(df, eel, mmg)
+
         n_mm = eel%top%mm_atoms
         n_q = df%n_charges
         n_fit = df%n_pts
