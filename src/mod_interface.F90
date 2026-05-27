@@ -1687,33 +1687,6 @@ module ommp_interface
         ene = s%df%E_pol_ene
     end subroutine ommp_df_get_e_field_pol_ene
 
-    subroutine ommp_df_compute_lambda(s)
-        !! Compute and store the Lagrange multiplier vector: lambda = Xinv^T @ V_m2q.
-        !! Triggers lazy computation of Xinv and V_m2q if not yet available.
-
-        use mod_density_fit, only: df_compute_lambda, df_electrostatic_static
-
-        implicit none
-
-        type(ommp_system), intent(inout) :: s
-
-        if(.not. s%use_density_fit) then
-            call ommp_fatal("ommp_df_compute_lambda: density fitting not enabled.")
-        end if
-        if(.not. allocated(s%df)) then
-            call ommp_fatal("ommp_df_compute_lambda: density fit object not allocated.")
-        end if
-        if(.not. s%df%initialized) then
-            call ommp_fatal("ommp_df_compute_lambda: density fit not initialized.")
-        end if
-
-        !! Ensure V_m2q is populated (needed for lambda computation)
-        call df_electrostatic_static(s%df, s%eel)
-
-        !! Compute lambda = Xinv^T @ V_m2q
-        call df_compute_lambda(s%df)
-    end subroutine ommp_df_compute_lambda
-
     subroutine ommp_set_vdw_cutoff(s, cutoff)
         use mod_nonbonded, only: vdw_set_cutoff
         use mod_constants, only: OMMP_DEFAULT_NL_SUB
@@ -1798,7 +1771,7 @@ module ommp_interface
                      charge_top_type, fit_top_type)
     end subroutine ommp_init_density_fit
 
-    subroutine ommp_df_geomgrad(s, qmg, mmg, doqm, domm)
+    subroutine ommp_df_geomgrad(s, qmg, mmg, doqm, domm, ef)
         !! Compute the gradient (force) contribution from density fitting
         !! with respect to nuclear coordinates.
         !!
@@ -1808,10 +1781,11 @@ module ommp_interface
         !! The doqm / domm flags control which sub-blocks are updated,
         !! allowing the caller to compose this gradient with other
         !! contributors (e.g. QM forces) without double-counting.
+        !!
+        !! ef(3, n_pts) : electric field at fitting points (input)
 
         use mod_io, only: fatal_error
-        use mod_density_fit, only: df_electrostatics_for_geomgrad, df_geomgrad, &
-                                   compute_nabla_matrices
+        use mod_density_fit, only: df_geomgrad
 
         implicit none
 
@@ -1820,6 +1794,7 @@ module ommp_interface
         real(ommp_real), intent(inout) :: mmg(:,:)   ! (3, n_mm_atoms)
         logical, intent(in), optional :: doqm
         logical, intent(in), optional :: domm
+        real(ommp_real), intent(in) :: ef(3,s%df%n_pts)
 
         logical :: do_qm, do_mm
 
@@ -1846,11 +1821,8 @@ module ommp_interface
         end if
 
         !! Compute all gradient-related quantities
-        call compute_nabla_matrices(s%df)
-        call df_electrostatics_for_geomgrad(s%df, s%eel)
+        call df_geomgrad(s%df, s%eel, qmg, mmg, do_qm, do_mm, ef)
 
-        call df_geomgrad(s%df, qmg, mmg, do_qm, do_mm)
-        if(s%eel%amoeba) call rotation_geomgrad(s%eel, s%df%E_q2m, s%df%GEF_q2M, mmg)
     end subroutine ommp_df_geomgrad
 
 end module ommp_interface

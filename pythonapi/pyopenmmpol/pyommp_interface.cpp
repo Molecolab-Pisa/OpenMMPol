@@ -387,10 +387,6 @@ class OMMPSystem{
             return ommp_get_df_e_field_pol_ene(handler);
         }
 
-        void df_compute_lambda(){
-            ommp_compute_df_lambda(handler);
-        }
-
         py_cdarray get_df_E_q2p(){
             double *mem = ommp_get_df_E_q2p(handler);
             py::buffer_info bufinfo(mem, sizeof(double),
@@ -401,7 +397,12 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        std::map<std::string, py_cdarray> df_geomgrad(){
+        std::map<std::string, py_cdarray> df_geomgrad(py_cdarray ef){
+            if(ef.ndim() != 2 ||
+               ef.shape(1) != 3 ||
+               ef.shape(0) != get_df_n_pts()){
+                throw py::value_error("ef should be shaped [n_pts, 3]");
+            }
             int32_t n_qm = get_df_n_qm_atoms();
             int32_t n_mm = get_mm_atoms();
 
@@ -410,7 +411,7 @@ class OMMPSystem{
             for(int i = 0; i < n_qm * 3; i++) qmg[i] = 0.0;
             for(int i = 0; i < n_mm * 3; i++) mmg[i] = 0.0;
 
-            ommp_df_geomgrad(handler, qmg, mmg);
+            ommp_df_geomgrad(handler, qmg, mmg, ef.data());
 
             py::buffer_info bufinfo_qm(qmg, sizeof(double),
                                         py::format_descriptor<double>::format(),
@@ -428,17 +429,6 @@ class OMMPSystem{
             };
 
             return res;
-        }
-
-        py_cdarray df_get_lambda(){
-            int32_t n_pts = get_df_n_pts();
-            double *mem = ommp_get_df_lambda(handler);
-            py::buffer_info bufinfo(mem, sizeof(double),
-                                    py::format_descriptor<double>::format(),
-                                    1,
-                                    {n_pts},
-                                    {sizeof(double)});
-            return py_cdarray(bufinfo);
         }
 
         py_cdarray df_get_dX_dr(){
@@ -1826,15 +1816,12 @@ PYBIND11_MODULE(__pyopenmmpol, m){
              "Compute induced dipoles from fitted charges electric field.")
         .def_property_readonly("df_e_field_pol_ene", &OMMPSystem::get_df_e_field_pol_ene,
              "Polarization energy from fitted-charge electric field (E = -0.5 * ipd .dot. E_q2p)")
-        .def("df_compute_lambda", &OMMPSystem::df_compute_lambda,
-             "Compute and store the Lagrange multiplier vector: lambda = Xinv^T @ V_m2q.")
         .def_property_readonly("df_E_q2p", &OMMPSystem::get_df_E_q2p,
              "Electric field from fitted charges at polarizable sites (3 x n_pol, read-only)")
         .def("df_geomgrad", &OMMPSystem::df_geomgrad,
-             "Compute the gradient (force) contribution from density fitting.\n"
+             "Compute the gradient (force) contribution from density fitting.\n", 
+             py::arg("electric_field"),
              "Returns a dict with keys 'qm' [n_qm_atoms, 3] and 'mm' [n_mm_atoms, 3].")
-        .def_property_readonly("df_lambda", &OMMPSystem::df_get_lambda,
-             "Lagrange multiplier vector lambda = Xinv^T @ V_m2q (n_pts,).")
         .def_property_readonly("df_dX_dr", &OMMPSystem::df_get_dX_dr,
              "dX_dr matrix [n_charges, 3, n_pts].")
         .def_property_readonly("df_nabla_g_mm", &OMMPSystem::df_get_nabla_g_mm,

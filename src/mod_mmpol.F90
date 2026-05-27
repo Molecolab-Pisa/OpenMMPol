@@ -12,7 +12,7 @@ module mod_mmpol
     use mod_nonbonded, only: ommp_nonbonded_type
     use mod_bonded, only: ommp_bonded_type
     use mod_link_atom, only: ommp_link_atom_type
-    use mod_density_fit, only: ommp_density_fit_type, df_terminate
+    use mod_density_fit, only: ommp_density_fit_type, df_terminate, df_update
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -374,6 +374,12 @@ module mod_mmpol
 
         ! 1. Copy coordinates
         top%cmm = new_c
+
+        ! 1.5 Update density fitting (detects MM or QM coordinate changes
+        !!     via snapshot comparison, regenerates grids only if needed)
+        if(sys_obj%use_density_fit) then
+            call df_update(sys_obj%df)
+        end if
 
         ! 2. Update electrostatics module
         ! 2.1 Coordinates

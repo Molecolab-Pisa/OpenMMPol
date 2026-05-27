@@ -168,12 +168,10 @@ extern "C"
     extern double *ommp_get_df_VXI_p(OMMP_SYSTEM_PRT);
     extern double ommp_get_df_e_field_pol_ene(OMMP_SYSTEM_PRT);
     extern double *ommp_get_df_E_q2p(OMMP_SYSTEM_PRT);
-    extern void ommp_df_compute_induced_dipoles(OMMP_SYSTEM_PRT, int, int, int,                                                                                                                                    
-                                                int, OMMP_QM_HELPER_PRT); 
+    extern void ommp_df_compute_induced_dipoles(OMMP_SYSTEM_PRT, int, int, int,                                                                                                                                                    
+                                                int, OMMP_QM_HELPER_PRT);
 
-    extern void ommp_df_geomgrad(OMMP_SYSTEM_PRT, double *, double *);
-    extern double *ommp_get_df_lambda(OMMP_SYSTEM_PRT);
-    extern void ommp_compute_df_lambda(OMMP_SYSTEM_PRT);
+    extern void ommp_df_geomgrad(OMMP_SYSTEM_PRT, double *, double *, const double *);
     extern double *ommp_get_df_dX_dr(OMMP_SYSTEM_PRT);
     extern double *ommp_get_df_nabla_g_mm(OMMP_SYSTEM_PRT, bool *, bool *);
     extern double *ommp_get_df_nabla_g_qm(OMMP_SYSTEM_PRT, bool *, bool *);
