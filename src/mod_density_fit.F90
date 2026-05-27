@@ -1290,6 +1290,8 @@ contains
 
         integer(ip) :: a, b, i, j, k, l, s, n_mm, n_q, n_fit
         real(rp) :: tmp
+        real(rp), allocatable :: XtX_inv(:,:)
+        real(rp), allocatable :: resids(:)
 
         if(.not. df%initialized) then
             call fatal_error("df_geomgrad: density fit object not initialized.")
@@ -1314,6 +1316,10 @@ contains
         n_q = df%n_charges
         n_fit = df%n_pts
 
+        !! Allocate local intermediate quantities
+        call mallocate('[df_geomgrad] AtA_inv', n_q, n_q, XtX_inv)
+        call mallocate('[df_geomgrad] resids', n_fit, resids)
+
         if(.not. (df%nabla_g_mm_is_identity .and. &
                   df%nabla_g_qm_is_null .and. &
                   df%nabla_q_qm_is_identity .and. &
@@ -1331,41 +1337,46 @@ contains
             end do
         end do
 
-        ! 2nd term Vmm(rq) dA+/drmm Vqm(rfit)                                                                                                                                                                                        
-                                                           
-        !mmg = 0.0
-        do l=1, n_mm
-            do a=1, 3
-                do i=1, n_q
-                    do j=1, n_fit
-                        do s=1, n_q
-                            mmg(a,l) = mmg(a,l) - df%V_m2q(i) * df%fit_potential(j) * df%Xinv(i,l) * df%dX_dr(a,l,s) * df%Xinv(s,j)
-                        end do
-                    end do
+        ! 2nd term Vmm(rq) dA+/drmm Vqm(rfit)                                                                                                                                                                                
+        XtX_inv = 0.0
+        do i=1, n_q
+            do j=1, n_fit
+                do k=1, n_q
+                    XtX_inv(i,k) = XtX_inv(i,k) + df%Xinv(i,j) * df%Xinv(k,j)
                 end do
             end do
-        end do       
+        end do
 
-        do l=1, n_mm
+        resids(i) = 0.0
+        do i=1, n_fit
+            do j=1, n_q
+                resids(i) = resids(i) - df%X(i,j) * df%target_charges(j)
+            end do
+            resids(i) = resids(i) + df%fit_potential(i) 
+        end do
+
+        ! dq_dm_term2 = np.einsum('li,ija,j->ial', A_inv, dA_dr, qfit)
+        do i=1, n_mm
             do a=1, 3
-                do i=1, n_q
-                    do j=1, n_fit
-                        tmp = 0.0
-                        do k=1, n_q
-                            tmp = tmp - df%X(l,k) * df%Xinv(k,j)
-                        end do 
-                        if(l == j) tmp = tmp + 1.
-
-                        do s=1, n_fit
-                            do b=1, n_q
-                                mmg(a,l) = mmg(a,l) + df%V_m2q(i) * df%fit_potential(j) * &
-                                           df%Xinv(i,s) * df%Xinv(b,s) * df%dX_dr(a,l,b) * tmp
-                            end do
-                        end do
+                do l=1, n_q
+                    do s=1, n_q
+                        mmg(a,i) = mmg(a,i) - df%Xinv(l,i) * df%dX_dr(a,i,s) * df%target_charges(s) * df%V_m2q(l)
                     end do
                 end do
             end do
         end do
+
+
+        ! dq_dm_term3 = -np.einsum('lk,ika,i->ial', AtA_inv, dA_dr, resids)
+        do i=1, n_mm
+            do a=1, 3
+                do l=1, n_q
+                    do s=1, n_q
+                        mmg(a,i) = mmg(a,i) + XtX_inv(l,s) * df%dX_dr(a,i,s) * resids(i) * df%V_m2q(l)
+                    end do
+                end do
+            end do
+        end do   
 
         ! 3rd term Vmm(rq) A+ Eqm(rfit)
 
@@ -1381,10 +1392,37 @@ contains
         do i=1, n_mm
             do j=1, n_q
                 do a=1,3
-                    qmg(a,j) = mmg(a,j) - df%E_m2q(a,i,j) * df%target_charges(j)
+                    qmg(a,j) = qmg(a,j) - df%E_m2q(a,i,j) * df%target_charges(j)
                 end do
             end do
         end do
+
+        ! 2nd term 
+        do i=1, n_q
+            do a=1,3
+                do j=1, n_q
+                    do k=1, n_fit
+                        qmg(a,i) = qmg(a,i) + df%Xinv(j,k) * df%dX_dr(a,k,i) * df%target_charges(i) * df%V_m2q(j)
+                    end do
+                end do
+            end do
+        end do
+
+        do i=1, n_q
+            do a=1,3
+                do j=1, n_q
+                    do k=1, n_fit
+                        qmg(a,i) = qmg(a,i) - XtX_inv(j,i) * df%dX_dr(a,k,i) * resids(k) * df%V_m2q(j)
+                    end do
+                end do
+            end do
+        end do
+
+        ! Third term is computed outside!
+
+        !! Deallocate local intermediate quantities
+        call mfree('[df_geomgrad] AtA_inv', XtX_inv)
+        call mfree('[df_geomgrad] resids', resids)
 
     end subroutine df_geomgrad
 
