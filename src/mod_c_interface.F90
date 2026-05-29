@@ -2131,7 +2131,8 @@ module mod_ommp_C_interface
         end function C_ommp_get_df_VXI_p
 
         subroutine C_ommp_df_compute_induced_dipoles(s_prt, solver, matv, add_mm_field, &
-                                                      add_nuclei_field, qm_helper_prt) &
+                                                      add_nuclei_field, qm_helper_prt, &
+                                                      exclude_df_field) &
                 bind(c, name='ommp_df_compute_induced_dipoles')
             !! Compute induced dipoles from fitted charges electric field.
             !! Wrapper for ommp_df_compute_induced_dipoles.
@@ -2141,15 +2142,18 @@ module mod_ommp_C_interface
             integer(ommp_integer), value :: add_mm_field
             integer(ommp_integer), value :: add_nuclei_field
             type(c_ptr), value :: qm_helper_prt
+            integer(ommp_integer), value :: exclude_df_field
             type(ommp_system), pointer :: s
             type(ommp_qm_helper), pointer :: qm_help
             logical :: do_mm_f
             logical :: do_nuc_f
+            logical :: do_exc_df_f
             logical :: has_qm
 
             call c_f_pointer(s_prt, s)
             do_mm_f = (add_mm_field /= 0)
             do_nuc_f = (add_nuclei_field /= 0)
+            do_exc_df_f = (exclude_df_field /= 0)
 
             has_qm = (c_associated(qm_helper_prt))
 
@@ -2159,10 +2163,11 @@ module mod_ommp_C_interface
 
             if(has_qm) then
                 call ommp_df_compute_induced_dipoles(s, solver, matv, do_mm_f, &
-                                                    do_nuc_f, qm_help)
+                                                    do_nuc_f, qm_help, &
+                                                    do_exc_df_f)
             else
                 call ommp_df_compute_induced_dipoles(s, solver, matv, do_mm_f, &
-                                                    do_nuc_f)
+                                                    do_nuc_f, exclude_df_field=do_exc_df_f)
             end if
         end subroutine C_ommp_df_compute_induced_dipoles
 

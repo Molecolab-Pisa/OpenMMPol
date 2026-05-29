@@ -363,7 +363,8 @@ class OMMPSystem{
                                             std::string solver = "none",
                                             std::string matv = "none",
                                             bool add_nuclei_field = true,
-                                            OMMPQmHelper* qm_helper = nullptr){ 
+                                            OMMPQmHelper* qm_helper = nullptr,
+                                            bool exclude_df_field = false){
             if(solvers.find(solver) == solvers.end()){
                 throw py::value_error("Selected solver is not available!");
             }
@@ -375,11 +376,13 @@ class OMMPSystem{
             if(! nomm)
                 ommp_df_compute_induced_dipoles(handler, solvers[solver], matvs[matv], 1,
                                                   add_nuclei_field ? 1 : 0,
-                                                  qm_helper ? qm_helper->get_handler() : nullptr);
+                                                  qm_helper ? qm_helper->get_handler() : nullptr,
+                                                  exclude_df_field ? 1 : 0);
             else
                 ommp_df_compute_induced_dipoles(handler, solvers[solver], matvs[matv], 0,
                                                   add_nuclei_field ? 1 : 0,
-                                                  qm_helper ? qm_helper->get_handler() : nullptr);
+                                                  qm_helper ? qm_helper->get_handler() : nullptr,
+                                                  exclude_df_field ? 1 : 0);
             return ;
         }
         
@@ -1813,6 +1816,7 @@ PYBIND11_MODULE(__pyopenmmpol, m){
         .def("df_compute_induced_dipoles", &OMMPSystem::df_compute_induced_dipoles, 
              py::arg("nomm")=false, py::arg("solver")="none", py::arg("matv")="none",
              py::arg("add_nuclei_field")=true, py::arg("qm_helper")=nullptr,
+             py::arg("exclude_df_field")=false,
              "Compute induced dipoles from fitted charges electric field.")
         .def_property_readonly("df_e_field_pol_ene", &OMMPSystem::get_df_e_field_pol_ene,
              "Polarization energy from fitted-charge electric field (E = -0.5 * ipd .dot. E_q2p)")

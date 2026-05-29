@@ -27,28 +27,32 @@ module mod_memory
     
     interface mallocate
         !! Interface to perform memory allocation within the
-        !! openMMPol library, it can be called for 1,2 and 
-        !! 3-dimensional arrays of either integer or real
+        !! openMMPol library, it can be called for 1, 2, 3 and
+        !! 4-dimensional arrays of either integer or real
         module procedure r_alloc1
         module procedure r_alloc2
         module procedure r_alloc3
+        module procedure r_alloc4
         module procedure i_alloc1
         module procedure i_alloc2
         module procedure i_alloc3
+        module procedure i_alloc4
         module procedure l_alloc1
         module procedure l_alloc2
     end interface mallocate
 
     interface mfree
         !! Interface to perform memory deallocation within the
-        !! openMMPol library, it can be called for 1,2 and 
-        !! 3-dimensional arrays of either integer or real
+        !! openMMPol library, it can be called for 1, 2, 3 and
+        !! 4-dimensional arrays of either integer or real
         module procedure r_free1
         module procedure r_free2
         module procedure r_free3
+        module procedure r_free4
         module procedure i_free1
         module procedure i_free2
         module procedure i_free3
+        module procedure i_free4
         module procedure l_free1
         module procedure l_free2
     end interface mfree
@@ -166,6 +170,25 @@ module mod_memory
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_real, istat)
     end subroutine r_alloc3
+  
+    subroutine r_alloc4(string, len1, len2, len3, len4, v)
+        !! Allocate a 4-dimensional array of reals
+        implicit none
+
+        character(len=*), intent(in) :: string
+        !! Human-readable description string of the allocation
+        !! operation, just for output purpose.
+        integer(ip), intent(in) :: len1, len2, len3, len4
+        !! Dimensions of the array
+        real(rp), allocatable, intent(inout) :: v(:,:,:,:)
+        !! Array to allocate
+
+        integer(ip) :: istat
+
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
+        allocate(v(len1, len2, len3, len4), stat=istat)
+        call chk_alloc(string, len1*len2*len3*len4*size_of_real, istat)
+    end subroutine r_alloc4
 
     subroutine i_alloc1(string, len1, v)
         !! Allocate a 1-dimensional array of integers
@@ -223,6 +246,25 @@ module mod_memory
         allocate(v(len1, len2, len3), stat=istat)
         call chk_alloc(string, len1*len2*len3*size_of_int, istat)
     end subroutine i_alloc3
+  
+    subroutine i_alloc4(string, len1, len2, len3, len4, v)
+        !! Allocate a 4-dimensional array of integers
+        implicit none
+
+        character (len=*), intent(in) :: string
+        !! Human-readable description string of the allocation
+        !! operation, just for output purpose.
+        integer(ip), intent(in) :: len1, len2, len3, len4
+        !! Dimensions of the array
+        integer(ip), allocatable, intent(inout) :: v(:,:,:,:)
+        !! Array to allocate
+
+        integer(ip) :: istat
+
+        if(.not. is_init) call memory_init(.false., 0.0_rp)
+        allocate(v(len1, len2, len3, len4), stat=istat)
+        call chk_alloc(string, len1*len2*len3*len4*size_of_int, istat)
+    end subroutine i_alloc4
     
     subroutine l_alloc1(string, len1, v)
         !! Allocate a 1-dimensional array of reals
@@ -349,6 +391,24 @@ module mod_memory
         end if
     end subroutine r_free3
 
+    subroutine r_free4(string, v)
+        !! Free a 4-dimensional array of reals
+        
+        character (len=*), intent(in) :: string
+        !! Human-readable description string of the deallocation
+        !! operation, just for output purpose.
+        real(rp), allocatable, intent(inout) :: v(:,:,:,:)
+        !! Array to free
+        
+        integer(ip) :: istat, ltot
+
+        if(allocated(v)) then
+            ltot = size(v) * size_of_real
+            deallocate(v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
+    end subroutine r_free4
+
     subroutine i_free1(string, v)
         !! Free a 1-dimensional array of integers
         
@@ -402,6 +462,24 @@ module mod_memory
             call chk_free(string, ltot, istat)
         end if
     end subroutine i_free3
+  
+    subroutine i_free4(string, v)
+        !! Free a 4-dimensional array of integers
+        
+        character (len=*), intent(in) :: string
+        !! Human-readable description string of the deallocation
+        !! operation, just for output purpose.
+        integer(ip), allocatable, intent(inout) :: v(:,:,:,:)
+        !! Array to free
+        
+        integer(ip) :: istat, ltot
+
+        if(allocated(v)) then
+            ltot = size(v) * size_of_int
+            deallocate (v, stat=istat)
+            call chk_free(string, ltot, istat)
+        end if
+    end subroutine i_free4
     
     subroutine l_free1(string, v)
         !! Free a 1-dimensional array of integers
