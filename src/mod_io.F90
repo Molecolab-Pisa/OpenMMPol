@@ -161,9 +161,9 @@ module mod_io
       
         character (len=*), intent(in) :: message
         !! Message to print before the program termination
-        call ommp_message(message, OMMP_VERBOSE_LOW, 'stop')
+        call ommp_message(message, -1, 'stop')
         call ommp_message("Unrecoverable error in openMMPol &
-                          &library. Exiting.", OMMP_VERBOSE_LOW, &
+                          &library. Exiting.", -1, &
                           'stop')
         !! Close output file
         call close_output()
