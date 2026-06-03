@@ -1359,6 +1359,9 @@ contains
         real(rp), allocatable :: XtX_inv(:,:)
         real(rp), allocatable :: resids(:)
         real(rp), allocatable :: V_mmpol2q(:)
+        real(rp), allocatable :: field_combined(:,:,:)
+        real(rp), allocatable :: w1(:), w4(:)
+        real(rp), allocatable :: w2(:,:), inner(:,:)
 
         if(.not. df%initialized) then
             call fatal_error("df_geomgrad: density fit object not initialized.")
@@ -1387,19 +1390,12 @@ contains
         call mallocate('[df_geomgrad] AtA_inv', n_q, n_q, XtX_inv)
         call mallocate('[df_geomgrad] resids', n_fit, resids)
         call mallocate('[df_geomgrad] V_mmpol2q', n_q, V_mmpol2q)
-
-        !call print_matrix(.false., "V p2q", df%V_p2q)
-        !call print_matrix(.false., "V m2q", df%V_m2q)
-
-        if(eel%pol_atoms > 0) then
-            if(eel%amoeba) then
-                V_mmpol2q = df%V_m2q + (df%V_p2q(:,_amoeba_D_) + df%V_p2q(:,_amoeba_P_)) * 0.5
-            else
-                V_mmpol2q = df%V_m2q + df%V_p2q(:,1)
-            end if
-        else
-            V_mmpol2q = df%V_m2q
-        end if
+        call mallocate('[df_geomgrad] field_combined', 3, n_mm, n_q, field_combined)
+        
+        call mallocate('[df_geomgrad] w1', n_mm, w1)
+        call mallocate('[df_geomgrad] w2', 3, n_mm, w2)
+        call mallocate('[df_geomgrad] w4', n_q, w4)
+        call mallocate('[df_geomgrad] inner', 3, n_mm, inner)
 
         if(.not. (df%nabla_g_mm_is_identity .and. &
                   df%nabla_g_qm_is_null .and. &
@@ -1407,9 +1403,35 @@ contains
                   df%nabla_q_mm_is_null)) then
             call fatal_error("Only grid = MM atoms and charges = QM atoms is currently supported")
         end if
-        
+
+        if(eel%pol_atoms > 0) then
+            if(eel%amoeba) then
+                field_combined(:,:,:) = df%E_m2q(:,:,:) + &
+                                        (df%E_p2q(:,:,:,_amoeba_D_) + &
+                                        df%E_p2q(:,:,:,_amoeba_P_)) * 0.5
+                V_mmpol2q = df%V_m2q + &
+                            (df%V_p2q(:,_amoeba_D_) + &
+                            df%V_p2q(:,_amoeba_P_)) * 0.5
+            else
+                field_combined(:,:,:) = df%E_m2q(:,:,:) + df%E_p2q(:,:,:,1)
+                V_mmpol2q = df%V_m2q + df%V_p2q(:,1)
+            end if
+        else
+            field_combined(:,:,:) = df%E_m2q(:,:,:)
+            V_mmpol2q(:) = df%V_m2q(:)
+        end if
+
+#define USE_OPTIMIZED
+#ifndef USE_OPTIMIZED
+        call ommp_message("Using multiple loop DF gradients", -1, 'df')
+#define USE_LOOPS
+#else
+        call ommp_message("Using optimized DF gradients", -1, 'df')
+#endif
+
         ! On MM atoms
         ! 1st term: static field dVmm(rq)/drmm @ qfit
+#ifdef USE_LOOPS
         do i=1, n_mm
             do j=1, n_q
                 do a=1, 3
@@ -1427,8 +1449,17 @@ contains
                 end do
             end do
         end do
+#endif
 
-        ! 2nd term Vmm(rq) dA+/drmm Vqm(rfit)                                                                                                                                                                                
+#ifdef USE_OPTIMIZED
+        call dgemv('N', 3*n_mm, n_q, 1.0_rp, &
+                    field_combined, 3*n_mm, &
+                    df%target_charges, 1, 1.0_rp, &
+                    mmg, 1)
+#endif
+        ! 2nd term Vmm(rq) dA+/drmm Vqm(rfit)
+
+#ifdef USE_LOOPS
         XtX_inv = 0.0
         do i=1, n_q
             do j=1, n_fit
@@ -1445,7 +1476,15 @@ contains
             end do
             resids(i) = resids(i) + df%fit_potential(i) 
         end do
+#endif
 
+#ifdef USE_OPTIMIZED
+        resids = df%fit_potential
+        call dgemv('N', n_fit, n_q, -1.0_rp, df%X, n_fit, df%target_charges, 1, 1.0_rp, resids, 1)
+        call dgemm('N','T', n_q, n_q, n_fit, 1.0_rp, df%Xinv, n_q, df%Xinv, n_q, 0.0_rp, XtX_inv, n_q)
+#endif
+
+#ifdef USE_LOOPS
         ! dq_dm_term2 = np.einsum('li,ija,j->ial', A_inv, dA_dr, qfit)
         do i=1, n_mm
             do a=1, 3
@@ -1467,7 +1506,29 @@ contains
                     end do
                 end do
             end do
-        end do   
+        end do 
+#endif
+
+#ifdef USE_OPTIMIZED
+        ! w1 = Xinv^T * V_mmpol2q
+        call dgemv('T', n_q, n_mm, 1.0_rp, df%Xinv, n_q, V_mmpol2q, 1, 0.0_rp, w1, 1)
+
+        ! w4 = Xinv * w1  (same as XtX_inv^T*V_mmpol2q, but O(n_q*n_fit))
+        call dgemv('N', n_q, n_mm, 1.0_rp, df%Xinv, n_q, w1, 1, 0.0_rp, w4, 1)
+
+        ! w2 = dX_dr * target_charges
+        call dgemv('N', 3*n_mm, n_q, 1.0_rp, df%dX_dr, 3*n_mm, df%target_charges, 1, 0.0_rp, w2, 1)
+        
+        ! inner = dX_dr * w4
+        call dgemv('N', 3*n_mm, n_q, 1.0_rp, df%dX_dr, 3*n_mm, w4, 1, 0.0_rp, inner, 1)
+
+        !$omp parallel do collapse(2) default(shared)
+        do i = 1, n_mm
+            do a = 1, 3
+                mmg(a,i) = mmg(a,i) - w1(i) * w2(a,i) + resids(i) * inner(a,i)
+            end do
+        end do
+#endif 
 
         !! 3rd term Vmm(rq) A+ Eqm(rfit)
 
@@ -1496,6 +1557,7 @@ contains
 
         ! On QM atoms
         ! 1st term: static field dVmm(rq)/drqm @ qfit
+#ifdef USE_LOOPS
         do i=1, n_mm
             do j=1, n_q
                 do a=1,3
@@ -1512,6 +1574,19 @@ contains
                 end do
             end do
         end do
+#endif
+
+#ifdef USE_OPTIMIZED
+        !$omp parallel do collapse(2) default(shared) &
+        !$omp private(i)
+        do j = 1, n_q
+            do a = 1, 3
+                do i = 1, n_mm
+                    qmg(a,j) = qmg(a,j) - field_combined(a,i,j) * df%target_charges(j)
+                end do
+            end do
+        end do
+#endif
 
         ! 2nd term 
          do i=1, n_q
@@ -1537,9 +1612,15 @@ contains
         ! Third term is computed outside!
 
         !! Deallocate local intermediate quantities
-        call mfree('[df_geomgrad] AtA_inv', XtX_inv)
+        call mfree('[df_geomgrad] XtX_inv', XtX_inv)
         call mfree('[df_geomgrad] resids', resids)
         call mfree('[df_geomgrad] V_mmpol2q', V_mmpol2q)
+        call mfree('[df_geomgrad] field_combined', field_combined)
+        call mfree('[df_geomgrad] w1', w1)
+        call mfree('[df_geomgrad] w4', w4)
+        call mfree('[df_geomgrad] w2', w2)
+        call mfree('[df_geomgrad] inner', inner)
+        
 
     end subroutine df_geomgrad
 
