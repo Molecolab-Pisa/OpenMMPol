@@ -1018,8 +1018,10 @@ contains
             end if
 
             df%E_q2p = 0.0_rp
-            do i = 1, df%n_charges
-                do j = 1, eel%pol_atoms
+            !$omp parallel do private(i, j, dr, kernel, tmpE) &
+            !$omp schedule(static)
+            do j = 1, eel%pol_atoms
+                do i = 1, df%n_charges
                     dr = eel%cpol(:,j) - df%charge_coord(:,i)
                     call coulomb_kernel(dr, 1, kernel)
 
@@ -1033,7 +1035,7 @@ contains
                     df%E_q2p(:,j) = df%E_q2p(:,j) + tmpE
                 end do
             end do
-            df%E_q2p_done = .false.
+            df%E_q2p_done = .true.
         end if
     end subroutine df_e_field_to_pol
 
@@ -1260,40 +1262,25 @@ contains
 
                 df%E_p2q = 0.0_rp
 
-                if(eel%amoeba) then
-                    do i = 1, n_mm
-                        do j = 1, n_cpt
-                            dr = df%charge_coord(:,j) - eel%top%cmm(:,i)
-                            call coulomb_kernel(dr, 3, kernel)
-                            do k = 1, eel%n_ipd
-                                tmpE = 0.0_rp
-                                call mu_elec_prop(eel%ipd(:,i,k), dr, kernel, &
-                                                  .false., tmpV, &
-                                                  .true., tmpE, &
-                                                  .false., tmpEgr, &
-                                                  .false., tmpHE)
-                                df%E_p2q(:,i,j,k) = df%E_p2q(:,i,j,k) + tmpE
-                            end do
-                        end do
-                    end do
-                else
+                do k = 1, eel%n_ipd
+                    !$omp parallel do collapse(2) default(shared) schedule(static) &
+                    !$omp private(i,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
                     do i = 1, n_mm
                         do j = 1, n_cpt
                             dr = df%charge_coord(:,j) - eel%top%cmm(:,i)
                             call coulomb_kernel(dr, 2, kernel)
                             tmpE = 0.0_rp
-                            call mu_elec_prop(eel%ipd(:,i,1), dr, kernel, &
-                                              .false., tmpV, &
-                                              .true., tmpE, &
-                                              .false., tmpEgr, &
-                                              .false., tmpHE)
-                            df%E_p2q(:,i,j,1) = df%E_p2q(:,i,j,1) + tmpE
+                            call mu_elec_prop(eel%ipd(:,i,k), dr, kernel, &
+                                                .false., tmpV, &
+                                                .true., tmpE, &
+                                                .false., tmpEgr, &
+                                                .false., tmpHE)
+                            df%E_p2q(:,i,j,k) = df%E_p2q(:,i,j,k) + tmpE
                         end do
                     end do
-                end if
+                end do
+                df%E_p2q_done = .true.
             end if
-
-            df%E_p2q_done = .true.
         end if
 
         !! Part 2: dX/drfit and dXinv/drfit
