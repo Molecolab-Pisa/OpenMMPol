@@ -13,6 +13,7 @@ module mod_density_fit
                              OMMP_VERBOSE_DEBUG
     use mod_io, only: fatal_error, ommp_message
     use mod_topology, only: ommp_topology_type
+    use mod_adjacency_mat, only: yale_sparse, allocate_yale_sparse, free_yale_sparse
 
     implicit none
     private
@@ -187,6 +188,9 @@ module mod_density_fit
         !! .true. if nabla_g_mm is the null matrix
         logical(lp) :: nabla_g_mm_is_identity = .false.
         !! .true. if nabla_g_mm is the identity matrix
+        logical(lp) :: nabla_g_mm_is_sparse = .false.
+        !! .true. if nabla_g_mm is stored in Yale sparse format
+        type(yale_sparse) :: nabla_g_mm_sparse
 
         real(rp), allocatable :: nabla_g_qm(:,:)
         !! Gradient matrix: grid wrt QM coordinates
@@ -194,6 +198,9 @@ module mod_density_fit
         !! .true. if nabla_g_qm is the null matrix
         logical(lp) :: nabla_g_qm_is_identity = .false.
         !! .true. if nabla_g_qm is the identity matrix
+        logical(lp) :: nabla_g_qm_is_sparse = .false.
+        !! .true. if nabla_g_qm is stored in Yale sparse format
+        type(yale_sparse) :: nabla_g_qm_sparse
 
         real(rp), allocatable :: nabla_q_qm(:,:)
         !! Gradient matrix: q wrt QM coordinates
@@ -201,6 +208,9 @@ module mod_density_fit
         !! .true. if nabla_q_qm is the null matrix
         logical(lp) :: nabla_q_qm_is_identity = .false.
         !! .true. if nabla_q_qm is the identity matrix
+        logical(lp) :: nabla_q_qm_is_sparse = .false.
+        !! .true. if nabla_q_qm is stored in Yale sparse format
+        type(yale_sparse) :: nabla_q_qm_sparse
 
         real(rp), allocatable :: nabla_q_mm(:,:)
         !! Gradient matrix: q wrt MM coordinates
@@ -208,6 +218,9 @@ module mod_density_fit
         !! .true. if nabla_q_mm is the null matrix
         logical(lp) :: nabla_q_mm_is_identity = .false.
         !! .true. if nabla_q_mm is the identity matrix
+        logical(lp) :: nabla_q_mm_is_sparse = .false.
+        !! .true. if nabla_q_mm is stored in Yale sparse format
+        type(yale_sparse) :: nabla_q_mm_sparse
 
         !! Snapshot of the last MM and QM coordinates.
         !! Used by df_update to detect coordinate changes and
@@ -222,7 +235,7 @@ module mod_density_fit
 
     public :: ommp_density_fit_type
     public :: df_init, df_terminate
-    public :: df_solve, df_generate_grid
+    public :: df_solve
     public :: df_electrostatic_static, df_electrostatic_dipoles
     public :: df_project_static, df_project_dipoles
     public :: df_e_field_to_pol, df_e_field_pol_ene
@@ -351,6 +364,98 @@ contains
 
     end subroutine generate_grid_from_topo
 
+    subroutine compute_nabla_matrices(df)
+
+        implicit none
+
+        type(ommp_density_fit_type), intent(inout) :: df
+        integer(ip) :: i, j
+
+        call df_update(df)
+
+        if(df%nabla_done) return
+
+        select case(df%charge_top_type)
+        case(ommp_df_qm_top)
+            ! Charge positions depend only on QM position
+
+            df%nabla_q_mm_is_null = .true.
+            df%nabla_q_mm_is_identity = .false.
+            df%nabla_q_mm_is_sparse = .false.
+
+            select case(df%charge_point_type)
+            case(ommp_df_atoms)
+                df%nabla_q_qm_is_null = .false.
+                df%nabla_q_qm_is_identity = .true.
+
+            case(ommp_df_fibonacci, ommp_df_cubic)
+
+                df%nabla_q_qm_is_null = .false.
+                df%nabla_q_qm_is_identity = .false.
+                df%nabla_q_qm_is_sparse = .true.
+
+                ! In this cases each point belong to a specific QM atom
+                call allocate_yale_sparse(df%nabla_q_qm_sparse, df%qm_top%mm_atoms, df%n_charges)
+                do i=1, df%qm_top%mm_atoms
+                    df%nabla_q_qm_sparse%ri(i) = (i-1) * df%charge_n_pts_per_atom + 1
+                    df%nabla_q_qm_sparse%ri(i+1) = i * df%charge_n_pts_per_atom + 1
+                    do j=df%nabla_q_qm_sparse%ri(i), df%nabla_q_qm_sparse%ri(i+1)-1
+                        df%nabla_q_qm_sparse%ci(j) = j
+                    end do
+                end do
+
+            case default
+                call fatal_error('compute_nabla_matrices: unknown charge_point_type.')
+            end select
+        case(ommp_df_mm_top)
+            call fatal_error("Unsupported case: charge points generated from MM topology only.")
+        case default
+            call fatal_error('compute_nabla_matrices: unknown charge_top_type.')
+        end select
+
+        select case(df%fit_top_type)
+        case(ommp_df_mm_top)
+            ! Obvius case fit grid is built on mm atoms
+
+            df%nabla_g_qm_is_null = .true.
+            df%nabla_g_qm_is_identity = .false.
+            df%nabla_g_qm_is_sparse = .false.
+
+            select case(df%fit_point_type)
+            case(ommp_df_atoms)
+                df%nabla_g_mm_is_null = .false.
+                df%nabla_g_mm_is_identity = .true.
+                df%nabla_g_mm_is_sparse = .false.
+
+            case(ommp_df_fibonacci, ommp_df_cubic)
+
+                df%nabla_g_mm_is_null = .false.
+                df%nabla_g_mm_is_identity = .false.
+                df%nabla_g_mm_is_sparse = .true.
+
+                ! In this cases each point belong to a specific MM atom
+                call allocate_yale_sparse(df%nabla_g_mm_sparse, df%mm_top%mm_atoms, df%n_pts)
+                do i=1, df%mm_top%mm_atoms
+                    df%nabla_g_mm_sparse%ri(i) = (i-1) * df%fit_n_pts_per_atom + 1
+                    df%nabla_g_mm_sparse%ri(i+1) = i * df%fit_n_pts_per_atom + 1
+                    do j=df%nabla_g_mm_sparse%ri(i), df%nabla_g_mm_sparse%ri(i+1)-1
+                        df%nabla_g_mm_sparse%ci(j) = j
+                    end do
+                end do
+
+            case default
+                call fatal_error('compute_nabla_matrices: unknown fit_point_type.')
+            end select
+        case(ommp_df_qm_top)
+            call fatal_error("Unsupported case: grid points generated from QM topology only.")
+        case default
+            call fatal_error('compute_nabla_matrices: unknown fit_top_type.')
+        end select
+
+        df%nabla_done = .true.
+
+    end subroutine compute_nabla_matrices
+
     subroutine df_update(df)
         !! Update density fitting grids when coordinates change.
         !!
@@ -387,8 +492,6 @@ contains
 
         if(.not. need_update) return
 
-        ! call ommp_message('Rebuilding grids', -1, 'df')
-
         !! Regenerate both grids from current topology
         call generate_grid_from_topo(df%charge_top, df%charge_coord, df%n_charges, &
                                      df%charge_n_pts_per_atom, df%charge_radius, &
@@ -417,134 +520,6 @@ contains
         df%last_qm_coords(1:3, 1:df%qm_top%mm_atoms) = df%qm_top%cmm(1:3, 1:df%qm_top%mm_atoms)
 
     end subroutine df_update
-
-    subroutine compute_nabla_matrices(df)
-
-        implicit none
-
-        type(ommp_density_fit_type), intent(inout) :: df
-        integer(ip) :: i
-
-        call df_update(df)
-
-        if(df%nabla_done) return
-
-        select case(df%charge_top_type)
-        case(ommp_df_qm_top)
-
-            df%nabla_q_mm_is_null = .true.
-            df%nabla_q_mm_is_identity = .false.
-
-            select case(df%charge_point_type)
-            case(ommp_df_atoms)
-                df%nabla_q_qm_is_null = .false.
-                df%nabla_q_qm_is_identity = .true.
-
-            case(ommp_df_fibonacci)
-
-                df%nabla_q_qm_is_null = .false.
-                df%nabla_q_qm_is_identity = .false.
-
-                if(.not. allocated(df%nabla_q_qm)) then
-                    call mallocate('compute_nabla_matrices [nabla_q_qm]', 3 * df%n_charges, 3 * df%qm_top%mm_atoms, df%nabla_q_qm)
-                end if
-                df%nabla_q_qm = 0.0
-
-                do i=1, df%charge_top%mm_atoms
-                    df%nabla_q_qm((i-1)*3*df%charge_n_pts_per_atom+1:(i)*3*df%charge_n_pts_per_atom, (i-1)*3+1:i*3) = 1.0_rp
-                end do
-
-            case(ommp_df_cubic)
-
-                df%nabla_q_qm_is_null = .false.
-                df%nabla_q_qm_is_identity = .false.
-
-                if(.not. allocated(df%nabla_q_qm)) then
-                    call mallocate('compute_nabla_matrices [nabla_q_qm]', 3 * df%n_charges, 3 * df%qm_top%mm_atoms, df%nabla_q_qm)
-                end if
-                df%nabla_q_qm = 0.0
-
-                do i=1, df%charge_top%mm_atoms
-                    df%nabla_q_qm((i-1)*3*7+1:(i)*3*7, (i-1)*3+1:i*3) = 1.0_rp
-                end do
-
-            case default
-                call fatal_error('compute_nabla_matrices: unknown charge_point_type.')
-            end select
-        case(ommp_df_mm_top)
-            call fatal_error("Unsupported case: charge points generated from MM topology.")
-        case default
-            call fatal_error('compute_nabla_matrices: unknown charge_top_type.')
-        end select
-
-        select case(df%fit_top_type)
-        case(ommp_df_mm_top)
-            ! Obvius case fit grid is built on mm atoms
-
-            df%nabla_g_qm_is_null = .true.
-            df%nabla_g_qm_is_identity = .false.
-
-            select case(df%fit_point_type)
-            case(ommp_df_atoms)
-                df%nabla_g_mm_is_null = .false.
-                df%nabla_g_mm_is_identity = .true.
-
-            case(ommp_df_fibonacci)
-
-                df%nabla_g_mm_is_null = .false.
-                df%nabla_g_mm_is_identity = .false.
-
-                if(.not. allocated(df%nabla_g_mm)) then
-                    call mallocate('compute_nabla_matrices [nabla_g_mm]', 3 * df%n_pts, 3 * df%mm_top%mm_atoms, df%nabla_g_mm)
-                end if
-                df%nabla_g_mm = 0.0
-
-                do i=1, df%fit_top%mm_atoms
-                    df%nabla_g_mm((i-1)*3*df%fit_n_pts_per_atom:(i)*3*df%fit_n_pts_per_atom, (i-1)*3:i*3) = 1.0_rp
-                end do
-
-            case(ommp_df_cubic)
-
-                df%nabla_g_mm_is_null = .false.
-                df%nabla_g_mm_is_identity = .false.
-
-                if(.not. allocated(df%nabla_g_mm)) then
-                    call mallocate('compute_nabla_matrices [nabla_g_mm]', 3 * df%n_pts, 3 * df%mm_top%mm_atoms, df%nabla_g_mm)
-                end if
-                df%nabla_g_mm = 0.0
-
-                do i=1, df%fit_top%mm_atoms
-                    df%nabla_g_mm((i-1)*3*7+1:(i)*3*7, (i-1)*3+1:i*3) = 1.0_rp
-                end do
-
-            case default
-                call fatal_error('compute_nabla_matrices: unknown fit_point_type.')
-            end select
-        case(ommp_df_qm_top)
-            call fatal_error("Unsupported case: grid points generated from QM topology.")
-        case default
-            call fatal_error('compute_nabla_matrices: unknown fit_top_type.')
-        end select
-
-        df%nabla_done = .true.
-
-    end subroutine compute_nabla_matrices
-
-    subroutine df_generate_grid(df)
-        !! Public convenience: force grid regeneration regardless of
-        !! snapshot state. Internally calls df_update after invalidating
-        !! the snapshots so that df_update always regenerates.
-
-        implicit none
-
-        type(ommp_density_fit_type), intent(inout) :: df
-
-        !! Invalidate snapshots so df_update always regenerates
-        if(allocated(df%last_mm_coords)) call mfree('[df_generate_grid] last_mm_coords', df%last_mm_coords)
-        if(allocated(df%last_qm_coords)) call mfree('[df_generate_grid] last_qm_coords', df%last_qm_coords)
-
-        call df_update(df)
-    end subroutine df_generate_grid
 
     subroutine df_init(df, mm_top, qm_top, &
                        charge_point_type, charge_n_pts_per_atom, charge_radius, &
@@ -675,6 +650,11 @@ contains
         call mfree('df_terminate [nabla_g_qm]', df%nabla_g_qm)
         call mfree('df_terminate [nabla_q_qm]', df%nabla_q_qm)
         call mfree('df_terminate [nabla_q_mm]', df%nabla_q_mm)
+
+        if(df%nabla_g_mm_is_sparse) call free_yale_sparse(df%nabla_g_mm_sparse)
+        if(df%nabla_g_qm_is_sparse) call free_yale_sparse(df%nabla_g_qm_sparse)
+        if(df%nabla_q_qm_is_sparse) call free_yale_sparse(df%nabla_q_qm_sparse)
+        if(df%nabla_q_mm_is_sparse) call free_yale_sparse(df%nabla_q_mm_sparse)
 
     end subroutine df_terminate
 
@@ -1343,7 +1323,7 @@ contains
         logical, intent(in) :: domm
         real(rp), intent(in) :: ef_qm2fit(3,df%n_pts)
 
-        integer(ip) :: i, a, j, k
+        integer(ip) :: i, a, j, k, kk
         integer(ip) :: n_qm, n_mm, n_q, n_fit
 #ifndef USE_OPTIMIZED
         real(rp), allocatable :: XtX_inv(:,:)
@@ -1391,23 +1371,28 @@ contains
 #ifdef USE_LOOPS
         call mallocate('[df_geomgrad] XtX_inv', n_q, n_q, XtX_inv)
 #endif
-        call mallocate('[df_geomgrad] resids', n_fit, resids)
+        if(n_q < n_fit) then
+            call mallocate('[df_geomgrad] resids', n_fit, resids)
+            call mallocate('[df_geomgrad] inner', 3, n_fit, inner)
+            call mallocate('[df_geomgrad] w4', n_q, w4)
+        else if(n_q > n_fit) then
+            call mallocate('[df_geomgrad] resids', n_q, resids)
+            call mallocate('[df_geomgrad] w4', n_fit, w4)
+        end if
         call mallocate('[df_geomgrad] V_mmpol2q', n_q, V_mmpol2q)
         call mallocate('[df_geomgrad] field_combined', 3, n_mm, n_q, field_combined)
         
-        call mallocate('[df_geomgrad] w1', n_mm, w1)
-        call mallocate('[df_geomgrad] w2', 3, n_mm, w2)
-        call mallocate('[df_geomgrad] w4', n_q, w4)
-        call mallocate('[df_geomgrad] inner', 3, n_mm, inner)
-        call mallocate('[df_geomgrad] vi', n_mm, vi)
+        call mallocate('[df_geomgrad] w1', n_fit, w1)
+        call mallocate('[df_geomgrad] w2', 3, n_fit, w2)
+
+        call mallocate('[df_geomgrad] vi', n_fit, vi)
         call mallocate('[df_geomgrad] tmp', 3_ip, n_q, n_fit, tmp)
         call mallocate('[df_geomgrad] tmp2', 3_ip, n_q, tmp2)
 
-        if(.not. (df%nabla_g_mm_is_identity .and. &
-                  df%nabla_g_qm_is_null .and. &
-                  df%nabla_q_qm_is_identity .and. &
+        if(.not. (df%nabla_g_qm_is_null .and. &
                   df%nabla_q_mm_is_null)) then
-            call fatal_error("Only grid = MM atoms and charges = QM atoms is currently supported")
+            call fatal_error("Only grid dependent on MM atoms only and &
+                             &charges dependent on QM atoms only is currently supported")
         end if
 
         if(eel%pol_atoms > 0) then
@@ -1458,6 +1443,10 @@ contains
                     field_combined, 3*n_mm, &
                     df%target_charges, 1, 1.0_rp, &
                     mmg, 1)
+        if(.not. df%nabla_q_mm_is_null) then
+            call fatal_error("Depndency between MM coordinates and charges points is not supported.")
+            ! TODO If r_charges depend on MM atoms, another therm should be added here!
+        end if
 #endif
         ! 2nd term Vmm(rq) dA+/drmm Vqm(rfit)
 
@@ -1481,8 +1470,13 @@ contains
 #endif
 
 #ifdef USE_OPTIMIZED
-        resids = df%fit_potential
-        call dgemv('N', n_fit, n_q, -1.0_rp, df%X, n_fit, df%target_charges, 1, 1.0_rp, resids, 1)
+        if(n_q < n_fit) then
+            resids = df%fit_potential
+            call dgemv('N', n_fit, n_q, -1.0_rp, df%X, n_fit, df%target_charges, 1, 1.0_rp, resids, 1)
+        else if(n_q > n_fit) then
+            resids = V_mmpol2q
+            call dgemv('T', n_fit, n_q, -1.0_rp, df%X, n_fit, vi, 1, 1.0_rp, resids, 1)
+        end if
 #endif
 
 #ifdef USE_LOOPS
@@ -1511,23 +1505,54 @@ contains
 
 #ifdef USE_OPTIMIZED
         ! w1 = Xinv^T * V_mmpol2q
-        call dgemv('T', n_q, n_mm, 1.0_rp, df%Xinv, n_q, V_mmpol2q, 1, 0.0_rp, w1, 1)
-
-        ! w4 = Xinv * w1  (same as XtX_inv^T*V_mmpol2q, but O(n_q*n_fit))
-        call dgemv('N', n_q, n_mm, 1.0_rp, df%Xinv, n_q, w1, 1, 0.0_rp, w4, 1)
+        call dgemv('T', n_q, n_fit, 1.0_rp, df%Xinv, n_q, V_mmpol2q, 1, 0.0_rp, w1, 1)
 
         ! w2 = dX_dr * target_charges
-        call dgemv('N', 3*n_mm, n_q, 1.0_rp, df%dX_dr, 3*n_mm, df%target_charges, 1, 0.0_rp, w2, 1)
-        
-        ! inner = dX_dr * w4
-        call dgemv('N', 3*n_mm, n_q, 1.0_rp, df%dX_dr, 3*n_mm, w4, 1, 0.0_rp, inner, 1)
+        call dgemv('N', 3*n_fit, n_q, 1.0_rp, df%dX_dr, 3*n_fit, df%target_charges, 1, 0.0_rp, w2, 1)
 
-        !$omp parallel do collapse(2) default(shared)
-        do i = 1, n_mm
-            do a = 1, 3
-                mmg(a,i) = mmg(a,i) - w1(i) * w2(a,i) + resids(i) * inner(a,i)
+        if(df%nabla_g_mm_is_identity .and. df%nabla_q_mm_is_null) then
+            !$omp parallel do collapse(2) default(shared)
+            do i = 1, n_mm
+                do a = 1, 3
+                    mmg(a,i) = mmg(a,i) - w1(i) * w2(a,i)
+                end do
             end do
-        end do
+
+            if(n_q < n_fit) then
+
+                ! w4 = Xinv * w1  (same as XtX_inv^T*V_mmpol2q, but O(n_q*n_fit))
+                call dgemv('N', n_q, n_fit, 1.0_rp, df%Xinv, n_q, w1, 1, 0.0_rp, w4, 1)
+
+                ! inner = dX_dr * w4
+                call dgemv('N', 3*n_fit, n_q, 1.0_rp, df%dX_dr, 3*n_fit, w4, 1, 0.0_rp, inner, 1)
+
+                !$omp parallel do collapse(2) default(shared)
+                do i = 1, n_mm
+                    do a = 1, 3
+                        mmg(a,i) = mmg(a,i) + resids(i) * inner(a,i)
+                    end do
+                end do
+            else if(n_q > n_fit) then
+                ! w1 = X_inv^T q
+                call dgemv('T', n_q, n_fit, 1.0_rp, df%Xinv, n_q, df%target_charges, 1, 0.0_rp, w4, 1)
+
+                do i=1, n_mm
+                    do a=1, 3
+                        do j=1, n_q
+                            mmg(a, i) = mmg(a,i) + df%dX_dr(a,i,j) * w4(i) * resids(j)
+                        end do
+                    end do
+                end do
+            end if
+        else
+            if(.not. df%nabla_g_mm_is_identity) then
+                call fatal_error("Unsupported dependency between grid points and MM atoms")
+            end if
+
+            if(.not. df%nabla_q_mm_is_null) then
+                call fatal_error("Unsupported dependency between fit points and MM atoms")
+            end if
+        end if
 #endif 
 
         !! 3rd term Vmm(rq) A+ Eqm(rfit)
@@ -1558,12 +1583,13 @@ contains
 #endif
 
 #ifdef USE_OPTIMIZED
+        ! TODO
         !$omp parallel do collapse(2) default(shared) schedule(static)
         do a = 1, 3
-            do i = 1, n_mm
+            do i = 1, n_fit
                 mmg(a,i) = mmg(a,i) - vi(i) * ef_qm2fit(a,i)
             end do
-        end do
+        end do     
 #endif
 
         ! On QM atoms
@@ -1588,15 +1614,32 @@ contains
 #endif
 
 #ifdef USE_OPTIMIZED
-        !$omp parallel do collapse(2) default(shared) &
-        !$omp private(i)
-        do j = 1, n_q
-            do a = 1, 3
-                do i = 1, n_mm
-                    qmg(a,j) = qmg(a,j) - field_combined(a,i,j) * df%target_charges(j)
+        if(df%nabla_q_qm_is_identity) then
+            !$omp parallel do collapse(2) default(shared) &
+            !$omp private(i)
+            do j = 1, n_qm
+                do a = 1, 3
+                    do i = 1, n_mm
+                        qmg(a,j) = qmg(a,j) - field_combined(a,i,j) * df%target_charges(j)
+                    end do
                 end do
             end do
-        end do
+        else if(df%nabla_q_qm_is_sparse) then
+            !$omp parallel do collapse(2) default(shared) &
+            !$omp private(i, k)
+            do j = 1, n_qm
+                do a = 1, 3
+                    do k=df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(j)), &
+                         df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(j+1)-1)
+                        do i = 1, n_mm
+                            qmg(a,j) = qmg(a,j) - field_combined(a,i,k) * df%target_charges(k)
+                        end do
+                    end do
+                end do
+            end do
+        else if(.not. df%nabla_q_qm_is_null) then
+            call fatal_error("Dense nabala Q-QM is still not implemented.")
+        end if
 #endif
 
         ! 2nd term on QM atoms
@@ -1643,25 +1686,80 @@ contains
         call dgemv('N', 3*n_q, n_fit, 1.0_rp, &
                     tmp, 3*n_q, w1, 1, 0.0_rp, tmp2, 1)
 
-        !$omp parallel do collapse(2) schedule(static)
-        do i = 1, n_q
-            do a = 1, 3
-                qmg(a, i) = qmg(a, i) + df%target_charges(i) * tmp2(a, i)
-            end do
-        end do
 
-        call dgemv('N', n_q, n_fit, 1.0_rp, &
-                   df%Xinv, n_q, w1, 1, 0.0_rp, w4, 1)
-
-        call dgemv('N', 3*n_q, n_fit, 1.0_rp, &
-                    tmp, 3*n_q, resids, 1, 0.0_rp, tmp2, 1)
-        
-        !$omp parallel do collapse(2) schedule(static)
-        do i = 1, n_q
-            do a = 1, 3
-                qmg(a, i) = qmg(a, i) - w4(i) * tmp2(a, i)
+        if(df%nabla_q_qm_is_identity) then
+            !$omp parallel do collapse(2) schedule(static)
+            do i = 1, n_qm
+                do a = 1, 3
+                    qmg(a, i) = qmg(a, i) + df%target_charges(i) * tmp2(a, i)
+                end do
             end do
-        end do
+        else if(df%nabla_q_qm_is_sparse) then
+            !$omp parallel do collapse(2) schedule(static) private(k)
+            do i = 1, n_qm
+                do a = 1, 3
+                    do k=df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(i)), &
+                         df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(i+1)-1)
+                        qmg(a, i) = qmg(a, i) + df%target_charges(k) * tmp2(a, k)
+                    end do
+                end do
+            end do
+        else if(.not. df%nabla_q_qm_is_null) then
+            call fatal_error("Dense nabala Q-QM is still not implemented.")
+        end if
+
+        if(n_q < n_fit) then
+
+            call dgemv('N', 3*n_q, n_fit, 1.0_rp, &
+                        tmp, 3*n_q, resids, 1, 0.0_rp, tmp2, 1)
+            
+
+            if(df%nabla_q_qm_is_identity) then
+                !$omp parallel do collapse(2) schedule(static)
+                do i = 1, n_qm
+                    do a = 1, 3
+                        qmg(a, i) = qmg(a, i) - w4(i) * tmp2(a, i)
+                    end do
+                end do
+            else if(df%nabla_q_qm_is_sparse) then
+                !$omp parallel do collapse(2) schedule(static) private(k)
+                do i = 1, n_qm
+                    do a = 1, 3
+                        do k=df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(i)), &
+                            df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(i+1)-1)
+                            qmg(a, i) = qmg(a, i) - w4(k) * tmp2(a, k)
+                        end do
+                    end do
+                end do
+            else if(.not. df%nabla_q_qm_is_null) then
+                call fatal_error("Dense nabala Q-QM is still not implemented.")
+            end if
+        else if(n_q > n_fit) then
+            if(df%nabla_q_qm_is_identity) then
+                !$omp parallel do collapse(2) schedule(static)
+                do j=1, n_q
+                    do a=1, 3
+                        do i=1, n_mm
+                            qmg(a, j) = qmg(a,j) - df%dX_dr(a,i,j) * w4(i) * resids(j)
+                        end do
+                    end do
+                end do
+            else if(df%nabla_q_qm_is_sparse) then
+                !$omp parallel do collapse(2) schedule(static) private(k)
+                do j=1, n_qm
+                    do a=1, 3
+                        do k=df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(j)), &
+                            df%nabla_q_qm_sparse%ci(df%nabla_q_qm_sparse%ri(j+1)-1)
+                            do i=1, n_mm
+                                qmg(a, j) = qmg(a,j) - df%dX_dr(a,i,k) * w4(i) * resids(k)
+                            end do
+                        end do
+                    end do
+                end do
+            else if(.not. df%nabla_q_qm_is_null) then
+                call fatal_error("Dense nabala Q-QM is still not implemented.")
+            end if
+        end if
 #endif
 
         ! Third term is computed outside!

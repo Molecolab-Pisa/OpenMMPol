@@ -3,16 +3,19 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-// #include <math.h>
 #include <openmmpol_const.h>
 
 typedef void *OMMP_SYSTEM_PRT;
 typedef void *OMMP_QM_HELPER_PRT;
+typedef void *OMMP_YST_PTR;
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+    extern int32_t ommp_yst_get_n(OMMP_YST_PTR);
+    extern int32_t *ommp_yst_get_ci(OMMP_YST_PTR);
+    extern int32_t *ommp_yst_get_ri(OMMP_YST_PTR);
 
     extern OMMP_SYSTEM_PRT ommp_init_mmp(const char *);
     extern OMMP_SYSTEM_PRT ommp_init_xyz(const char *, const char *);
@@ -175,7 +178,7 @@ extern "C"
     extern double *ommp_get_df_dX_dr(OMMP_SYSTEM_PRT);
     extern double *ommp_get_df_nabla_g_mm(OMMP_SYSTEM_PRT, bool *, bool *);
     extern double *ommp_get_df_nabla_g_qm(OMMP_SYSTEM_PRT, bool *, bool *);
-    extern double *ommp_get_df_nabla_q_qm(OMMP_SYSTEM_PRT, bool *, bool *);
+    extern void *ommp_get_df_nabla_q_qm(OMMP_SYSTEM_PRT, bool *, bool *, bool *);
     extern double *ommp_get_df_nabla_q_mm(OMMP_SYSTEM_PRT, bool *, bool *);
 
     extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT *, OMMP_QM_HELPER_PRT *);

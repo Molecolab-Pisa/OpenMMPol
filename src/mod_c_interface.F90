@@ -43,6 +43,45 @@ module mod_ommp_C_interface
             f_str = trim(f_str)
         end subroutine c2f_string
 
+        function C_ommp_yst_get_n(yst_p) result(r) bind(c, name='ommp_yst_get_n')
+            use mod_adjacency_mat, only : yale_sparse
+
+            implicit none
+
+            type(c_ptr), value :: yst_p
+            type(yale_sparse), pointer :: yst
+            integer(ommp_integer) :: r
+
+            call c_f_pointer(yst_p, yst)
+            r = yst%n
+        end function
+
+        function C_ommp_yst_get_ri(yst_p) result(r) bind(c, name='ommp_yst_get_ri')
+            use mod_adjacency_mat, only : yale_sparse
+
+            implicit none
+
+            type(c_ptr), value :: yst_p
+            type(yale_sparse), pointer :: yst
+            type(c_ptr) :: r
+
+            call c_f_pointer(yst_p, yst)
+            r = c_loc(yst%ri)
+        end function
+
+        function C_ommp_yst_get_ci(yst_p) result(r) bind(c, name='ommp_yst_get_ci')
+            use mod_adjacency_mat, only : yale_sparse
+
+            implicit none
+
+            type(c_ptr), value :: yst_p
+            type(yale_sparse), pointer :: yst
+            type(c_ptr) :: r
+
+            call c_f_pointer(yst_p, yst)
+            r = c_loc(yst%ci)
+        end function
+
         ! Functions directly mapped on OMMP internal functions (which are 
         ! exposed on fortran side by 
         !     use mod_xxx, only a => b
@@ -2295,12 +2334,12 @@ module mod_ommp_C_interface
             end if
         end function C_ommp_get_df_nabla_g_qm
 
-        function C_ommp_get_df_nabla_q_qm(s_prt, is_null, is_identity) result(ptr) &
+        function C_ommp_get_df_nabla_q_qm(s_prt, is_null, is_identity, is_sparse) result(ptr) &
                 bind(c, name='ommp_get_df_nabla_q_qm')
 
             !! Get the fit-charge w.r.t. QM coordinates nabla matrix.
             type(c_ptr), value :: s_prt
-            logical(c_bool), intent(out) :: is_null, is_identity
+            logical(c_bool), intent(out) :: is_null, is_identity, is_sparse
             type(c_ptr) :: ptr
             type(ommp_system), pointer :: s
 
@@ -2310,12 +2349,14 @@ module mod_ommp_C_interface
 
             is_null = s%df%nabla_q_qm_is_null
             is_identity = s%df%nabla_q_qm_is_identity
+            is_sparse = s%df%nabla_q_qm_is_sparse
 
-            if(is_null .or. is_identity .or. &
-               .not. allocated(s%df%nabla_q_qm)) then
-                ptr = c_null_ptr
-            else
+            if(is_sparse) then
+                ptr = c_loc(s%df%nabla_q_qm_sparse)
+            else if(allocated(s%df%nabla_q_qm)) then
                 ptr = c_loc(s%df%nabla_q_qm)
+            else
+                ptr = c_null_ptr
             end if
         end function C_ommp_get_df_nabla_q_qm
 

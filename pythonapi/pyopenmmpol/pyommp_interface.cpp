@@ -117,6 +117,30 @@ double getMinValue(py_cdarray inputArray) {
     return minVal;
 }
 
+std::vector<py_ciarray> ysm_as_list(OMMP_YST_PTR yst){
+    int32_t n = ommp_yst_get_n(yst);
+    int32_t *ci = ommp_yst_get_ci(yst);
+    int32_t *ri = ommp_yst_get_ri(yst);
+
+    std::vector<py_ciarray> out;
+
+    for(int32_t i=0; i < n; i++){
+        int32_t imin, len;
+        imin = ri[i] - 1;
+        len = ri[i+1] - ri[i];
+
+        py::buffer_info bufinfo(&(ci[imin]), sizeof(int32_t),
+                                py::format_descriptor<int32_t>::format(),
+                                1,
+                                {len},
+                                {sizeof(int32_t)});
+
+        out.push_back(py_ciarray(bufinfo));
+    }
+    
+    return out;
+}
+
 
 class OMMPSystem;
 
@@ -478,15 +502,18 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        py_cdarray df_get_nabla_q_qm(){
-            bool is_null = false, is_identity = false;
-            double *mem = ommp_get_df_nabla_q_qm(handler, &is_null, &is_identity);
+        std::variant<py_cdarray, std::vector<py_ciarray>> df_get_nabla_q_qm(){
+            bool is_null = false, is_identity = false, is_sparse=false;
+            void *mem = ommp_get_df_nabla_q_qm(handler, &is_null, &is_identity, &is_sparse);
+            
             if(is_identity)  return py::int_(1);
             if(is_null)      return py::int_(0);
+            if(is_sparse)    return ysm_as_list(mem);
             if(mem == nullptr) return py::none();
+
             int32_t n_charges = get_df_n_charges();
             int32_t n_qm = get_df_n_qm_atoms();
-            py::buffer_info bufinfo(mem, sizeof(double),
+            py::buffer_info bufinfo((double *) mem, sizeof(double),
                                     py::format_descriptor<double>::format(),
                                     2, {n_charges * 3, n_qm},
                                     {n_qm*sizeof(double), sizeof(double)});
@@ -508,7 +535,7 @@ class OMMPSystem{
             return py_cdarray(bufinfo);
         }
 
-        py_cdarray df_get_nabla(const std::string &mat_name){
+        std::variant<py_cdarray, std::vector<py_ciarray>> df_get_nabla(const std::string &mat_name){
             if(mat_name == "g_mm")      return df_get_nabla_g_mm();
             if(mat_name == "g_qm")      return df_get_nabla_g_qm();
             if(mat_name == "q_qm")      return df_get_nabla_q_qm();
