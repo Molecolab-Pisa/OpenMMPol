@@ -283,6 +283,7 @@ contains
         real(rp), parameter :: golden_angle = 2.0_rp * atan(1.0_rp) * (3.0_rp - sqrt(5.0_rp))
         !! Golden angle in radians (~2.39996 rad) for fibonacci sphere distribution
 
+        call time_push
 
         if(.not. associated(top)) then
             call fatal_error('generate_grid_from_topo: topology is not associated.')
@@ -361,6 +362,8 @@ contains
         case default
             call fatal_error('generate_grid_from_topo: unknown grid_type.')
         end select
+        
+        call time_pull("Grid generation")
 
     end subroutine generate_grid_from_topo
 
@@ -374,6 +377,8 @@ contains
         call df_update(df)
 
         if(df%nabla_done) return
+
+        call time_push
 
         select case(df%charge_top_type)
         case(ommp_df_qm_top)
@@ -453,6 +458,8 @@ contains
         end select
 
         df%nabla_done = .true.
+
+        call time_pull("DF - Nabla Matrices")
 
     end subroutine compute_nabla_matrices
 
@@ -672,6 +679,8 @@ contains
 
         call df_update(df)
 
+        call time_push
+
         if(.not. df%initialized) then
             call fatal_error("Density fit object not initialized!")
         end if
@@ -690,6 +699,8 @@ contains
                 df%X(j,i) = 1.0_rp / dist
             end do
         end do
+
+        call time_pull("DF - Computing X")
     end subroutine df_build_X
 
     subroutine df_solve(df)
@@ -735,10 +746,13 @@ contains
         df%GEF_q2M_done = .false.
         df%E_pol_ene_done = .false.
 
+        call time_push
         !! Solve: fitted_charges = Xinv @ fit_potential
         call dgemv('N', df%n_charges, df%n_pts, 1.0_rp, df%Xinv, df%n_charges, df%fit_potential, 1, 0.0_rp, df%target_charges, 1)
+        call time_pull("DF - Computing fit charges")
 
         !! Forward: predicted_potential = X @ fitted_charges
+        call time_push
         call mallocate('df_solve [predicted_pot]', df%n_pts, predicted_pot)
         call dgemv('N', df%n_pts, df%n_charges, 1.0_rp, df%X, df%n_pts, df%target_charges, 1, 0.0_rp, predicted_pot, 1)
 
@@ -752,7 +766,8 @@ contains
         residual_norm = sqrt(residual_norm / fit_norm)
 
         call mfree('df_solve [predicted_pot]', predicted_pot)
-
+        
+        call time_pull("DF - Computing residues")
         df%fit_done = .true.
 
         !! Report residual norm as percentage
@@ -784,6 +799,7 @@ contains
             call df_build_X(df)
         end if
 
+        call time_push
         !! Edge case: nothing to do
         if(df%n_charges == 0 .or. df%n_pts == 0) call fatal_error("Either target or fit grids in density-fitting have no points.")
 
@@ -827,6 +843,7 @@ contains
         deallocate(s, u, vt, work, iwork, tmp_X)
         df%xinv_done = .true.
         call ommp_message('SVD-based Xinv computed', 2, 'df')
+        call time_pull("DF - Computing X+")
     end subroutine df_compute_Xinv_svd
 
     subroutine df_electrostatic_static(df, eel)
@@ -845,7 +862,7 @@ contains
         call df_update(df)
 
         if(.not. df%V_m2q_done) then
-            !call ommp_message('Computing Vm2q', -1, 'df')
+            call time_push
             if(.not. allocated(df%V_m2q)) then
                 call mallocate('df_electrostatic_static [V_mm2df]', &
                                df%n_charges, df%V_m2q)
@@ -853,7 +870,7 @@ contains
 
             df%V_m2q = 0.0_rp
             call potential_M2E(eel, df%charge_coord, df%V_m2q)
-            !write(*,*) ">>",df%V_m2q
+            call time_pull("DF - Computing V M2Q")
             df%V_m2q_done = .true.
         end if
     end subroutine df_electrostatic_static
@@ -876,6 +893,7 @@ contains
         if(eel%pol_atoms == 0) return
 
         if(.not. df%V_p2q_done .and. eel%ipd_done) then
+            call time_push
             if(.not. allocated(df%V_p2q)) then
                 call mallocate('df_electrostatic_dipoles [V_pd2df]', &
                                df%n_charges, eel%n_ipd, df%V_p2q)
@@ -889,6 +907,7 @@ contains
                 call potential_D2E(eel, df%charge_coord, df%V_p2q(:,1))
             end if
             df%V_p2q_done = .true.
+            call time_pull("DF - Computing V P2Q")
         end if
 
     end subroutine df_electrostatic_dipoles
@@ -908,6 +927,7 @@ contains
         call df_update(df)
 
         if(.not. df%VXI_m_done) then
+            call time_push
             if(.not. df%xinv_done) then
                 call df_compute_Xinv_svd(df)
             end if
@@ -925,6 +945,7 @@ contains
                        df%Xinv, df%n_charges, &
                        df%V_m2q, 1, 0.0_rp, df%VXI_m, 1)
             df%VXI_m_done = .true.
+            call time_pull("DF - Computing VX+ (MM)")
         end if
     end subroutine df_project_static
 
@@ -956,6 +977,7 @@ contains
             if(.not. allocated(df%VXI_p)) then
                 call mallocate('df_project_dipoles [VXI_p]', df%n_pts, eel%n_ipd, df%VXI_p)
             end if
+            call time_push
 
             df%VXI_p = 0.0_rp
             if(eel%amoeba) then
@@ -971,6 +993,8 @@ contains
                         df%V_p2q(:,1), 1, 0.0_rp, df%VXI_p(:,1), 1)
             endif
             df%VXI_p_done = .true.
+
+            call time_pull("DF - Computing VX+ (pol)")
         end if
     end subroutine df_project_dipoles
 
