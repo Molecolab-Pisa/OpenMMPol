@@ -14,6 +14,7 @@ module mod_density_fit
     use mod_io, only: fatal_error, ommp_message
     use mod_topology, only: ommp_topology_type
     use mod_adjacency_mat, only: yale_sparse, allocate_yale_sparse, free_yale_sparse
+    use mod_profiling, only: time_pull, time_push
 
     implicit none
     private
@@ -812,6 +813,7 @@ contains
         allocate(vt(df%n_charges, df%n_charges))
         allocate(iwork(8 * min_dim))
 
+        call time_push
         tmp_X = df%X
         !! Query optimal workspace size
         lwork = -1
@@ -826,8 +828,10 @@ contains
         if(info /= 0) then
             call fatal_error('dgesdd SVD failed')
         end if
+        call time_pull("DF - SVD dgesdd")
 
 
+        call time_push
         !! Compute the pseudoinverse matrix
         !! 1. Compute (S_inv @ U^T)^T inplace starting from U
         do i = 1, min_dim
@@ -839,6 +843,7 @@ contains
         call dgemm('T', 'T', df%n_charges, df%n_pts, min_dim, 1.0_rp, vt, df%n_charges, u, df%n_pts, &
                    0.0_rp, df%Xinv, df%n_charges)
 
+        call time_pull("Pseudoinverse")
         !! Cleanup
         deallocate(s, u, vt, work, iwork, tmp_X)
         df%xinv_done = .true.
