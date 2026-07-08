@@ -776,80 +776,84 @@ contains
         call ommp_message(trim(msg), 1, 'df')
 
         !! Report total fitted charge
-        write(msg, '(A,F10.6)') 'Total fitted charge = ', sum(df%target_charges)
+        write(msg, '(A,F12.2)') 'Total fitted charge = ', sum(df%target_charges)
         call ommp_message(trim(msg), 1, 'df')
     end subroutine df_solve
 
-    subroutine df_compute_Xinv_svd(df)
+subroutine df_compute_Xinv_svd(df)
 
-        implicit none
+    implicit none
 
-        type(ommp_density_fit_type), intent(inout) :: df
-        integer(ip) :: min_dim, lwork, info, i
-        integer(ip), dimension(:), allocatable :: iwork
-        real(rp), dimension(:), allocatable :: s, work
-        real(rp), dimension(:,:), allocatable :: u, vt, tmp_X
+    type(ommp_density_fit_type), intent(inout) :: df
+    integer(ip) :: min_dim, lwork, info, i
+    integer(ip), dimension(:), allocatable :: iwork
+    real(rp), dimension(:), allocatable :: s, work
+    real(rp), dimension(:,:), allocatable :: u, vt, tmp_X
 
-        if(.not. df%initialized) then
-            call fatal_error("Density fit object not initialized!")
-        end if
+    if(.not. df%initialized) then
+        call fatal_error("Density fit object not initialized!")
+    end if
 
-        call df_update(df)
+    call df_update(df)
 
-        if(.not. df%x_done) then
-            call df_build_X(df)
-        end if
+    if(.not. df%x_done) then
+        call df_build_X(df)
+    end if
 
-        call time_push
-        !! Edge case: nothing to do
-        if(df%n_charges == 0 .or. df%n_pts == 0) call fatal_error("Either target or fit grids in density-fitting have no points.")
+    call time_push
+    if(df%n_charges == 0 .or. df%n_pts == 0) &
+        call fatal_error("Either target or fit grids in density-fitting have no points.")
 
-        min_dim = min(df%n_charges, df%n_pts)
+    min_dim = min(df%n_charges, df%n_pts)
 
-        !! Allocate SVD workspace
-        allocate(tmp_X(df%n_pts, df%n_charges))
-        allocate(s(min_dim))
-        allocate(u(df%n_pts, df%n_pts))
-        allocate(vt(df%n_charges, df%n_charges))
-        allocate(iwork(8 * min_dim))
+    !! Allocate SVD workspace — U is now n_pts x min_dim (economy SVD)
+    allocate(tmp_X(df%n_pts, df%n_charges))
+    allocate(s(min_dim))
+    allocate(u(df%n_pts, min_dim))      ! was (n_pts, n_pts)
+    allocate(vt(min_dim, df%n_charges)) ! was (n_charges, n_charges)
+    allocate(iwork(8 * min_dim))
 
-        call time_push
-        tmp_X = df%X
-        !! Query optimal workspace size
-        lwork = -1
-        allocate(work(1))
-        call dgesdd('A', df%n_pts, df%n_charges, tmp_X, df%n_pts, s, u, df%n_pts, vt, df%n_charges, work, lwork, iwork, info)
-        lwork = int(work(1))
-        deallocate(work)
-        allocate(work(lwork))
+    call time_push
+    tmp_X = df%X
 
-        !! Compute full SVD (U is computed but only VT is needed for the pseudoinverse)
-        call dgesdd('A', df%n_pts, df%n_charges, tmp_X, df%n_pts, s, u, df%n_pts, vt, df%n_charges, work, lwork, iwork, info)
-        if(info /= 0) then
-            call fatal_error('dgesdd SVD failed')
-        end if
-        call time_pull("DF - SVD dgesdd")
+    !! Query optimal workspace size using economy SVD ('S')
+    lwork = -1
+    allocate(work(1))
+    call dgesdd('S', df%n_pts, df%n_charges, tmp_X, df%n_pts, s, &
+                u, df%n_pts, vt, min_dim, &   ! ldvt is now min_dim, not n_charges
+                work, lwork, iwork, info)
+    lwork = int(work(1))
+    deallocate(work)
+    allocate(work(lwork))
 
+    !! Compute economy SVD
+    call dgesdd('S', df%n_pts, df%n_charges, tmp_X, df%n_pts, s, &
+                u, df%n_pts, vt, min_dim, &
+                work, lwork, iwork, info)
+    if(info /= 0) call fatal_error('dgesdd SVD failed')
+    call time_pull("DF - SVD dgesdd")
 
-        call time_push
-        !! Compute the pseudoinverse matrix
-        !! 1. Compute (S_inv @ U^T)^T inplace starting from U
-        do i = 1, min_dim
-            u(:,i) = u(:,i) / s(i)
-        end do
-        !! Actually the desired matrix is in u(:,:n_charges)
+    call time_push
+    !! Scale columns of U by 1/s(i): u(:,i) <- u(:,i) / s(i)
+    do i = 1, min_dim
+        u(:,i) = u(:,i) / s(i)
+    end do
 
-        !! Now compute the pseudoinverse as Vt^T @ (U @ S-1) ^ T
-        call dgemm('T', 'T', df%n_charges, df%n_pts, min_dim, 1.0_rp, vt, df%n_charges, u, df%n_pts, &
-                   0.0_rp, df%Xinv, df%n_charges)
+    !! Pseudoinverse: Xinv = Vt^T @ (U @ S^{-1})^T
+    !! = Vt^T (min_dim x n_charges)^T  @  U_scaled^T (n_pts x min_dim)^T
+    !! dgemm: Xinv(n_charges, n_pts) = Vt^T(n_charges, min_dim) @ U_scaled^T(min_dim, n_pts)
+    call dgemm('T', 'T', df%n_charges, df%n_pts, min_dim, &
+               1.0_rp, vt, min_dim, &       ! lda is now min_dim, not n_charges
+               u, df%n_pts, &
+               0.0_rp, df%Xinv, df%n_charges)
 
-        call time_pull("Pseudoinverse")
-        !! Cleanup
-        deallocate(s, u, vt, work, iwork, tmp_X)
-        df%xinv_done = .true.
-        call ommp_message('SVD-based Xinv computed', 2, 'df')
-        call time_pull("DF - Computing X+")
-    end subroutine df_compute_Xinv_svd
+    call time_pull("Pseudoinverse")
+
+    deallocate(s, u, vt, work, iwork, tmp_X)
+    df%xinv_done = .true.
+    call ommp_message('SVD-based Xinv computed', 2, 'df')
+    call time_pull("DF - Computing X+")
+end subroutine df_compute_Xinv_svd
 
     subroutine df_electrostatic_static(df, eel)
         !! Compute the electrostatic potential generated by MM static multipoles
