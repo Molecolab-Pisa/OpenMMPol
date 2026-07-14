@@ -384,7 +384,18 @@ def ommp_ip_main():
 
     # Write on file
     with open(json_si_path, 'w+') as f:
-        print(json.dumps(json_si_data, indent=4), file=f)
+        class RoundingEncoder(json.JSONEncoder):
+            def iterencode(self, o, _one_shot=False):
+                def round_floats(obj):
+                    if isinstance(obj, float):
+                        return round(obj, 5)
+                    if isinstance(obj, dict):
+                        return {k: round_floats(v) for k, v in obj.items()}
+                    if isinstance(obj, list):
+                        return [round_floats(v) for v in obj]
+                    return obj
+                return super().iterencode(round_floats(o), _one_shot)
+        print(json.dumps(json_si_data, indent=4, cls=RoundingEncoder), file=f)
 
     # 3. Assemble utility files
     mm_sys.atoms.write(mmpdb_path)
