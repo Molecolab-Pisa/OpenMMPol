@@ -34,7 +34,8 @@ module mod_solvers
     integer(ip), parameter :: OMMP_DEFAULT_DIIS_MAX_POINTS = 20
     !! Default maximum number of points in DIIS extrapolation
 
-    public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
+    public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver, &
+              OMMP_DEFAULT_SOLVER_TOL
 
     contains
     

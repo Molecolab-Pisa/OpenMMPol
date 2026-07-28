@@ -119,6 +119,32 @@ module mod_ommp_C_interface
             call ommp_set_default_matv(s, matv)
         end subroutine C_ommp_set_default_matv
 
+        subroutine C_ommp_set_polarization_conv_thr(s_prt, conv_thr) &
+                bind(c, name='ommp_set_polarization_conv_thr')
+            implicit none
+
+            real(c_double), value :: conv_thr
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+           
+            call c_f_pointer(s_prt, s)
+            
+            call ommp_set_polarization_conv_thr(s, conv_thr)
+        end subroutine C_ommp_set_polarization_conv_thr
+
+        subroutine C_ommp_set_polarization_use_guess(s_prt, use_guess) &
+                bind(c, name='ommp_set_polarization_use_guess')
+            implicit none
+
+            logical(c_bool), value :: use_guess
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(s_prt, s)
+            
+            call ommp_set_polarization_use_guess(s, use_guess)
+        end subroutine C_ommp_set_polarization_use_guess
+
         subroutine C_ommp_fatal(c_msg) &
                 bind(c, name='ommp_fatal')
             implicit none

@@ -613,6 +613,9 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     int32_t req_verbosity = OMMP_VERBOSE_DEFAULT,
             req_solver = OMMP_SOLVER_DEFAULT,
             req_matv = OMMP_MATV_DEFAULT;
+    double req_polarization_conv_thr = -1.0;
+    bool force_use_guess = false;
+    bool req_polarization_use_guess = true;
     
     int32_t *la_mm=NULL, *la_qm=NULL, *la_la=NULL, *la_ner=NULL;
     unsigned int nfrozen = 0, nla = 0, nremovepol=0;
@@ -750,6 +753,22 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
                 sprintf(msg, "Unrecognized option \"%s\" for matrix_vector; Available solvers are default, direct, incore.", cur->valuestring);
                 ommp_fatal(msg);
             }
+        }
+        else if(strcmp(cur->string, "polarization_ls_conv_thr") == 0){
+            if(!cJSON_IsNumber(cur))
+                ommp_fatal("polarization_ls_conv_thr must be a positive number.");
+            if(cur->valuedouble <= 0.0)
+                ommp_fatal("polarization_ls_conv_thr must be a positive number.");
+            req_polarization_conv_thr = cur->valuedouble;
+        }
+        else if(strcmp(cur->string, "polarization_ls_use_guess") == 0){
+            force_use_guess = true;
+            if(strcmp(cur->valuestring, "true") == 0)
+                req_polarization_use_guess = true;
+            else if(strcmp(cur->valuestring, "false") == 0)
+                req_polarization_use_guess = false;
+            else
+                ommp_fatal("polarization_ls_use_guess should be one of the following values [true, false]");
         }
         else if(strcmp(cur->string, "frozen_atoms") == 0){
             if(!cJSON_IsArray(cur))
@@ -1124,6 +1143,14 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     ommp_set_default_matv(*ommp_sys, req_matv);
     // Set cutoff for VdW
     ommp_set_vdw_cutoff(*ommp_sys, vdw_cutoff);
+    // Set polarization convergence threshold
+    if(req_polarization_conv_thr > 0.0){
+        ommp_message("Setting polarization LS convergence threshold", OMMP_VERBOSE_DEBUG, "SI");
+        ommp_set_polarization_conv_thr(*ommp_sys, req_polarization_conv_thr);
+    }
+    // Set polarization use guess
+    ommp_message("Setting polarization LS use guess", OMMP_VERBOSE_DEBUG, "SI");
+    ommp_set_polarization_use_guess(*ommp_sys, req_polarization_use_guess);
 
     // Handle QM part of the system
     if(*ommp_qmh == NULL){

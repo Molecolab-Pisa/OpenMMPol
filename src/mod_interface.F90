@@ -87,6 +87,27 @@ module ommp_interface
             
             call set_def_matv(s%eel, matv)
         end subroutine ommp_set_default_matv
+
+        subroutine ommp_set_polarization_conv_thr(s, conv_thr)
+            use mod_electrostatics, only: set_def_conv_thr
+            implicit none 
+
+            real(ommp_real), intent(in), value :: conv_thr
+            type(ommp_system), pointer :: s
+           
+            
+            call set_def_conv_thr(s%eel, conv_thr)
+        end subroutine ommp_set_polarization_conv_thr
+
+        subroutine ommp_set_polarization_use_guess(s, use_guess)
+            use mod_electrostatics, only: set_def_use_guess
+            implicit none
+
+            logical(ommp_logical), intent(in), value :: use_guess
+            type(ommp_system), pointer :: s
+            
+            call set_def_use_guess(s%eel, use_guess)
+        end subroutine ommp_set_polarization_use_guess
         
         subroutine ommp_init_mmp(s, filename)
             use mod_inputloader, only : mmpol_init_from_mmp

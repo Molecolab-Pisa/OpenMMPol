@@ -1,2 +1,0 @@
-fornma_gly     CNC(=O)CNC(=O)    -   - GLY coo_nma_2cap_res
-acenma_gly     CNC(=O)CNC(=O)C   -   - GLY ace_nma_2cap_res

@@ -25,6 +25,11 @@ module mod_electrostatics
         !! Solver to be used by default for this eel object.
         integer(ip) :: def_matv
         !! Matrix-vector method to be used by default for this eel object.
+        real(rp) :: def_conv_thr = -1.0_rp
+        !! Convergence threshold for iterative solvers; negative means
+        !! use the default from mod_solvers (1d-8).
+        logical(lp) :: def_use_guess = .true._lp
+        !! Use the previous induced dipole as starting guess for the solver.
 
         type(ommp_topology_type), pointer :: top
         !! Data structure containing all the topological informations
@@ -242,7 +247,7 @@ module mod_electrostatics
 
     public :: ommp_electrostatics_type
     public :: electrostatics_init, electrostatics_terminate
-    public :: set_def_solver, set_def_matv
+    public :: set_def_solver, set_def_matv, set_def_conv_thr, set_def_use_guess
     public :: thole_init, remove_null_pol, set_screening_parameters
     public :: screening_rules, make_screening_lists
     public :: damped_coulomb_kernel, field_extD2D
@@ -281,6 +286,7 @@ module mod_electrostatics
         eel_obj%top => top_obj
         eel_obj%def_solver = OMMP_SOLVER_DEFAULT
         eel_obj%def_matv = OMMP_MATV_DEFAULT
+        eel_obj%def_conv_thr = -1.0_rp
 
         if(amoeba) then
             eel_obj%ld_cart = 10_ip
@@ -436,6 +442,26 @@ module mod_electrostatics
            matv /= OMMP_MATV_DIRECT) &
             call fatal_error("Unrecognized setting for default matrix-vector method")
         eel_obj%def_matv = matv
+    end subroutine
+
+    subroutine set_def_conv_thr(eel_obj, conv_thr)
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+        real(rp), intent(in) :: conv_thr
+        !! Convergence threshold for iterative polarization solvers
+
+        eel_obj%def_conv_thr = conv_thr
+    end subroutine
+
+    subroutine set_def_use_guess(eel_obj, use_guess)
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+        logical(lp), intent(in) :: use_guess
+        !! Whether to use the previous induced dipole as initial guess
+
+        eel_obj%def_use_guess = use_guess
     end subroutine
     
     subroutine set_screening_parameters(eel_obj, m, p, d, u, i)
