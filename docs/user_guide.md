@@ -126,6 +126,12 @@ cmake -C custom.cmake -B build \
 cmake --build build -j
 cmake --install build
 ```
+Finaly install python package:
+```bash
+cd build
+make PythonPackage
+pip install pythonapi/dist/pyopenmmpol*.whl
+```
 
 ## 5. The Smart Input JSON Interface
 
