@@ -2228,7 +2228,7 @@ module mod_electrostatics
                 ! Near field is computed internally because dumped kernel is required
                 do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
                     j = eel%fmm_near_field_list%ci(ij)
-                    jpol = eel%polar_mm(j)
+                    jpol = eel%mm_polar(j)
                     ! If the atom is not polarizable, skip
                     if(jpol < 1) cycle 
 
@@ -2865,7 +2865,7 @@ module mod_electrostatics
                 if(do_E) tmpE = 0.0
                 if(do_Egrd) tmpEgr = 0.0
                 if(do_EHes) tmpHE = 0.0
-               
+
                 call cart_propfar_at_ipart(eel%fmm_ipd(knd), i, &
                 !                           do_V, eel%V_D2M(i), &
                 !                           do_E, eel%E_D2M(:,i), &
@@ -2884,7 +2884,7 @@ module mod_electrostatics
                 ! Near field is computed internally because dumped kernel is required
                 do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
                     j = eel%fmm_near_field_list%ci(ij)
-                    jpol = eel%polar_mm(j)
+                    jpol = eel%mm_polar(j)
                     ! If the atom is not polarizable, skip
                     if(jpol < 1) cycle 
 
@@ -2954,7 +2954,6 @@ module mod_electrostatics
                     end if
                 end do
             end do
-
             ! Now remove screened interactions from far-field, hopefully they should be almost absent
             if(screening_type == 'P' .and. allocated(eel%list_S_P_P_fmm_far)) then
                 do i=1, top%mm_atoms
