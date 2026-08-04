@@ -249,18 +249,18 @@ def ommp_ip_main():
                                 as basename. Default is 'out'""")
     parser.add_argument('--fail-on-duplicated-prm',
                         required=False,
-                        action='store_true'
+                        action='store_true',
                         default=False,
                         help="""If duplicated parameters are present in the input prm file, 
                                 rise an error in OpenMMPol and stop.""")
     parser.add_argument('--never-use-fmm',
                         required=False,
-                        action='store_true'
+                        action='store_true',
                         default=False,
                         help="""Force double loop algorithm for electrostatics.""")
     parser.add_argument('--use-fmm',
                         required=False,
-                        action='store_true'
+                        action='store_true',
                         default=False,
                         help="""Force fast multipoles algorithm for electrostatics.""")
 

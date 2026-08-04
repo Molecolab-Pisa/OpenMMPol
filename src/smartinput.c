@@ -19,7 +19,7 @@ typedef struct _semversion{
     int minor;
     int patch;
     int ncommit;
-    char commit[8];
+    char commit[32];
     bool clean;
 } semversion;
 
@@ -147,7 +147,7 @@ semversion str_to_semversion(char *strin){
                 return v_err;
             }
 
-            strcpy(v.commit, commithash);
+            sptintf(v.commit, "%8s\0", commithash);
 
             char *clean = strtok(NULL, ".");
             if(clean != NULL){
@@ -305,7 +305,7 @@ bool check_version(char *verstr){
     if(vreq.ncommit == 0 && vommp.ncommit > 0) return true;
     if(vreq.ncommit > 0 && vommp.ncommit > 0){
         if(vreq.ncommit == vommp.ncommit && 
-           strcmp(vreq.commit, vommp.commit) == 0)
+           strncmp(vreq.commit, vommp.commit, 8) == 0)
             return true;
         else
             return false;
