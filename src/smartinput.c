@@ -147,7 +147,7 @@ semversion str_to_semversion(char *strin){
                 return v_err;
             }
 
-            sptintf(v.commit, "%8s\0", commithash);
+            sprintf(v.commit, "%8s\0", commithash);
 
             char *clean = strtok(NULL, ".");
             if(clean != NULL){
