@@ -318,7 +318,7 @@ module mod_link_atom
                 end do
             end if
             
-            call remove_null_pol(eel)
+            call remove_null_pol(eel, .true.)
 
             eel%M2M_done = .false.
             eel%M2Mgg_done = .false.

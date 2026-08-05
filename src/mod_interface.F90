@@ -187,7 +187,7 @@ module ommp_interface
                 end if
             end do
 
-            call remove_null_pol(s%eel)
+            call remove_null_pol(s%eel, .true.)
 
         end subroutine
         

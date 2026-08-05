@@ -196,7 +196,7 @@ module mod_mmpol
             call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if
 
-        call remove_null_pol(sys_obj%eel)
+        call remove_null_pol(sys_obj%eel, .false.)
        
         ! invert mm_polar list creating mm_polar
         sys_obj%eel%mm_polar(:) = 0
