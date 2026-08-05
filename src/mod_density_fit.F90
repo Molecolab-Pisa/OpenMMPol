@@ -1279,8 +1279,8 @@ end subroutine df_compute_Xinv_svd
                     !$omp parallel do collapse(2) default(shared) schedule(static) &
                     !$omp private(i,ipol,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
                     do i = 1, n_pol
-                        ipol = eel%polar_mm(i)
                         do j = 1, n_cpt
+                            ipol = eel%polar_mm(i)
                             dr = df%charge_coord(:,j) - eel%cpol(:,i)
                             call coulomb_kernel(dr, 2, kernel)
                             tmpE = 0.0_rp
