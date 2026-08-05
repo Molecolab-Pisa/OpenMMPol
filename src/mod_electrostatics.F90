@@ -392,18 +392,7 @@ module mod_electrostatics
         call mfree('electrostatics_terminate [E_M2M]', eel_obj%E_M2M)
         call mfree('electrostatics_terminate [Egrd_M2M]', eel_obj%Egrd_M2M)
 
-        if(allocated(eel_obj%todo_S_S)) deallocate(eel_obj%todo_S_S)
-        if(allocated(eel_obj%todo_P_P)) deallocate(eel_obj%todo_P_P)
-        call mfree('electrostatics_terminate [scalef_S_S]', eel_obj%scalef_S_S)
-        call mfree('electrostatics_terminate [scalef_P_P]', eel_obj%scalef_P_P)
-        if(allocated(eel_obj%list_S_S)) then
-            call free_yale_sparse(eel_obj%list_S_S)
-            deallocate(eel_obj%list_S_S)
-        end if
-        if(allocated(eel_obj%list_P_P)) then
-            call free_yale_sparse(eel_obj%list_P_P)
-            deallocate(eel_obj%list_P_P)
-        end if
+        call free_screening_list(eel_obj)
 
         if(eel_obj%use_fmm) then
             call free_fmm(eel_obj%fmm_static)
@@ -416,6 +405,44 @@ module mod_electrostatics
         end if
 
     end subroutine electrostatics_terminate
+
+    subroutine free_screening_list(eel_obj)
+        use mod_memory, only: mfree
+        use mod_adjacency_mat, only: free_yale_sparse
+
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel_obj
+
+        if(allocated(eel_obj%todo_S_S)) deallocate(eel_obj%todo_S_S)
+        call mfree('electrostatics_terminate [scalef_S_S]', eel_obj%scalef_S_S)
+        if(allocated(eel_obj%list_S_S)) then
+            call free_yale_sparse(eel_obj%list_S_S)
+            deallocate(eel_obj%list_S_S)
+        end if
+        
+        if(allocated(eel_obj%todo_P_P)) deallocate(eel_obj%todo_P_P)
+        call mfree('electrostatics_terminate [scalef_P_P]', eel_obj%scalef_P_P)
+        if(allocated(eel_obj%list_P_P)) then
+            call free_yale_sparse(eel_obj%list_P_P)
+            deallocate(eel_obj%list_P_P)
+        end if
+
+        if(allocated(eel_obj%todo_S_P_P)) deallocate(eel_obj%todo_S_P_P)
+        call mfree('electrostatics_terminate [scalef_S_P_P]', eel_obj%scalef_S_P_P)
+        if(allocated(eel_obj%list_S_P_P)) then
+            call free_yale_sparse(eel_obj%list_S_P_P)
+            deallocate(eel_obj%list_S_P_P)
+        end if
+        
+        if(allocated(eel_obj%todo_S_P_D)) deallocate(eel_obj%todo_S_P_D)
+        call mfree('electrostatics_terminate [scalef_S_P_D]', eel_obj%scalef_S_P_D)
+        if(allocated(eel_obj%list_S_P_D)) then
+            call free_yale_sparse(eel_obj%list_S_P_D)
+            deallocate(eel_obj%list_S_P_D)
+        end if
+
+    end subroutine
 
     subroutine set_def_solver(eel_obj, solver)
         use mod_constants, only: OMMP_SOLVER_CG, OMMP_SOLVER_INVERSION, OMMP_SOLVER_DIIS
@@ -493,7 +520,7 @@ module mod_electrostatics
         
     end subroutine set_screening_parameters
 
-    subroutine remove_null_pol(eel)
+    subroutine remove_null_pol(eel, rebuild_list)
         !! Check which polarizabilities are close enough to 0 to be 
         !! just excluded from the calculation, and remove them.
 
@@ -502,6 +529,7 @@ module mod_electrostatics
         implicit none
 
         type(ommp_electrostatics_type), intent(inout) :: eel
+        logical, intent(in) :: rebuild_list
         integer(ip), allocatable :: idx(:), polar_mm(:)
         integer(ip) :: i, nidx
         real(rp), allocatable :: tmp(:)
@@ -558,6 +586,9 @@ module mod_electrostatics
             end if
             
             call mfree('remove_null_pol [idx]', idx)
+            
+            eel%screening_list_done = .false.
+            if(rebuild_list) call make_screening_lists(eel)
         end if
 
     end subroutine
@@ -579,6 +610,7 @@ module mod_electrostatics
         real(rp), allocatable :: rtmp(:,:), rtmp_far(:,:)
 
         if(eel%screening_list_done) return
+        call free_screening_list(eel)
 
         n = eel%top%mm_atoms
         npol = eel%pol_atoms
@@ -2661,7 +2693,7 @@ module mod_electrostatics
 
                     ! Check if the element should be scaled
                     do idx=eel%list_S_P_P%ri(i), eel%list_S_P_P%ri(i+1)-1
-                        if(eel%list_S_P_P%ci(idx) == eel%polar_mm(j)) then
+                        if(eel%list_S_P_P%ci(idx) == j) then
                             to_scale_p = .true.
                             exit
                         end if
@@ -2679,7 +2711,7 @@ module mod_electrostatics
 
                     ! Check if the element should be scaled
                     do idx=eel%list_S_P_D%ri(i), eel%list_S_P_D%ri(i+1)-1
-                        if(eel%list_S_P_D%ci(idx) == eel%polar_mm(j)) then
+                        if(eel%list_S_P_D%ci(idx) == j) then
                             to_scale_d = .true.
                             exit
                         end if
