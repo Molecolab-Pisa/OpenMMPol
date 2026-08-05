@@ -1190,7 +1190,7 @@ end subroutine df_compute_Xinv_svd
         type(ommp_density_fit_type), intent(inout) :: df
         type(ommp_electrostatics_type), intent(in) :: eel
 
-        integer(ip) :: i, j, a, k, n_cpt, n_mm, n_pts, n_charges, n_pol
+        integer(ip) :: i, j, a, k, n_cpt, n_mm, n_pts, n_charges, n_pol, ipol
         real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
 
         call df_update(df)
@@ -1277,10 +1277,11 @@ end subroutine df_compute_Xinv_svd
 
                 do k = 1, eel%n_ipd
                     !$omp parallel do collapse(2) default(shared) schedule(static) &
-                    !$omp private(i,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
-                    do i = 1, n_mm
+                    !$omp private(i,ipol,j,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+                    do i = 1, n_pol
+                        ipol = eel%polar_mm(i)
                         do j = 1, n_cpt
-                            dr = df%charge_coord(:,j) - eel%top%cmm(:,i)
+                            dr = df%charge_coord(:,j) - eel%cpol(:,i)
                             call coulomb_kernel(dr, 2, kernel)
                             tmpE = 0.0_rp
                             call mu_elec_prop(eel%ipd(:,i,k), dr, kernel, &
@@ -1288,7 +1289,7 @@ end subroutine df_compute_Xinv_svd
                                                 .true., tmpE, &
                                                 .false., tmpEgr, &
                                                 .false., tmpHE)
-                            df%E_p2q(:,i,j,k) = df%E_p2q(:,i,j,k) + tmpE
+                            df%E_p2q(:,ipol,j,k) = df%E_p2q(:,ipol,j,k) + tmpE
                         end do
                     end do
                 end do
