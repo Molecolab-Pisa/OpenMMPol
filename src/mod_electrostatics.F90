@@ -2661,7 +2661,7 @@ module mod_electrostatics
 
                     ! Check if the element should be scaled
                     do idx=eel%list_S_P_P%ri(i), eel%list_S_P_P%ri(i+1)-1
-                        if(eel%list_S_P_P%ci(idx) == j) then
+                        if(eel%list_S_P_P%ci(idx) == eel%polar_mm(j)) then
                             to_scale_p = .true.
                             exit
                         end if
@@ -2679,7 +2679,7 @@ module mod_electrostatics
 
                     ! Check if the element should be scaled
                     do idx=eel%list_S_P_D%ri(i), eel%list_S_P_D%ri(i+1)-1
-                        if(eel%list_S_P_D%ci(idx) == j) then
+                        if(eel%list_S_P_D%ci(idx) == eel%polar_mm(j)) then
                             to_scale_d = .true.
                             exit
                         end if

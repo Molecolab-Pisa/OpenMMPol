@@ -178,7 +178,7 @@ module ommp_interface
             end if
 
             do i=1, n
-                j = s%eel%mm_polar(i)
+                j = nopol(i)
                 if(j > 0) then
                     s%eel%pol(j) = 0.0
                 else
