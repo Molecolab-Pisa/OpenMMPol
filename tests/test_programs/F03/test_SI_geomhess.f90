@@ -1,143 +1,120 @@
+module test_geomhess
+    use ommp_interface
+
+    abstract interface
+    subroutine hess_term(s, hess)
+        use mod_mmpol, only: ommp_system
+        use mod_memory, only: rp
+        type(ommp_system), intent(inout), target :: s
+        real(rp), intent(inout) :: hess(3,3,s%top%mm_atoms,s%top%mm_atoms)
+    end subroutine
+    end interface
+
+    contains
+        subroutine polelec_geomhess_guarded(s, hess)
+            !! polelec_geomhess itself, skipped when there is nothing
+            !! polarizable to differentiate -- mirrors the guard that
+            !! ommp_polelec_geomgrad applies at the gradient level.
+            use mod_geomhess, only: polelec_geomhess
+            implicit none
+            type(ommp_system), intent(inout), target :: s
+            real(ommp_real), intent(inout) :: hess(3,3,s%top%mm_atoms,s%top%mm_atoms)
+
+            if(s%eel%pol_atoms > 0) call polelec_geomhess(s, hess)
+        end subroutine
+
+        subroutine full_elec_geomhess(s, hess)
+            !! Fixed-multipole + polarization Hessian, combined. Not
+            !! "the full Hessian" in the same sense as ommp_full_geomgrad
+            !! (which also includes bonded and vdW terms): analytical
+            !! bonded/vdW Hessians don't exist yet, so this only covers
+            !! electrostatics -- the same scope as full_elec_geomgrad in
+            !! test_geomhess_num, so the two remain directly comparable.
+            use mod_geomhess, only: fixedelec_geomhess
+            implicit none
+            type(ommp_system), intent(inout), target :: s
+            real(ommp_real), intent(inout) :: hess(3,3,s%top%mm_atoms,s%top%mm_atoms)
+
+            call fixedelec_geomhess(s, hess)
+            call polelec_geomhess_guarded(s, hess)
+        end subroutine
+
+        subroutine print_hess(n, h, name)
+            character(len=*) :: name
+            integer(ommp_integer) :: n
+            real(ommp_real) :: h(3,3,n,n)
+
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+            integer(ommp_integer) :: i, j
+
+            write(msg, "('Hess ', A)") name
+            call ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-HES")
+
+            do i=1, n
+                do j=1, n
+                    write(msg, "('IJ:', I0, ':', I0, 9(' ', E20.12))") &
+                        i, j, h(:,1,i,j), h(:,2,i,j), h(:,3,i,j)
+                    call ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-HES")
+                end do
+            end do
+
+            call ommp_message("", OMMP_VERBOSE_NONE, "TEST-HES")
+        end subroutine
+
+        subroutine ana_hess_print(sys, hess_f, n)
+            type(ommp_system) :: sys
+            procedure(hess_term), pointer :: hess_f
+            character(len=*) :: n
+
+            real(ommp_real), allocatable, dimension(:,:,:,:) :: hmm
+            integer(ommp_integer) :: natm
+
+            natm = sys%top%mm_atoms
+            allocate(hmm(3,3,natm,natm))
+            hmm = 0.0
+            call hess_f(sys, hmm)
+            ! one extra power of ANG2AU vs. the gradient's own scaling,
+            ! since the Hessian is a second position-derivative
+            hmm = hmm * OMMP_AU2KCALMOL*OMMP_ANG2AU*OMMP_ANG2AU
+            call print_hess(natm, hmm, n)
+            deallocate(hmm)
+        end subroutine
+end module
+
 program test_SI_geomhess
     use iso_c_binding, only: c_char
     use ommp_interface
-    use mod_geomgrad
-    use mod_geomhess
-    use mod_memory, only : ip, rp
-    use mod_mmpol
+    use test_geomhess
+    use mod_geomhess, only: fixedelec_geomhess
 
     implicit none
-    character(kind=c_char, len=120), dimension(3) :: args
-    character(len=OMMP_STR_CHAR_MAX) :: prm_file
+    character(kind=c_char, len=120), dimension(2) :: args
     integer :: narg
-    type(ommp_system), pointer :: my_system, fake_qm
+    type(ommp_system), pointer :: my_system
     type(ommp_qm_helper), pointer :: my_qmh
-    logical :: use_qm = .false., use_fake_qm = .false.
-    integer(ip) :: i, j, ix, jx, n
-!
-    real(rp), parameter   :: delta = 1.0e-5_rp
-    real(rp), allocatable :: hess(:,:,:,:), gph(:,:), gmh(:,:), hessnum(:,:,:,:), cmm(:,:), gg(:,:)
-  
-    narg = command_argument_count()
-    if (narg /= 1) then
-        write(6, *) "Syntax expected "
-        write(6, *) "   $ test_SI_geomhess.exe <JSON FILE>"
-        call exit(1)
-    else 
-        call get_command_argument(1, args(1))
-        call ommp_smartinput(trim(args(1)), my_system, my_qmh)
-!
-        n = my_system%top%mm_atoms
-        write(6,*) '# atoms = ', n
-        allocate(hess(3,3,n,n),hessnum(3,3,n,n))
-        hess = 0.0_rp
-        hessnum = 0.0_rp
-!fl!!
-!       do i = 1, n
-!         my_system%eel%q(1,i) = 0.0_rp
-!         my_system%eel%q(2:4,i) = 0.0_rp
-!         my_system%eel%q(5:10,i) = 0.0_rp
-!       end do
-!!!!!
-        call fixedelec_geomhess(my_system, hess)
-!       do i = 1, n
-!         do j = 1, n
-!           write(6,*) 'hess for atoms ',j, i
-!           write(6,'(10f14.8)') hess(:,:,j,i)
-!         end do
-!       end do
-!       write(6,*) 'charges:'
-!       do i = 1, n
-!         write(6,*) my_system%eel%q(1,i)
-!       end do
-!
-!       write(6,*) 'field:'
-!       do i = 1, n
-!         write(6,'(3f12.6)') my_system%eel%e_M2M(:,i)
-!       end do
-!       write(6,*) 'dipoles:'
-!       do i = 1, n
-!         write(6,'(3f12.8)') my_system%eel%q(2:4,i)
-!       end do
-!       write(6,*) 'field gradient:'
-!       do i = 1, n
-!         write(6,'(10f12.8)') my_system%eel%Egrd_M2M(:,i)
-!       end do
-!       write(6,*) 'field hessian:'
-!       do i = 1, n
-!         write(6,'(10f12.8)') my_system%eel%Ehes_M2M(:,i)
-!       end do
-!
-!fl
-!       gg = 0.0_rp
-!       do i = 1, n
-!         gg(1,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(1,i) + &
-!                   my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(2,i) +  &
-!                   my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(4,i)
-!         gg(2,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(2,i) + &
-!                   my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(3,i) +  &
-!                   my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(5,i)
-!         gg(3,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(4,i) + &
-!                   my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(5,i) +  &
-!                   my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(6,i)
-!       end do
-!
-!       write(6,*) 'gradient a manina:'
-!       write(6,'(10f12.8)') gg
-!       gg = 0.0_rp
-!       call fixedelec_geomgrad(my_system,gg)
-!       write(6,*) 'field:'
-!       do i = 1, n
-!         write(6,'(3f12.8)') my_system%eel%e_M2M(:,i)
-!       end do
-!       write(6,*) 'field gradient:'
-!       do i = 1, n
-!         write(6,'(10f12.8)') my_system%eel%Egrd_M2M(:,i)
-!       end do
-!       write(6,*) 'field hessian:'
-!       do i = 1, n
-!         write(6,'(10f12.8)') my_system%eel%Ehes_M2M(:,i)
-!       end do
-!       write(6,*) 'gradient '
-!       write(6,'(10f12.8)') gg
-!
-!fl
-        allocate (cmm(3,n), gph(3,n), gmh(3,n), gg(3,n))
-        cmm = my_system%top%cmm
-        do i = 1, n
-          do ix = 1, 3
-            cmm(ix,i) = cmm(ix,i) + delta
-            call update_coordinates(my_system,cmm)
-            gph = 0.0_rp
-            call fixedelec_geomgrad(my_system,gph)
-            write(6,'(10f12.6)') gph
-            cmm(ix,i) = cmm(ix,i) - 2.0_rp * delta
-            call update_coordinates(my_system,cmm)
-            gmh = 0.0_rp
-            call fixedelec_geomgrad(my_system,gmh)
-            write(6,'(10f12.6)') gmh
-            cmm(ix,i) = cmm(ix,i) + delta
-            call update_coordinates(my_system,cmm)
-!
-            do j = 1, n
-              do jx = 1, 3
-                hessnum(jx,ix,j,i) = (gph(jx,j) - gmh(jx,j)) / (2.0_rp * delta)
-              end do
-            end do
-!
-          end do
-        end do
-!
-        do i = 1, n
-          do j = 1, n
-            write(6,*) 'diff hess for atoms (analytical/numerical) ',j, i
-            write(6,'(3f14.8)') hess(1,:,j,i) - hessnum(1,:,j,i)
-            write(6,'(3f14.8)') hess(2,:,j,i) - hessnum(2,:,j,i)
-            write(6,'(3f14.8)') hess(3,:,j,i) - hessnum(3,:,j,i)
-          end do
-        end do
-            
-        
 
+    procedure(hess_term), pointer :: ht
+
+    narg = command_argument_count()
+    if (narg /= 2) then
+        write(6, *) "Syntax expected "
+        write(6, *) "   $ test_SI_geomhess.exe <JSON FILE> <OUTPUT FILE>"
+        call exit(1)
+    else
+        call get_command_argument(1, args(1))
+        call get_command_argument(2, args(2))
+
+        call ommp_smartinput(trim(args(1)), my_system, my_qmh)
+        call ommp_set_outputfile(trim(args(2)))
+
+        ht => fixedelec_geomhess
+        call ana_hess_print(my_system, ht, "EM")
+        ht => polelec_geomhess_guarded
+        call ana_hess_print(my_system, ht, "EP")
+        ht => full_elec_geomhess
+        call ana_hess_print(my_system, ht, "ETOT")
+
+        if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
+        if(associated(my_system)) call ommp_terminate(my_system)
     end if
 end program

@@ -42,7 +42,7 @@ module mod_polarization
     private
     
 
-    public :: polarization, polarization_terminate
+    public :: polarization, polarization_terminate, create_TMat
     
     contains
     

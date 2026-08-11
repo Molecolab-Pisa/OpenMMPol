@@ -34,7 +34,7 @@ module mod_solvers
     integer(ip), parameter :: OMMP_DEFAULT_DIIS_MAX_POINTS = 20
     !! Default maximum number of points in DIIS extrapolation
 
-    public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
+    public :: inversion_solver, cp_inversion_solver, conjugate_gradient_solver, jacobi_diis_solver
 
     contains
     
@@ -82,6 +82,53 @@ module mod_solvers
         call mfree('inversion_solver [ipiv]', ipiv)
       
     end subroutine inversion_solver
+
+    subroutine cp_inversion_solver(n, nrhs, rhs, x, tmat)
+        !! Solve the linear system A X = B for many right-hand-sides B at
+        !! once (X, B are n x nrhs), factoring A only once (LU, dgetrf)
+        !! and reusing the factorization for all columns (dgetrs).
+        !!
+        !! Meant for the coupled-perturbed (CP) equations of the
+        !! polarization Hessian: the same polarization matrix tmat is
+        !! solved against one right-hand-side per Cartesian perturbation
+        !! (3*mm_atoms of them), so factoring once and solving all of them
+        !! together is the whole point -- unlike inversion_solver (which
+        !! is only ever used for a single right-hand-side), redoing the
+        !! factorization per column here would turn an O(n^3) solve into
+        !! an O(n^4) one.
+
+        use mod_memory, only: mallocate, mfree
+
+        implicit none
+
+        integer(ip), intent(in) :: n
+        !! Size of the matrix
+        integer(ip), intent(in) :: nrhs
+        !! Number of right-hand-sides (columns of rhs/x)
+        real(rp), dimension(n, nrhs), intent(in) :: rhs
+        !! Right hand sides of the linear system
+        real(rp), dimension(n, nrhs), intent(out) :: x
+        !! In output the solutions of the linear system, one per column
+        real(rp), dimension(n, n), intent(in) :: tmat
+        !! Polarization matrix
+
+        integer(ip) :: info
+        integer(ip), dimension(:), allocatable :: ipiv
+        real(rp), dimension(:,:), allocatable :: TMatLU
+
+        call mallocate('cp_inversion_solver [TMatLU]', n, n, TMatLU)
+        call mallocate('cp_inversion_solver [ipiv]', n, ipiv)
+
+        TMatLU = tmat
+        call dgetrf(n, n, TMatLU, n, ipiv, info)
+
+        x = rhs
+        call dgetrs('N', n, nrhs, TMatLU, n, ipiv, x, n, info)
+
+        call mfree('cp_inversion_solver [TMatLU]', TMatLU)
+        call mfree('cp_inversion_solver [ipiv]', ipiv)
+
+    end subroutine cp_inversion_solver
 
     subroutine conjugate_gradient_solver(n, rhs, x, eel, matvec, precnd, &
                                          arg_tol, arg_n_iter)

@@ -1,0 +1,13 @@
+{
+    "name": "nh3_amoeaba",
+    "description": "Single ammonia molecule in AMOEBA-2009 forcefield",
+    "xyz_file": {
+        "path": "/home/filippo/codes/OpenMMPol/tests/nh3.arc"
+    },
+    "prm_file": {
+        "path": "amoeba09.prm"
+    },
+    "use_fmm": "false",
+    "ignore_duplicated_prm": "true",
+    "verbosity": "debug"
+}

@@ -8,7 +8,7 @@ module mod_rotate_multipoles
     private
 
     public :: rotate_multipoles, rotation_geomgrad, rotation_geomhess, &
-              rotation_geomhess_pair, rotation_geomhess_pair8
+              rotation_geomhess_pair, rotation_geomhess_pair8, nref_atoms
 
     contains
 

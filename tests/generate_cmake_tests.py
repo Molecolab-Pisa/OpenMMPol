@@ -8,6 +8,8 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
     rtol_ene = 1e-6
     atol_grad = 1e-4
     rtol_grad = 1e-3
+    atol_hess = 1e-3
+    rtol_hess = 1e-3
     basename = None
     with open(jsonfile, "r") as f:
         data = json.loads(f.read())
@@ -195,6 +197,82 @@ def generate_test(jsonfile, program, ref, ef, fout, atol, rtol):
                             {:6.5g} {:6.5g})""".format(tname, tout_num, ref, rtol, atol),
                 file=fout)
             print("""set_tests_properties({:s}_comp_num_ref PROPERTIES DEPENDS {:s})""".format(tname, tname_num), file=fout)
+    elif program == "hess-num":
+        if atol is None:
+            atol = atol_hess
+        if rtol is None:
+            rtol = rtol_hess
+
+        tname = "{:s}_geomhess".format(basename)
+        tname_num = tname+'_num'
+        tout_num = "{:s}.out".format(tname_num)
+        tname_ana = tname+'_ana'
+        tout_ana = "{:s}.out".format(tname_ana)
+        doref = False
+
+        if ref.lower() != "none":
+            doref = True
+
+        # test_SI_geomhess/test_SI_geomhess_num only exist in Fortran
+        # (no C99 port, same as the original test_SI_geomhess) -- skip
+        # registering these under TESTLANG=C rather than fail to find
+        # a nonexistent bin/C_test_SI_geomhess(_num) executable.
+        print("""if("${TESTLANG}" STREQUAL "F03")""", file=fout)
+        print("""add_test(NAME {:s}
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomhess_num
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s}
+                          Testing/{:s})""".format(tname_num, jsonfile, tout_num),
+              file=fout)
+        print("""add_test(NAME {:s}
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomhess
+                          ${{CMAKE_SOURCE_DIR}}/tests/{:s}
+                          Testing/{:s})""".format(tname_ana, jsonfile, tout_ana),
+              file=fout)
+        print("""add_test(NAME {:s}_comp_num_ana
+                          COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomhess.py
+                          Testing/{:s}
+                          Testing/{:s}
+                          {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
+              file=fout)
+        print("""set_tests_properties({:s}_comp_num_ana PROPERTIES DEPENDS \"{:s};{:s}\")""".format(tname, tname_ana, tname_num), file=fout)
+
+        print("if (WITH_HDF5)", file=fout)
+        print("""add_test(NAME {:s}_HDF5
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomhess_num
+                          {:s}
+                          Testing/{:s}_HDF5)""".format(tname_num, converted_to_hdf5[jsonfile], tout_num),
+              file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname_num, basename), file=fout)
+        print("""add_test(NAME {:s}_HDF5
+                          COMMAND bin/${{TESTLANG}}_test_SI_geomhess
+                          {:s}
+                          Testing/{:s}_HDF5)""".format(tname_ana, converted_to_hdf5[jsonfile], tout_ana),
+              file=fout)
+        print("""set_tests_properties({:s}_HDF5 PROPERTIES DEPENDS {:s}_HDF5_convert)""".format(tname_ana, basename), file=fout)
+        print("""add_test(NAME {:s}_comp_num_ana_HDF5
+                          COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomhess.py
+                          Testing/{:s}_HDF5
+                          Testing/{:s}_HDF5
+                          {:6.5g} {:6.5g})""".format(tname, tout_num, tout_ana, rtol, atol),
+              file=fout)
+        print("""set_tests_properties({:s}_comp_num_ana_HDF5 PROPERTIES DEPENDS \"{:s}_HDF5;{:s}_HDF5\")""".format(tname, tname_ana, tname_num), file=fout)
+        print("endif ()", file=fout)
+        if doref:
+            print("""add_test(NAME {:s}_comp_ana_ref
+                            COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomhess.py
+                            Testing/{:s}
+                            ${{CMAKE_SOURCE_DIR}}/tests/{:s}
+                            {:6.5g} {:6.5g})""".format(tname, tout_ana, ref, rtol, atol),
+                file=fout)
+            print("""set_tests_properties({:s}_comp_ana_ref PROPERTIES DEPENDS {:s})""".format(tname, tname_ana), file=fout)
+            print("""add_test(NAME {:s}_comp_num_ref
+                            COMMAND python3 ${{CMAKE_SOURCE_DIR}}/tests/compare_geomhess.py
+                            Testing/{:s}
+                            ${{CMAKE_SOURCE_DIR}}/tests/{:s}
+                            {:6.5g} {:6.5g})""".format(tname, tout_num, ref, rtol, atol),
+                file=fout)
+            print("""set_tests_properties({:s}_comp_num_ref PROPERTIES DEPENDS {:s})""".format(tname, tname_num), file=fout)
+        print("""endif()""", file=fout)
     elif program == "grad":
         if atol is None:
             atol = atol_grad

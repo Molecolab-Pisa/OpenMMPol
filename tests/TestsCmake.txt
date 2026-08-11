@@ -313,6 +313,40 @@ add_test(NAME NMA_AMOEBA_MMP_geomgrad_comp_num_ana_HDF5
                            0.001 0.0001)
 set_tests_properties(NMA_AMOEBA_MMP_geomgrad_comp_num_ana_HDF5 PROPERTIES DEPENDS "NMA_AMOEBA_MMP_geomgrad_ana_HDF5;NMA_AMOEBA_MMP_geomgrad_num_HDF5")
 endif ()
+if("${TESTLANG}" STREQUAL "F03")
+add_test(NAME NMA_AMOEBA_MMP_geomhess_num
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess_num
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
+                          Testing/NMA_AMOEBA_MMP_geomhess_num.out)
+add_test(NAME NMA_AMOEBA_MMP_geomhess_ana
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess
+                          ${CMAKE_SOURCE_DIR}/tests/NMA_amoeba_mmp.json
+                          Testing/NMA_AMOEBA_MMP_geomhess_ana.out)
+add_test(NAME NMA_AMOEBA_MMP_geomhess_comp_num_ana
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomhess.py
+                          Testing/NMA_AMOEBA_MMP_geomhess_num.out
+                          Testing/NMA_AMOEBA_MMP_geomhess_ana.out
+                           0.001  0.001)
+set_tests_properties(NMA_AMOEBA_MMP_geomhess_comp_num_ana PROPERTIES DEPENDS "NMA_AMOEBA_MMP_geomhess_ana;NMA_AMOEBA_MMP_geomhess_num")
+if (WITH_HDF5)
+add_test(NAME NMA_AMOEBA_MMP_geomhess_num_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess_num
+                          Testing/NMA_AMOEBA_MMP_HDF5.json
+                          Testing/NMA_AMOEBA_MMP_geomhess_num.out_HDF5)
+set_tests_properties(NMA_AMOEBA_MMP_geomhess_num_HDF5 PROPERTIES DEPENDS NMA_AMOEBA_MMP_HDF5_convert)
+add_test(NAME NMA_AMOEBA_MMP_geomhess_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess
+                          Testing/NMA_AMOEBA_MMP_HDF5.json
+                          Testing/NMA_AMOEBA_MMP_geomhess_ana.out_HDF5)
+set_tests_properties(NMA_AMOEBA_MMP_geomhess_ana_HDF5 PROPERTIES DEPENDS NMA_AMOEBA_MMP_HDF5_convert)
+add_test(NAME NMA_AMOEBA_MMP_geomhess_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomhess.py
+                          Testing/NMA_AMOEBA_MMP_geomhess_num.out_HDF5
+                          Testing/NMA_AMOEBA_MMP_geomhess_ana.out_HDF5
+                           0.001  0.001)
+set_tests_properties(NMA_AMOEBA_MMP_geomhess_comp_num_ana_HDF5 PROPERTIES DEPENDS "NMA_AMOEBA_MMP_geomhess_ana_HDF5;NMA_AMOEBA_MMP_geomhess_num_HDF5")
+endif ()
+endif()
 add_test(NAME NMACUT_AMOEBA_MMP_geomgrad_num
                           COMMAND bin/${TESTLANG}_test_SI_geomgrad_num
                           ${CMAKE_SOURCE_DIR}/tests/NMA_cut_amoeba_mmp.json
@@ -1583,3 +1617,37 @@ add_test(NAME PNA4H2O_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5
                            0.001 0.0001)
 set_tests_properties(PNA4H2O_AMOEBA_XYZ_geomgrad_comp_num_ana_HDF5 PROPERTIES DEPENDS "PNA4H2O_AMOEBA_XYZ_geomgrad_ana_HDF5;PNA4H2O_AMOEBA_XYZ_geomgrad_num_HDF5")
 endif ()
+if("${TESTLANG}" STREQUAL "F03")
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomhess_num
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess_num
+                          ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_num.out)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomhess_ana
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess
+                          ${CMAKE_SOURCE_DIR}/tests/pna_amoeba_mmp.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_ana.out)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomhess_comp_num_ana
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomhess.py
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_num.out
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_ana.out
+                           0.001  0.001)
+set_tests_properties(PNA4H2O_AMOEBA_XYZ_geomhess_comp_num_ana PROPERTIES DEPENDS "PNA4H2O_AMOEBA_XYZ_geomhess_ana;PNA4H2O_AMOEBA_XYZ_geomhess_num")
+if (WITH_HDF5)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomhess_num_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess_num
+                          Testing/PNA4H2O_AMOEBA_XYZ_HDF5.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_num.out_HDF5)
+set_tests_properties(PNA4H2O_AMOEBA_XYZ_geomhess_num_HDF5 PROPERTIES DEPENDS PNA4H2O_AMOEBA_XYZ_HDF5_convert)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomhess_ana_HDF5
+                          COMMAND bin/${TESTLANG}_test_SI_geomhess
+                          Testing/PNA4H2O_AMOEBA_XYZ_HDF5.json
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_ana.out_HDF5)
+set_tests_properties(PNA4H2O_AMOEBA_XYZ_geomhess_ana_HDF5 PROPERTIES DEPENDS PNA4H2O_AMOEBA_XYZ_HDF5_convert)
+add_test(NAME PNA4H2O_AMOEBA_XYZ_geomhess_comp_num_ana_HDF5
+                          COMMAND python3 ${CMAKE_SOURCE_DIR}/tests/compare_geomhess.py
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_num.out_HDF5
+                          Testing/PNA4H2O_AMOEBA_XYZ_geomhess_ana.out_HDF5
+                           0.001  0.001)
+set_tests_properties(PNA4H2O_AMOEBA_XYZ_geomhess_comp_num_ana_HDF5 PROPERTIES DEPENDS "PNA4H2O_AMOEBA_XYZ_geomhess_ana_HDF5;PNA4H2O_AMOEBA_XYZ_geomhess_num_HDF5")
+endif ()
+endif()

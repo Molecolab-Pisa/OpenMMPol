@@ -260,6 +260,7 @@ module mod_electrostatics
     public :: energy_MM_MM, energy_MM_pol
     public :: prepare_fixedelec, prepare_polelec
     public :: q_elec_prop, mu_elec_prop, quad_elec_prop, coulomb_kernel
+    public :: elec_prop_D2M
     public :: potential_M2E, potential_D2E
     public :: field_M2E, field_D2E
     public :: fmm_coordinates_update
@@ -1090,8 +1091,12 @@ module mod_electrostatics
             if(maxder >= 4) res(5) = res(5) * &
                             (1.0_rp - (1.0_rp - fexp + 18.0_rp/35.0_rp * fexp *  fexp - &
                             9.0_rp/35.0_rp * fexp * fexp * fexp) * eexp)
-            if(maxder >= 5) then
-                call fatal_error("Damped Coulomb kernel (AMOEBA) only supports up to the 5th derivative")
+            if(maxder >= 5) res(6) = res(6) * &
+                            (1.0_rp - (1.0_rp - fexp + 53.0_rp/105.0_rp * fexp * fexp - &
+                            6.0_rp/35.0_rp * fexp * fexp * fexp + &
+                            3.0_rp/35.0_rp * fexp * fexp * fexp * fexp) * eexp)
+            if(maxder >= 6) then
+                call fatal_error("Damped Coulomb kernel (AMOEBA) only supports up to the 6th derivative")
             end if
         else if(.not. eel%amoeba .and. res(1) > 1_rp/s) then
             ! TODO Again it is not clear to me why condition res(1) > 1_rp/s is here.
@@ -2061,7 +2066,7 @@ module mod_electrostatics
         end if
         
         if (ider.ge.2) then
-            if(.not. allocated(eel%Egrd_M2D)) then
+            if(.not. allocated(eel%EHes_M2D)) then
                 call mallocate('prepare_polelec [EHes_M2D]', 10_ip, eel%pol_atoms, &
                                 eel%n_ipd, eel%EHes_M2D)
             end if
@@ -2115,16 +2120,20 @@ module mod_electrostatics
                 eel%Egrd_D2M = 0.0_rp
                 eel%EHes_D2M = 0.0_rp
                 eel%E3D_D2M = 0.0_rp
-                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true., .true.)
-                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true., .true.)
-        
+                ! do_E3D is not requested here: nothing outside this
+                ! module reads eel%E3D_D2M, so it is left at zero rather
+                ! than spending an extra (now-possible) 5th-derivative
+                ! damped-kernel evaluation on it for nothing.
+                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true., .false.)
+                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true., .false.)
+
                 eel%E_D2M = eel%E_D2M * 0.5
                 eel%Egrd_D2M = eel%Egrd_D2M * 0.5
                 eel%EHes_D2M = eel%EHes_D2M * 0.5
                 eel%E3D_D2M = eel%E3D_D2M * 0.5
 
-                call elec_prop_D2D(eel, 'P', .false., .false., .true., .false.)
-                call elec_prop_D2D(eel, 'D', .false., .false., .true., .false.)
+                call elec_prop_D2D(eel, 'P', .false., .false., .true., .true.)
+                call elec_prop_D2D(eel, 'D', .false., .false., .true., .true.)
             else
                 call elec_prop_D2M(eel, '-', .false., .true., .true., .false., .false.)
                 call elec_prop_D2D(eel, '-', .false., .false., .true., .false.)

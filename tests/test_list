@@ -17,6 +17,7 @@ NMA_amber_mmp.json      ipd             N-methylacetamide/IPD_1_WANG_AL.ref     
 NMA_cut_amber_mmp.json  ipd             N-methylacetamide/IPD_0_WANG_AL_CUT.ref none
 NMA_cut_amber_mmp.json  ipd             N-methylacetamide/IPD_1_WANG_AL_CUT.ref N-methylacetamide/EF_1.txt
 NMA_amoeba_mmp.json     grad-num        none                                    none
+NMA_amoeba_mmp.json     hess-num        none                                    none
 NMA_cut_amoeba_mmp.json grad-num        none                                    none
 NMA_amber_mmp.json      grad-num        none                                    none
 NMA_cut_amber_mmp.json  grad-num        none                                    none
@@ -81,4 +82,5 @@ tyrcap_amoeba_xyz.json  grad-num        none                                    
 tyr2cap_amoeba_xyz.json grad-num        none                                    none
 # p-nitro aniline
 pna_amoeba_mmp.json     grad-num        none                                    none
+pna_amoeba_mmp.json     hess-num        none                                    none
 

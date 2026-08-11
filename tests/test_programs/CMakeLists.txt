@@ -31,6 +31,7 @@ add_executable(F03_test_SI_potential "tests/test_programs/F03/test_SI_potential.
 add_executable(F03_test_SI_geomgrad "tests/test_programs/F03/test_SI_geomgrad.f90")
 add_executable(F03_test_SI_geomhess "tests/test_programs/F03/test_SI_geomhess.f90")
 add_executable(F03_test_SI_geomgrad_num "tests/test_programs/F03/test_SI_geomgrad_num.f90")
+add_executable(F03_test_SI_geomhess_num "tests/test_programs/F03/test_SI_geomhess_num.f90")
 
 # Link all executables to openmmpol
 target_link_libraries(F03_test_SI_init openmmpol)
@@ -38,6 +39,7 @@ target_link_libraries(F03_test_SI_potential openmmpol)
 target_link_libraries(F03_test_SI_geomgrad openmmpol)
 target_link_libraries(F03_test_SI_geomhess openmmpol)
 target_link_libraries(F03_test_SI_geomgrad_num openmmpol)
+target_link_libraries(F03_test_SI_geomhess_num openmmpol)
 
 # Put all targets into a proper directory
 set_target_properties(F03_test_SI_init
@@ -45,6 +47,7 @@ set_target_properties(F03_test_SI_init
                       F03_test_SI_geomgrad
                       F03_test_SI_geomhess
                       F03_test_SI_geomgrad_num
+                      F03_test_SI_geomhess_num
                       PROPERTIES
                       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
@@ -53,4 +56,5 @@ add_custom_target(F03_test_programs DEPENDS F03_test_SI_init
                                             F03_test_SI_potential
                                             F03_test_SI_geomgrad
                                             F03_test_SI_geomhess
-                                            F03_test_SI_geomgrad_num)
+                                            F03_test_SI_geomgrad_num
+                                            F03_test_SI_geomhess_num)
