@@ -162,6 +162,7 @@ module mod_link_atom
             use mod_electrostatics, only: ommp_electrostatics_type, &
                                           electrostatics_init, &
                                           remove_null_pol
+            use mod_rotate_multipoles, only: rotate_multipoles
             use mod_io, only: fatal_error, ommp_message
             use mod_constants, only: eps_rp, OMMP_VERBOSE_LOW, &
                                      OMMP_STR_CHAR_MAX, &

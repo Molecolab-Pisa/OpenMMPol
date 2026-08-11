@@ -17,16 +17,18 @@ module mod_geomgrad
         subroutine fixedelec_geomgrad(s, grad)
             use mod_electrostatics, only: prepare_fixedelec, &
                                           ommp_electrostatics_type
+            use mod_rotate_multipoles, only: rotate_multipoles, rotation_geomgrad
 
             implicit none
-            
+
             type(ommp_system), intent(inout), target :: s
             !! System data structure
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
-            
+
             integer(ip) :: i
-            type(ommp_electrostatics_type), pointer :: eel 
+            type(ommp_electrostatics_type), pointer :: eel
+            real(rp), allocatable :: ddip(:,:,:,:), dqua(:,:,:,:,:)
             eel => s%eel
             
             call time_push
@@ -85,7 +87,12 @@ module mod_geomgrad
                 end do
                 call time_push
                 ! Torque forces from multipoles rotation
-!fl               call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
+                allocate(ddip(3,3,4,s%top%mm_atoms))
+                allocate(dqua(3,3,3,4,s%top%mm_atoms))
+                call rotate_multipoles(eel, 1_ip, ddip, dqua)
+                call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, ddip, dqua, grad)
+                deallocate(ddip)
+                deallocate(dqua)
                 call time_pull("Rotation grad")
             else
                 !$omp parallel do 
@@ -114,16 +121,18 @@ module mod_geomgrad
             !use mod_electrostatics, only: prepare_M2D, ommp_electrostatics_type
             use mod_polarization, only: polarization
             use mod_electrostatics
+            use mod_rotate_multipoles, only: rotate_multipoles, rotation_geomgrad
 
             implicit none
-            
+
             type(ommp_system), intent(inout), target :: s
             !! System data structure
             real(rp), dimension(3,s%top%mm_atoms), intent(inout) :: grad
             !! Geometrical gradients in output, results will be added
-            
+
             integer(ip) :: i
-            type(ommp_electrostatics_type), pointer :: eel 
+            type(ommp_electrostatics_type), pointer :: eel
+            real(rp), allocatable :: ddip(:,:,:,:), dqua(:,:,:,:,:)
             eel => s%eel
 
             if(.not. eel%ipd_done) then
@@ -273,6 +282,13 @@ module mod_geomgrad
                 end do
             end if
 
-            if(eel%amoeba) call rotation_geomgrad(eel, eel%E_D2M, eel%Egrd_D2M, grad)
+            if(eel%amoeba) then
+                allocate(ddip(3,3,4,s%top%mm_atoms))
+                allocate(dqua(3,3,3,4,s%top%mm_atoms))
+                call rotate_multipoles(eel, 1_ip, ddip, dqua)
+                call rotation_geomgrad(eel, eel%E_D2M, eel%Egrd_D2M, ddip, dqua, grad)
+                deallocate(ddip)
+                deallocate(dqua)
+            end if
         end subroutine
 end module

@@ -155,6 +155,7 @@ module mod_mmpol
         use mod_io, only: ommp_message
         use mod_profiling, only: time_push, time_pull
         use mod_constants, only: OMMP_VERBOSE_DEBUG
+        use mod_rotate_multipoles, only: rotate_multipoles
         use mod_electrostatics, only: thole_init, remove_null_pol, &
                                       make_screening_lists, fmm_coordinates_update
 
@@ -333,6 +334,7 @@ module mod_mmpol
         use mod_memory, only: mfree
         use mod_link_atom, only: link_atom_update_merged_topology
         use mod_electrostatics, only: fmm_coordinates_update
+        use mod_rotate_multipoles, only: rotate_multipoles
         implicit none
 
         type(ommp_system), intent(inout), target :: sys_obj
@@ -364,7 +366,7 @@ module mod_mmpol
         eel%ipd_use_guess = .false.
         if(allocated(eel%TMat)) call mfree('update_coordinates [TMat]',eel%TMat)
         ! 2.3 Multipoles rotation
-!fl        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
+        if(sys_obj%amoeba) call rotate_multipoles(sys_obj%eel)
         ! 2.3 Update coordinates inside link atom object
         if(sys_obj%use_linkatoms) call link_atom_update_merged_topology(sys_obj%la)
         ! 2.4 Update fast-multipoles tree if needed

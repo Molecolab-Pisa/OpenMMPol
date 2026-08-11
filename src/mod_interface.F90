@@ -697,15 +697,22 @@ module ommp_interface
         end subroutine
         
         subroutine ommp_rotation_geomgrad(s, E, Egrd, grd )
+            use mod_rotate_multipoles, only: rotate_multipoles, rotation_geomgrad
             implicit none
 
             type(ommp_system), intent(inout), target :: s
             real(ommp_real), intent(in) :: E(:,:), Egrd(:,:)
             real(ommp_real), intent(out) :: grd(:,:)
-            
+            real(ommp_real), allocatable :: ddip(:,:,:,:), dqua(:,:,:,:,:)
+
             call ommp_time_push
             grd = 0.0
-            call rotation_geomgrad(s%eel, E, Egrd, grd)
+            allocate(ddip(3,3,4,s%top%mm_atoms))
+            allocate(dqua(3,3,3,4,s%top%mm_atoms))
+            call rotate_multipoles(s%eel, 1_ommp_integer, ddip, dqua)
+            call rotation_geomgrad(s%eel, E, Egrd, ddip, dqua, grd)
+            deallocate(ddip)
+            deallocate(dqua)
             call ommp_time_pull('Multipole rotation grad')
         end subroutine
 

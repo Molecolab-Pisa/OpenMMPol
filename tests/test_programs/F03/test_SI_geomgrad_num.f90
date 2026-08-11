@@ -216,7 +216,7 @@ program test_SI_geomgrad_num
     character(kind=c_char, len=120), dimension(3) :: args
     character(len=OMMP_STR_CHAR_MAX) :: prm_file
     integer :: narg
-    type(ommp_system), pointer :: my_system, fake_qm
+    type(ommp_system), pointer :: my_system, fake_qm => null()
     type(ommp_qm_helper), pointer :: my_qmh
     logical :: use_qm = .false., use_fake_qm = .false.
 

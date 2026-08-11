@@ -259,7 +259,7 @@ module mod_electrostatics
     public :: damped_coulomb_kernel, field_extD2D
     public :: energy_MM_MM, energy_MM_pol
     public :: prepare_fixedelec, prepare_polelec
-    public :: q_elec_prop, coulomb_kernel
+    public :: q_elec_prop, mu_elec_prop, quad_elec_prop, coulomb_kernel
     public :: potential_M2E, potential_D2E
     public :: field_M2E, field_D2E
     public :: fmm_coordinates_update

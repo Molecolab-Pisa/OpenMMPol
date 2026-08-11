@@ -17,19 +17,23 @@ module mod_geomhess
         subroutine fixedelec_geomhess(s, hess)
             use mod_electrostatics, only: prepare_fixedelec, &
                                           ommp_electrostatics_type
+            use mod_rotate_multipoles, only: rotate_multipoles, rotation_geomhess, &
+                                              rotation_geomhess_pair, rotation_geomhess_pair8
 
             implicit none
-            
+
             type(ommp_system), intent(inout), target :: s
             !! System data structure
             real(rp), dimension(3,3,s%top%mm_atoms,s%top%mm_atoms), intent(inout) :: hess
             !! Geometrical Hessian in output, results will be added
-            
+
             integer(ip) :: i, j, idx
             logical     :: to_do, to_scale
             real(rp)    :: scalf
+            real(rp), allocatable :: ddip(:,:,:,:), dqua(:,:,:,:,:), &
+                                      d2dip(:,:,:,:,:,:), d2qua(:,:,:,:,:,:,:)
 
-            type(ommp_electrostatics_type), pointer :: eel 
+            type(ommp_electrostatics_type), pointer :: eel
             eel => s%eel
             
             call time_push
@@ -38,7 +42,13 @@ module mod_geomhess
 
             call time_push
             if(eel%amoeba) then
-                !$omp parallel do 
+                allocate(ddip(3,3,4,s%top%mm_atoms))
+                allocate(dqua(3,3,3,4,s%top%mm_atoms))
+                allocate(d2dip(3,3,3,4,4,s%top%mm_atoms))
+                allocate(d2qua(3,3,3,3,4,4,s%top%mm_atoms))
+                call rotate_multipoles(eel, 2_ip, ddip, dqua, d2dip, d2qua)
+
+                !$omp parallel do
                 do j=1, s%top%mm_atoms
                     ! If the atom is frozen, there are no contribution to compute
                     if(s%top%use_frozen) then
@@ -74,9 +84,61 @@ module mod_geomhess
                     end do
                 end do
                 call time_push
-                ! Torque forces from multipoles rotation
-                !call rotation_geomgrad(eel, eel%E_M2M, eel%Egrd_M2M, grad)
+                ! Torque contributions from multipoles rotation (on-site
+                ! terms 3,4,7 of eq. Hess1: field of the plain multipoles
+                ! contracted with the first/second derivative of the
+                ! rotated multipoles themselves)
+                call rotation_geomhess(eel, eel%E_M2M, eel%Egrd_M2M, eel%EHes_M2M, &
+                                       ddip, dqua, d2dip, d2qua, hess)
                 call time_pull("Rotation hess")
+
+                call time_push
+                ! Cross contributions (terms 5,6 of eq. Hess1: field
+                ! generated at i by j's differentiated multipoles,
+                ! contracted with i's plain multipole). Kept in its own
+                ! serial loop: unlike the parallel loop above, the writes
+                ! here land on hess(:,:,frame_atom_of_j,i) and its
+                ! transpose, and frame_atom_of_j need not be j itself, so
+                ! two different j's (handled by different threads) could
+                ! alias the same hess column.
+                do j=1, s%top%mm_atoms
+                    if(s%top%use_frozen) then
+                        if(s%top%frozen(j)) cycle
+                    end if
+                    do i=1, s%top%mm_atoms
+                        if(s%top%use_frozen) then
+                            if(s%top%frozen(i)) cycle
+                        end if
+                        if (i.ne.j) then
+                            to_do = .true.
+                            to_scale = .false.
+                            scalf = 1.0_rp
+
+                            do idx=eel%list_S_S%ri(i), eel%list_S_S%ri(i+1)-1
+                                if(eel%list_S_S%ci(idx) == j) then
+                                    to_scale = .true.
+                                    exit
+                                end if
+                            end do
+
+                            if(to_scale) then
+                                to_do = eel%todo_S_S(idx)
+                                scalf = eel%scalef_S_S(idx)
+                            end if
+
+                            if(to_do) then
+                                call rotation_geomhess_pair(eel, scalf, i, j, ddip, dqua, hess)
+                                call rotation_geomhess_pair8(eel, scalf, i, j, ddip, dqua, hess)
+                            end if
+                        end if
+                    end do
+                end do
+                call time_pull("Rotation hess pair")
+
+                deallocate(ddip)
+                deallocate(dqua)
+                deallocate(d2dip)
+                deallocate(d2qua)
             else
                 call fatal_error("WangAL switching has no second derivatives.")
             end if
@@ -99,154 +161,6 @@ module mod_geomhess
 !           type(ommp_electrostatics_type), pointer :: eel 
 !           eel => s%eel
 
-!           if(.not. eel%ipd_done) then
-!               call prepare_polelec(eel, .false.)
-!               call polarization(s, eel%e_M2D)
-!           end if
-!           call prepare_polelec(eel, .true.)
-
-!           if(eel%amoeba) then
-!               !$omp parallel do 
-!               do i=1, eel%top%mm_atoms
-!                   ! Skip frozen atoms contributions
-!                   if(s%top%use_frozen) then
-!                       if(s%top%frozen(i)) cycle
-!                   end if
-!                   
-!                   ! Charges q E
-!                   grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_D2M(:,i)
-!                   
-!                   ! Dipoles mu \nablaE
-!                   grad(_x_,i) = grad(_x_,i) &
-!                                 + eel%q(1+_x_,i) * eel%Egrd_D2M(_xx_,i) &
-!                                 + eel%q(1+_y_,i) * eel%Egrd_D2M(_xy_,i) &
-!                                 + eel%q(1+_z_,i) * eel%Egrd_D2M(_xz_,i)
-!                   grad(_y_,i) = grad(_y_,i) &
-!                                 + eel%q(1+_x_,i) * eel%Egrd_D2M(_yx_,i) &
-!                                 + eel%q(1+_y_,i) * eel%Egrd_D2M(_yy_,i) &
-!                                 + eel%q(1+_z_,i) * eel%Egrd_D2M(_yz_,i)
-!                   grad(_z_,i) = grad(_z_,i) &
-!                                 + eel%q(1+_x_,i) * eel%Egrd_D2M(_zx_,i) &
-!                                 + eel%q(1+_y_,i) * eel%Egrd_D2M(_zy_,i) &
-!                                 + eel%q(1+_z_,i) * eel%Egrd_D2M(_zz_,i)
-!                   
-!                   ! Quadrupoles Q \nabla^2E
-!                   grad(_x_,i) = grad(_x_,i) &
-!                                 - eel%q(4+_xx_,i) * eel%EHes_D2M(_xxx_,i) &
-!                                 - eel%q(4+_yy_,i) * eel%EHes_D2M(_yyx_,i) &
-!                                 - eel%q(4+_zz_,i) * eel%EHes_D2M(_zzx_,i) &
-!                                 - 2*(eel%q(4+_xy_,i) * eel%EHes_D2M(_xyx_,i) &
-!                                 +    eel%q(4+_xz_,i) * eel%EHes_D2M(_xzx_,i) &
-!                                 +    eel%q(4+_yz_,i) * eel%EHes_D2M(_yzx_,i))
-!                   grad(_y_,i) = grad(_y_,i) &
-!                                 - eel%q(4+_xx_,i) * eel%EHes_D2M(_xxy_,i) &
-!                                 - eel%q(4+_yy_,i) * eel%EHes_D2M(_yyy_,i) &
-!                                 - eel%q(4+_zz_,i) * eel%EHes_D2M(_zzy_,i) &
-!                                 - 2*(eel%q(4+_xy_,i) * eel%EHes_D2M(_xyy_,i) &
-!                                 +    eel%q(4+_xz_,i) * eel%EHes_D2M(_xzy_,i) &
-!                                 +    eel%q(4+_yz_,i) * eel%EHes_D2M(_yzy_,i))
-!                   grad(_z_,i) = grad(_z_,i) &
-!                                 - eel%q(4+_xx_,i) * eel%EHes_D2M(_xxz_,i) &
-!                                 - eel%q(4+_yy_,i) * eel%EHes_D2M(_yyz_,i) &
-!                                 - eel%q(4+_zz_,i) * eel%EHes_D2M(_zzz_,i) &
-!                                 - 2*(eel%q(4+_xy_,i) * eel%EHes_D2M(_xyz_,i) &
-!                                 +    eel%q(4+_xz_,i) * eel%EHes_D2M(_xzz_,i) &
-!                                 +    eel%q(4+_yz_,i) * eel%EHes_D2M(_yzz_,i))
-!               end do
-!             
-!               !$omp parallel do 
-!               do i=1, eel%pol_atoms
-!                   ! Skip frozen atoms contributions
-!                   if(s%top%use_frozen) then
-!                       if(s%top%frozen(eel%polar_mm(i))) cycle
-!                   end if
-!                   
-!                   ! \mu_D Egrd_P
-!                   grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
-!                                 + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_xx_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_xx_,i,_amoeba_P_)) &
-!                                 + 0.5*eel%ipd(_y_,i,_amoeba_D_) * (eel%Egrd_M2D(_xy_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_xy_,i,_amoeba_P_)) &
-!                                 + 0.5*eel%ipd(_z_,i,_amoeba_D_) * (eel%Egrd_M2D(_xz_,i,_amoeba_P_) & 
-!                                                 + eel%Egrd_D2D(_xz_,i,_amoeba_P_)) 
-!                   grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
-!                                 + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_yx_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_yx_,i,_amoeba_P_)) &
-!                                 + 0.5*eel%ipd(_y_,i,_amoeba_D_) * (eel%Egrd_M2D(_yy_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_yy_,i,_amoeba_P_)) &
-!                                 + 0.5*eel%ipd(_z_,i,_amoeba_D_) * (eel%Egrd_M2D(_yz_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_yz_,i,_amoeba_P_)) 
-!                   grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
-!                                 + 0.5*eel%ipd(_x_,i,_amoeba_D_) * (eel%Egrd_M2D(_zx_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_zx_,i,_amoeba_P_)) &
-!                                 + 0.5*eel%ipd(_y_,i,_amoeba_D_) * (eel%Egrd_M2D(_zy_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_zy_,i,_amoeba_P_)) &
-!                                 + 0.5*eel%ipd(_z_,i,_amoeba_D_) * (eel%Egrd_M2D(_zz_,i,_amoeba_P_) &
-!                                                 + eel%Egrd_D2D(_zz_,i,_amoeba_P_))
-!                   ! \mu_P Egrd_D
-!                   grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
-!                                 + 0.5*eel%ipd(_x_,i,_amoeba_P_) * (eel%Egrd_M2D(_xx_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_xx_,i,_amoeba_D_)) &
-!                                 + 0.5*eel%ipd(_y_,i,_amoeba_P_) * (eel%Egrd_M2D(_xy_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_xy_,i,_amoeba_D_)) &
-!                                 + 0.5*eel%ipd(_z_,i,_amoeba_P_) * (eel%Egrd_M2D(_xz_,i,_amoeba_D_) & 
-!                                                 + eel%Egrd_D2D(_xz_,i,_amoeba_D_)) 
-!                   grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
-!                                 + 0.5*eel%ipd(_x_,i,_amoeba_P_) * (eel%Egrd_M2D(_yx_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_yx_,i,_amoeba_D_)) &
-!                                 + 0.5*eel%ipd(_y_,i,_amoeba_P_) * (eel%Egrd_M2D(_yy_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_yy_,i,_amoeba_D_)) &
-!                                 + 0.5*eel%ipd(_z_,i,_amoeba_P_) * (eel%Egrd_M2D(_yz_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_yz_,i,_amoeba_D_)) 
-!                   grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
-!                                 + 0.5*eel%ipd(_x_,i,_amoeba_P_) * (eel%Egrd_M2D(_zx_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_zx_,i,_amoeba_D_)) &
-!                                 + 0.5*eel%ipd(_y_,i,_amoeba_P_) * (eel%Egrd_M2D(_zy_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_zy_,i,_amoeba_D_)) &
-!                                 + 0.5*eel%ipd(_z_,i,_amoeba_P_) * (eel%Egrd_M2D(_zz_,i,_amoeba_D_) &
-!                                                 + eel%Egrd_D2D(_zz_,i,_amoeba_D_))
-!               end do
-!           else
-!               do i=1, eel%top%mm_atoms
-!                   ! Skip frozen atoms contributions
-!                   if(s%top%use_frozen) then
-!                       if(s%top%frozen(i)) cycle
-!                   end if
-
-!                   grad(:,i) = grad(:,i) - eel%q(1,i) * eel%E_D2M(:,i)
-!               end do
-!               
-!               do i=1, eel%pol_atoms
-!                   ! Skip frozen atoms contributions
-!                   if(s%top%use_frozen) then
-!                       if(s%top%frozen(eel%polar_mm(i))) cycle
-!                   end if
-!                   
-!                   grad(_x_,eel%polar_mm(i)) = grad(_x_,eel%polar_mm(i)) &
-!                                 + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_xx_,i,1) &
-!                                                     + eel%Egrd_D2D(_xx_,i,1)) &
-!                                 + eel%ipd(_y_,i,1) * (eel%Egrd_M2D(_xy_,i,1) &
-!                                                     + eel%Egrd_D2D(_xy_,i,1)) &
-!                                 + eel%ipd(_z_,i,1) * (eel%Egrd_M2D(_xz_,i,1) & 
-!                                                     + eel%Egrd_D2D(_xz_,i,1)) 
-!                   grad(_y_,eel%polar_mm(i)) = grad(_y_,eel%polar_mm(i)) &
-!                                 + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_yx_,i,1) &
-!                                                     + eel%Egrd_D2D(_yx_,i,1)) &
-!                                 + eel%ipd(_y_,i,1) * (eel%Egrd_M2D(_yy_,i,1) &
-!                                                     + eel%Egrd_D2D(_yy_,i,1)) &
-!                                 + eel%ipd(_z_,i,1) * (eel%Egrd_M2D(_yz_,i,1) &
-!                                                     + eel%Egrd_D2D(_yz_,i,1)) 
-!                   grad(_z_,eel%polar_mm(i)) = grad(_z_,eel%polar_mm(i)) &
-!                                 + eel%ipd(_x_,i,1) * (eel%Egrd_M2D(_zx_,i,1) &
-!                                                     + eel%Egrd_D2D(_zx_,i,1)) &
-!                                 + eel%ipd(_y_,i,1) * (eel%Egrd_M2D(_zy_,i,1) &
-!                                                     + eel%Egrd_D2D(_zy_,i,1)) &
-!                                 + eel%ipd(_z_,i,1) * (eel%Egrd_M2D(_zz_,i,1) &
-!                                                     + eel%Egrd_D2D(_zz_,i,1)) 
-!               end do
-!           end if
-
-!           if(eel%amoeba) call rotation_geomgrad(eel, eel%E_D2M, eel%Egrd_D2M, grad)
         end subroutine
 !
         subroutine hiiterm(s,i,hii)
@@ -512,6 +426,5 @@ module mod_geomhess
               end do
             end do
         end subroutine hijterm
-            
 
 end module

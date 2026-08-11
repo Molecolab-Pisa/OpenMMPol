@@ -33,19 +33,19 @@ program test_SI_geomhess
         hess = 0.0_rp
         hessnum = 0.0_rp
 !fl!!
-        do i = 1, n
-          my_system%eel%q(1,i) = 0.0_rp
+!       do i = 1, n
+!         my_system%eel%q(1,i) = 0.0_rp
 !         my_system%eel%q(2:4,i) = 0.0_rp
-          my_system%eel%q(5:10,i) = 0.0_rp
-        end do
+!         my_system%eel%q(5:10,i) = 0.0_rp
+!       end do
 !!!!!
         call fixedelec_geomhess(my_system, hess)
-        do i = 1, n
-          do j = 1, n
-            write(6,*) 'hess for atoms ',j, i
-            write(6,'(10f14.8)') hess(:,:,j,i)
-          end do
-        end do
+!       do i = 1, n
+!         do j = 1, n
+!           write(6,*) 'hess for atoms ',j, i
+!           write(6,'(10f14.8)') hess(:,:,j,i)
+!         end do
+!       end do
 !       write(6,*) 'charges:'
 !       do i = 1, n
 !         write(6,*) my_system%eel%q(1,i)
@@ -55,55 +55,55 @@ program test_SI_geomhess
 !       do i = 1, n
 !         write(6,'(3f12.6)') my_system%eel%e_M2M(:,i)
 !       end do
-        write(6,*) 'dipoles:'
-        do i = 1, n
-          write(6,'(3f12.8)') my_system%eel%q(2:4,i)
-        end do
-        write(6,*) 'field gradient:'
-        do i = 1, n
-          write(6,'(10f12.8)') my_system%eel%Egrd_M2M(:,i)
-        end do
-        write(6,*) 'field hessian:'
-        do i = 1, n
-          write(6,'(10f12.8)') my_system%eel%Ehes_M2M(:,i)
-        end do
+!       write(6,*) 'dipoles:'
+!       do i = 1, n
+!         write(6,'(3f12.8)') my_system%eel%q(2:4,i)
+!       end do
+!       write(6,*) 'field gradient:'
+!       do i = 1, n
+!         write(6,'(10f12.8)') my_system%eel%Egrd_M2M(:,i)
+!       end do
+!       write(6,*) 'field hessian:'
+!       do i = 1, n
+!         write(6,'(10f12.8)') my_system%eel%Ehes_M2M(:,i)
+!       end do
 !
 !fl
-        allocate (cmm(3,n), gph(3,n), gmh(3,n), gg(3,n))
-        cmm = my_system%top%cmm
-!fl
-        gg = 0.0_rp
-        do i = 1, n
-          gg(1,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(1,i) + &
-                    my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(2,i) +  &
-                    my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(4,i)
-          gg(2,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(2,i) + &
-                    my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(3,i) +  &
-                    my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(5,i)
-          gg(3,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(4,i) + &
-                    my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(5,i) +  &
-                    my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(6,i)
-        end do
+!       gg = 0.0_rp
+!       do i = 1, n
+!         gg(1,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(1,i) + &
+!                   my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(2,i) +  &
+!                   my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(4,i)
+!         gg(2,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(2,i) + &
+!                   my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(3,i) +  &
+!                   my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(5,i)
+!         gg(3,i) = my_system%eel%q(2,i) * my_system%eel%Egrd_M2M(4,i) + &
+!                   my_system%eel%q(3,i) * my_system%eel%Egrd_M2M(5,i) +  &
+!                   my_system%eel%q(4,i) * my_system%eel%Egrd_M2M(6,i)
+!       end do
 !
-        write(6,*) 'gradient a manina:'
-        write(6,'(10f12.8)') gg
-        gg = 0.0_rp
-        call fixedelec_geomgrad(my_system,gg)
+!       write(6,*) 'gradient a manina:'
+!       write(6,'(10f12.8)') gg
+!       gg = 0.0_rp
+!       call fixedelec_geomgrad(my_system,gg)
 !       write(6,*) 'field:'
 !       do i = 1, n
 !         write(6,'(3f12.8)') my_system%eel%e_M2M(:,i)
 !       end do
-        write(6,*) 'field gradient:'
-        do i = 1, n
-          write(6,'(10f12.8)') my_system%eel%Egrd_M2M(:,i)
-        end do
-        write(6,*) 'field hessian:'
-        do i = 1, n
-          write(6,'(10f12.8)') my_system%eel%Ehes_M2M(:,i)
-        end do
-        write(6,*) 'gradient '
-        write(6,'(10f12.8)') gg
+!       write(6,*) 'field gradient:'
+!       do i = 1, n
+!         write(6,'(10f12.8)') my_system%eel%Egrd_M2M(:,i)
+!       end do
+!       write(6,*) 'field hessian:'
+!       do i = 1, n
+!         write(6,'(10f12.8)') my_system%eel%Ehes_M2M(:,i)
+!       end do
+!       write(6,*) 'gradient '
+!       write(6,'(10f12.8)') gg
 !
+!fl
+        allocate (cmm(3,n), gph(3,n), gmh(3,n), gg(3,n))
+        cmm = my_system%top%cmm
         do i = 1, n
           do ix = 1, 3
             cmm(ix,i) = cmm(ix,i) + delta

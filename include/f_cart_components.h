@@ -6,6 +6,14 @@
 #define _amoeba_P_ 2
 !! Index of polarization (P) field and dipoles in AMOEBA FF (Lagrange multiplier)
 
+#define _self_ 1
+#define _iz_   2
+#define _ix_   3
+#define _iy_   4
+!! Slots of the 4 atoms defining a multipole's molecular frame (self,iz,ix,iy)
+!! as packed in rotation_matrix's dr/d2r and rotate_multipoles's ddip/dqua/
+!! d2dip/d2qua. iy is kept last as not every convention uses it.
+
 #define _x_ 1
 #define _y_ 2
 #define _z_ 3
