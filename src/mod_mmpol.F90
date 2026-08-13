@@ -12,6 +12,7 @@ module mod_mmpol
     use mod_nonbonded, only: ommp_nonbonded_type
     use mod_bonded, only: ommp_bonded_type
     use mod_link_atom, only: ommp_link_atom_type
+    use mod_density_fit, only: ommp_density_fit_type, df_terminate, df_update
     use mod_io, only: ommp_message, fatal_error
     use mod_constants, only: OMMP_STR_CHAR_MAX
 
@@ -42,6 +43,10 @@ module mod_mmpol
         type(ommp_link_atom_type), allocatable :: la
         !! Data structure containing all the information needed to handle 
         !! link atoms with a certain QM part described by a QM Helper object
+        logical(lp) :: use_density_fit = .false.
+        type(ommp_density_fit_type), allocatable :: df
+        !! Data structure containing all the information needed for
+        !! density fitting of the QM charge distribution
     end type ommp_system
     
     contains
@@ -136,6 +141,20 @@ module mod_mmpol
         sys_obj%use_linkatoms = .true.
     end subroutine
         
+    subroutine mmpol_init_density_fit(sys_obj)
+        !! Enable density fitting part
+        implicit none
+
+        type(ommp_system), intent(inout), target :: sys_obj
+        !! The object to be initialized
+        
+        if(sys_obj%use_density_fit .and. allocated(sys_obj%df)) return
+        if(allocated(sys_obj%df)) deallocate(sys_obj%df)
+
+        allocate(sys_obj%df)
+        sys_obj%use_density_fit = .true.
+    end subroutine
+        
     subroutine mmpol_prepare(sys_obj)
         !! Compute some derived quantities from the input that 
         !! are used during the calculation. The upstream code have
@@ -178,7 +197,7 @@ module mod_mmpol
             call build_conn_upto_n(adj, 4, sys_obj%top%conn, .false.)
         end if
 
-        call remove_null_pol(sys_obj%eel)
+        call remove_null_pol(sys_obj%eel, .false.)
        
         ! invert mm_polar list creating mm_polar
         sys_obj%eel%mm_polar(:) = 0
@@ -263,6 +282,12 @@ module mod_mmpol
         if(sys_obj%use_bonded) then
             call bonded_terminate(sys_obj%bds)
             sys_obj%use_bonded = .false.
+        end if
+
+        if(sys_obj%use_density_fit) then
+            call df_terminate(sys_obj%df)
+            deallocate(sys_obj%df)
+            sys_obj%use_density_fit = .false.
         end if
 
         sys_obj%mmpol_is_init = .false.
@@ -351,6 +376,12 @@ module mod_mmpol
 
         ! 1. Copy coordinates
         top%cmm = new_c
+
+        ! 1.5 Update density fitting (detects MM or QM coordinate changes
+        !!     via snapshot comparison, regenerates grids only if needed)
+        if(sys_obj%use_density_fit) then
+            call df_update(sys_obj%df)
+        end if
 
         ! 2. Update electrostatics module
         ! 2.1 Coordinates

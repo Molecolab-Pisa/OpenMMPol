@@ -3,21 +3,26 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-// #include <math.h>
 #include <openmmpol_const.h>
 
 typedef void *OMMP_SYSTEM_PRT;
 typedef void *OMMP_QM_HELPER_PRT;
+typedef void *OMMP_YST_PTR;
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+    extern int32_t ommp_yst_get_n(OMMP_YST_PTR);
+    extern int32_t *ommp_yst_get_ci(OMMP_YST_PTR);
+    extern int32_t *ommp_yst_get_ri(OMMP_YST_PTR);
 
     extern OMMP_SYSTEM_PRT ommp_init_mmp(const char *);
     extern OMMP_SYSTEM_PRT ommp_init_xyz(const char *, const char *);
     extern void ommp_set_default_solver(OMMP_SYSTEM_PRT, int32_t);
     extern void ommp_set_default_matv(OMMP_SYSTEM_PRT, int32_t);
+    extern void ommp_set_polarization_conv_thr(OMMP_SYSTEM_PRT, double);
+    extern void ommp_set_polarization_use_guess(OMMP_SYSTEM_PRT, bool);
     extern void ommp_save_mmp(OMMP_SYSTEM_PRT, const char *, int32_t);
     extern void ommp_set_frozen_atoms(OMMP_SYSTEM_PRT, int32_t, const int32_t *);
     extern void ommp_turn_pol_off(OMMP_SYSTEM_PRT, int32_t, const int32_t *);
@@ -39,6 +44,7 @@ extern "C"
     extern double ommp_get_fixedelec_energy(OMMP_SYSTEM_PRT);
     extern void ommp_set_external_field(OMMP_SYSTEM_PRT, const double *, int32_t, int32_t);
     extern void ommp_set_external_field_nomm(OMMP_SYSTEM_PRT, const double *, int32_t, int32_t);
+    extern void ommp_set_fit_potential(OMMP_SYSTEM_PRT, const double *, int32_t);
 
     extern void ommp_potential_mmpol2ext(OMMP_SYSTEM_PRT, int32_t, const double *, double *);
     extern void ommp_potential_mm2ext(OMMP_SYSTEM_PRT, int32_t, const double *, double *);
@@ -145,6 +151,38 @@ extern "C"
     extern void ommp_get_link_atom_coordinates(OMMP_SYSTEM_PRT, int32_t, double *);
     extern void ommp_update_link_atoms_position(OMMP_QM_HELPER_PRT, OMMP_SYSTEM_PRT);
 
+    extern void ommp_init_density_fit(OMMP_SYSTEM_PRT s_prt, OMMP_QM_HELPER_PRT qmh_prt,
+                                      int32_t charge_point_type, int32_t charge_n_pts_per_atom,
+                                      double charge_radius,
+                                      int32_t fit_point_type, int32_t fit_n_pts_per_atom,
+                                      double fit_radius,
+                                      const char *charge_top_source, const char *fit_top_source);
+
+    /* Density fit read-only accessors */
+    extern double *ommp_get_df_charge_coord(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_fit_point_coord(OMMP_SYSTEM_PRT);
+    extern int32_t ommp_get_df_n_pts(OMMP_SYSTEM_PRT);
+    extern int32_t ommp_get_df_n_charges(OMMP_SYSTEM_PRT);
+    extern int32_t ommp_get_df_n_qm_atoms(OMMP_SYSTEM_PRT);
+    extern bool ommp_get_df_initialized(OMMP_SYSTEM_PRT);
+
+    extern double *ommp_get_df_target_charges(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_X(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_Xinv(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_VXI_m(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_VXI_p(OMMP_SYSTEM_PRT);
+    extern double ommp_get_df_e_field_pol_ene(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_E_q2p(OMMP_SYSTEM_PRT);
+    extern void ommp_df_compute_induced_dipoles(OMMP_SYSTEM_PRT, int, int, int,
+                                                int, OMMP_QM_HELPER_PRT, int);
+
+    extern void ommp_df_geomgrad(OMMP_SYSTEM_PRT, double *, double *, const double *);
+    extern double *ommp_get_df_dX_dr(OMMP_SYSTEM_PRT);
+    extern double *ommp_get_df_nabla_g_mm(OMMP_SYSTEM_PRT, bool *, bool *);
+    extern double *ommp_get_df_nabla_g_qm(OMMP_SYSTEM_PRT, bool *, bool *);
+    extern void *ommp_get_df_nabla_q_qm(OMMP_SYSTEM_PRT, bool *, bool *, bool *);
+    extern double *ommp_get_df_nabla_q_mm(OMMP_SYSTEM_PRT, bool *, bool *);
+
     extern void ommp_smartinput(const char *, OMMP_SYSTEM_PRT *, OMMP_QM_HELPER_PRT *);
     extern void ommp_smartinput_cpstr(const char *, char *, char **);
     extern OMMP_SYSTEM_PRT ommp_system_from_qm_helper(OMMP_QM_HELPER_PRT, const char *);
@@ -153,6 +191,7 @@ extern "C"
     extern void ommp_enable_fmm(OMMP_SYSTEM_PRT);
     extern void ommp_disable_fmm(OMMP_SYSTEM_PRT);
     extern bool ommp_use_fmm(OMMP_SYSTEM_PRT);
+    extern bool ommp_use_density_fit(OMMP_SYSTEM_PRT);
     extern void ommp_set_fmm_lmax_pol(OMMP_SYSTEM_PRT, int32_t);
     extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);
     extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);

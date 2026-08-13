@@ -247,8 +247,26 @@ def ommp_ip_main():
                         default='out',
                         help="""All output file will be created using this 
                                 as basename. Default is 'out'""")
+    parser.add_argument('--fail-on-duplicated-prm',
+                        required=False,
+                        action='store_true',
+                        default=False,
+                        help="""If duplicated parameters are present in the input prm file, 
+                                rise an error in OpenMMPol and stop.""")
+    parser.add_argument('--never-use-fmm',
+                        required=False,
+                        action='store_true',
+                        default=False,
+                        help="""Force double loop algorithm for electrostatics.""")
+    parser.add_argument('--use-fmm',
+                        required=False,
+                        action='store_true',
+                        default=False,
+                        help="""Force fast multipoles algorithm for electrostatics.""")
 
     args = parser.parse_args()
+    if args.never_use_fmm and args.use_fmm:
+        raise NotImplementedError("Only use une between --never-use-fmm and --use-fmm")
 
     mmtxyz_path = args.output_basename+'_mm.arc'
     qmxyz_path = args.output_basename+'_qm.xyz'
@@ -381,10 +399,30 @@ def ommp_ip_main():
                 json_si_data['link_atoms'][-1]['bond_length'] = float(la['la_dist'])
             #if ...:
             #     json_si_data['link_atoms'][-1]['eel_remove'] =
+    if not args.fail_on_duplicated_prm:
+        json_si_data["ignore_duplicated_prm"] = "true"
+    else:
+        json_si_data["ignore_duplicated_prm"] = "false"
+
+    if args.use_fmm:
+        json_si_data["use_fmm"] = "true"
+    if args.never_use_fmm:
+        json_si_data["use_fmm"] = "false"
 
     # Write on file
     with open(json_si_path, 'w+') as f:
-        print(json.dumps(json_si_data, indent=4), file=f)
+        class RoundingEncoder(json.JSONEncoder):
+            def iterencode(self, o, _one_shot=False):
+                def round_floats(obj):
+                    if isinstance(obj, float):
+                        return round(obj, 5)
+                    if isinstance(obj, dict):
+                        return {k: round_floats(v) for k, v in obj.items()}
+                    if isinstance(obj, list):
+                        return [round_floats(v) for v in obj]
+                    return obj
+                return super().iterencode(round_floats(o), _one_shot)
+        print(json.dumps(json_si_data, indent=4, cls=RoundingEncoder), file=f)
 
     # 3. Assemble utility files
     mm_sys.atoms.write(mmpdb_path)

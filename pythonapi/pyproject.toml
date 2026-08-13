@@ -14,7 +14,7 @@ classifiers = [
 ]
 
 dependencies = [
-  "numpy >= 1.17,< 2.0.0",
+  "numpy > 2.0.0",
   "scipy >= 1.13",
   "MDAnalysis >= 2.7.0",
   "pysmiles >= 2.0.0",

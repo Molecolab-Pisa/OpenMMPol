@@ -43,6 +43,45 @@ module mod_ommp_C_interface
             f_str = trim(f_str)
         end subroutine c2f_string
 
+        function C_ommp_yst_get_n(yst_p) result(r) bind(c, name='ommp_yst_get_n')
+            use mod_adjacency_mat, only : yale_sparse
+
+            implicit none
+
+            type(c_ptr), value :: yst_p
+            type(yale_sparse), pointer :: yst
+            integer(ommp_integer) :: r
+
+            call c_f_pointer(yst_p, yst)
+            r = yst%n
+        end function
+
+        function C_ommp_yst_get_ri(yst_p) result(r) bind(c, name='ommp_yst_get_ri')
+            use mod_adjacency_mat, only : yale_sparse
+
+            implicit none
+
+            type(c_ptr), value :: yst_p
+            type(yale_sparse), pointer :: yst
+            type(c_ptr) :: r
+
+            call c_f_pointer(yst_p, yst)
+            r = c_loc(yst%ri)
+        end function
+
+        function C_ommp_yst_get_ci(yst_p) result(r) bind(c, name='ommp_yst_get_ci')
+            use mod_adjacency_mat, only : yale_sparse
+
+            implicit none
+
+            type(c_ptr), value :: yst_p
+            type(yale_sparse), pointer :: yst
+            type(c_ptr) :: r
+
+            call c_f_pointer(yst_p, yst)
+            r = c_loc(yst%ci)
+        end function
+
         ! Functions directly mapped on OMMP internal functions (which are 
         ! exposed on fortran side by 
         !     use mod_xxx, only a => b
@@ -79,6 +118,32 @@ module mod_ommp_C_interface
             
             call ommp_set_default_matv(s, matv)
         end subroutine C_ommp_set_default_matv
+
+        subroutine C_ommp_set_polarization_conv_thr(s_prt, conv_thr) &
+                bind(c, name='ommp_set_polarization_conv_thr')
+            implicit none
+
+            real(c_double), value :: conv_thr
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+           
+            call c_f_pointer(s_prt, s)
+            
+            call ommp_set_polarization_conv_thr(s, conv_thr)
+        end subroutine C_ommp_set_polarization_conv_thr
+
+        subroutine C_ommp_set_polarization_use_guess(s_prt, use_guess) &
+                bind(c, name='ommp_set_polarization_use_guess')
+            implicit none
+
+            logical(c_bool), value :: use_guess
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            
+            call c_f_pointer(s_prt, s)
+            
+            call ommp_set_polarization_use_guess(s, use_guess)
+        end subroutine C_ommp_set_polarization_use_guess
 
         subroutine C_ommp_fatal(c_msg) &
                 bind(c, name='ommp_fatal')
@@ -323,6 +388,24 @@ module mod_ommp_C_interface
             
             call ommp_set_external_field(s, ext_field, solver, matv, .false.)
         end subroutine C_ommp_set_external_field_nomm
+
+        subroutine C_ommp_set_fit_potential(s_prt, fit_pot_prt, n_pts) &
+                bind(c, name='ommp_set_fit_potential')
+            !! Set the electrostatic potential at the density fitting points.
+            implicit none
+            
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: fit_pot_prt
+            integer(ommp_integer), intent(in), value :: n_pts
+
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: fit_pot(:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(fit_pot_prt, fit_pot, [n_pts])
+
+            call ommp_set_fit_potential(s, fit_pot)
+        end subroutine C_ommp_set_fit_potential
 
         subroutine C_ommp_potential_mmpol2ext(s_prt, n, cext, v) &
                 bind(c, name='ommp_potential_mmpol2ext')
@@ -1879,6 +1962,18 @@ module mod_ommp_C_interface
             s%eel%use_fmm = .false.
         end subroutine
 
+        function C_ommp_use_density_fit(s_prt) bind(c, name='ommp_use_density_fit')
+            !! Return true if density fitting is enabled, false otherwise.
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_use_density_fit
+
+            call c_f_pointer(s_prt, s)
+            C_ommp_use_density_fit = s%use_density_fit
+        end function C_ommp_use_density_fit
+
         subroutine C_ommp_ignore_duplicated_angle_prm() &
                 bind(c, name='ommp_ignore_duplicated_angle_prm')
 
@@ -1894,5 +1989,425 @@ module mod_ommp_C_interface
 
             call ommp_ignore_duplicated_opb_prm
         end subroutine
+
+        subroutine C_ommp_init_density_fit(s_prt, qmh_prt, &
+                                           charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                                           fit_point_type, fit_n_pts_per_atom, fit_radius, &
+                                           charge_top_source, fit_top_source) &
+                bind(c, name='ommp_init_density_fit')
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: s_prt
+            type(c_ptr), value, intent(in) :: qmh_prt
+            integer(ommp_integer), intent(in), value :: charge_point_type
+            integer(ommp_integer), intent(in), value :: charge_n_pts_per_atom
+            real(ommp_real), intent(in), value :: charge_radius
+            integer(ommp_integer), intent(in), value :: fit_point_type
+            integer(ommp_integer), intent(in), value :: fit_n_pts_per_atom
+            real(ommp_real), intent(in), value :: fit_radius
+            character(kind=c_char), intent(in) :: charge_top_source(OMMP_STR_CHAR_MAX)
+            character(kind=c_char), intent(in) :: fit_top_source(OMMP_STR_CHAR_MAX)
+
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qmh
+            character(len=OMMP_STR_CHAR_MAX) :: charge_src, fit_src
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qmh_prt, qmh)
+
+            !! Convert C strings to Fortran strings
+            call c2f_string(charge_top_source, charge_src)
+            call c2f_string(fit_top_source, fit_src)
+
+            !! Delegate topology selection and initialization to ommp_init_density_fit
+            call ommp_init_density_fit(s, qmh, &
+                                       charge_point_type, charge_n_pts_per_atom, charge_radius, &
+                                       fit_point_type, fit_n_pts_per_atom, fit_radius, &
+                                       charge_src, fit_src)
+
+        end subroutine
+
+        function C_ommp_get_df_n_pts(s_prt) bind(c, name='ommp_get_df_n_pts')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_df_n_pts
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_n_pts = s%df%n_pts
+            else
+                C_ommp_get_df_n_pts = 0
+            end if
+        end function C_ommp_get_df_n_pts
+
+        function C_ommp_get_df_n_charges(s_prt) bind(c, name='ommp_get_df_n_charges')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_df_n_charges
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_n_charges = s%df%n_charges
+            else
+                C_ommp_get_df_n_charges = 0
+            end if
+        end function C_ommp_get_df_n_charges
+
+        function C_ommp_get_df_n_qm_atoms(s_prt) bind(c, name='ommp_get_df_n_qm_atoms')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            integer(ommp_integer) :: C_ommp_get_df_n_qm_atoms
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_n_qm_atoms = s%df%qm_top%mm_atoms
+            else
+                C_ommp_get_df_n_qm_atoms = 0
+            end if
+        end function C_ommp_get_df_n_qm_atoms
+
+        function C_ommp_get_df_initialized(s_prt) bind(c, name='ommp_get_df_initialized')
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            logical(c_bool) :: C_ommp_get_df_initialized
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_initialized = s%df%initialized
+            else
+                C_ommp_get_df_initialized = .false.
+            end if
+        end function C_ommp_get_df_initialized
+
+        function C_ommp_get_df_charge_coord(s_prt) bind(c, name='ommp_get_df_charge_coord')
+            !! Return the c-pointer to the charge coordinates array
+            !! (3 x n_charges). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_charge_coord
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_charge_coord = c_loc(s%df%charge_coord)
+            else
+                C_ommp_get_df_charge_coord = c_null_ptr
+            end if
+        end function C_ommp_get_df_charge_coord
+
+        function C_ommp_get_df_fit_point_coord(s_prt) bind(c, name='ommp_get_df_fit_point_coord')
+            !! Return the c-pointer to the fitting point coordinates
+            !! array (3 x n_pts). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_fit_point_coord
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_fit_point_coord = c_loc(s%df%fit_point_coord)
+            else
+                C_ommp_get_df_fit_point_coord = c_null_ptr
+            end if
+        end function C_ommp_get_df_fit_point_coord
+
+        function C_ommp_get_df_target_charges(s_prt) bind(c, name='ommp_get_df_target_charges')
+            !! Return the c-pointer to the target charges array
+            !! (n_charges). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_target_charges
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_target_charges = c_loc(s%df%target_charges)
+            else
+                C_ommp_get_df_target_charges = c_null_ptr
+            end if
+        end function C_ommp_get_df_target_charges
+
+        function C_ommp_get_df_X(s_prt) bind(c, name='ommp_get_df_X')
+            !! Return the c-pointer to the design matrix X
+            !! (n_charges x n_pts). Null if not available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_X
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_X = c_loc(s%df%X)
+            else
+                C_ommp_get_df_X = c_null_ptr
+            end if
+        end function C_ommp_get_df_X
+
+        function C_ommp_get_df_Xinv(s_prt) bind(c, name='ommp_get_df_Xinv')
+            !! Return the c-pointer to the inverse/pseudoinverse
+            !! design matrix Xinv (n_pts x n_charges). Null if not
+            !! available.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_Xinv
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df)) then
+                C_ommp_get_df_Xinv = c_loc(s%df%Xinv)
+            else
+                C_ommp_get_df_Xinv = c_null_ptr
+            end if
+        end function C_ommp_get_df_Xinv
+
+        function C_ommp_get_df_VXI_m(s_prt) bind(c, name='ommp_get_df_VXI_m')
+            !! Return the c-pointer to the projected static quantity
+            !! VXI_m = V_m2q @ Xinv. Null if not available.
+            !! Triggers computation via the Fortran interface.
+            use mod_density_fit, only: df_project_static
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_VXI_m
+
+            call c_f_pointer(s_prt, s)
+            call df_project_static(s%df, s%eel)
+
+            if(s%df%VXI_m_done .and. allocated(s%df%VXI_m)) then
+                C_ommp_get_df_VXI_m = c_loc(s%df%VXI_m)
+            else
+                C_ommp_get_df_VXI_m = c_null_ptr
+            end if
+        end function C_ommp_get_df_VXI_m
+
+        function C_ommp_get_df_VXI_p(s_prt) bind(c, name='ommp_get_df_VXI_p')
+            !! Return the c-pointer to the projected dipole quantity
+            !! VXI_p = V_p2q @ Xinv. Null if not available.
+            !! Triggers computation via the Fortran interface.
+            use mod_density_fit, only: df_project_dipoles
+
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_VXI_p
+
+            call c_f_pointer(s_prt, s)
+            call df_project_dipoles(s%df, s%eel)
+
+            if(s%df%VXI_p_done .and. allocated(s%df%VXI_p)) then
+                C_ommp_get_df_VXI_p = c_loc(s%df%VXI_p)
+            else
+                C_ommp_get_df_VXI_p = c_null_ptr
+            end if
+        end function C_ommp_get_df_VXI_p
+
+        subroutine C_ommp_df_compute_induced_dipoles(s_prt, solver, matv, add_mm_field, &
+                                                      add_nuclei_field, qm_helper_prt, &
+                                                      exclude_df_field) &
+                bind(c, name='ommp_df_compute_induced_dipoles')
+            !! Compute induced dipoles from fitted charges electric field.
+            !! Wrapper for ommp_df_compute_induced_dipoles.
+            type(c_ptr), value :: s_prt
+            integer(ommp_integer), value :: solver
+            integer(ommp_integer), value :: matv
+            integer(ommp_integer), value :: add_mm_field
+            integer(ommp_integer), value :: add_nuclei_field
+            type(c_ptr), value :: qm_helper_prt
+            integer(ommp_integer), value :: exclude_df_field
+            type(ommp_system), pointer :: s
+            type(ommp_qm_helper), pointer :: qm_help
+            logical :: do_mm_f
+            logical :: do_nuc_f
+            logical :: do_exc_df_f
+            logical :: has_qm
+
+            call c_f_pointer(s_prt, s)
+            do_mm_f = (add_mm_field /= 0)
+            do_nuc_f = (add_nuclei_field /= 0)
+            do_exc_df_f = (exclude_df_field /= 0)
+
+            has_qm = (c_associated(qm_helper_prt))
+
+            if(has_qm) then
+                call c_f_pointer(qm_helper_prt, qm_help)
+            end if
+
+            if(has_qm) then
+                call ommp_df_compute_induced_dipoles(s, solver, matv, do_mm_f, &
+                                                    do_nuc_f, qm_help, &
+                                                    do_exc_df_f)
+            else
+                call ommp_df_compute_induced_dipoles(s, solver, matv, do_mm_f, &
+                                                    do_nuc_f, exclude_df_field=do_exc_df_f)
+            end if
+        end subroutine C_ommp_df_compute_induced_dipoles
+
+        function C_ommp_get_df_e_field_pol_ene(s_prt) bind(c, name='ommp_get_df_e_field_pol_ene')
+            !! Return the polarization energy from fitted-charge electric field.
+            !! Wrapper for ommp_df_get_e_field_pol_ene.
+            type(c_ptr), value :: s_prt
+            real(c_double) :: C_ommp_get_df_e_field_pol_ene
+
+            type(ommp_system), pointer :: s
+            real(ommp_real) :: ene
+
+            call c_f_pointer(s_prt, s)
+            call ommp_df_get_e_field_pol_ene(s, ene)
+            C_ommp_get_df_e_field_pol_ene = real(ene, c_double)
+        end function C_ommp_get_df_e_field_pol_ene
+
+        function C_ommp_get_df_E_q2p(s_prt) bind(c, name='ommp_get_df_E_q2p')
+            !! Return the c-pointer to the electric field from fitted charges
+            !! at polarizable sites array (3 x n_polarizable_atoms).
+            !! Null if not available or not computed.
+            type(c_ptr), value :: s_prt
+            type(ommp_system), pointer :: s
+            type(c_ptr) :: C_ommp_get_df_E_q2p
+
+            call c_f_pointer(s_prt, s)
+            if(allocated(s%df) .and. s%df%E_q2p_done) then
+                C_ommp_get_df_E_q2p = c_loc(s%df%E_q2p)
+            else
+                C_ommp_get_df_E_q2p = c_null_ptr
+            end if
+        end function C_ommp_get_df_E_q2p
+
+        subroutine C_ommp_df_geomgrad(s_prt, qmg_prt, mmg_prt, ef_prt) &
+                bind(c, name='ommp_df_geomgrad')
+            !! Compute the gradient (force) contribution from density fitting.
+            !! Wrapper for ommp_df_geomgrad.
+            !!
+            !! qmg (3, n_qm)   - QM atom gradient/output array
+            !! mmg (3, n_mm)   - MM atom gradient/output array
+            !! ef  (3, n_pts)  - electric field at fitting points (input)
+            !!
+            !! The electric field at grid points and Lagrange multipliers
+            !! are computed internally.
+
+            implicit none
+
+            type(c_ptr), value :: s_prt
+            type(c_ptr), value :: qmg_prt
+            type(c_ptr), value :: mmg_prt
+            type(c_ptr), value :: ef_prt
+
+            type(ommp_system), pointer :: s
+            real(ommp_real), pointer :: qmg(:,:)
+            real(ommp_real), pointer :: mmg(:,:)
+            real(ommp_real), pointer :: ef(:,:)
+
+            call c_f_pointer(s_prt, s)
+            call c_f_pointer(qmg_prt, qmg, [3_ommp_integer, s%df%qm_top%mm_atoms])
+            call c_f_pointer(mmg_prt, mmg, [3_ommp_integer, s%df%mm_top%mm_atoms])
+            call c_f_pointer(ef_prt, ef, [3_ommp_integer, s%df%n_pts])
+
+            call ommp_df_geomgrad(s, qmg, mmg, .true., .true., ef)
+        end subroutine C_ommp_df_geomgrad
+
+        function C_ommp_get_df_dX_dr(s_prt) result(ptr) bind(c, name='ommp_get_df_dX_dr')
+            !! Get the dX_dr matrix (n_charges x 3 x n_pts).
+            !! Returns c_null_ptr if dX_dr is not yet computed.
+            type(c_ptr), value :: s_prt
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+            call c_f_pointer(s_prt, s)
+            if(.not. s%df%dX_dr_done) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%dX_dr)
+            end if
+        end function C_ommp_get_df_dX_dr
+
+        function C_ommp_get_df_nabla_g_mm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_g_mm')
+
+            !! Get the gradient-grid w.r.t. MM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call ommp_fatal("Nabla Matrices are not available call ommp_df_geomgrad first.")
+
+            is_null = s%df%nabla_g_mm_is_null
+            is_identity = s%df%nabla_g_mm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_g_mm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_g_mm)
+            end if
+        end function C_ommp_get_df_nabla_g_mm
+
+        function C_ommp_get_df_nabla_g_qm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_g_qm')
+
+            !! Get the gradient-grid w.r.t. QM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call ommp_fatal("Nabla Matrices are not available call ommp_df_geomgrad first.")
+
+            is_null = s%df%nabla_g_qm_is_null
+            is_identity = s%df%nabla_g_qm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_g_qm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_g_qm)
+            end if
+        end function C_ommp_get_df_nabla_g_qm
+
+        function C_ommp_get_df_nabla_q_qm(s_prt, is_null, is_identity, is_sparse) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_q_qm')
+
+            !! Get the fit-charge w.r.t. QM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity, is_sparse
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call ommp_fatal("Nabla Matrices are not available call ommp_df_geomgrad first.")
+
+            is_null = s%df%nabla_q_qm_is_null
+            is_identity = s%df%nabla_q_qm_is_identity
+            is_sparse = s%df%nabla_q_qm_is_sparse
+
+            if(is_sparse) then
+                ptr = c_loc(s%df%nabla_q_qm_sparse)
+            else if(allocated(s%df%nabla_q_qm)) then
+                ptr = c_loc(s%df%nabla_q_qm)
+            else
+                ptr = c_null_ptr
+            end if
+        end function C_ommp_get_df_nabla_q_qm
+
+        function C_ommp_get_df_nabla_q_mm(s_prt, is_null, is_identity) result(ptr) &
+                bind(c, name='ommp_get_df_nabla_q_mm')
+
+            !! Get the fit-charge w.r.t. MM coordinates nabla matrix.
+            type(c_ptr), value :: s_prt
+            logical(c_bool), intent(out) :: is_null, is_identity
+            type(c_ptr) :: ptr
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(s_prt, s)
+
+            if(.not. s%df%nabla_done) call ommp_fatal("Nabla Matrices are not available call ommp_df_geomgrad first.")
+
+            is_null = s%df%nabla_q_mm_is_null
+            is_identity = s%df%nabla_q_mm_is_identity
+
+            if(is_null .or. is_identity .or. &
+               .not. allocated(s%df%nabla_q_mm)) then
+                ptr = c_null_ptr
+            else
+                ptr = c_loc(s%df%nabla_q_mm)
+            end if
+        end function C_ommp_get_df_nabla_q_mm
 
 end module mod_ommp_C_interface

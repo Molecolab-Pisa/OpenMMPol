@@ -46,8 +46,8 @@ module mod_polarization
     
     contains
     
-    subroutine polarization(sys_obj, e, & 
-                            & arg_solver, arg_mvmethod, arg_ipd_mask)
+    subroutine polarization(sys_obj, e, &
+                            & arg_solver, arg_mvmethod, arg_ipd_mask, arg_tol, arg_use_guess)
         !! Main driver for the calculation of induced dipoles. 
         !! Takes electric field at induced dipole sites as input and -- if
         !! solver converges -- provides induced dipoles as output.
@@ -60,7 +60,7 @@ module mod_polarization
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
-                               inversion_solver
+                               inversion_solver, OMMP_DEFAULT_SOLVER_TOL
         use mod_memory, only: ip, rp, mallocate, mfree
         use mod_io, only: print_matrix
         use mod_profiling, only: time_pull, time_push
@@ -94,11 +94,22 @@ module mod_polarization
         !! account, both P and D field are just external field, so there is no
         !! reason to compute it twice). If n_ipd == 1 this is always considered
         !! true.
+        real(rp), intent(in), optional :: arg_tol
+        !! Optional convergence criterion for the iterative solvers.
+        !! If not provided, [[mod_electrostatics:ommp_electrostatics_type::def_conv_thr]]
+        !! is used (default: 1d-8).
+        logical, intent(in), optional :: arg_use_guess
+        !! Optional flag to use the previous induced dipole as initial guess.
+        !! If not provided, [[mod_electrostatics:ommp_electrostatics_type::def_use_guess]]
+        !! is used (default: .true.).
         
         real(rp), dimension(:, :), allocatable :: e_vec, ipd0
         real(rp), dimension(:), allocatable :: inv_diag
         integer(ip) :: i, n, solver, mvmethod
-        logical :: ipd_mask(sys_obj%eel%n_ipd), amoeba
+        logical :: ipd_mask(sys_obj%eel%n_ipd), amoeba, use_guess
+        real(rp) :: tol
+        !! Convergence threshold, from arg_tol or eel%def_conv_thr
+        !! or the default from mod_solvers (1d-8) if def_conv_thr < 0.
         type(ommp_electrostatics_type), pointer :: eel
 
         abstract interface
@@ -145,6 +156,24 @@ module mod_polarization
             if(solver == OMMP_SOLVER_NONE) solver = eel%def_solver
         else
             solver = eel%def_solver
+        end if
+
+        ! Handle tolerance
+        if(present(arg_tol)) then
+            tol = arg_tol
+        else
+            tol = eel%def_conv_thr
+        end if
+        ! If tol is still negative, use the default from mod_solvers
+        if(tol < 0.0_rp) then
+            tol = OMMP_DEFAULT_SOLVER_TOL
+        end if
+
+        ! Handle use_guess
+        if(present(arg_use_guess)) then
+            use_guess = arg_use_guess
+        else
+            use_guess = eel%def_use_guess
         end if
 
         if(present(arg_mvmethod)) then
@@ -234,7 +263,8 @@ module mod_polarization
                         call conjugate_gradient_solver(n, &
                                                        e_vec(:,_amoeba_D_), &
                                                        ipd0(:,_amoeba_D_), &
-                                                       eel, matvec, precond)
+                                                       eel, matvec, precond, &
+                                                       tol)
                     ! If both sets have to be computed and there is no input
                     ! guess, just use D as guess for P, not a big gain but still
                     ! something
@@ -245,10 +275,11 @@ module mod_polarization
                         call conjugate_gradient_solver(n, &
                                                        e_vec(:,_amoeba_P_), &
                                                        ipd0(:,_amoeba_P_), &
-                                                       eel, matvec, precond)
+                                                       eel, matvec, precond, &
+                                                       tol)
                 else
                     call conjugate_gradient_solver(n, e_vec(:,1), ipd0(:,1), &
-                                                   eel, matvec, precond)
+                                                   eel, matvec, precond, tol)
                 end if
 
             case(OMMP_SOLVER_DIIS)
@@ -265,7 +296,8 @@ module mod_polarization
                         call jacobi_diis_solver(n, &
                                                 e_vec(:,_amoeba_D_), &
                                                 ipd0(:,_amoeba_D_), &
-                                                eel, matvec, inv_diag)
+                                                eel, matvec, inv_diag, &
+                                                tol)
                     ! If both sets have to be computed and there is no input
                     ! guess, just use D as guess for P, not a big gain but still
                     ! something
@@ -276,10 +308,11 @@ module mod_polarization
                         call jacobi_diis_solver(n, &
                                                 e_vec(:,_amoeba_P_), &
                                                 ipd0(:,_amoeba_P_), &
-                                                eel, matvec, inv_diag)
+                                                eel, matvec, inv_diag, &
+                                                tol)
                 else
                     call jacobi_diis_solver(n, e_vec(:,1), ipd0(:,1), &
-                                            eel, matvec, inv_diag)
+                                            eel, matvec, inv_diag, tol)
                 end if
                 call mfree('polarization [inv_diag]', inv_diag)
 
@@ -304,7 +337,7 @@ module mod_polarization
         ! Reshape dipole vector into the matrix 
         eel%ipd = reshape(ipd0, (/3_ip, eel%pol_atoms, eel%n_ipd/)) 
         eel%ipd_done = .true. !! TODO Maybe check convergence...
-        eel%ipd_use_guess = .true.
+        eel%ipd_use_guess = use_guess
         
         call mfree('polarization [ipd0]', ipd0)
         call mfree('polarization [e_vec]', e_vec)

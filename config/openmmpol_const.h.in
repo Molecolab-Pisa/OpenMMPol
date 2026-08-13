@@ -49,4 +49,17 @@
 #define OMMP_FMM_FAR_THR (5.0 * OMMP_ANG2AU)
 #define OMMP_FMM_ENABLE_THR 1000
 
+#define OMMP_DF_SOLVER_SVD 0
+
+#define OMMP_DF_SVD_RCOND 1.0e-13
+#define OMMP_DF_SVD_RCOND_DEFAULT OMMP_DF_SVD_RCOND
+
+/* Density fitting grid types (unified for charge and fit) */
+#define OMMP_DF_ATOMS 1
+#define OMMP_DF_FIBONACCI 2
+#define OMMP_DF_CUBIC 3
+/* Density fitting topology source constants */
+#define OMMP_DF_MM_TOP 1
+#define OMMP_DF_QM_TOP 2
+
 #endif
