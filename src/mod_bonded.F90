@@ -153,20 +153,20 @@ module mod_bonded
     end type ommp_bonded_type
 
     public :: ommp_bonded_type
-    public :: bond_init, bond_potential, bond_geomgrad, bond_terminate
-    public :: angle_init, angle_potential, angle_geomgrad, angle_terminate
-    public :: urey_init, urey_potential, urey_geomgrad, urey_terminate
-    public :: strbnd_init, strbnd_potential, strbnd_geomgrad, strbnd_terminate
-    public :: opb_init, opb_potential, opb_geomgrad, opb_terminate
-    public :: pitors_init, pitors_potential, pitors_geomgrad, pitors_terminate
-    public :: torsion_init, torsion_potential, torsion_geomgrad, &
+    public :: bond_init, bond_potential, bond_geomgrad, bond_geomhess, bond_terminate
+    public :: angle_init, angle_potential, angle_geomgrad, angle_geomhess, angle_terminate
+    public :: urey_init, urey_potential, urey_geomgrad, urey_geomhess, urey_terminate
+    public :: strbnd_init, strbnd_potential, strbnd_geomgrad, strbnd_geomhess, strbnd_terminate
+    public :: opb_init, opb_potential, opb_geomgrad, opb_geomhess, opb_terminate
+    public :: pitors_init, pitors_potential, pitors_geomgrad, pitors_geomhess, pitors_terminate
+    public :: torsion_init, torsion_potential, torsion_geomgrad, torsion_geomhess, &
               torsion_terminate
     public :: imptorsion_init, imptorsion_potential, imptorsion_geomgrad, &
-              imptorsion_terminate
-    public :: tortor_init, tortor_potential, tortor_geomgrad, &
+              imptorsion_geomhess, imptorsion_terminate
+    public :: tortor_init, tortor_potential, tortor_geomgrad, tortor_geomhess, &
               tortor_terminate, tortor_newmap
-    public :: strtor_init, strtor_potential, strtor_geomgrad, strtor_terminate
-    public :: angtor_init, angtor_potential, angtor_geomgrad, angtor_terminate
+    public :: strtor_init, strtor_potential, strtor_geomgrad, strtor_geomhess, strtor_terminate
+    public :: angtor_init, angtor_potential, angtor_geomgrad, angtor_geomhess, angtor_terminate
     public :: bonded_terminate
     
     contains
@@ -363,6 +363,90 @@ module mod_bonded
         end if
 
     end subroutine bond_geomgrad
+
+    subroutine bond_geomhess(bds, hess)
+        !! Compute the Hessian of the bond-stretching terms of the potential
+        !! energy. With \(g=\partial U_i/\partial \Delta l_i\) as in
+        !! bond_geomgrad and \(h=\partial^2 U_i/\partial \Delta l_i^2 =
+        !! 2k_i(1+3k^{(3)}\Delta l_i+6k^{(4)}\Delta l_i^2)\), and \(M\) the
+        !! symmetric matrix from Rij_hessian (equal for both diagonal
+        !! blocks, with the off-diagonal block equal to \(-M\)):
+        !! \[ H_{aa} = H_{bb} = -H_{ab} = -H_{ba} = h\, J_a J_a^\dagger + g M \]
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: Rij_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of bond stretching terms of potential energy
+
+        integer :: i, ia, ib, p
+        logical(lp) :: use_cubic, use_quartic
+        logical :: sk_a, sk_b
+        real(rp) :: ca(3), cb(3), J_a(3), J_b(3), l, dl, g, h
+        real(rp) :: M(3,3), H_ij(3,3), H_jj(3,3), Haa(3,3)
+
+        use_cubic = (abs(bds%bond_cubic) > eps_rp)
+        use_quartic = (abs(bds%bond_quartic) > eps_rp)
+
+        if(.not. bds%use_bond) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,ia,ib,sk_a,sk_b,ca,cb,dl,l,g,h,J_a,J_b,M,H_ij,H_jj,Haa,p)
+        do i=1, bds%nbond
+            ia = bds%bondat(1,i)
+            ib = bds%bondat(2,i)
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                if(sk_a .and. sk_b) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+            end if
+
+            ca = bds%top%cmm(:,ia)
+            cb = bds%top%cmm(:,ib)
+
+            call Rij_hessian(ca, cb, l, J_a, J_b, M, H_ij, H_jj)
+            dl = l - bds%l0bond(i)
+
+            if(.not. use_cubic .and. .not. use_quartic) then
+                g = 2 * bds%kbond(i) * dl
+                h = 2 * bds%kbond(i)
+            else
+                g = 2 * bds%kbond(i) * dl * (1.0_rp + 3.0/2.0*bds%bond_cubic*dl &
+                                             + 2.0*bds%bond_quartic*dl**2)
+                h = 2 * bds%kbond(i) * (1.0_rp + 3.0*bds%bond_cubic*dl &
+                                        + 6.0*bds%bond_quartic*dl**2)
+            end if
+
+            do p=1,3
+                Haa(p,:) = h*J_a(p)*J_a + g*M(p,:)
+            end do
+
+            if(.not. sk_a) then
+                !$omp critical
+                hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+                !$omp end critical
+            end if
+            if(.not. sk_b) then
+                !$omp critical
+                hess(:,:,ib,ib) = hess(:,:,ib,ib) + Haa
+                !$omp end critical
+            end if
+            if(.not. sk_a .and. .not. sk_b) then
+                !$omp critical
+                hess(:,:,ia,ib) = hess(:,:,ia,ib) - Haa
+                hess(:,:,ib,ia) = hess(:,:,ib,ia) - Haa
+                !$omp end critical
+            end if
+        end do
+
+    end subroutine bond_geomhess
 
     subroutine angle_init(bds, n)
         !! Initialize arrays used in calculation of angle bending functions
@@ -625,7 +709,193 @@ module mod_bonded
             end if
         end do
     end subroutine angle_geomgrad
- 
+
+    subroutine angle_geomhess(bds, hess)
+        !! Compute the Hessian of the angle-bending terms of the potential
+        !! energy. With \(g=\partial U_i/\partial \Delta\theta_i\) as in
+        !! angle_geomgrad and
+        !! \(h=\partial^2 U_i/\partial\Delta\theta_i^2 = 2k_i(1+3k^{(3)}
+        !! \Delta\theta_i+6k^{(4)}\Delta\theta_i^2+10k^{(5)}\Delta\theta_i^3
+        !! +15k^{(6)}\Delta\theta_i^4)\), for any two atoms X,Y of the term:
+        !! \[ H_{XY} = h\, J_X J_Y^\dagger + g\, H_{XY}(\theta) \]
+        !! where \(H_{XY}(\theta)\) is the corresponding block from
+        !! simple_angle_hessian (OMMP_ANG_SIMPLE/H0/H1/H2) or
+        !! inplane_angle_hessian (OMMP_ANG_INPLANE/H0/H1).
+        use mod_jacobian_mat, only: simple_angle_hessian, inplane_angle_hessian
+        use mod_constants, only: eps_rp
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of angle bending terms of potential energy
+
+        real(rp) :: a(3), b(3), c(3), x(3), Ja(3), Jb(3), Jc(3), Jx(3), &
+                    g, h, thet, d_theta
+        real(rp), dimension(3,3) :: Haa, Hab, Hac, Hax, Hbb, Hbc, Hbx, Hcc, Hcx, Hxx
+        integer(ip) :: i, ia, ib, ic, ix, p
+        logical :: sk_a, sk_b, sk_c, sk_x
+
+        if(.not. bds%use_angle) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,ia,ib,ic,ix,sk_a,sk_b,sk_c,sk_x,a,b,c,x,thet,d_theta,g,h,p) &
+        !$omp private(Ja,Jb,Jc,Jx,Haa,Hab,Hac,Hax,Hbb,Hbc,Hbx,Hcc,Hcx,Hxx)
+        do i=1, bds%nangle
+            if(abs(bds%kangle(i)) < eps_rp) cycle
+            if(bds%anglety(i) == OMMP_ANG_SIMPLE .or. &
+               bds%anglety(i) == OMMP_ANG_H0 .or. &
+               bds%anglety(i) == OMMP_ANG_H1 .or. &
+               bds%anglety(i) == OMMP_ANG_H2) then
+                ia = bds%angleat(1,i)
+                ib = bds%angleat(2,i)
+                ic = bds%angleat(3,i)
+
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(ia)
+                    sk_b = bds%top%frozen(ib)
+                    sk_c = bds%top%frozen(ic)
+                    if(sk_a .and. sk_b .and. sk_c) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                    sk_c = .false.
+                end if
+
+                a = bds%top%cmm(:,ia)
+                b = bds%top%cmm(:,ib)
+                c = bds%top%cmm(:,ic)
+                call simple_angle_hessian(a, b, c, thet, Ja, Jb, Jc, &
+                                          Haa, Hab, Hac, Hbb, Hbc, Hcc)
+                d_theta = thet - bds%eqangle(i)
+
+                g = bds%kangle(i) * d_theta * (2.0 &
+                                               + 3.0 * bds%angle_cubic * d_theta &
+                                               + 4.0 * bds%angle_quartic * d_theta**2 &
+                                               + 5.0 * bds%angle_pentic * d_theta**3 &
+                                               + 6.0 * bds%angle_sextic * d_theta**4)
+                h = 2.0 * bds%kangle(i) * (1.0 &
+                                           + 3.0 * bds%angle_cubic * d_theta &
+                                           + 6.0 * bds%angle_quartic * d_theta**2 &
+                                           + 10.0 * bds%angle_pentic * d_theta**3 &
+                                           + 15.0 * bds%angle_sextic * d_theta**4)
+
+                do p=1,3
+                    Haa(p,:) = h*Ja(p)*Ja + g*Haa(p,:)
+                    Hab(p,:) = h*Ja(p)*Jb + g*Hab(p,:)
+                    Hac(p,:) = h*Ja(p)*Jc + g*Hac(p,:)
+                    Hbb(p,:) = h*Jb(p)*Jb + g*Hbb(p,:)
+                    Hbc(p,:) = h*Jb(p)*Jc + g*Hbc(p,:)
+                    Hcc(p,:) = h*Jc(p)*Jc + g*Hcc(p,:)
+                end do
+
+                !$omp critical
+                if(.not. sk_a) hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+                if(.not. sk_b) hess(:,:,ib,ib) = hess(:,:,ib,ib) + Hbb
+                if(.not. sk_c) hess(:,:,ic,ic) = hess(:,:,ic,ic) + Hcc
+                if(.not. sk_a .and. .not. sk_b) then
+                    hess(:,:,ia,ib) = hess(:,:,ia,ib) + Hab
+                    hess(:,:,ib,ia) = hess(:,:,ib,ia) + transpose(Hab)
+                end if
+                if(.not. sk_a .and. .not. sk_c) then
+                    hess(:,:,ia,ic) = hess(:,:,ia,ic) + Hac
+                    hess(:,:,ic,ia) = hess(:,:,ic,ia) + transpose(Hac)
+                end if
+                if(.not. sk_b .and. .not. sk_c) then
+                    hess(:,:,ib,ic) = hess(:,:,ib,ic) + Hbc
+                    hess(:,:,ic,ib) = hess(:,:,ic,ib) + transpose(Hbc)
+                end if
+                !$omp end critical
+            else if(bds%anglety(i) == OMMP_ANG_INPLANE .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H0 .or. &
+                    bds%anglety(i) == OMMP_ANG_INPLANE_H1) then
+
+                ia = bds%angleat(1,i)
+                ib = bds%angleat(2,i)
+                ic = bds%angleat(3,i)
+                ix = bds%angauxat(i)
+
+                if(bds%top%use_frozen) then
+                    sk_a = bds%top%frozen(ia)
+                    sk_b = bds%top%frozen(ib)
+                    sk_c = bds%top%frozen(ic)
+                    sk_x = bds%top%frozen(ix)
+                    if(sk_a .and. sk_b .and. sk_c .and. sk_x) cycle
+                else
+                    sk_a = .false.
+                    sk_b = .false.
+                    sk_c = .false.
+                    sk_x = .false.
+                end if
+
+                a = bds%top%cmm(:,ia)
+                b = bds%top%cmm(:,ib)
+                c = bds%top%cmm(:,ic)
+                x = bds%top%cmm(:,ix)
+                call inplane_angle_hessian(a, b, c, x, thet, Ja, Jb, Jc, Jx, &
+                                           Haa, Hab, Hac, Hax, Hbb, Hbc, Hbx, &
+                                           Hcc, Hcx, Hxx)
+                d_theta = thet - bds%eqangle(i)
+
+                g = bds%kangle(i) * d_theta * (2.0 &
+                                               + 3.0 * bds%angle_cubic * d_theta &
+                                               + 4.0 * bds%angle_quartic * d_theta**2 &
+                                               + 5.0 * bds%angle_pentic * d_theta**3 &
+                                               + 6.0 * bds%angle_sextic * d_theta**4)
+                h = 2.0 * bds%kangle(i) * (1.0 &
+                                           + 3.0 * bds%angle_cubic * d_theta &
+                                           + 6.0 * bds%angle_quartic * d_theta**2 &
+                                           + 10.0 * bds%angle_pentic * d_theta**3 &
+                                           + 15.0 * bds%angle_sextic * d_theta**4)
+
+                do p=1,3
+                    Haa(p,:) = h*Ja(p)*Ja + g*Haa(p,:)
+                    Hab(p,:) = h*Ja(p)*Jb + g*Hab(p,:)
+                    Hac(p,:) = h*Ja(p)*Jc + g*Hac(p,:)
+                    Hax(p,:) = h*Ja(p)*Jx + g*Hax(p,:)
+                    Hbb(p,:) = h*Jb(p)*Jb + g*Hbb(p,:)
+                    Hbc(p,:) = h*Jb(p)*Jc + g*Hbc(p,:)
+                    Hbx(p,:) = h*Jb(p)*Jx + g*Hbx(p,:)
+                    Hcc(p,:) = h*Jc(p)*Jc + g*Hcc(p,:)
+                    Hcx(p,:) = h*Jc(p)*Jx + g*Hcx(p,:)
+                    Hxx(p,:) = h*Jx(p)*Jx + g*Hxx(p,:)
+                end do
+
+                !$omp critical
+                if(.not. sk_a) hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+                if(.not. sk_b) hess(:,:,ib,ib) = hess(:,:,ib,ib) + Hbb
+                if(.not. sk_c) hess(:,:,ic,ic) = hess(:,:,ic,ic) + Hcc
+                if(.not. sk_x) hess(:,:,ix,ix) = hess(:,:,ix,ix) + Hxx
+                if(.not. sk_a .and. .not. sk_b) then
+                    hess(:,:,ia,ib) = hess(:,:,ia,ib) + Hab
+                    hess(:,:,ib,ia) = hess(:,:,ib,ia) + transpose(Hab)
+                end if
+                if(.not. sk_a .and. .not. sk_c) then
+                    hess(:,:,ia,ic) = hess(:,:,ia,ic) + Hac
+                    hess(:,:,ic,ia) = hess(:,:,ic,ia) + transpose(Hac)
+                end if
+                if(.not. sk_a .and. .not. sk_x) then
+                    hess(:,:,ia,ix) = hess(:,:,ia,ix) + Hax
+                    hess(:,:,ix,ia) = hess(:,:,ix,ia) + transpose(Hax)
+                end if
+                if(.not. sk_b .and. .not. sk_c) then
+                    hess(:,:,ib,ic) = hess(:,:,ib,ic) + Hbc
+                    hess(:,:,ic,ib) = hess(:,:,ic,ib) + transpose(Hbc)
+                end if
+                if(.not. sk_b .and. .not. sk_x) then
+                    hess(:,:,ib,ix) = hess(:,:,ib,ix) + Hbx
+                    hess(:,:,ix,ib) = hess(:,:,ix,ib) + transpose(Hbx)
+                end if
+                if(.not. sk_c .and. .not. sk_x) then
+                    hess(:,:,ic,ix) = hess(:,:,ic,ix) + Hcx
+                    hess(:,:,ix,ic) = hess(:,:,ix,ic) + transpose(Hcx)
+                end if
+                !$omp end critical
+            end if
+        end do
+    end subroutine angle_geomhess
+
     subroutine strbnd_init(bds, n)
         !! Initialize arrays for calculation of stretch-bend cross term 
         !! potential
@@ -781,7 +1051,118 @@ module mod_bonded
 
     end subroutine strbnd_geomgrad
 
-    subroutine urey_init(bds, n) 
+    subroutine strbnd_geomhess(bds, hess)
+        !! Compute the Hessian of the stretch-bend cross term. Treating
+        !! \(U=(k_1\Delta l_1+k_2\Delta l_2)\Delta\theta\) as a function of
+        !! the three internal coordinates \(l_1=R_{AB}\), \(l_2=R_{BC}\),
+        !! \(\theta=\angle(A,B,C)\), the only nonzero internal second
+        !! derivatives are \(\partial^2U/\partial l_1\partial\theta=k_1\) and
+        !! \(\partial^2U/\partial l_2\partial\theta=k_2\), so for any two
+        !! atoms X,Y of the term:
+        !! \[ H_{XY} = k_1\left(J^{l_1}_XJ^{\theta\dagger}_Y+J^\theta_XJ^{l_1\dagger}_Y\right)
+        !!    + k_2\left(J^{l_2}_XJ^{\theta\dagger}_Y+J^\theta_XJ^{l_2\dagger}_Y\right)
+        !!    + g_1H^{l_1}_{XY} + g_2H^{l_2}_{XY} + g_3H^\theta_{XY} \]
+        !! with \(g_1,g_2,g_3\) as in strbnd_geomgrad, and
+        !! \(J^{l_1},H^{l_1}\) (resp. \(J^{l_2},H^{l_2}\)) from Rij_hessian
+        !! on the A-B (resp. B-C) bond (zero on blocks not touching A,B --
+        !! resp. B,C), \(J^\theta,H^\theta\) from simple_angle_hessian(A,B,C).
+        use mod_jacobian_mat, only: Rij_hessian, simple_angle_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of stretch-bend terms of potential energy
+
+        integer(ip) :: i, ia, ib, ic, p
+        real(rp) :: d_l1, d_l2, d_thet, l1, l2, thet, g1, g2, g3
+        real(rp), dimension(3) :: a, b, c, J1_a, J1_b, J2_b, J2_c, J3_a, J3_b, J3_c
+        real(rp), dimension(3,3) :: H1_aa, H1_ab, H1_bb, H2_bb, H2_bc, H2_cc, &
+                                    H3_aa, H3_ab, H3_ac, H3_bb, H3_bc, H3_cc, &
+                                    Haa, Hab, Hac, Hbb, Hbc, Hcc
+        logical :: sk_a, sk_b, sk_c
+
+        if(.not. bds%use_strbnd) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,ia,ib,ic,sk_a,sk_b,sk_c,a,b,c,l1,l2,d_l1,d_l2,thet,d_thet) &
+        !$omp private(J1_a,J1_b,J2_b,J2_c,J3_a,J3_b,J3_c,g1,g2,g3,p) &
+        !$omp private(H1_aa,H1_ab,H1_bb,H2_bb,H2_bc,H2_cc,H3_aa,H3_ab,H3_ac,H3_bb,H3_bc,H3_cc) &
+        !$omp private(Haa,Hab,Hac,Hbb,Hbc,Hcc)
+        do i=1, bds%nstrbnd
+            ia = bds%strbndat(1,i)
+            ib = bds%strbndat(2,i)
+            ic = bds%strbndat(3,i)
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                if(sk_a .and. sk_b .and. sk_c) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+            end if
+
+            a = bds%top%cmm(:, ia)
+            b = bds%top%cmm(:, ib)
+            c = bds%top%cmm(:, ic)
+
+            call Rij_hessian(a, b, l1, J1_a, J1_b, H1_aa, H1_ab, H1_bb)
+            call Rij_hessian(b, c, l2, J2_b, J2_c, H2_bb, H2_bc, H2_cc)
+            call simple_angle_hessian(a, b, c, thet, J3_a, J3_b, J3_c, &
+                                      H3_aa, H3_ab, H3_ac, H3_bb, H3_bc, H3_cc)
+
+            d_l1 = l1 - bds%strbndl10(i)
+            d_l2 = l2 - bds%strbndl20(i)
+            d_thet = thet - bds%strbndthet0(i)
+
+            g1 = bds%strbndk1(i) * d_thet
+            g2 = bds%strbndk2(i) * d_thet
+            g3 = bds%strbndk1(i) * d_l1 + bds%strbndk2(i) * d_l2
+
+            do p=1,3
+                Haa(p,:) = bds%strbndk1(i)*(J1_a(p)*J3_a + J3_a(p)*J1_a) &
+                          + g1*H1_aa(p,:) + g3*H3_aa(p,:)
+                Hab(p,:) = bds%strbndk1(i)*(J1_a(p)*J3_b + J3_a(p)*J1_b) &
+                          + bds%strbndk2(i)*J3_a(p)*J2_b &
+                          + g1*H1_ab(p,:) + g3*H3_ab(p,:)
+                Hac(p,:) = bds%strbndk1(i)*J1_a(p)*J3_c + bds%strbndk2(i)*J3_a(p)*J2_c &
+                          + g3*H3_ac(p,:)
+                Hbb(p,:) = bds%strbndk1(i)*(J1_b(p)*J3_b + J3_b(p)*J1_b) &
+                          + bds%strbndk2(i)*(J2_b(p)*J3_b + J3_b(p)*J2_b) &
+                          + g1*H1_bb(p,:) + g2*H2_bb(p,:) + g3*H3_bb(p,:)
+                Hbc(p,:) = bds%strbndk1(i)*J1_b(p)*J3_c &
+                          + bds%strbndk2(i)*(J2_b(p)*J3_c + J3_b(p)*J2_c) &
+                          + g2*H2_bc(p,:) + g3*H3_bc(p,:)
+                Hcc(p,:) = bds%strbndk2(i)*(J2_c(p)*J3_c + J3_c(p)*J2_c) &
+                          + g2*H2_cc(p,:) + g3*H3_cc(p,:)
+            end do
+
+            !$omp critical
+            if(.not. sk_a) hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+            if(.not. sk_b) hess(:,:,ib,ib) = hess(:,:,ib,ib) + Hbb
+            if(.not. sk_c) hess(:,:,ic,ic) = hess(:,:,ic,ic) + Hcc
+            if(.not. sk_a .and. .not. sk_b) then
+                hess(:,:,ia,ib) = hess(:,:,ia,ib) + Hab
+                hess(:,:,ib,ia) = hess(:,:,ib,ia) + transpose(Hab)
+            end if
+            if(.not. sk_a .and. .not. sk_c) then
+                hess(:,:,ia,ic) = hess(:,:,ia,ic) + Hac
+                hess(:,:,ic,ia) = hess(:,:,ic,ia) + transpose(Hac)
+            end if
+            if(.not. sk_b .and. .not. sk_c) then
+                hess(:,:,ib,ic) = hess(:,:,ib,ic) + Hbc
+                hess(:,:,ic,ib) = hess(:,:,ic,ib) + transpose(Hbc)
+            end if
+            !$omp end critical
+        end do
+
+    end subroutine strbnd_geomhess
+
+    subroutine urey_init(bds, n)
         !! Initialize Urey-Bradley potential arrays
 
         use mod_memory, only: mallocate
@@ -964,6 +1345,84 @@ module mod_bonded
         end if
     end subroutine urey_geomgrad
 
+    subroutine urey_geomhess(bds, hess)
+        !! Compute the Hessian of the Urey-Bradley terms of the potential
+        !! energy. Formally identical to bond_geomhess (see there), applied
+        !! to the ureyat/kurey/l0urey/urey_cubic/urey_quartic parameters.
+        use mod_constants, only : eps_rp
+        use mod_jacobian_mat, only: Rij_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of Urey-Bradley terms of potential energy
+
+        integer :: i, ia, ib, p
+        logical(lp) :: use_cubic, use_quartic
+        logical :: sk_a, sk_b
+        real(rp) :: J_a(3), J_b(3), l, dl, g, h
+        real(rp) :: M(3,3), H_ij(3,3), H_jj(3,3), Haa(3,3)
+
+        if(.not. bds%use_urey) return
+
+        use_cubic = (abs(bds%urey_cubic) > eps_rp)
+        use_quartic = (abs(bds%urey_quartic) > eps_rp)
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,ia,ib,sk_a,sk_b,dl,l,g,h,J_a,J_b,M,H_ij,H_jj,Haa,p)
+        do i=1, bds%nurey
+            ia = bds%ureyat(1,i)
+            ib = bds%ureyat(2,i)
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                if(sk_a .and. sk_b) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+            end if
+
+            call Rij_hessian(bds%top%cmm(:,ia), bds%top%cmm(:,ib), &
+                             l, J_a, J_b, M, H_ij, H_jj)
+            dl = l - bds%l0urey(i)
+
+            if(.not. use_cubic .and. .not. use_quartic) then
+                g = 2 * bds%kurey(i) * dl
+                h = 2 * bds%kurey(i)
+            else
+                g = 2 * bds%kurey(i) * dl * (1.0_rp + 3.0/2.0*bds%urey_cubic*dl &
+                                             + 2.0*bds%urey_quartic*dl**2)
+                h = 2 * bds%kurey(i) * (1.0_rp + 3.0*bds%urey_cubic*dl &
+                                        + 6.0*bds%urey_quartic*dl**2)
+            end if
+
+            do p=1,3
+                Haa(p,:) = h*J_a(p)*J_a + g*M(p,:)
+            end do
+
+            if(.not. sk_a) then
+                !$omp critical
+                hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+                !$omp end critical
+            end if
+            if(.not. sk_b) then
+                !$omp critical
+                hess(:,:,ib,ib) = hess(:,:,ib,ib) + Haa
+                !$omp end critical
+            end if
+            if(.not. sk_a .and. .not. sk_b) then
+                !$omp critical
+                hess(:,:,ia,ib) = hess(:,:,ia,ib) - Haa
+                hess(:,:,ib,ia) = hess(:,:,ib,ia) - Haa
+                !$omp end critical
+            end if
+        end do
+
+    end subroutine urey_geomhess
+
     subroutine opb_init(bds, n, opbtype)
         !! Initialize arrays for out-of-plane bending potential calculation.   
         !! @todo Currently only Allinger functional form is supported 
@@ -1141,6 +1600,110 @@ module mod_bonded
         end do
     end subroutine opb_geomgrad
 
+    subroutine opb_geomhess(bds, hess)
+        !! Compute the Hessian of the out-of-plane bending terms. Same
+        !! g=dU/dtheta as opb_geomgrad, and h=d^2U/dtheta^2 =
+        !! 2k(1+3k^(3)*theta+6k^(4)*theta^2+10k^(5)*theta^3+15k^(6)*theta^4)
+        !! (identical functional form to angle_geomhess, since theta already
+        !! measures the deviation from the implicit equilibrium of zero).
+        !! For any two atoms X,Y of the term: H_XY = h*J_X*J_Y^T + g*H_XY(theta),
+        !! with H_XY(theta) from opb_angle_hessian.
+        use mod_jacobian_mat, only: opb_angle_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of out-of-plane bending terms of potential energy
+
+        real(rp) :: thet, g, h, J_a(3), J_b(3), J_c(3), J_d(3)
+        real(rp), dimension(3,3) :: Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd
+        integer(ip) :: i, ia, ib, ic, id, p
+        logical :: sk_a, sk_b, sk_c, sk_d
+
+        if(.not. bds%use_opb) return
+
+        !$omp parallel do default(shared) schedule(dynamic)&
+        !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,thet,J_a,J_b,J_c,J_d,g,h,p) &
+        !$omp private(Haa,Hab,Hac,Had,Hbb,Hbc,Hbd,Hcc,Hcd,Hdd)
+        do i=1, bds%nopb
+            ia = bds%opbat(2,i)
+            ib = bds%opbat(4,i)
+            ic = bds%opbat(3,i)
+            id = bds%opbat(1,i)
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+            end if
+
+            call opb_angle_hessian(bds%top%cmm(:,ia), bds%top%cmm(:,ib), &
+                                   bds%top%cmm(:,ic), bds%top%cmm(:,id), &
+                                   thet, J_a, J_b, J_c, J_d, &
+                                   Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd)
+
+            g = bds%kopb(i) * thet * (2.0 + 3.0*bds%opb_cubic*thet &
+                + 4.0*bds%opb_quartic*thet**2 + 5.0*bds%opb_pentic*thet**3 &
+                + 6.0*bds%opb_sextic*thet**4)
+            h = 2.0 * bds%kopb(i) * (1.0 + 3.0*bds%opb_cubic*thet &
+                + 6.0*bds%opb_quartic*thet**2 + 10.0*bds%opb_pentic*thet**3 &
+                + 15.0*bds%opb_sextic*thet**4)
+
+            do p=1,3
+                Haa(p,:) = h*J_a(p)*J_a + g*Haa(p,:)
+                Hab(p,:) = h*J_a(p)*J_b + g*Hab(p,:)
+                Hac(p,:) = h*J_a(p)*J_c + g*Hac(p,:)
+                Had(p,:) = h*J_a(p)*J_d + g*Had(p,:)
+                Hbb(p,:) = h*J_b(p)*J_b + g*Hbb(p,:)
+                Hbc(p,:) = h*J_b(p)*J_c + g*Hbc(p,:)
+                Hbd(p,:) = h*J_b(p)*J_d + g*Hbd(p,:)
+                Hcc(p,:) = h*J_c(p)*J_c + g*Hcc(p,:)
+                Hcd(p,:) = h*J_c(p)*J_d + g*Hcd(p,:)
+                Hdd(p,:) = h*J_d(p)*J_d + g*Hdd(p,:)
+            end do
+
+            !$omp critical
+            if(.not. sk_a) hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+            if(.not. sk_b) hess(:,:,ib,ib) = hess(:,:,ib,ib) + Hbb
+            if(.not. sk_c) hess(:,:,ic,ic) = hess(:,:,ic,ic) + Hcc
+            if(.not. sk_d) hess(:,:,id,id) = hess(:,:,id,id) + Hdd
+            if(.not. sk_a .and. .not. sk_b) then
+                hess(:,:,ia,ib) = hess(:,:,ia,ib) + Hab
+                hess(:,:,ib,ia) = hess(:,:,ib,ia) + transpose(Hab)
+            end if
+            if(.not. sk_a .and. .not. sk_c) then
+                hess(:,:,ia,ic) = hess(:,:,ia,ic) + Hac
+                hess(:,:,ic,ia) = hess(:,:,ic,ia) + transpose(Hac)
+            end if
+            if(.not. sk_a .and. .not. sk_d) then
+                hess(:,:,ia,id) = hess(:,:,ia,id) + Had
+                hess(:,:,id,ia) = hess(:,:,id,ia) + transpose(Had)
+            end if
+            if(.not. sk_b .and. .not. sk_c) then
+                hess(:,:,ib,ic) = hess(:,:,ib,ic) + Hbc
+                hess(:,:,ic,ib) = hess(:,:,ic,ib) + transpose(Hbc)
+            end if
+            if(.not. sk_b .and. .not. sk_d) then
+                hess(:,:,ib,id) = hess(:,:,ib,id) + Hbd
+                hess(:,:,id,ib) = hess(:,:,id,ib) + transpose(Hbd)
+            end if
+            if(.not. sk_c .and. .not. sk_d) then
+                hess(:,:,ic,id) = hess(:,:,ic,id) + Hcd
+                hess(:,:,id,ic) = hess(:,:,id,ic) + transpose(Hcd)
+            end if
+            !$omp end critical
+        end do
+    end subroutine opb_geomhess
+
     
     subroutine pitors_init(bds, n)
         !! Initialize arrays needed to compute pi-torsion potential
@@ -1237,7 +1800,7 @@ module mod_bonded
             u = u / norm2(u)
             
             costhet = dot_product(u,t)
-            
+                    
             thet = acos(costhet)
             
             V = V +  bds%kpitors(i) * (1 + cos(2.0*thet-pi))
@@ -1265,95 +1828,170 @@ module mod_bonded
         !$omp private(i,ia,ib,ic,id,ie,if_,sk_a,sk_b,sk_c,sk_d,sk_e,sk_f) &
         !$omp private(J_a,J_b,J_c,J_d,J_e,J_f,g,thet)
         do i=1, bds%npitors
-	    ia = bds%pitorsat(1,i)
-	    ic = bds%pitorsat(2,i)
-	    id = bds%pitorsat(3,i)
-	    ib = bds%pitorsat(4,i)
-	    ie = bds%pitorsat(5,i)
-	    if_ = bds%pitorsat(6,i)
+        ia = bds%pitorsat(1,i)
+        ic = bds%pitorsat(2,i)
+        id = bds%pitorsat(3,i)
+        ib = bds%pitorsat(4,i)
+        ie = bds%pitorsat(5,i)
+        if_ = bds%pitorsat(6,i)
 
-	    if(bds%top%use_frozen) then
-	        sk_a = bds%top%frozen(ia)
-	        sk_b = bds%top%frozen(ib)
-	        sk_c = bds%top%frozen(ic)
-	        sk_d = bds%top%frozen(id)
-	        sk_e = bds%top%frozen(ie)
-	        sk_f = bds%top%frozen(if_)
-	        if(sk_a .and. sk_b .and. sk_c .and. sk_d .and. sk_e .and. sk_f) cycle
-	    else
-	        sk_a = .false.
-	        sk_b = .false.
-	        sk_c = .false.
-	        sk_d = .false.
-	        sk_e = .false.
-	        sk_f = .false.
-	    end if
+        if(bds%top%use_frozen) then
+            sk_a = bds%top%frozen(ia)
+            sk_b = bds%top%frozen(ib)
+            sk_c = bds%top%frozen(ic)
+            sk_d = bds%top%frozen(id)
+            sk_e = bds%top%frozen(ie)
+            sk_f = bds%top%frozen(if_)
+            if(sk_a .and. sk_b .and. sk_c .and. sk_d .and. sk_e .and. sk_f) cycle
+        else
+            sk_a = .false.
+            sk_b = .false.
+            sk_c = .false.
+            sk_d = .false.
+            sk_e = .false.
+            sk_f = .false.
+        end if
 
-	    call pitors_angle_jacobian(bds%top%cmm(:,ia), &
-		                       bds%top%cmm(:,ib), &
-		                       bds%top%cmm(:,ic), &
-		                       bds%top%cmm(:,id), &
-		                       bds%top%cmm(:,ie), &
-		                       bds%top%cmm(:,if_), &
-		                       thet, J_a, J_b, J_c, J_d, J_e, J_f)
+        call pitors_angle_jacobian(bds%top%cmm(:,ia), &
+                               bds%top%cmm(:,ib), &
+                               bds%top%cmm(:,ic), &
+                               bds%top%cmm(:,id), &
+                               bds%top%cmm(:,ie), &
+                               bds%top%cmm(:,if_), &
+                               thet, J_a, J_b, J_c, J_d, J_e, J_f)
 
-	    g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
+        g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
 
-	    if(.not. sk_a) then
-	        !$omp atomic update
-	        grad(1,ia) = grad(1,ia) + g * J_a(1)
-	        !$omp atomic update
-	        grad(2,ia) = grad(2,ia) + g * J_a(2)
-	        !$omp atomic update
-	        grad(3,ia) = grad(3,ia) + g * J_a(3)
-	    end if
+        if(.not. sk_a) then
+            !$omp atomic update
+            grad(1,ia) = grad(1,ia) + g * J_a(1)
+            !$omp atomic update
+            grad(2,ia) = grad(2,ia) + g * J_a(2)
+            !$omp atomic update
+            grad(3,ia) = grad(3,ia) + g * J_a(3)
+        end if
 
-	    if(.not. sk_b) then
-	        !$omp atomic update
-	        grad(1,ib) = grad(1,ib) + g * J_b(1)
-	        !$omp atomic update
-	        grad(2,ib) = grad(2,ib) + g * J_b(2)
-	        !$omp atomic update
-	        grad(3,ib) = grad(3,ib) + g * J_b(3)
-	    end if
+        if(.not. sk_b) then
+            !$omp atomic update
+            grad(1,ib) = grad(1,ib) + g * J_b(1)
+            !$omp atomic update
+            grad(2,ib) = grad(2,ib) + g * J_b(2)
+            !$omp atomic update
+            grad(3,ib) = grad(3,ib) + g * J_b(3)
+        end if
 
-	    if(.not. sk_c) then
-	        !$omp atomic update
-	        grad(1,ic) = grad(1,ic) + g * J_c(1)
-	        !$omp atomic update
-	        grad(2,ic) = grad(2,ic) + g * J_c(2)
-	        !$omp atomic update
-	        grad(3,ic) = grad(3,ic) + g * J_c(3)
-	    end if
+        if(.not. sk_c) then
+            !$omp atomic update
+            grad(1,ic) = grad(1,ic) + g * J_c(1)
+            !$omp atomic update
+            grad(2,ic) = grad(2,ic) + g * J_c(2)
+            !$omp atomic update
+            grad(3,ic) = grad(3,ic) + g * J_c(3)
+        end if
 
-	    if(.not. sk_d) then
-	        !$omp atomic update
-	        grad(1,id) = grad(1,id) + g * J_d(1)
-	        !$omp atomic update
-	        grad(2,id) = grad(2,id) + g * J_d(2)
-	        !$omp atomic update
-	        grad(3,id) = grad(3,id) + g * J_d(3)
-	    end if
+        if(.not. sk_d) then
+            !$omp atomic update
+            grad(1,id) = grad(1,id) + g * J_d(1)
+            !$omp atomic update
+            grad(2,id) = grad(2,id) + g * J_d(2)
+            !$omp atomic update
+            grad(3,id) = grad(3,id) + g * J_d(3)
+        end if
 
-	    if(.not. sk_e) then
-	        !$omp atomic update
-	        grad(1,ie) = grad(1,ie) + g * J_e(1)
-	        !$omp atomic update
-	        grad(2,ie) = grad(2,ie) + g * J_e(2)
-	        !$omp atomic update
-	        grad(3,ie) = grad(3,ie) + g * J_e(3)
-	    end if
+        if(.not. sk_e) then
+            !$omp atomic update
+            grad(1,ie) = grad(1,ie) + g * J_e(1)
+            !$omp atomic update
+            grad(2,ie) = grad(2,ie) + g * J_e(2)
+            !$omp atomic update
+            grad(3,ie) = grad(3,ie) + g * J_e(3)
+        end if
 
-	    if(.not. sk_f) then
-	        !$omp atomic update
-	        grad(1,if_) = grad(1,if_) + g * J_f(1)
-	        !$omp atomic update
-	        grad(2,if_) = grad(2,if_) + g * J_f(2)
-	        !$omp atomic update
-	        grad(3,if_) = grad(3,if_) + g * J_f(3)
-	    end if
+        if(.not. sk_f) then
+            !$omp atomic update
+            grad(1,if_) = grad(1,if_) + g * J_f(1)
+            !$omp atomic update
+            grad(2,if_) = grad(2,if_) + g * J_f(2)
+            !$omp atomic update
+            grad(3,if_) = grad(3,if_) + g * J_f(3)
+        end if
         end do
     end subroutine pitors_geomgrad
+
+    subroutine pitors_geomhess(bds, hess)
+        !! Compute the Hessian of the pi-torsion potential. With g as in
+        !! pitors_geomgrad and h = d^2U/dtheta^2 = -4*k*cos(2*theta-pi), for
+        !! any two atoms X,Y of the term: H_XY = h*J_X*J_Y^T + g*H_XY(theta),
+        !! with H_XY(theta) from pitors_angle_hessian (atom order
+        !! 1=A,2=B,3=C,4=D,5=E,6=F matching pitors_geomgrad's ia,ib,ic,id,ie,if_).
+        use mod_jacobian_mat, only: pitors_angle_hessian
+        use mod_constants, only : pi
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of pi-torsion terms of potential energy
+
+        real(rp) :: thet, g, h, J_a(3), J_b(3), J_c(3), J_d(3), J_e(3), J_f(3)
+        real(rp) :: Hblk(3,3,6,6), Jall(3,6), block_(3,3)
+        integer(ip) :: i, k, l, iat(6)
+        logical :: sk(6)
+
+        if(.not. bds%use_pitors) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,iat,sk,J_a,J_b,J_c,J_d,J_e,J_f,g,h,thet,Hblk,Jall,k,l,block_)
+        do i=1, bds%npitors
+            iat(1) = bds%pitorsat(1,i)
+            iat(4) = bds%pitorsat(3,i)
+            iat(2) = bds%pitorsat(4,i)
+            iat(3) = bds%pitorsat(2,i)
+            iat(5) = bds%pitorsat(5,i)
+            iat(6) = bds%pitorsat(6,i)
+
+            if(bds%top%use_frozen) then
+                do k=1,6
+                    sk(k) = bds%top%frozen(iat(k))
+                end do
+                if(all(sk)) cycle
+            else
+                sk = .false.
+            end if
+
+            call pitors_angle_hessian(bds%top%cmm(:,iat(1)), bds%top%cmm(:,iat(2)), &
+                                      bds%top%cmm(:,iat(3)), bds%top%cmm(:,iat(4)), &
+                                      bds%top%cmm(:,iat(5)), bds%top%cmm(:,iat(6)), &
+                                      thet, J_a, J_b, J_c, J_d, J_e, J_f, Hblk)
+            Jall(:,1) = J_a; Jall(:,2) = J_b; Jall(:,3) = J_c
+            Jall(:,4) = J_d; Jall(:,5) = J_e; Jall(:,6) = J_f
+
+            g = -2.0 * bds%kpitors(i) * sin(2.0*thet-pi)
+            h = -4.0 * bds%kpitors(i) * cos(2.0*thet-pi)
+
+            !$omp critical
+            do k=1,6
+                if(sk(k)) cycle
+                do l=1,6
+                    if(sk(l)) cycle
+                    block_ = h*outer3(Jall(:,k), Jall(:,l)) + g*Hblk(:,:,k,l)
+                    hess(:,:,iat(k),iat(l)) = hess(:,:,iat(k),iat(l)) + block_
+                end do
+            end do
+            !$omp end critical
+        end do
+
+    contains
+        pure function outer3(u, v) result(m)
+            real(rp), intent(in) :: u(3), v(3)
+            real(rp) :: m(3,3)
+            integer :: p
+            do p=1,3
+                m(p,:) = u(p)*v
+            end do
+        end function
+    end subroutine pitors_geomhess
 
     
     subroutine torsion_init(bds, n)
@@ -1503,7 +2141,112 @@ module mod_bonded
         end do
 
     end subroutine torsion_geomgrad
-    
+
+    subroutine torsion_geomhess(bds, hess)
+        !! Compute the Hessian of the torsion potential. With g as in
+        !! torsion_geomgrad (summed over the active Fourier terms) and
+        !! h = d^2U/dtheta^2 = sum_j -n_j^2*A_j*cos(n_j*theta-phi_j), for any
+        !! two atoms X,Y of the term: H_XY = h*J_X*J_Y^T + g*H_XY(theta),
+        !! with H_XY(theta) from torsion_angle_hessian.
+        use mod_jacobian_mat, only: torsion_angle_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of torsion terms of potential energy
+
+        real(rp) :: thet, g, h, n, J_a(3), J_b(3), J_c(3), J_d(3)
+        real(rp), dimension(3,3) :: Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd
+        integer(ip) :: i, j, ia, ib, ic, id, p
+        logical :: sk_a, sk_b, sk_c, sk_d
+
+        if(.not. bds%use_torsion) return
+
+        !$omp parallel do default(shared) &
+        !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,n,thet,J_a,J_b,J_c,J_d,g,h,p) &
+        !$omp private(Haa,Hab,Hac,Had,Hbb,Hbc,Hbd,Hcc,Hcd,Hdd)
+        do i=1, bds%ntorsion
+            ia = bds%torsionat(1,i)
+            ib = bds%torsionat(2,i)
+            ic = bds%torsionat(3,i)
+            id = bds%torsionat(4,i)
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+            end if
+
+            call torsion_angle_hessian(bds%top%cmm(:,ia), bds%top%cmm(:,ib), &
+                                       bds%top%cmm(:,ic), bds%top%cmm(:,id), &
+                                       thet, J_a, J_b, J_c, J_d, &
+                                       Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd)
+
+            g = 0.0_rp
+            h = 0.0_rp
+            do j=1, 6
+                if(bds%torsn(j,i) < 1) exit
+                n = real(bds%torsn(j,i), rp)
+                g = g - n * sin(n*thet - bds%torsphase(j,i)) * bds%torsamp(j,i)
+                h = h - n**2 * cos(n*thet - bds%torsphase(j,i)) * bds%torsamp(j,i)
+            end do
+
+            do p=1,3
+                Haa(p,:) = h*J_a(p)*J_a + g*Haa(p,:)
+                Hab(p,:) = h*J_a(p)*J_b + g*Hab(p,:)
+                Hac(p,:) = h*J_a(p)*J_c + g*Hac(p,:)
+                Had(p,:) = h*J_a(p)*J_d + g*Had(p,:)
+                Hbb(p,:) = h*J_b(p)*J_b + g*Hbb(p,:)
+                Hbc(p,:) = h*J_b(p)*J_c + g*Hbc(p,:)
+                Hbd(p,:) = h*J_b(p)*J_d + g*Hbd(p,:)
+                Hcc(p,:) = h*J_c(p)*J_c + g*Hcc(p,:)
+                Hcd(p,:) = h*J_c(p)*J_d + g*Hcd(p,:)
+                Hdd(p,:) = h*J_d(p)*J_d + g*Hdd(p,:)
+            end do
+
+            !$omp critical
+            if(.not. sk_a) hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+            if(.not. sk_b) hess(:,:,ib,ib) = hess(:,:,ib,ib) + Hbb
+            if(.not. sk_c) hess(:,:,ic,ic) = hess(:,:,ic,ic) + Hcc
+            if(.not. sk_d) hess(:,:,id,id) = hess(:,:,id,id) + Hdd
+            if(.not. sk_a .and. .not. sk_b) then
+                hess(:,:,ia,ib) = hess(:,:,ia,ib) + Hab
+                hess(:,:,ib,ia) = hess(:,:,ib,ia) + transpose(Hab)
+            end if
+            if(.not. sk_a .and. .not. sk_c) then
+                hess(:,:,ia,ic) = hess(:,:,ia,ic) + Hac
+                hess(:,:,ic,ia) = hess(:,:,ic,ia) + transpose(Hac)
+            end if
+            if(.not. sk_a .and. .not. sk_d) then
+                hess(:,:,ia,id) = hess(:,:,ia,id) + Had
+                hess(:,:,id,ia) = hess(:,:,id,ia) + transpose(Had)
+            end if
+            if(.not. sk_b .and. .not. sk_c) then
+                hess(:,:,ib,ic) = hess(:,:,ib,ic) + Hbc
+                hess(:,:,ic,ib) = hess(:,:,ic,ib) + transpose(Hbc)
+            end if
+            if(.not. sk_b .and. .not. sk_d) then
+                hess(:,:,ib,id) = hess(:,:,ib,id) + Hbd
+                hess(:,:,id,ib) = hess(:,:,id,ib) + transpose(Hbd)
+            end if
+            if(.not. sk_c .and. .not. sk_d) then
+                hess(:,:,ic,id) = hess(:,:,ic,id) + Hcd
+                hess(:,:,id,ic) = hess(:,:,id,ic) + transpose(Hcd)
+            end if
+            !$omp end critical
+        end do
+
+    end subroutine torsion_geomhess
+
     subroutine imptorsion_potential(bds, V)
         !! Compute torsion potential
         use mod_constants, only: pi, eps_rp
@@ -1622,6 +2365,109 @@ module mod_bonded
             end do
         end do
     end subroutine imptorsion_geomgrad
+
+    subroutine imptorsion_geomhess(bds, hess)
+        !! Compute the Hessian of the improper torsion potential. Identical
+        !! in structure to torsion_geomhess (see there), only over the up to
+        !! 3 imptorsn/imptorsamp/imptorsphase Fourier terms.
+        use mod_jacobian_mat, only: torsion_angle_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of improper torsion terms of potential energy
+
+        real(rp) :: thet, g, h, n, J_a(3), J_b(3), J_c(3), J_d(3)
+        real(rp), dimension(3,3) :: Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd
+        integer(ip) :: i, j, ia, ib, ic, id, p
+        logical :: sk_a, sk_b, sk_c, sk_d
+
+        if(.not. bds%use_imptorsion) return
+
+        !$omp parallel do default(shared) &
+        !$omp private(i,ia,ib,ic,id,sk_a,sk_b,sk_c,sk_d,j,n,thet,J_a,J_b,J_c,J_d,g,h,p) &
+        !$omp private(Haa,Hab,Hac,Had,Hbb,Hbc,Hbd,Hcc,Hcd,Hdd)
+        do i=1, bds%nimptorsion
+            ia = bds%imptorsionat(1,i)
+            ib = bds%imptorsionat(2,i)
+            ic = bds%imptorsionat(3,i)
+            id = bds%imptorsionat(4,i)
+
+            if(bds%top%use_frozen) then
+                sk_a = bds%top%frozen(ia)
+                sk_b = bds%top%frozen(ib)
+                sk_c = bds%top%frozen(ic)
+                sk_d = bds%top%frozen(id)
+                if(sk_a .and. sk_b .and. sk_c .and. sk_d) cycle
+            else
+                sk_a = .false.
+                sk_b = .false.
+                sk_c = .false.
+                sk_d = .false.
+            end if
+
+            call torsion_angle_hessian(bds%top%cmm(:,ia), bds%top%cmm(:,ib), &
+                                       bds%top%cmm(:,ic), bds%top%cmm(:,id), &
+                                       thet, J_a, J_b, J_c, J_d, &
+                                       Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd)
+
+            g = 0.0_rp
+            h = 0.0_rp
+            do j=1, 3
+                if(bds%imptorsn(j,i) < 1) exit
+                n = real(bds%imptorsn(j,i), rp)
+                g = g - n * sin(n*thet - bds%imptorsphase(j,i)) * bds%imptorsamp(j,i)
+                h = h - n**2 * cos(n*thet - bds%imptorsphase(j,i)) * bds%imptorsamp(j,i)
+            end do
+
+            do p=1,3
+                Haa(p,:) = h*J_a(p)*J_a + g*Haa(p,:)
+                Hab(p,:) = h*J_a(p)*J_b + g*Hab(p,:)
+                Hac(p,:) = h*J_a(p)*J_c + g*Hac(p,:)
+                Had(p,:) = h*J_a(p)*J_d + g*Had(p,:)
+                Hbb(p,:) = h*J_b(p)*J_b + g*Hbb(p,:)
+                Hbc(p,:) = h*J_b(p)*J_c + g*Hbc(p,:)
+                Hbd(p,:) = h*J_b(p)*J_d + g*Hbd(p,:)
+                Hcc(p,:) = h*J_c(p)*J_c + g*Hcc(p,:)
+                Hcd(p,:) = h*J_c(p)*J_d + g*Hcd(p,:)
+                Hdd(p,:) = h*J_d(p)*J_d + g*Hdd(p,:)
+            end do
+
+            !$omp critical
+            if(.not. sk_a) hess(:,:,ia,ia) = hess(:,:,ia,ia) + Haa
+            if(.not. sk_b) hess(:,:,ib,ib) = hess(:,:,ib,ib) + Hbb
+            if(.not. sk_c) hess(:,:,ic,ic) = hess(:,:,ic,ic) + Hcc
+            if(.not. sk_d) hess(:,:,id,id) = hess(:,:,id,id) + Hdd
+            if(.not. sk_a .and. .not. sk_b) then
+                hess(:,:,ia,ib) = hess(:,:,ia,ib) + Hab
+                hess(:,:,ib,ia) = hess(:,:,ib,ia) + transpose(Hab)
+            end if
+            if(.not. sk_a .and. .not. sk_c) then
+                hess(:,:,ia,ic) = hess(:,:,ia,ic) + Hac
+                hess(:,:,ic,ia) = hess(:,:,ic,ia) + transpose(Hac)
+            end if
+            if(.not. sk_a .and. .not. sk_d) then
+                hess(:,:,ia,id) = hess(:,:,ia,id) + Had
+                hess(:,:,id,ia) = hess(:,:,id,ia) + transpose(Had)
+            end if
+            if(.not. sk_b .and. .not. sk_c) then
+                hess(:,:,ib,ic) = hess(:,:,ib,ic) + Hbc
+                hess(:,:,ic,ib) = hess(:,:,ic,ib) + transpose(Hbc)
+            end if
+            if(.not. sk_b .and. .not. sk_d) then
+                hess(:,:,ib,id) = hess(:,:,ib,id) + Hbd
+                hess(:,:,id,ib) = hess(:,:,id,ib) + transpose(Hbd)
+            end if
+            if(.not. sk_c .and. .not. sk_d) then
+                hess(:,:,ic,id) = hess(:,:,ic,id) + Hcd
+                hess(:,:,id,ic) = hess(:,:,id,ic) + transpose(Hcd)
+            end if
+            !$omp end critical
+        end do
+
+    end subroutine imptorsion_geomhess
     
     subroutine imptorsion_init(bds, n)
         !! Initialize improper torsion potential arrays
@@ -1945,6 +2791,180 @@ module mod_bonded
             end do
         end do
     end subroutine angtor_geomgrad
+
+    subroutine angtor_geomhess(bds, hess)
+        !! Compute the Hessian of the angle-torsion coupling term. Treating
+        !! U as a function of the three internal coordinates
+        !! (theta=torsion, alpha1, alpha2), the only nonzero internal second
+        !! derivatives are d^2U/dtheta^2 = f11, d^2U/dtheta/dalpha1 = f12 and
+        !! d^2U/dtheta/dalpha2 = f13 (d^2U/dalpha_m^2 = d^2U/dalpha1/dalpha2
+        !! = 0, since U is linear in each alpha_m separately), giving, for
+        !! any two atoms X,Y of the term (each belonging to the torsion
+        !! and/or one of the two angles):
+        !! \[ H_{XY} = f_{11}J^\theta_XJ^{\theta\dagger}_Y
+        !!    + f_{12}\left(J^\theta_XJ^{\alpha_1\dagger}_Y+J^{\alpha_1}_XJ^{\theta\dagger}_Y\right)
+        !!    + f_{13}\left(J^\theta_XJ^{\alpha_2\dagger}_Y+J^{\alpha_2}_XJ^{\theta\dagger}_Y\right)
+        !!    + f_1H^\theta_{XY}+f_2H^{\alpha_1}_{XY}+f_3H^{\alpha_2}_{XY} \]
+        !! where the last three terms are only present when X,Y both belong
+        !! to the torsion (resp. angle1, angle2), with f1,f2,f3 as in
+        !! angtor_geomgrad and H^theta from torsion_angle_hessian,
+        !! H^alpha1/2 from simple_angle_hessian.
+        use mod_jacobian_mat, only: simple_angle_hessian, torsion_angle_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of angle-torsion terms of potential energy
+
+        real(rp) :: thet, gt(3), ht_(3), dihef(3), da1, da2, angle1, angle2, &
+                    f1, f2, f3, f11, f12, f13
+        real(rp), dimension(3) :: Jt_a, Jt_b, Jt_c, Jt_d, Ja1_a, Ja1_b, Ja1_c, &
+                                  Ja2_a, Ja2_b, Ja2_c
+        real(rp), dimension(3,3) :: Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd, &
+                                    H1aa, H1ab, H1ac, H1bb, H1bc, H1cc, &
+                                    H2aa, H2ab, H2ac, H2bb, H2bc, H2cc, block_
+        real(rp) :: Jslot(3,10), Mmat(3,3)
+        real(rp) :: Ht(3,3,4,4), Ha1(3,3,3,3), Ha2(3,3,3,3)
+        integer(ip) :: i, j, k, p, q, tp, tq, ap, aq, ia1, ia2, iat(10)
+        logical :: sk(10)
+
+        if(.not. bds%use_angtor) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,k,ia1,ia2,iat,sk,thet,gt,ht_,dihef,da1,da2,angle1,angle2) &
+        !$omp private(f1,f2,f3,f11,f12,f13,Jt_a,Jt_b,Jt_c,Jt_d,Ja1_a,Ja1_b,Ja1_c) &
+        !$omp private(Ja2_a,Ja2_b,Ja2_c,Haa,Hab,Hac,Had,Hbb,Hbc,Hbd,Hcc,Hcd,Hdd) &
+        !$omp private(H1aa,H1ab,H1ac,H1bb,H1bc,H1cc,H2aa,H2ab,H2ac,H2bb,H2bc,H2cc) &
+        !$omp private(Jslot,Mmat,Ht,Ha1,Ha2,p,q,tp,tq,ap,aq,block_)
+        do i=1, bds%nangtor
+            iat(1) = bds%angtorat(1,i)
+            iat(2) = bds%angtorat(2,i)
+            iat(3) = bds%angtorat(3,i)
+            iat(4) = bds%angtorat(4,i)
+
+            ia1 = bds%angtor_a(1,i)
+            iat(5) = bds%angleat(1,ia1)
+            iat(6) = bds%angleat(2,ia1)
+            iat(7) = bds%angleat(3,ia1)
+
+            ia2 = bds%angtor_a(2,i)
+            iat(8) = bds%angleat(1,ia2)
+            iat(9) = bds%angleat(2,ia2)
+            iat(10) = bds%angleat(3,ia2)
+
+            if(bds%top%use_frozen) then
+                do k=1,10
+                    sk(k) = bds%top%frozen(iat(k))
+                end do
+                if(all(sk)) cycle
+            else
+                sk = .false.
+            end if
+
+            call torsion_angle_hessian(bds%top%cmm(:,iat(1)), bds%top%cmm(:,iat(2)), &
+                                       bds%top%cmm(:,iat(3)), bds%top%cmm(:,iat(4)), &
+                                       thet, Jt_a, Jt_b, Jt_c, Jt_d, &
+                                       Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd)
+            call simple_angle_hessian(bds%top%cmm(:,iat(5)), bds%top%cmm(:,iat(6)), &
+                                      bds%top%cmm(:,iat(7)), angle1, Ja1_a, Ja1_b, Ja1_c, &
+                                      H1aa, H1ab, H1ac, H1bb, H1bc, H1cc)
+            call simple_angle_hessian(bds%top%cmm(:,iat(8)), bds%top%cmm(:,iat(9)), &
+                                      bds%top%cmm(:,iat(10)), angle2, Ja2_a, Ja2_b, Ja2_c, &
+                                      H2aa, H2ab, H2ac, H2bb, H2bc, H2cc)
+
+            do j=1,3
+                gt(j) = -real(j,rp) * sin(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+                ht_(j) = -real(j,rp)**2 * cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+                dihef(j) = 1.0_rp + cos(j*thet+bds%torsphase(j,bds%angtor_t(i)))
+            end do
+            da1 = angle1 - bds%eqangle(ia1)
+            da2 = angle2 - bds%eqangle(ia2)
+
+            f1 = 0.0_rp; f2 = 0.0_rp; f3 = 0.0_rp
+            f11 = 0.0_rp; f12 = 0.0_rp; f13 = 0.0_rp
+            do j=1,3
+                f1 = f1 + (bds%angtork(j,i)*da1 + bds%angtork(3+j,i)*da2) * gt(j)
+                f2 = f2 + bds%angtork(j,i) * dihef(j)
+                f3 = f3 + bds%angtork(3+j,i) * dihef(j)
+                f11 = f11 + (bds%angtork(j,i)*da1 + bds%angtork(3+j,i)*da2) * ht_(j)
+                f12 = f12 + bds%angtork(j,i) * gt(j)
+                f13 = f13 + bds%angtork(3+j,i) * gt(j)
+            end do
+
+            Jslot(:,1)=Jt_a; Jslot(:,2)=Jt_b; Jslot(:,3)=Jt_c; Jslot(:,4)=Jt_d
+            Jslot(:,5)=Ja1_a; Jslot(:,6)=Ja1_b; Jslot(:,7)=Ja1_c
+            Jslot(:,8)=Ja2_a; Jslot(:,9)=Ja2_b; Jslot(:,10)=Ja2_c
+
+            Mmat(1,:) = [f11, f12, f13]
+            Mmat(2,:) = [f12, 0.0_rp, 0.0_rp]
+            Mmat(3,:) = [f13, 0.0_rp, 0.0_rp]
+
+            Ht(:,:,1,1)=Haa; Ht(:,:,1,2)=Hab; Ht(:,:,1,3)=Hac; Ht(:,:,1,4)=Had
+            Ht(:,:,2,1)=transpose(Hab); Ht(:,:,2,2)=Hbb; Ht(:,:,2,3)=Hbc; Ht(:,:,2,4)=Hbd
+            Ht(:,:,3,1)=transpose(Hac); Ht(:,:,3,2)=transpose(Hbc); Ht(:,:,3,3)=Hcc; Ht(:,:,3,4)=Hcd
+            Ht(:,:,4,1)=transpose(Had); Ht(:,:,4,2)=transpose(Hbd); Ht(:,:,4,3)=transpose(Hcd); Ht(:,:,4,4)=Hdd
+
+            Ha1(:,:,1,1)=H1aa; Ha1(:,:,1,2)=H1ab; Ha1(:,:,1,3)=H1ac
+            Ha1(:,:,2,1)=transpose(H1ab); Ha1(:,:,2,2)=H1bb; Ha1(:,:,2,3)=H1bc
+            Ha1(:,:,3,1)=transpose(H1ac); Ha1(:,:,3,2)=transpose(H1bc); Ha1(:,:,3,3)=H1cc
+
+            Ha2(:,:,1,1)=H2aa; Ha2(:,:,1,2)=H2ab; Ha2(:,:,1,3)=H2ac
+            Ha2(:,:,2,1)=transpose(H2ab); Ha2(:,:,2,2)=H2bb; Ha2(:,:,2,3)=H2bc
+            Ha2(:,:,3,1)=transpose(H2ac); Ha2(:,:,3,2)=transpose(H2bc); Ha2(:,:,3,3)=H2cc
+
+            !$omp critical
+            do p=1,10
+                if(sk(p)) cycle
+                tp = slot_type(p); ap = slot_local(p)
+                do q=1,10
+                    if(sk(q)) cycle
+                    tq = slot_type(q); aq = slot_local(q)
+                    block_ = Mmat(tp,tq) * outer10(Jslot(:,p), Jslot(:,q))
+                    if(tp == tq) then
+                        if(tp == 1) block_ = block_ + f1*Ht(:,:,ap,aq)
+                        if(tp == 2) block_ = block_ + f2*Ha1(:,:,ap,aq)
+                        if(tp == 3) block_ = block_ + f3*Ha2(:,:,ap,aq)
+                    end if
+                    hess(:,:,iat(p),iat(q)) = hess(:,:,iat(p),iat(q)) + block_
+                end do
+            end do
+            !$omp end critical
+        end do
+
+    contains
+        pure function slot_type(k) result(tt)
+            integer(ip), intent(in) :: k
+            integer(ip) :: tt
+            if(k <= 4) then
+                tt = 1
+            else if(k <= 7) then
+                tt = 2
+            else
+                tt = 3
+            end if
+        end function
+        pure function slot_local(k) result(ll)
+            integer(ip), intent(in) :: k
+            integer(ip) :: ll
+            if(k <= 4) then
+                ll = k
+            else if(k <= 7) then
+                ll = k - 4
+            else
+                ll = k - 7
+            end if
+        end function
+        pure function outer10(u, v) result(m)
+            real(rp), intent(in) :: u(3), v(3)
+            real(rp) :: m(3,3)
+            integer :: r
+            do r=1,3
+                m(r,:) = u(r)*v
+            end do
+        end function
+    end subroutine angtor_geomhess
     
     subroutine strtor_potential(bds, V)
         use mod_constants
@@ -2084,8 +3104,8 @@ module mod_bonded
                                         bds%top%cmm(:, it_d), &
                                         thet, Jt_a, Jt_b, Jt_c, Jt_d)
             do j = 1, 3
-                gt(j) = -real(j) * sin(j * thet + bds%torsphase(j, bds%angtor_t(i)))
-                dihef(j) = 1.0 + cos(j * thet + bds%torsphase(j, bds%angtor_t(i)))
+                gt(j) = -real(j) * sin(j * thet + bds%torsphase(j, bds%strtor_t(i)))
+                dihef(j) = 1.0 + cos(j * thet + bds%torsphase(j, bds%strtor_t(i)))
             end do
 
             call Rij_jacobian(bds%top%cmm(:, ib1_a), &
@@ -2251,6 +3271,167 @@ module mod_bonded
             end do
         end do
     end subroutine strtor_geomgrad
+
+    subroutine strtor_geomhess(bds, hess)
+        !! Compute the Hessian of the stretch-torsion coupling term.
+        !! Identical in spirit to angtor_geomhess (see there), but the
+        !! internal coordinates are (theta, l1, l2, l3) instead of
+        !! (theta, alpha1, alpha2): d^2U/dtheta^2 = f11 and
+        !! d^2U/dtheta/dl_m = f1(1+m) are the only nonzero internal second
+        !! derivatives (d^2U/dl_m^2 = d^2U/dl_m/dl_n = 0). For any two atoms
+        !! X,Y of the term:
+        !! \[ H_{XY} = f_{11}J^\theta_XJ^{\theta\dagger}_Y +
+        !!    \sum_{m=1}^3 f_{1,1+m}\left(J^\theta_XJ^{l_m\dagger}_Y+J^{l_m}_XJ^{\theta\dagger}_Y\right)
+        !!    + f_1H^\theta_{XY} + \sum_{m=1}^3 f_{1+m}H^{l_m}_{XY} \]
+        !! with f1..f4 as in strtor_geomgrad, H^theta from
+        !! torsion_angle_hessian, H^{l_m} from Rij_hessian on each bond.
+        use mod_jacobian_mat, only: Rij_hessian, torsion_angle_hessian
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of stretch-torsion terms of potential energy
+
+        real(rp) :: thet, gt(3), ht_(3), dihef(3), r1, r2, r3, dr(3)
+        real(rp) :: f(4), fth(4)
+        real(rp), dimension(3) :: Jt_a, Jt_b, Jt_c, Jt_d, &
+                                  Jb1_a, Jb1_b, Jb2_a, Jb2_b, Jb3_a, Jb3_b
+        real(rp), dimension(3,3) :: Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd, &
+                                    Hb1ii, Hb1ij, Hb1jj, Hb2ii, Hb2ij, Hb2jj, &
+                                    Hb3ii, Hb3ij, Hb3jj, block_
+        real(rp) :: Jslot(3,10), Mmat(4,4)
+        real(rp) :: Ht(3,3,4,4), Hl(3,3,2,2,3)
+        integer(ip) :: i, j, k, m, ib(3), it_a, it_b, it_c, it_d, p, q, tp, tq, ap, aq, &
+                       iat(10)
+        logical :: sk(10)
+
+        if(.not. bds%use_strtor) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,k,m,ib,it_a,it_b,it_c,it_d,iat,sk,thet,gt,ht_,dihef,r1,r2,r3,dr) &
+        !$omp private(f,fth,Jt_a,Jt_b,Jt_c,Jt_d,Jb1_a,Jb1_b,Jb2_a,Jb2_b,Jb3_a,Jb3_b) &
+        !$omp private(Haa,Hab,Hac,Had,Hbb,Hbc,Hbd,Hcc,Hcd,Hdd) &
+        !$omp private(Hb1ii,Hb1ij,Hb1jj,Hb2ii,Hb2ij,Hb2jj,Hb3ii,Hb3ij,Hb3jj) &
+        !$omp private(Jslot,Mmat,Ht,Hl,p,q,tp,tq,ap,aq,block_)
+        do i=1, bds%nstrtor
+            it_a = bds%strtorat(1,i)
+            it_b = bds%strtorat(2,i)
+            it_c = bds%strtorat(3,i)
+            it_d = bds%strtorat(4,i)
+            iat(1)=it_a; iat(2)=it_b; iat(3)=it_c; iat(4)=it_d
+
+            ib(1) = bds%strtor_b(1,i)
+            ib(2) = bds%strtor_b(2,i)
+            ib(3) = bds%strtor_b(3,i)
+            iat(5) = bds%bondat(1,ib(1)); iat(6) = bds%bondat(2,ib(1))
+            iat(7) = bds%bondat(1,ib(2)); iat(8) = bds%bondat(2,ib(2))
+            iat(9) = bds%bondat(1,ib(3)); iat(10) = bds%bondat(2,ib(3))
+
+            if(bds%top%use_frozen) then
+                do k=1,10
+                    sk(k) = bds%top%frozen(iat(k))
+                end do
+                if(all(sk)) cycle
+            else
+                sk = .false.
+            end if
+
+            call torsion_angle_hessian(bds%top%cmm(:,it_a), bds%top%cmm(:,it_b), &
+                                       bds%top%cmm(:,it_c), bds%top%cmm(:,it_d), &
+                                       thet, Jt_a, Jt_b, Jt_c, Jt_d, &
+                                       Haa, Hab, Hac, Had, Hbb, Hbc, Hbd, Hcc, Hcd, Hdd)
+            call Rij_hessian(bds%top%cmm(:,iat(5)), bds%top%cmm(:,iat(6)), &
+                             r1, Jb1_a, Jb1_b, Hb1ii, Hb1ij, Hb1jj)
+            call Rij_hessian(bds%top%cmm(:,iat(7)), bds%top%cmm(:,iat(8)), &
+                             r2, Jb2_a, Jb2_b, Hb2ii, Hb2ij, Hb2jj)
+            call Rij_hessian(bds%top%cmm(:,iat(9)), bds%top%cmm(:,iat(10)), &
+                             r3, Jb3_a, Jb3_b, Hb3ii, Hb3ij, Hb3jj)
+
+            do j=1,3
+                gt(j) = -real(j,rp) * sin(j*thet + bds%torsphase(j,bds%strtor_t(i)))
+                ht_(j) = -real(j,rp)**2 * cos(j*thet + bds%torsphase(j,bds%strtor_t(i)))
+                dihef(j) = 1.0_rp + cos(j*thet + bds%torsphase(j,bds%strtor_t(i)))
+            end do
+            dr(1) = r1 - bds%l0bond(ib(1))
+            dr(2) = r2 - bds%l0bond(ib(2))
+            dr(3) = r3 - bds%l0bond(ib(3))
+
+            f = 0.0_rp
+            fth = 0.0_rp
+            do m=1,3
+                do j=1,3
+                    f(1) = f(1) + bds%strtork((m-1)*3+j,i) * dr(m) * gt(j)
+                    f(1+m) = f(1+m) + bds%strtork((m-1)*3+j,i) * dihef(j)
+                    fth(1) = fth(1) + bds%strtork((m-1)*3+j,i) * dr(m) * ht_(j)
+                    fth(1+m) = fth(1+m) + bds%strtork((m-1)*3+j,i) * gt(j)
+                end do
+            end do
+
+            Jslot(:,1)=Jt_a; Jslot(:,2)=Jt_b; Jslot(:,3)=Jt_c; Jslot(:,4)=Jt_d
+            Jslot(:,5)=Jb1_a; Jslot(:,6)=Jb1_b
+            Jslot(:,7)=Jb2_a; Jslot(:,8)=Jb2_b
+            Jslot(:,9)=Jb3_a; Jslot(:,10)=Jb3_b
+
+            Mmat = 0.0_rp
+            Mmat(1,1) = fth(1)
+            Mmat(1,2) = fth(2); Mmat(2,1) = fth(2)
+            Mmat(1,3) = fth(3); Mmat(3,1) = fth(3)
+            Mmat(1,4) = fth(4); Mmat(4,1) = fth(4)
+
+            Ht(:,:,1,1)=Haa; Ht(:,:,1,2)=Hab; Ht(:,:,1,3)=Hac; Ht(:,:,1,4)=Had
+            Ht(:,:,2,1)=transpose(Hab); Ht(:,:,2,2)=Hbb; Ht(:,:,2,3)=Hbc; Ht(:,:,2,4)=Hbd
+            Ht(:,:,3,1)=transpose(Hac); Ht(:,:,3,2)=transpose(Hbc); Ht(:,:,3,3)=Hcc; Ht(:,:,3,4)=Hcd
+            Ht(:,:,4,1)=transpose(Had); Ht(:,:,4,2)=transpose(Hbd); Ht(:,:,4,3)=transpose(Hcd); Ht(:,:,4,4)=Hdd
+
+            Hl(:,:,1,1,1)=Hb1ii; Hl(:,:,1,2,1)=Hb1ij; Hl(:,:,2,1,1)=transpose(Hb1ij); Hl(:,:,2,2,1)=Hb1jj
+            Hl(:,:,1,1,2)=Hb2ii; Hl(:,:,1,2,2)=Hb2ij; Hl(:,:,2,1,2)=transpose(Hb2ij); Hl(:,:,2,2,2)=Hb2jj
+            Hl(:,:,1,1,3)=Hb3ii; Hl(:,:,1,2,3)=Hb3ij; Hl(:,:,2,1,3)=transpose(Hb3ij); Hl(:,:,2,2,3)=Hb3jj
+
+            !$omp critical
+            do p=1,10
+                if(sk(p)) cycle
+                call slot_info(p, tp, ap)
+                do q=1,10
+                    if(sk(q)) cycle
+                    call slot_info(q, tq, aq)
+                    block_ = Mmat(tp,tq) * outer10(Jslot(:,p), Jslot(:,q))
+                    if(tp == tq) then
+                        if(tp == 1) then
+                            block_ = block_ + f(1)*Ht(:,:,ap,aq)
+                        else
+                            block_ = block_ + f(tp)*Hl(:,:,ap,aq,tp-1)
+                        end if
+                    end if
+                    hess(:,:,iat(p),iat(q)) = hess(:,:,iat(p),iat(q)) + block_
+                end do
+            end do
+            !$omp end critical
+        end do
+
+    contains
+        pure subroutine slot_info(k, tt, ll)
+            !! slot->(type,local-index): type 1=theta(atoms1-4), 2=bond1(5-6),
+            !! 3=bond2(7-8), 4=bond3(9-10)
+            integer(ip), intent(in) :: k
+            integer(ip), intent(out) :: tt, ll
+            if(k <= 4) then
+                tt = 1; ll = k
+            else
+                tt = 2 + (k-5)/2
+                ll = mod(k-5,2) + 1
+            end if
+        end subroutine
+        pure function outer10(u, v) result(m)
+            real(rp), intent(in) :: u(3), v(3)
+            real(rp) :: m(3,3)
+            integer :: r
+            do r=1,3
+                m(r,:) = u(r)*v
+            end do
+        end function
+    end subroutine strtor_geomhess
 
     
     subroutine tortor_init(bds, n)
@@ -2614,6 +3795,127 @@ module mod_bonded
         end do
 
     end subroutine tortor_geomgrad
+
+    subroutine tortor_geomhess(bds, hess)
+        !! Compute the Hessian of the torsion-torsion (CMAP) potential.
+        !! With phi1=torsion(A,B,C,D), phi2=torsion(B,C,D,E) (both signed, as
+        !! in tortor_geomgrad) and the CMAP patch's second partials
+        !! d2V/dphi1^2, d2V/dphi1/dphi2, d2V/dphi2^2 from
+        !! compute_bicubic_interp_hess, for any two atoms X,Y of the term:
+        !! \[ H_{XY} = \frac{\partial^2V}{\partial\varphi_1^2}J^{\varphi_1}_XJ^{\varphi_1\dagger}_Y
+        !!    + \frac{\partial^2V}{\partial\varphi_1\partial\varphi_2}\left(J^{\varphi_1}_XJ^{\varphi_2\dagger}_Y+J^{\varphi_2}_XJ^{\varphi_1\dagger}_Y\right)
+        !!    + \frac{\partial^2V}{\partial\varphi_2^2}J^{\varphi_2}_XJ^{\varphi_2\dagger}_Y
+        !!    + \frac{\partial V}{\partial\varphi_1}H^{\varphi_1}_{XY} + \frac{\partial V}{\partial\varphi_2}H^{\varphi_2}_{XY} \]
+        !! with H^phi1 (resp. H^phi2, both from torsion_angle_hessian) only
+        !! contributing when X,Y are both among A,B,C,D (resp. B,C,D,E), and
+        !! J^phi1=0 for atom E, J^phi2=0 for atom A.
+        use mod_jacobian_mat, only: torsion_angle_hessian
+        use mod_utils, only: compute_bicubic_interp_hess
+
+        implicit none
+
+        type(ommp_bonded_type), intent(in) :: bds
+        !! Bonded potential data structure
+        real(rp), intent(inout) :: hess(3,3,bds%top%mm_atoms,bds%top%mm_atoms)
+        !! Hessian of torsion-torsion terms of potential energy
+
+        real(rp) :: thetx, thety, vtt, dvttdx, dvttdy, d2vdx2, d2vdxdy, d2vdy2
+        real(rp), dimension(3) :: J1_a, J1_b, J1_c, J1_d, J2_b, J2_c, J2_d, J2_e
+        real(rp), dimension(3,3) :: H1aa, H1ab, H1ac, H1ad, H1bb, H1bc, H1bd, H1cc, H1cd, H1dd
+        real(rp), dimension(3,3) :: H2bb, H2bc, H2bd, H2be, H2cc, H2cd, H2ce, H2dd, H2de, H2ee
+        real(rp) :: J1f(3,5), J2f(3,5), H1f(3,3,5,5), H2f(3,3,5,5), block_(3,3)
+        integer(ip) :: i, j, iprm, ibeg, iend, iat(5), p, q
+        logical :: sk(5)
+
+        if(.not. bds%use_tortor) return
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,iprm,ibeg,j,iend,iat,sk,thetx,thety,vtt,dvttdx,dvttdy) &
+        !$omp private(d2vdx2,d2vdxdy,d2vdy2,J1_a,J1_b,J1_c,J1_d,J2_b,J2_c,J2_d,J2_e) &
+        !$omp private(H1aa,H1ab,H1ac,H1ad,H1bb,H1bc,H1bd,H1cc,H1cd,H1dd) &
+        !$omp private(H2bb,H2bc,H2bd,H2be,H2cc,H2cd,H2ce,H2dd,H2de,H2ee) &
+        !$omp private(J1f,J2f,H1f,H2f,p,q,block_)
+        do i=1, bds%ntortor
+            iprm = bds%tortorprm(i)
+            ibeg = 1
+            do j=1, iprm-1
+                ibeg = ibeg + bds%ttmap_shape(1,j)*bds%ttmap_shape(2,j)
+            end do
+            iend = ibeg + bds%ttmap_shape(1,iprm)*bds%ttmap_shape(2,iprm) - 1
+
+            iat(1) = bds%tortorat(1,i)
+            iat(2) = bds%tortorat(2,i)
+            iat(3) = bds%tortorat(3,i)
+            iat(4) = bds%tortorat(4,i)
+            iat(5) = bds%tortorat(5,i)
+
+            if(bds%top%use_frozen) then
+                do j=1,5
+                    sk(j) = bds%top%frozen(iat(j))
+                end do
+                if(all(sk)) cycle
+            else
+                sk = .false.
+            end if
+
+            call torsion_angle_hessian(bds%top%cmm(:,iat(1)), bds%top%cmm(:,iat(2)), &
+                                       bds%top%cmm(:,iat(3)), bds%top%cmm(:,iat(4)), &
+                                       thetx, J1_a, J1_b, J1_c, J1_d, &
+                                       H1aa, H1ab, H1ac, H1ad, H1bb, H1bc, H1bd, H1cc, H1cd, H1dd)
+            call torsion_angle_hessian(bds%top%cmm(:,iat(2)), bds%top%cmm(:,iat(3)), &
+                                       bds%top%cmm(:,iat(4)), bds%top%cmm(:,iat(5)), &
+                                       thety, J2_b, J2_c, J2_d, J2_e, &
+                                       H2bb, H2bc, H2bd, H2be, H2cc, H2cd, H2ce, H2dd, H2de, H2ee)
+
+            call compute_bicubic_interp_hess(thetx, thety, vtt, dvttdx, dvttdy, &
+                                             d2vdx2, d2vdxdy, d2vdy2, &
+                                             bds%ttmap_shape(1,iprm), bds%ttmap_shape(2,iprm), &
+                                             bds%ttmap_ang1(ibeg:iend), bds%ttmap_ang2(ibeg:iend), &
+                                             bds%ttmap_v(ibeg:iend), bds%ttmap_vx(ibeg:iend), &
+                                             bds%ttmap_vy(ibeg:iend), bds%ttmap_vxy(ibeg:iend))
+
+            J1f = 0.0_rp
+            J1f(:,1)=J1_a; J1f(:,2)=J1_b; J1f(:,3)=J1_c; J1f(:,4)=J1_d
+            J2f = 0.0_rp
+            J2f(:,2)=J2_b; J2f(:,3)=J2_c; J2f(:,4)=J2_d; J2f(:,5)=J2_e
+
+            H1f = 0.0_rp
+            H1f(:,:,1,1)=H1aa; H1f(:,:,1,2)=H1ab; H1f(:,:,1,3)=H1ac; H1f(:,:,1,4)=H1ad
+            H1f(:,:,2,1)=transpose(H1ab); H1f(:,:,2,2)=H1bb; H1f(:,:,2,3)=H1bc; H1f(:,:,2,4)=H1bd
+            H1f(:,:,3,1)=transpose(H1ac); H1f(:,:,3,2)=transpose(H1bc); H1f(:,:,3,3)=H1cc; H1f(:,:,3,4)=H1cd
+            H1f(:,:,4,1)=transpose(H1ad); H1f(:,:,4,2)=transpose(H1bd); H1f(:,:,4,3)=transpose(H1cd); H1f(:,:,4,4)=H1dd
+
+            H2f = 0.0_rp
+            H2f(:,:,2,2)=H2bb; H2f(:,:,2,3)=H2bc; H2f(:,:,2,4)=H2bd; H2f(:,:,2,5)=H2be
+            H2f(:,:,3,2)=transpose(H2bc); H2f(:,:,3,3)=H2cc; H2f(:,:,3,4)=H2cd; H2f(:,:,3,5)=H2ce
+            H2f(:,:,4,2)=transpose(H2bd); H2f(:,:,4,3)=transpose(H2cd); H2f(:,:,4,4)=H2dd; H2f(:,:,4,5)=H2de
+            H2f(:,:,5,2)=transpose(H2be); H2f(:,:,5,3)=transpose(H2ce); H2f(:,:,5,4)=transpose(H2de); H2f(:,:,5,5)=H2ee
+
+            !$omp critical
+            do p=1,5
+                if(sk(p)) cycle
+                do q=1,5
+                    if(sk(q)) cycle
+                    block_ = d2vdx2*outer5(J1f(:,p),J1f(:,q)) &
+                        + d2vdxdy*(outer5(J1f(:,p),J2f(:,q))+outer5(J2f(:,p),J1f(:,q))) &
+                        + d2vdy2*outer5(J2f(:,p),J2f(:,q)) &
+                        + dvttdx*H1f(:,:,p,q) + dvttdy*H2f(:,:,p,q)
+                    hess(:,:,iat(p),iat(q)) = hess(:,:,iat(p),iat(q)) + block_
+                end do
+            end do
+            !$omp end critical
+        end do
+
+    contains
+        pure function outer5(u, v) result(m)
+            real(rp), intent(in) :: u(3), v(3)
+            real(rp) :: m(3,3)
+            integer :: r
+            do r=1,3
+                m(r,:) = u(r)*v
+            end do
+        end function
+    end subroutine tortor_geomhess
 
     pure function cos_torsion(top, idx)
         !! Compute the cosine of torsional angle between four atoms specified

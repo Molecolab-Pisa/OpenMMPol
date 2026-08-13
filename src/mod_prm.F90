@@ -1453,10 +1453,34 @@ module mod_prm
 
         call torsion_init(bds, it-1)
         do i=1, it-1
-           bds%torsionat(:,i) = tmpat(:,i) 
+           bds%torsionat(:,i) = tmpat(:,i)
            bds%torsamp(:,i) = t_amp(:,tmpprm(i)) * kcalmol2au * torsion_unit
            bds%torsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
            bds%torsn(:,i) = t_n(:,tmpprm(i))
+
+           ! The gradient code (torsion_geomgrad, and, through bds%torsphase,
+           ! angtor_potential/geomgrad and strtor_potential/geomgrad) evaluates
+           ! the energy at the unsigned torsion angle theta0 = acos(cos(theta))
+           ! in [0,pi], but its derivative at the signed angle theta produced by
+           ! torsion_angle_jacobian. cos(n*theta0-phase) and cos(n*theta-phase)
+           ! only agree for every theta when sin(phase) = 0, i.e. when phase is
+           ! a multiple of pi (as is always the case for standard AMOEBA
+           ! torsion parameters, whose phases are 0 or 180 degrees). Reject any
+           ! parameter that violates this assumption, since it would otherwise
+           ! silently produce a gradient inconsistent with the energy.
+           do j=1, 6
+               if(bds%torsn(j,i) < 1) exit
+               if(abs(sin(bds%torsphase(j,i))) > eps_rp) then
+                   write(errstring, '(A, I0, A, I0, A, F0.4, A)') &
+                       "Torsion parameter for atoms ", bds%torsionat(1,i), &
+                       "..", bds%torsionat(4,i), " has a phase of ", &
+                       bds%torsphase(j,i)/deg2rad, " degrees, which is not a &
+                       &multiple of 180. This is not supported: the analytical &
+                       &gradient of the torsion term is only consistent with &
+                       &its energy for phases equal to 0 or 180 degrees."
+                   call fatal_error(errstring)
+               end if
+           end do
         end do
         
         call mfree('assign_torsion [classa]', classa)
@@ -1731,6 +1755,24 @@ module mod_prm
            bds%imptorsamp(:,i) = bds%imptorsamp(:,i) / count(tmpat(3,1:it-1) == tmpat(3,i))
            bds%imptorsphase(:,i) = t_pha(:,tmpprm(i)) * deg2rad
            bds%imptorsn(:,i) = t_n(:,tmpprm(i))
+
+           ! See the matching check in assign_torsion: imptorsion_geomgrad's
+           ! gradient is only consistent with imptorsion_potential's energy
+           ! when the phase is a multiple of pi.
+           do j=1, 3
+               if(bds%imptorsn(j,i) < 1) exit
+               if(abs(sin(bds%imptorsphase(j,i))) > eps_rp) then
+                   write(errstring, '(A, I0, A, I0, A, F0.4, A)') &
+                       "Improper torsion parameter for atoms ", &
+                       bds%imptorsionat(1,i), "..", bds%imptorsionat(4,i), &
+                       " has a phase of ", bds%imptorsphase(j,i)/deg2rad, &
+                       " degrees, which is not a multiple of 180. This is not &
+                       &supported: the analytical gradient of the improper &
+                       &torsion term is only consistent with its energy for &
+                       &phases equal to 0 or 180 degrees."
+                   call fatal_error(errstring)
+               end if
+           end do
         end do
         
         call mfree('assign_imptorsion [classa]', classa)

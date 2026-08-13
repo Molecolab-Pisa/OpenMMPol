@@ -83,7 +83,7 @@ module mod_nonbonded
     public :: ommp_nonbonded_type
     public :: vdw_init, vdw_terminate, vdw_set_pair, vdw_remove_potential
     public :: vdw_set_cutoff
-    public :: vdw_potential, vdw_geomgrad
+    public :: vdw_potential, vdw_geomgrad, vdw_geomhess
     public :: vdw_potential_inter, vdw_geomgrad_inter
     public :: vdw_potential_inter_restricted, vdw_geomgrad_inter_restricted
 
@@ -340,7 +340,24 @@ module mod_nonbonded
         Rijgrad = -12.0 * Eij * (sigma_ov_r ** 12 - sigma_ov_r ** 6) / Rij
 
     end subroutine vdw_lennard_jones_Rijgrad
-    
+
+    subroutine vdw_lennard_jones_Rij2grad(Rij, Rij0, Eij, Rij2grad)
+        !! Second derivative of the Lennard-Jones pair energy with respect
+        !! to Rij: d2V/dR^2 = 12*Eij*(13*s^12 - 7*s^6)/R^2, s = Rij0/Rij.
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rij2grad
+
+        real(rp) :: sigma_ov_r
+
+        sigma_ov_r = Rij0 / Rij
+        Rij2grad = 12.0 * Eij * (13.0*sigma_ov_r**12 - 7.0*sigma_ov_r**6) / Rij**2
+
+    end subroutine vdw_lennard_jones_Rij2grad
+
     subroutine vdw_buffered_7_14(Rij, Rij0, Eij, V)
         !! Compute the dispersion-repulsion energy using the buffered 7-14 
         !! potential. Details can be found in ref: 10.1021/jp027815
@@ -386,6 +403,46 @@ module mod_nonbonded
         Rijgrad = Rijgrad / Rij0
 
     end subroutine vdw_buffered_7_14_Rijgrad
+
+    subroutine vdw_buffered_7_14_Rij2grad(Rij, Rij0, Eij, Rij2grad)
+        !! Second derivative of the buffered 7-14 pair energy with respect
+        !! to Rij. Writing V(rho) = Eij*A(rho)*B(rho) with rho = Rij/Rij0,
+        !! A(rho) = ((1+delta)/(rho+delta))^p (p = n-m) and
+        !! B(rho) = (1+gam)/(rho^m+gam) - 2, elementary calculus gives
+        !!   A' = -p*A/(rho+delta),  A'' = p*(p+1)*A/(rho+delta)^2
+        !!   B' = -(1+gam)*m*rho^(m-1)/C^2,  C = rho^m+gam
+        !!   B'' = -(1+gam)*[m*(m-1)*rho^(m-2)*C - 2*m^2*rho^(2m-2)]/C^3
+        !! and, since d(rho)/d(Rij) = 1/Rij0,
+        !!   d2V/dRij2 = Eij*(A''*B + 2*A'*B' + A*B'')/Rij0^2.
+        implicit none
+
+        real(rp), intent(in) :: Rij
+        real(rp), intent(in) :: Rij0
+        real(rp), intent(in) :: Eij
+        real(rp), intent(out) :: Rij2grad
+
+        real(rp) :: rho, rhom, C, Cp, Cpp
+        real(rp) :: A, Ap, App, B, Bp, Bpp
+        real(rp), parameter :: delta = 0.07, gam = 0.12
+        integer(ip), parameter :: n = 14, m = 7, p = n - m
+
+        rho = Rij / Rij0
+        rhom = rho**m
+        C = rhom + gam
+        Cp = real(m,rp)*rho**(m-1)
+        Cpp = real(m*(m-1),rp)*rho**(m-2)
+
+        A = ((1.0_rp+delta)/(rho+delta))**p
+        Ap = -real(p,rp)*A/(rho+delta)
+        App = real(p*(p+1),rp)*A/(rho+delta)**2
+
+        B = (1.0_rp+gam)/C - 2.0_rp
+        Bp = -(1.0_rp+gam)*Cp/C**2
+        Bpp = -(1.0_rp+gam)*(Cpp*C - 2.0_rp*Cp**2)/C**3
+
+        Rij2grad = Eij*(App*B + 2.0_rp*Ap*Bp + A*Bpp) / Rij0**2
+
+    end subroutine vdw_buffered_7_14_Rij2grad
 
     pure function get_Rij0(vdw, i, j) result(Rij0)
         use mod_constants, only: eps_rp
@@ -891,7 +948,268 @@ module mod_nonbonded
         end do
         call time_pull('VdW gradients calculation')
     end subroutine
-    
+
+    subroutine vdw_geomhess(vdw, hess)
+        !! Compute the Hessian of the dispersion-repulsion energy for the
+        !! whole system using a double loop algorithm. Each pair's energy is
+        !! a function of the single scalar Rij between the (possibly
+        !! reduced, see vdw_geomgrad) pseudo-centers ci, cj, so the
+        !! pseudo-center Hessian follows the same master formula as
+        !! bond_geomhess (mod_bonded.F90):
+        !!   Hcc = h*J_ci*J_ci^T + g*M
+        !! with g = dV/dRij, h = d2V/dRij2 and M from Rij_hessian, and
+        !! Hcc_ii = Hcc_jj = -Hcc_ij = Hcc. Since each pseudo-center is a
+        !! FIXED-weight affine combination of up to two real atoms
+        !! (ci = f_i*r_i + (1-f_i)*r_(neigh_i)), no extra curvature term
+        !! appears going from Hcc to the real-atom Hessian: it is a purely
+        !! bilinear rescaling by the (fixed) weights of the atoms involved,
+        !!   H_XY = s_ij * w_X * w_Y * (+/-Hcc)
+        !! (+ for X,Y on the same pseudo-center, - otherwise), for X,Y among
+        !! up to 4 real atoms {i, neigh_i, j, neigh_j}.
+
+        use mod_io, only : fatal_error
+        use mod_constants, only: eps_rp
+        use mod_jacobian_mat, only: Rij_hessian
+        use mod_profiling, only: time_push, time_pull
+        use mod_memory, only: mallocate, mfree
+        use mod_neighbor_list, only: get_ith_nl
+        implicit none
+
+        type(ommp_nonbonded_type), intent(in), target :: vdw
+        !! Nonbonded data structure
+        real(rp), intent(inout) :: hess(3,3,vdw%top%mm_atoms,vdw%top%mm_atoms)
+        !! Hessian, result will be added
+
+        integer(ip) :: i, j, l, ipair, ineigh, ineigh_i, ineigh_j, jc, &
+                       nn, ithread, nthreads
+        real(rp) :: eij, rij0, rij, ci(3), cj(3), s, J_ci(3), J_cj(3), &
+                    Rijg, Rijh, f_i, f_j
+        real(rp) :: M(3,3), H_dum1(3,3), H_dum2(3,3), Hcc(3,3), block_(3,3)
+        integer(ip) :: atom_i(2), atom_j(2), nact_i, nact_j, p, q
+        real(rp) :: w_i(2), w_j(2)
+        logical :: skip, sk_i(2), sk_j(2)
+        type(ommp_topology_type), pointer :: top
+        procedure(vdw_gterm), pointer :: vdw_gfunc, vdw_hfunc
+
+        integer(ip), allocatable :: nl_neigh(:,:)
+        real(rp), allocatable :: nl_r(:,:)
+
+        integer :: omp_get_num_threads, omp_get_thread_num
+
+        call time_push()
+        !$omp parallel
+        nthreads = omp_get_num_threads()
+        !$omp end parallel
+
+        top => vdw%top
+        select case(vdw%vdwtype)
+            case(OMMP_VDWTYPE_LJ)
+                vdw_gfunc => vdw_lennard_jones_Rijgrad
+                vdw_hfunc => vdw_lennard_jones_Rij2grad
+            case(OMMP_VDWTYPE_BUF714)
+                vdw_gfunc => vdw_buffered_7_14_Rijgrad
+                vdw_hfunc => vdw_buffered_7_14_Rij2grad
+            case default
+                vdw_gfunc => vdw_buffered_7_14_Rijgrad
+                vdw_hfunc => vdw_buffered_7_14_Rij2grad
+                call fatal_error("Unexpected error in vdw_geomhess")
+        end select
+
+        if(vdw%use_nl) then
+            call mallocate('vdw_geomhess [rneigh]', top%mm_atoms, nthreads, nl_r)
+            call mallocate('vdw_geomhess [nl_neigh]', top%mm_atoms, nthreads, nl_neigh)
+        end if
+
+        !$omp parallel do default(shared) schedule(dynamic) &
+        !$omp private(i,j,ci,cj,ineigh,ineigh_i,ineigh_j,f_i,f_j,s,ipair,l) &
+        !$omp private(Eij,Rij0,Rijg,Rijh,Rij,J_ci,J_cj,M,H_dum1,H_dum2,Hcc) &
+        !$omp private(atom_i,atom_j,nact_i,nact_j,w_i,w_j,sk_i,sk_j,p,q,block_) &
+        !$omp private(skip,jc,nn,ithread)
+        do i=1, top%mm_atoms
+            ithread = omp_get_thread_num() + 1
+            if(abs(vdw%vdw_f(i) - 1.0) < eps_rp) then
+                ci = top%cmm(:,i)
+                ineigh_i = 0
+                f_i = 1.0
+            else
+                ! Scale factors are used only for monovalent atoms, in that
+                ! case the vdw center is displaced along the axis connecting
+                ! the atom to its neighbour
+                if(top%conn(1)%ri(i+1) - top%conn(1)%ri(i) /= 1) then
+                    call fatal_error("Scale factors are only expected for &
+                                     &monovalent atoms")
+                end if
+                ineigh_i = top%conn(1)%ci(top%conn(1)%ri(i))
+                f_i = vdw%vdw_f(i)
+
+                ci = top%cmm(:,ineigh_i) + (top%cmm(:,i) - &
+                                            top%cmm(:,ineigh_i)) * f_i
+            endif
+
+            if(ineigh_i == 0) then
+                nact_i = 1
+                atom_i(1) = i
+                w_i(1) = 1.0_rp
+            else
+                nact_i = 2
+                atom_i(1) = i;         w_i(1) = f_i
+                atom_i(2) = ineigh_i;  w_i(2) = 1.0_rp - f_i
+            end if
+
+            if(vdw%use_nl) call get_ith_nl(vdw%nl, i, top%cmm, &
+                                           nl_neigh(:,ithread), &
+                                           nl_r(:,ithread), nn)
+
+            do jc=1, top%mm_atoms
+                ! If the two atoms aren't neighbors, just skip the loop
+                if(vdw%use_nl) then
+                    if(jc > nn) exit !! All neighbors done!
+                    j = nl_neigh(jc,ithread)
+                    if(j <= i) cycle
+                else
+                    ! Skip all iteration with j <= i
+                    if(jc > i) then
+                        j = jc
+                    else
+                        cycle
+                    end if
+                end if
+                ! Compute the screening factor for this pair
+                s = 1.0_rp
+                do ineigh=1,4
+                    ! Look if j is at distance ineigh from i
+                    if(any(top%conn(ineigh)%ci(top%conn(ineigh)%ri(i): &
+                                               top%conn(ineigh)%ri(i+1)-1) == j)) then
+
+                        s = vdw%vdw_screening(ineigh)
+                        ! Exit the loop
+                        exit
+                    end if
+                end do
+
+                if(s > eps_rp) then
+                    if(abs(vdw%vdw_f(j) - 1.0) < eps_rp) then
+                        cj = top%cmm(:,j)
+                        ineigh_j = 0
+                        f_j = 1.0
+                    else
+                        ! Scale factors are used only for monovalent atoms, in that
+                        ! case the vdw center is displaced along the axis connecting
+                        ! the atom to its neighbour
+                        if(top%conn(1)%ri(j+1) - top%conn(1)%ri(j) /= 1) then
+                            call fatal_error("Scale factors are only expected &
+                                             & for monovalent atoms")
+                        end if
+                        ineigh_j = top%conn(1)%ci(top%conn(1)%ri(j))
+                        f_j = vdw%vdw_f(j)
+
+                        cj = top%cmm(:,ineigh_j) + &
+                             (top%cmm(:,j) - top%cmm(:,ineigh_j)) * f_j
+                    endif
+
+                    ! if all atoms in the interaction are frozen
+                    ! just skip to next iteration
+                    if(top%use_frozen) then
+                        skip = .true.
+                        skip = skip .and. top%frozen(i)
+                        skip = skip .and. top%frozen(j)
+                        if(ineigh_i > 0) skip = skip .and. top%frozen(ineigh_i)
+                        if(ineigh_j > 0) skip = skip .and. top%frozen(ineigh_j)
+                        if(skip) cycle
+                    end if
+
+                    if(ineigh_j == 0) then
+                        nact_j = 1
+                        atom_j(1) = j
+                        w_j(1) = 1.0_rp
+                    else
+                        nact_j = 2
+                        atom_j(1) = j;         w_j(1) = f_j
+                        atom_j(2) = ineigh_j;  w_j(2) = 1.0_rp - f_j
+                    end if
+
+                    ipair = -1
+                    do l=1, vdw%npair
+                        if((vdw%vdw_pair_mask_a(i,l) .and. vdw%vdw_pair_mask_b(j,l)) .or. &
+                           (vdw%vdw_pair_mask_a(j,l) .and. vdw%vdw_pair_mask_b(i,l))) then
+                            ipair = l
+                            exit
+                        end if
+                    end do
+
+                    if(ipair > 0) then
+                        Rij0 = vdw%vdw_pair_r(ipair)
+                        eij = vdw%vdw_pair_e(ipair)
+                    else
+                        Rij0 = get_Rij0(vdw, i, j)
+                        eij = get_eij(vdw, i, j)
+                    end if
+
+                    call Rij_hessian(ci, cj, Rij, J_ci, J_cj, M, H_dum1, H_dum2)
+                    if(Rij < eps_rp) then
+                        call fatal_error("Requesting non-bonded Hessian for two atoms &
+                                         &placed in the same point, this could be &
+                                         &an internal bug or a problem in your input &
+                                         &file, please check.")
+                    end if
+                    call vdw_gfunc(Rij, Rij0, Eij, Rijg)
+                    call vdw_hfunc(Rij, Rij0, Eij, Rijh)
+
+                    do p=1,3
+                        Hcc(p,:) = Rijh*J_ci(p)*J_ci + Rijg*M(p,:)
+                    end do
+                    Hcc = Hcc * s
+
+                    if(top%use_frozen) then
+                        do p=1,nact_i
+                            sk_i(p) = top%frozen(atom_i(p))
+                        end do
+                        do q=1,nact_j
+                            sk_j(q) = top%frozen(atom_j(q))
+                        end do
+                    else
+                        sk_i = .false.
+                        sk_j = .false.
+                    end if
+
+                    !$omp critical
+                    do p=1,nact_i
+                        if(sk_i(p)) cycle
+                        do q=1,nact_i
+                            if(sk_i(q)) cycle
+                            block_ = w_i(p)*w_i(q)*Hcc
+                            hess(:,:,atom_i(p),atom_i(q)) = hess(:,:,atom_i(p),atom_i(q)) + block_
+                        end do
+                    end do
+                    do p=1,nact_j
+                        if(sk_j(p)) cycle
+                        do q=1,nact_j
+                            if(sk_j(q)) cycle
+                            block_ = w_j(p)*w_j(q)*Hcc
+                            hess(:,:,atom_j(p),atom_j(q)) = hess(:,:,atom_j(p),atom_j(q)) + block_
+                        end do
+                    end do
+                    do p=1,nact_i
+                        if(sk_i(p)) cycle
+                        do q=1,nact_j
+                            if(sk_j(q)) cycle
+                            block_ = -w_i(p)*w_j(q)*Hcc
+                            hess(:,:,atom_i(p),atom_j(q)) = hess(:,:,atom_i(p),atom_j(q)) + block_
+                            hess(:,:,atom_j(q),atom_i(p)) = hess(:,:,atom_j(q),atom_i(p)) + block_
+                        end do
+                    end do
+                    !$omp end critical
+                end if
+            end do
+        end do
+
+        if(vdw%use_nl) then
+            call mfree('vdw_geomhess [rneigh]', nl_r)
+            call mfree('vdw_geomhess [nl_neigh]', nl_neigh)
+        end if
+        call time_pull('VdW Hessian calculation')
+    end subroutine vdw_geomhess
+
     subroutine vdw_potential_inter(vdw1, vdw2, V)
         !! Compute the dispersion repulsion energy for the whole system
         !! using a double loop algorithm

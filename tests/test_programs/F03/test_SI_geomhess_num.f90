@@ -157,6 +157,34 @@ program test_SI_geomhess_num
         gt => full_elec_geomgrad
         call num_hess_print(my_system, gt, "ETOT")
 
+        gt => ommp_bond_geomgrad
+        call num_hess_print(my_system, gt, "BOND")
+        gt => ommp_urey_geomgrad
+        call num_hess_print(my_system, gt, "UREY")
+        gt => ommp_angle_geomgrad
+        call num_hess_print(my_system, gt, "ANGLE")
+        gt => ommp_strbnd_geomgrad
+        call num_hess_print(my_system, gt, "STRBND")
+        gt => ommp_opb_geomgrad
+        call num_hess_print(my_system, gt, "OPB")
+        gt => ommp_pitors_geomgrad
+        call num_hess_print(my_system, gt, "PITORS")
+        gt => ommp_torsion_geomgrad
+        call num_hess_print(my_system, gt, "TORSION")
+        gt => ommp_imptorsion_geomgrad
+        call num_hess_print(my_system, gt, "IMPTORSION")
+        gt => ommp_angtor_geomgrad
+        call num_hess_print(my_system, gt, "ANGTOR")
+        gt => ommp_strtor_geomgrad
+        call num_hess_print(my_system, gt, "STRTOR")
+        gt => ommp_tortor_geomgrad
+        call num_hess_print(my_system, gt, "TORTOR")
+        gt => ommp_full_bnd_geomgrad
+        call num_hess_print(my_system, gt, "BNDTOT")
+
+        gt => ommp_vdw_geomgrad
+        call num_hess_print(my_system, gt, "VDW")
+
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)
     end if

@@ -13,8 +13,8 @@ module mod_utils
               count_substr_occurence, str_to_lower, &
               str_uncomment
     public :: tokenize_pure
-    public :: cyclic_spline, compute_bicubic_interp
-    public :: cross_product, vec_skw, versor_der
+    public :: cyclic_spline, compute_bicubic_interp, compute_bicubic_interp_hess
+    public :: cross_product, vec_skw, versor_der, versor_der2
     public :: atoi, atof
     
     interface
@@ -487,6 +487,113 @@ module mod_utils
         end do
     end subroutine compute_bicubic_interp
 
+    subroutine compute_bicubic_interp_hess(x, y, z, dzdx, dzdy, &
+                                           d2zdx2, d2zdxdy, d2zdy2, &
+                                           nx, ny, xgrd, ygrd, v, vx, vy, vxy)
+        !! Same bicubic patch as compute_bicubic_interp (see there), but
+        !! also returning the second derivatives. Since the patch is,
+        !! in local coordinates \(\delta x=(x-x_0)/dx\),
+        !! \(\delta y=(y-y_0)/dy\), simply
+        !! \(z=\sum_{i,j}\alpha_{ij}\,\delta x^{i-1}\delta y^{j-1}\), these
+        !! follow directly from one more derivative of the same monomials
+        !! used for dzdx, dzdy.
+        use mod_memory, only: ip, rp
+
+        implicit none
+
+        real(rp), intent(in) :: x, y
+        real(rp), intent(out) :: z, dzdx, dzdy, d2zdx2, d2zdxdy, d2zdy2
+        integer(ip), intent(in) :: nx, ny
+        real(rp), dimension(ny,nx), intent(in) :: xgrd, ygrd, v, vx, vy, vxy
+
+        integer(ip) :: ix, iy, ii, jj
+        logical :: done
+
+        real(rp), parameter :: A(4,4) = reshape([ 1.0,  0.0, -3.0,  2.0, &
+                                                  0.0,  0.0,  3.0, -2.0, &
+                                                  0.0,  1.0, -2.0,  1.0, &
+                                                  0.0,  0.0, -1.0,  1.0],&
+                                                 shape(A))
+
+        real(rp) :: alpha(4,4), f(4,4), xx(4), yy(4), dxxdx(4), dyydy(4), &
+                    d2xxdx2(4), d2yydy2(4), deltax, deltay, dx, dy
+
+        done = .false.
+        ix = 0
+        iy = 0
+        do ix=1, nx-1
+            do iy=1, ny-1
+                if(x < xgrd(ix+1,iy) .and. x > xgrd(ix,iy) .and. &
+                   y > ygrd(ix,iy) .and. y < ygrd(ix,iy+1)) then
+                    done = .true.
+                end if
+
+                if(done) exit
+            end do
+            if(done) exit
+        end do
+
+        if(.not. done) then
+            write(*, *) "Cannot find the required point on the grid"
+            stop
+        end if
+
+        dx = xgrd(ix+1,iy)-xgrd(ix,iy)
+        dy = ygrd(ix,iy+1)-ygrd(ix,iy)
+        do ii=0, 1
+            do jj=0, 1
+                f(jj+1,ii+1) = v(ix+jj,iy+ii)
+                f(jj+1,ii+3) = vy(ix+jj,iy+ii) * dy
+                f(jj+3,ii+1) = vx(ix+jj,iy+ii) * dx
+                f(jj+3,ii+3) = vxy(ix+jj,iy+ii) * dx*dy
+            end do
+        end do
+
+        alpha = matmul(A, matmul(f, transpose(A)))
+
+        xx(1) = 1.0
+        yy(1) = 1.0
+        deltax = (x-xgrd(ix,iy)) / dx
+        deltay = (y-ygrd(ix,iy)) / dy
+        do ii=2, 4
+            xx(ii) = xx(ii-1) * deltax
+            yy(ii) = yy(ii-1) * deltay
+        end do
+
+        dxxdx(1) = 0.0
+        dyydy(1) = 0.0
+        do ii=2, 4
+            dxxdx(ii) = (ii-1) * xx(ii-1) / dx
+            dyydy(ii) = (ii-1) * yy(ii-1) / dy
+        end do
+
+        d2xxdx2(1) = 0.0
+        d2xxdx2(2) = 0.0
+        d2yydy2(1) = 0.0
+        d2yydy2(2) = 0.0
+        do ii=3, 4
+            d2xxdx2(ii) = (ii-1) * (ii-2) * xx(ii-2) / dx**2
+            d2yydy2(ii) = (ii-1) * (ii-2) * yy(ii-2) / dy**2
+        end do
+
+        z = 0.0
+        dzdx = 0.0
+        dzdy = 0.0
+        d2zdx2 = 0.0
+        d2zdxdy = 0.0
+        d2zdy2 = 0.0
+        do ii=1,4
+            do jj=1, 4
+                z = z + alpha(ii, jj) * yy(jj) * xx(ii)
+                dzdx = dzdx + alpha(ii, jj) * yy(jj) * dxxdx(ii)
+                dzdy = dzdy + alpha(ii, jj) * dyydy(jj) * xx(ii)
+                d2zdx2 = d2zdx2 + alpha(ii, jj) * yy(jj) * d2xxdx2(ii)
+                d2zdy2 = d2zdy2 + alpha(ii, jj) * d2yydy2(jj) * xx(ii)
+                d2zdxdy = d2zdxdy + alpha(ii, jj) * dyydy(jj) * dxxdx(ii)
+            end do
+        end do
+    end subroutine compute_bicubic_interp_hess
+
     subroutine cyclic_spline(n, x, y, a, b, c, d)
         !! Compute the cyclic interpolating cubic spline (2D) that passes for  
         !! points \((x_i, y_i)\). Each segment is described by the curve:
@@ -661,6 +768,40 @@ module mod_utils
         g(3,3) = g(3,3) + na2
 
         g = g / (na*na2)
+    end function
+
+    pure function versor_der2(a, v) result(xi)
+        !! Computes the derivative matrix of \(\vec{g}(\vec{A}) =
+        !! \frac{\partial \hat{A}}{\partial \vec{A}} \vec{v}\) wrt \(\vec{A}\),
+        !! for a fixed vector \(\vec{v}\) (i.e. the third-order tensor
+        !! \(\partial^2 \hat{A}/\partial\vec{A}\partial\vec{A}\) contracted
+        !! with \(\vec v\) on its last index). With \(a=||\vec A||\),
+        !! \(\hat A = \vec A/a\), \(V(\vec A)=\partial\hat A/\partial \vec A\)
+        !! (\code{versor\_der}), \(\vec g = V(\vec A)\vec v\) and
+        !! \(p = \hat A \cdot \vec v\):
+        !! \[ \Xi(\vec A,\vec v) = -\frac{1}{a}\left(\hat A \vec g^\dagger +
+        !!      \vec g \hat A^\dagger\right) - \frac{p}{a} V(\vec A) \]
+        !! This matrix is symmetric, as it must be since it is (part of) the
+        !! Hessian of the scalar \(\hat A \cdot \vec v\) wrt \(\vec A\).
+        use mod_memory, only: rp
+        implicit none
+
+        real(rp), dimension(3), intent(in) :: a, v
+        real(rp), dimension(3,3) :: xi
+
+        real(rp) :: na, ahat(3), vd(3,3), g(3), p
+        integer :: k
+
+        na = norm2(a)
+        ahat = a / na
+        vd = versor_der(a)
+        g = matmul(vd, v)
+        p = dot_product(ahat, v)
+
+        do k=1,3
+            xi(k,:) = -(ahat(k)*g + g(k)*ahat)/na
+        end do
+        xi = xi - (p/na)*vd
     end function
 
 end module mod_utils

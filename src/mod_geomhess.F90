@@ -723,7 +723,7 @@ module mod_geomhess
                 allocate(d2qua(3,3,3,3,4,4,s%top%mm_atoms))
                 call rotate_multipoles(eel, 2_ip, ddip, dqua, d2dip, d2qua)
 
-                !$omp parallel do
+                !$omp parallel do private(i, idx, to_do, to_scale, scalf)
                 do j=1, s%top%mm_atoms
                     ! If the atom is frozen, there are no contribution to compute
                     if(s%top%use_frozen) then

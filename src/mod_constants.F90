@@ -26,11 +26,11 @@ module mod_constants
     !! Conversion factor from kcal mol\(^{-1}\) to A.U.
     real(rp), parameter :: au2kcalmol = OMMP_FORT_AU2KCALMOL
     !! Conversion factor from A.U. to kcal mol\(^{-1}\)
-    real(rp), parameter :: pi = 4.0 * atan(1.0)
+    real(rp), parameter :: pi = 4.0_rp * atan(1.0_rp)
     !! Value of \(\pi\)
-    real(rp), parameter :: deg2rad = pi / 180.0
+    real(rp), parameter :: deg2rad = pi / 180.0_rp
     !! Conversion from arc degree to radians
-    real(rp), parameter :: rad2deg = 180.0 / pi
+    real(rp), parameter :: rad2deg = 180.0_rp / pi
     !! Conversion from radians to arc degree
 
     ! Force Field parameters
