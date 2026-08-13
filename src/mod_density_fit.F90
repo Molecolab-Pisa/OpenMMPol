@@ -1019,7 +1019,7 @@ end subroutine df_compute_Xinv_svd
         type(ommp_density_fit_type), intent(inout) :: df
         type(ommp_electrostatics_type), intent(in) :: eel
 
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
         integer(ip) :: i, j
 
         call df_update(df)
@@ -1043,7 +1043,8 @@ end subroutine df_compute_Xinv_svd
                                      .false., tmpV, &
                                      .true., tmpE, &
                                      .false., tmpEgr, &
-                                     .false., tmpHE)
+                                     .false., tmpHE, &
+                                     .false., tmpD3E)
 
                     df%E_q2p(:,j) = df%E_q2p(:,j) + tmpE
                 end do
@@ -1056,22 +1057,24 @@ end subroutine df_compute_Xinv_svd
 
         use mod_memory, only: mallocate
         use mod_electrostatics, only: q_elec_prop, coulomb_kernel, ommp_electrostatics_type
+        use mod_rotate_multipoles, only: rotate_multipoles, rotation_geomgrad
 
         implicit none
 
         type(ommp_density_fit_type), intent(inout) :: df
-        type(ommp_electrostatics_type), intent(in) :: eel
+        type(ommp_electrostatics_type), intent(inout) :: eel
         real(rp), intent(inout) :: mmg(:,:)
 
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
+        real(rp), allocatable :: ddip(:,:,:,:), dqua(:,:,:,:,:)
         integer(ip) :: i, j, n_mm
 
         if(.not. eel%amoeba) return
         call df_update(df)
 
-        if(.not. df%E_q2M_done) then
-            n_mm = eel%top%mm_atoms
+        n_mm = eel%top%mm_atoms
 
+        if(.not. df%E_q2M_done) then
             if(.not. allocated(df%E_q2M)) then
                 call mallocate('df_e_field_q2M [E_q2M]', 3_ip, n_mm, df%E_q2M)
             end if
@@ -1100,7 +1103,8 @@ end subroutine df_compute_Xinv_svd
                                      .false., tmpV, &
                                      .true., tmpE, &
                                      .true., tmpEgr, &
-                                     .false., tmpHE)
+                                     .false., tmpHE, &
+                                     .false., tmpD3E)
 
                     df%E_q2M(:,j) = df%E_q2M(:,j) + tmpE
                     df%GEF_q2M(:,j) = df%GEF_q2M(:,j) + tmpEgr
@@ -1111,7 +1115,12 @@ end subroutine df_compute_Xinv_svd
             df%GEF_q2M_done = .true.
         end if
 
-        call rotation_geomgrad(eel, df%E_q2m, df%GEF_q2M, mmg)
+        allocate(ddip(3,3,4,n_mm))
+        allocate(dqua(3,3,3,4,n_mm))
+        call rotate_multipoles(eel, 1_ip, ddip, dqua)
+        call rotation_geomgrad(eel, df%E_q2m, df%GEF_q2M, ddip, dqua, mmg)
+        deallocate(ddip)
+        deallocate(dqua)
 
     end subroutine df_rotation_geomgrad
 
@@ -1191,7 +1200,7 @@ end subroutine df_compute_Xinv_svd
         type(ommp_electrostatics_type), intent(in) :: eel
 
         integer(ip) :: i, j, a, k, n_cpt, n_mm, n_pts, n_charges, n_pol, ipol
-        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10)
+        real(rp) :: kernel(5), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
 
         call df_update(df)
 
@@ -1221,17 +1230,20 @@ end subroutine df_compute_Xinv_svd
                                          .false., tmpV, &
                                          .true., tmpE, &
                                          .false., tmpEgr, &
-                                         .false., tmpHE)
+                                         .false., tmpHE, &
+                                         .false., tmpD3E)
                         call mu_elec_prop(eel%q(2:4,i), dr, kernel, &
                                           .false., tmpV, &
                                           .true., tmpE, &
                                           .false., tmpEgr, &
-                                          .false., tmpHE)
+                                          .false., tmpHE, &
+                                          .false., tmpD3E)
                         call quad_elec_prop(eel%q(5:10,i), dr, kernel, &
                                             .false., tmpV, &
                                             .true., tmpE, &
                                             .false., tmpEgr, &
-                                            .false., tmpHE)
+                                            .false., tmpHE, &
+                                            .false., tmpD3E)
 
                         df%E_m2q(:,i,j) = df%E_m2q(:,i,j) + tmpE
                     end do
@@ -1249,7 +1261,8 @@ end subroutine df_compute_Xinv_svd
                                          .false., tmpV, &
                                          .true., tmpE, &
                                          .false., tmpEgr, &
-                                         .false., tmpHE)
+                                         .false., tmpHE, &
+                                         .false., tmpD3E)
 
                         df%E_m2q(:,i,j) = df%E_m2q(:,i,j) + tmpE
                     end do
@@ -1288,7 +1301,8 @@ end subroutine df_compute_Xinv_svd
                                                 .false., tmpV, &
                                                 .true., tmpE, &
                                                 .false., tmpEgr, &
-                                                .false., tmpHE)
+                                                .false., tmpHE, &
+                                                .false., tmpD3E)
                             df%E_p2q(:,ipol,j,k) = df%E_p2q(:,ipol,j,k) + tmpE
                         end do
                     end do
@@ -1350,7 +1364,7 @@ end subroutine df_compute_Xinv_svd
 #define USE_OPTIMIZED
 
         type(ommp_density_fit_type), intent(inout) :: df
-        type(ommp_electrostatics_type), intent(in) :: eel
+        type(ommp_electrostatics_type), intent(inout) :: eel
         real(rp), intent(inout) :: qmg(:,:)   ! (3, n_qm_atoms)
         real(rp), intent(inout) :: mmg(:,:)   ! (3, n_mm_atoms)
         logical, intent(in) :: doqm

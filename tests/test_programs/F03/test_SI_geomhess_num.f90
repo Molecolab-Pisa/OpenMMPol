@@ -28,6 +28,57 @@ module test_geomhess_num
             deallocate(tmp)
         end subroutine
 
+        subroutine full_geomgrad(s, grad)
+            !! Bonded + electrostatics + vdW gradient, combined -- the
+            !! numerical counterpart of full_geomhess in test_geomhess
+            !! (kept scoped the same way, see full_elec_geomgrad above:
+            !! no link-atom terms, since no analytical link-atom Hessian
+            !! exists to compare against).
+            use mod_bonded, only: bond_geomgrad, &
+                                  angle_geomgrad, &
+                                  strbnd_geomgrad, &
+                                  urey_geomgrad, &
+                                  opb_geomgrad, &
+                                  imptorsion_geomgrad, &
+                                  torsion_geomgrad, &
+                                  pitors_geomgrad, &
+                                  strtor_geomgrad, &
+                                  angtor_geomgrad, &
+                                  tortor_geomgrad
+            implicit none
+            type(ommp_system), intent(inout), target :: s
+            real(ommp_real), intent(out) :: grad(3,s%top%mm_atoms)
+            real(ommp_real), allocatable :: tmp(:,:)
+
+            grad = 0.0
+            if(s%use_bonded) then
+                call bond_geomgrad(s%bds, grad)
+                call angle_geomgrad(s%bds, grad)
+                call strbnd_geomgrad(s%bds, grad)
+                call urey_geomgrad(s%bds, grad)
+                call opb_geomgrad(s%bds, grad)
+                call imptorsion_geomgrad(s%bds, grad)
+                call torsion_geomgrad(s%bds, grad)
+                call pitors_geomgrad(s%bds, grad)
+                call strtor_geomgrad(s%bds, grad)
+                call angtor_geomgrad(s%bds, grad)
+                call tortor_geomgrad(s%bds, grad)
+            end if
+
+            allocate(tmp(3,s%top%mm_atoms))
+            call ommp_fixedelec_geomgrad(s, tmp)
+            grad = grad + tmp
+            if(s%eel%pol_atoms > 0) then
+                call ommp_polelec_geomgrad(s, tmp)
+                grad = grad + tmp
+            end if
+            if(s%use_nonbonded) then
+                call ommp_vdw_geomgrad(s, tmp)
+                grad = grad + tmp
+            end if
+            deallocate(tmp)
+        end subroutine
+
         subroutine numerical_geomhess(s, grad_f, hess)
             !! Numerical Hessian obtained by central-differencing an
             !! analytical gradient routine (grad_f) wrt every Cartesian
@@ -184,6 +235,9 @@ program test_SI_geomhess_num
 
         gt => ommp_vdw_geomgrad
         call num_hess_print(my_system, gt, "VDW")
+
+        gt => full_geomgrad
+        call num_hess_print(my_system, gt, "FULLHESS")
 
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)
