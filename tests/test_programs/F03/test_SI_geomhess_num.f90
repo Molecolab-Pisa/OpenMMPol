@@ -134,6 +134,100 @@ module test_geomhess_num
             deallocate(new_c, g_p, g_m)
         end subroutine
 
+        function total_dipole(s) result(mu)
+            !! Total molecular dipole moment (a.u.), numerical counterpart
+            !! of total_dipole in test_geomhess: mu = sum_i(q_i*r_i + d_i)
+            !! + 1/2*sum_i(mu^d_i + mu^p_i). ipd's 3rd index: 1="D" set,
+            !! 2="P" set (matches _amoeba_D_/_amoeba_P_, unavailable here
+            !! since this file isn't preprocessed).
+            !!
+            !! update_coordinates (used by numerical_dipole_deriv) clears
+            !! eel%ipd_done but re-rotates the fixed multipoles into
+            !! eel%q on its own, so only the induced-dipole solve needs
+            !! to be (re-)triggered explicitly here, same guard as
+            !! ommp_get_polelec_energy.
+            use mod_electrostatics, only: prepare_polelec
+            use mod_polarization, only: polarization
+            implicit none
+            type(ommp_system), intent(inout), target :: s
+            real(ommp_real) :: mu(3)
+
+            integer(ommp_integer) :: i, ipol
+
+            if(s%eel%pol_atoms > 0 .and. .not. s%eel%ipd_done) then
+                call prepare_polelec(s%eel)
+                call polarization(s, s%eel%e_m2d)
+            end if
+
+            mu = 0.0
+            do i=1, s%top%mm_atoms
+                mu = mu + s%eel%q(1,i)*s%top%cmm(:,i) + s%eel%q(2:4,i)
+            end do
+            do ipol=1, s%eel%pol_atoms
+                mu = mu + 0.5_ommp_real*(s%eel%ipd(:,ipol,1) + s%eel%ipd(:,ipol,2))
+            end do
+        end function
+
+        subroutine numerical_dipole_deriv(s, dmu)
+            !! Numerical d(mu_alpha)/d(r_l,beta) obtained by central-
+            !! differencing total_dipole wrt every Cartesian coordinate of
+            !! every atom -- same recipe/step as numerical_geomhess, but
+            !! for a plain 3-vector observable instead of a per-atom
+            !! gradient, so no inner atom loop is needed on the output
+            !! side.
+            use mod_mmpol, only: update_coordinates
+            implicit none
+
+            type(ommp_system), intent(inout) :: s
+            real(ommp_real), dimension(3,3,s%top%mm_atoms), intent(out) :: dmu
+
+            integer(ommp_integer) :: i, j
+            real(ommp_real), allocatable :: new_c(:,:)
+            real(ommp_real) :: mu_p(3), mu_m(3)
+            real(ommp_real), parameter :: dd = 1.0e-4
+
+            allocate(new_c(3, s%top%mm_atoms))
+            new_c = s%top%cmm
+
+            do i=1, s%top%mm_atoms
+                do j=1, 3
+                    new_c(j,i) = new_c(j,i) + dd
+                    call update_coordinates(s, new_c)
+                    mu_p = total_dipole(s)
+
+                    new_c(j,i) = new_c(j,i) - 2*dd
+                    call update_coordinates(s, new_c)
+                    mu_m = total_dipole(s)
+
+                    new_c(j,i) = new_c(j,i) + dd
+                    call update_coordinates(s, new_c)
+
+                    dmu(:,j,i) = (mu_p - mu_m) / (2*dd)
+                end do
+            end do
+
+            deallocate(new_c)
+        end subroutine
+
+        subroutine print_dmu(n, dmu, name)
+            character(len=*) :: name
+            integer(ommp_integer) :: n
+            real(ommp_real) :: dmu(3,3,n)
+
+            character(len=OMMP_STR_CHAR_MAX) :: msg
+            integer(ommp_integer) :: i
+
+            write(msg, "('DMU ', A)") name
+            call ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-HES")
+
+            do i=1, n
+                write(msg, "('I:', I0, 9(' ', E20.12))") i, dmu(:,1,i), dmu(:,2,i), dmu(:,3,i)
+                call ommp_message(msg, OMMP_VERBOSE_NONE, "TEST-HES")
+            end do
+
+            call ommp_message("", OMMP_VERBOSE_NONE, "TEST-HES")
+        end subroutine
+
         subroutine print_hess(n, h, name)
             character(len=*) :: name
             integer(ommp_integer) :: n
@@ -238,6 +332,14 @@ program test_SI_geomhess_num
 
         gt => full_geomgrad
         call num_hess_print(my_system, gt, "FULLHESS")
+
+        block
+            real(ommp_real), allocatable :: dmu(:,:,:)
+            allocate(dmu(3,3,my_system%top%mm_atoms))
+            call numerical_dipole_deriv(my_system, dmu)
+            call print_dmu(my_system%top%mm_atoms, dmu, "DIPDERIV")
+            deallocate(dmu)
+        end block
 
         if(associated(my_qmh)) call ommp_terminate_qm_helper(my_qmh)
         if(associated(my_system)) call ommp_terminate(my_system)
