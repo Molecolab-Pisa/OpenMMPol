@@ -4,6 +4,7 @@ module fmmlib_interface
                        fmm_init, free_fmm, &
                        tree_p2m, tree_m2m, tree_m2l, tree_l2l, &
                        fmm_solve, &
+                       fmm_rotcache_try_enable, &
                        cart_prop_at_ipart, cart_propfar_at_ipart, cart_propnear_at_ipart
     use mod_tree, only: free_tree
     use mod_ribtree, only: init_as_ribtree

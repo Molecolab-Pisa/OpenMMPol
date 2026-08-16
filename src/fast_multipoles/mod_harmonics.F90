@@ -7,6 +7,7 @@ module mod_harmonics
     integer(ip) :: vscales_p = 0, vcnk_dmax = 0, m2l_pm = 0, m2l_pl = 0
     
     public :: fmm_m2m, fmm_m2l, fmm_l2l, fmm_m2p, prepare_fmmm_constants
+    public :: fmm_sph_rotate_oxz_work, oxz_rot_cache_size, fmm_sph_rotate_oxz_apply_cached
 
     contains
 
@@ -321,19 +322,20 @@ end subroutine
 !! @param[in] beta: Scalar multipler for `dst_m`
 !! @param[inout] dst_m: Expansion in new harmonics
 !! @param[out] work: Temporary workspace of a size (2*(p+1))
-    subroutine fmm_m2m_ztranslate_work(z, p, vscales, vcnk, alpha, &
+    subroutine fmm_m2m_ztranslate_work(z, p, nrhs, vscales, vcnk, alpha, &
         & src_m, beta, dst_m, work)
     implicit none
     ! Inputs
-    integer, intent(in) :: p
+    integer, intent(in) :: p, nrhs
     real(rp), intent(in) :: z, vscales((p+1)*(p+1)), &
-        & vcnk((2*p+1)*(p+1)), alpha, src_m((p+1)*(p+1)), beta
+        & vcnk((2*p+1)*(p+1)), alpha, src_m((p+1)*(p+1), nrhs), beta
     ! Output
-    real(rp), intent(inout) :: dst_m((p+1)*(p+1))
+    real(rp), intent(inout) :: dst_m((p+1)*(p+1), nrhs)
     ! Temporary workspace
     real(rp), intent(out), target :: work(2*(p+1))
     ! Local variables
-    real(rp) :: r2, tmp1, tmp2, tmp3, res1, res2
+    real(rp) :: r2, tmp1, tmp2, tmp3
+    real(rp) :: res1(nrhs), res2(nrhs)
     integer :: j, k, n, indj, indjn, indjk1, indjk2
     ! Pointers for temporary values of powers
     real(rp), pointer :: pow_r2(:)
@@ -352,7 +354,7 @@ end subroutine
         ! Prepare pointers
         pow_r2(1:p+1) => work(1:p+1)
         ! Get ratios r1 and r2
-        r2 = z 
+        r2 = z
         pow_r2(1) = 1.0
         do j = 2, p+1
             pow_r2(j) = pow_r2(j-1) * r2
@@ -374,9 +376,9 @@ end subroutine
                     indjn = (j-n)**2 + (j-n) + 1
                     tmp3 = pow_r2(n+1) / &
                         & vscales(indjn) * vcnk(indjk1+n)**2
-                    res1 = res1 + tmp3*src_m(indjn)
+                    res1 = res1 + tmp3*src_m(indjn,:)
                 end do
-                dst_m(indj) = tmp2 * res1
+                dst_m(indj,:) = tmp2 * res1
                 ! k != 0
                 do k = 1, j
                     tmp2 = tmp1
@@ -391,11 +393,11 @@ end subroutine
                         tmp3 = pow_r2(n+1) / &
                             & vscales(indjn) * vcnk(indjk1+n) * &
                             & vcnk(indjk2+n)
-                        res1 = res1 + tmp3*src_m(indjn+k)
-                        res2 = res2 + tmp3*src_m(indjn-k)
+                        res1 = res1 + tmp3*src_m(indjn+k,:)
+                        res2 = res2 + tmp3*src_m(indjn-k,:)
                     end do
-                    dst_m(indj+k) = tmp2 * res1
-                    dst_m(indj-k) = tmp2 * res2
+                    dst_m(indj+k,:) = tmp2 * res1
+                    dst_m(indj-k,:) = tmp2 * res2
                 end do
             end do
         ! Update output if beta is non-0.0
@@ -414,9 +416,9 @@ end subroutine
                     indjn = (j-n)**2 + (j-n) + 1
                     tmp3 = pow_r2(n+1) / &
                         & vscales(indjn) * vcnk(indjk1+n)**2
-                    res1 = res1 + tmp3*src_m(indjn)
+                    res1 = res1 + tmp3*src_m(indjn,:)
                 end do
-                dst_m(indj) = beta*dst_m(indj) + tmp2*res1
+                dst_m(indj,:) = beta*dst_m(indj,:) + tmp2*res1
                 ! k != 0
                 do k = 1, j
                     tmp2 = tmp1
@@ -431,11 +433,11 @@ end subroutine
                         tmp3 = pow_r2(n+1) / &
                             & vscales(indjn) * vcnk(indjk1+n) * &
                             & vcnk(indjk2+n)
-                        res1 = res1 + tmp3*src_m(indjn+k)
-                        res2 = res2 + tmp3*src_m(indjn-k)
+                        res1 = res1 + tmp3*src_m(indjn+k,:)
+                        res2 = res2 + tmp3*src_m(indjn-k,:)
                     end do
-                    dst_m(indj+k) = beta*dst_m(indj+k) + tmp2*res1
-                    dst_m(indj-k) = beta*dst_m(indj-k) + tmp2*res2
+                    dst_m(indj+k,:) = beta*dst_m(indj+k,:) + tmp2*res1
+                    dst_m(indj-k,:) = beta*dst_m(indj-k,:) + tmp2*res2
                 end do
             end do
         end if
@@ -443,11 +445,11 @@ end subroutine
     else
         ! Overwrite output if beta is 0.0
         if (abs(beta) < eps_rp) then
-            tmp1 = alpha 
+            tmp1 = alpha
             do j = 0, p
                 indj = j*j + j + 1
                 do k = indj-j, indj+j
-                    dst_m(k) = tmp1 * src_m(k)
+                    dst_m(k,:) = tmp1 * src_m(k,:)
                 end do
             end do
         ! Update output if beta is non-0.0
@@ -456,13 +458,13 @@ end subroutine
             do j = 0, p
                 indj = j*j + j + 1
                 do k = indj-j, indj+j
-                    dst_m(k) = beta*dst_m(k) + tmp1*src_m(k)
+                    dst_m(k,:) = beta*dst_m(k,:) + tmp1*src_m(k,:)
                 end do
                 tmp1 = tmp1
             end do
         end if
     end if
-end subroutine fmm_m2m_ztranslate_work 
+end subroutine fmm_m2m_ztranslate_work
 
 !> Rotate spherical harmonics around OZ axis
 !!
@@ -485,15 +487,16 @@ end subroutine fmm_m2m_ztranslate_work
 !! @param[in] src: Coefficients of initial spherical harmonics
 !! @param[in] beta: Scalar multipler for `dst`
 !! @param[inout] dst: Coefficients of rotated spherical harmonics
-subroutine fmm_sph_rotate_oz_work(p, vcos, vsin, alpha, src, beta, dst)
+subroutine fmm_sph_rotate_oz_work(p, nrhs, vcos, vsin, alpha, src, beta, dst)
     ! Inputs
-    integer, intent(in) :: p
-    real(rp), intent(in) :: vcos(p+1), vsin(p+1), alpha, src((p+1)*(p+1)), beta
+    integer, intent(in) :: p, nrhs
+    real(rp), intent(in) :: vcos(p+1), vsin(p+1), alpha, src((p+1)*(p+1), nrhs), beta
     ! Output
-    real(rp), intent(inout) :: dst((p+1)*(p+1))
+    real(rp), intent(inout) :: dst((p+1)*(p+1), nrhs)
     ! Local variables
     integer :: l, m, ind
-    real(rp) :: v1, v2, v3, v4
+    real(rp) :: v3, v4
+    real(rp) :: v1(nrhs), v2(nrhs)
     ! In case alpha is 0.0 just scale output
     if (abs(alpha) < eps_rp) then
         ! Set output to 0.0 if beta is also 0.0
@@ -509,46 +512,46 @@ subroutine fmm_sph_rotate_oz_work(p, vcos, vsin, alpha, src, beta, dst)
     ! In case beta is 0.0 output is just overwritten without being read
     if (abs(beta) < eps_rp) then
         ! l = 0
-        dst(1) = alpha*src(1)
+        dst(1,:) = alpha*src(1,:)
         ! l > 0
         !!GCC$ unroll 4
         do l = 1, p
             ind = l*l + l + 1
             ! m = 0
-            dst(ind) = alpha*src(ind)
+            dst(ind,:) = alpha*src(ind,:)
             ! m != 0
             !!GCC$ unroll 4
             do m = 1, l
-                v1 = src(ind+m)
-                v2 = src(ind-m)
+                v1 = src(ind+m,:)
+                v2 = src(ind-m,:)
                 v3 = vcos(1+m)
                 v4 = vsin(1+m)
                 ! m > 0
-                dst(ind+m) = alpha * (v1*v3-v2*v4)
+                dst(ind+m,:) = alpha * (v1*v3-v2*v4)
                 ! m < 0
-                dst(ind-m) = alpha * (v1*v4+v2*v3)
+                dst(ind-m,:) = alpha * (v1*v4+v2*v3)
             end do
         end do
     else
         ! l = 0
-        dst(1) = beta*dst(1) + alpha*src(1)
+        dst(1,:) = beta*dst(1,:) + alpha*src(1,:)
         ! l > 0
         !!GCC$ unroll 4
         do l = 1, p
             ind = l*l + l + 1
             ! m = 0
-            dst(ind) = beta*dst(ind) + alpha*src(ind)
+            dst(ind,:) = beta*dst(ind,:) + alpha*src(ind,:)
             ! m != 0
             !!GCC$ unroll 4
             do m = 1, l
-                v1 = src(ind+m)
-                v2 = src(ind-m)
+                v1 = src(ind+m,:)
+                v2 = src(ind-m,:)
                 v3 = vcos(1+m)
                 v4 = vsin(1+m)
                 ! m > 0
-                dst(ind+m) = beta*dst(ind+m) + alpha*(v1*v3-v2*v4)
+                dst(ind+m,:) = beta*dst(ind+m,:) + alpha*(v1*v3-v2*v4)
                 ! m < 0
-                dst(ind-m) = beta*dst(ind-m) + alpha*(v1*v4+v2*v3)
+                dst(ind-m,:) = beta*dst(ind-m,:) + alpha*(v1*v4+v2*v3)
             end do
         end do
     end if
@@ -619,19 +622,28 @@ end subroutine fmm_sph_rotate_oz_work
 !! @param[in] beta: Scalar multipler for `dst`
 !! @param[out] dst: coefficients of rotated spherical harmonics
 !! @param[out] work: Temporary workspace of a size (2*(2*p+1)*(2*p+3))
-    subroutine fmm_sph_rotate_oxz_work(p, ctheta, stheta, alpha, src, beta, dst, &
-        & work)
+    subroutine fmm_sph_rotate_oxz_work(p, nrhs, ctheta, stheta, alpha, src, beta, dst, &
+        & work, rstack_out)
     ! Inputs
-    integer, intent(in) :: p
-    real(rp), intent(in) :: ctheta, stheta, alpha, src((p+1)**2), beta
+    integer, intent(in) :: p, nrhs
+    real(rp), intent(in) :: ctheta, stheta, alpha, src((p+1)**2, nrhs), beta
     ! Output
-    real(rp), intent(out) :: dst((p+1)*(p+1))
+    real(rp), intent(out) :: dst((p+1)*(p+1), nrhs)
     ! Temporary workspace
     real(rp), intent(out), target :: work(4*p*p+13*p+4)
+    ! Optional output: if present, the per-degree (l=2..p) rotation-matrix
+    ! blocks built along the way are additionally stashed here (flat, sized
+    ! oxz_rot_cache_size(p)), on top of the usual dst computation below --
+    ! this does NOT change dst in any way, it is a pure side effect meant to
+    ! let a caller cache the (purely geometric, source-independent) rotation
+    ! operator for reuse via fmm_sph_rotate_oxz_apply_cached, without having
+    ! to duplicate this recursion in a separate "build-only" routine.
+    real(rp), intent(out), optional :: rstack_out(:)
     ! Local variables
-    real(rp) :: u, v, w, fl, fl2, tmp1, tmp2, vu(2), vv(2), vw(2), &
+    real(rp) :: u, v, w, fl, fl2, vu(2), vv(2), vw(2), &
         ctheta2, stheta2, cstheta
-    integer :: l, m, n, ind
+    real(rp) :: tmp1(nrhs), tmp2(nrhs)
+    integer :: l, m, n, ind, rsoff, rssz
     ! Pointers for a workspace
     real(rp), pointer :: r(:, :, :), r_prev(:, :, :), scal_uvw_m(:), &
         & scal_u_n(:), scal_v_n(:), scal_w_n(:), r_swap(:, :, :), vsqr(:)
@@ -656,14 +668,14 @@ end subroutine fmm_sph_rotate_oz_work
     if (abs(beta) < eps_rp) then
         ! Compute rotations/reflections
         ! l = 0
-        dst(1) = alpha * src(1)
+        dst(1,:) = alpha * src(1,:)
         if (p .eq. 0) then
             return
         end if
         ! l = 1
-        dst(2) = alpha * src(2)
-        dst(3) = alpha * (src(3)*ctheta - src(4)*stheta)
-        dst(4) = alpha * (src(3)*stheta + src(4)*ctheta)
+        dst(2,:) = alpha * src(2,:)
+        dst(3,:) = alpha * (src(3,:)*ctheta - src(4,:)*stheta)
+        dst(4,:) = alpha * (src(3,:)*stheta + src(4,:)*ctheta)
         if (p .eq. 1) then
             return
         end if
@@ -682,6 +694,7 @@ end subroutine fmm_sph_rotate_oz_work
         scal_w_n(1:p-2) => work(l+1:m)
         l = m + p
         vsqr(1:p) => work(m+1:l)
+        rsoff = 0
         ! l = 2, m >= 0
         ctheta2 = ctheta * ctheta
         cstheta = ctheta * stheta
@@ -689,25 +702,30 @@ end subroutine fmm_sph_rotate_oz_work
         r(1, 2, 2) = (ctheta2 + 1.0) / 2.0
         r(1, 1, 2) = cstheta
         r(1, 0, 2) = sqrt(3.0) / 2.0 * stheta2
-        dst(9) = alpha * (src(9)*r(1, 2, 2) + src(8)*r(1, 1, 2) + &
-            & src(7)*r(1, 0, 2))
+        dst(9,:) = alpha * (src(9,:)*r(1, 2, 2) + src(8,:)*r(1, 1, 2) + &
+            & src(7,:)*r(1, 0, 2))
         r(1, 2, 1) = -cstheta
         r(1, 1, 1) = ctheta2 - stheta2
         r(1, 0, 1) = sqrt(3.0) * cstheta
-        dst(8) = alpha * (src(9)*r(1, 2, 1) + src(8)*r(1, 1, 1) + &
-            & src(7)*r(1, 0, 1))
+        dst(8,:) = alpha * (src(9,:)*r(1, 2, 1) + src(8,:)*r(1, 1, 1) + &
+            & src(7,:)*r(1, 0, 1))
         r(1, 2, 0) = sqrt(3.0) / 2.0 * stheta2
         r(1, 1, 0) = -sqrt(3.0) * cstheta
         r(1, 0, 0) = (3.0*ctheta2-1.0) / 2.0
-        dst(7) = alpha * (src(9)*r(1, 2, 0) + src(8)*r(1, 1, 0) + &
-            & src(7)*r(1, 0, 0))
+        dst(7,:) = alpha * (src(9,:)*r(1, 2, 0) + src(8,:)*r(1, 1, 0) + &
+            & src(7,:)*r(1, 0, 0))
         ! l = 2,  m < 0
         r(2, 1, 1) = ctheta
         r(2, 2, 1) = -stheta
-        dst(6) = alpha * (src(6)*r(2, 1, 1) + src(5)*r(2, 2, 1))
+        dst(6,:) = alpha * (src(6,:)*r(2, 1, 1) + src(5,:)*r(2, 2, 1))
         r(2, 1, 2) = stheta
         r(2, 2, 2) = ctheta
-        dst(5) = alpha * (src(6)*r(2, 1, 2) + src(5)*r(2, 2, 2))
+        dst(5,:) = alpha * (src(6,:)*r(2, 1, 2) + src(5,:)*r(2, 2, 2))
+        if(present(rstack_out)) then
+            rssz = 2*3*3
+            rstack_out(rsoff+1:rsoff+rssz) = reshape(r(1:2,0:2,0:2), [rssz])
+            rsoff = rsoff + rssz
+        end if
         ! l > 2
         vsqr(1) = 1.0
         vsqr(2) = 4.0
@@ -755,14 +773,14 @@ end subroutine fmm_sph_rotate_oz_work
             ! m = l, n = l and m = -l, n = - l
             vv = ctheta*r_prev(:, l-1, l-1) + r_prev(2:1:-1, l-1, l-1)
             r(:, l, l) = vv * scal_v_n(l) * scal_uvw_m(l)
-            tmp1 = src(ind+l) * r(1, l, l)
-            tmp2 = src(ind-l) * r(2, l, l)
+            tmp1 = src(ind+l,:) * r(1, l, l)
+            tmp2 = src(ind-l,:) * r(2, l, l)
             ! m = l, n = l-1 and m = -l, n = 1-l
             vu = stheta * r_prev(:, l-1, l-1)
             vv = ctheta*r_prev(:, l-2, l-1) + r_prev(2:1:-1, l-2, l-1)
             r(:, l-1, l) = (vu*scal_u_n(l-1)+vv*scal_v_n(l-1)) * scal_uvw_m(l)
-            tmp1 = tmp1 + src(ind+l-1)*r(1, l-1, l)
-            tmp2 = tmp2 + src(ind-l+1)*r(2, l-1, l)
+            tmp1 = tmp1 + src(ind+l-1,:)*r(1, l-1, l)
+            tmp2 = tmp2 + src(ind-l+1,:)*r(2, l-1, l)
             ! m = l, n = 1 and m = -l, n = -1
             vu = stheta * r_prev(:, 1, l-1)
             vv(1) = ctheta * r_prev(1, 0, l-1)
@@ -770,13 +788,13 @@ end subroutine fmm_sph_rotate_oz_work
             vw = ctheta*r_prev(:, 2, l-1) - r_prev(2:1:-1, 2, l-1)
             r(:, 1, l) = vu*scal_u_n(1) + vw*scal_w_n(1) + sqrt(2.0)*scal_v_n(1)*vv
             r(:, 1, l) = r(:, 1, l) * scal_uvw_m(l)
-            tmp1 = tmp1 + src(ind+1)*r(1, 1, l)
-            tmp2 = tmp2 + src(ind-1)*r(2, 1, l)
+            tmp1 = tmp1 + src(ind+1,:)*r(1, 1, l)
+            tmp2 = tmp2 + src(ind-1,:)*r(2, 1, l)
             ! m = l, n = 0
             u = stheta * r_prev(1, 0, l-1)
             v = ctheta*r_prev(1, 1, l-1) - r_prev(2, 1, l-1)
             r(1, 0, l) = (u*scal_u_n(0) + v*scal_v_n(0)) * scal_uvw_m(l)
-            tmp1 = tmp1 + src(ind)*r(1, 0, l)
+            tmp1 = tmp1 + src(ind,:)*r(1, 0, l)
             ! m = l, n = 2..l-2 and m = -l, n = 2-l..-2
             !!GCC$ unroll 4
             do n = 2, l-2
@@ -785,36 +803,36 @@ end subroutine fmm_sph_rotate_oz_work
                 vw = ctheta*r_prev(:, n+1, l-1) - r_prev(2:1:-1, n+1, l-1)
                 vu = vu*scal_u_n(n) + vv*scal_v_n(n) + vw*scal_w_n(n)
                 r(:, n, l) = vu * scal_uvw_m(l)
-                tmp1 = tmp1 + src(ind+n)*r(1, n, l)
-                tmp2 = tmp2 + src(ind-n)*r(2, n, l)
+                tmp1 = tmp1 + src(ind+n,:)*r(1, n, l)
+                tmp2 = tmp2 + src(ind-n,:)*r(2, n, l)
             end do
-            dst(ind+l) = alpha * tmp1
-            dst(ind-l) = alpha * tmp2
+            dst(ind+l,:) = alpha * tmp1
+            dst(ind-l,:) = alpha * tmp2
             ! Now deal with m = 0
             ! n = l and n = -l
             v = -stheta * r_prev(1, l-1, 0)
             u = scal_v_n(l) * scal_uvw_m(0)
             r(1, l, 0) = v * u
-            tmp1 = src(ind+l) * r(1, l, 0)
+            tmp1 = src(ind+l,:) * r(1, l, 0)
             ! n = l-1
             u = ctheta * r_prev(1, l-1, 0)
             v = -stheta * r_prev(1, l-2, 0)
             w = u*scal_u_n(l-1) + v*scal_v_n(l-1)
             r(1, l-1, 0) = w * scal_uvw_m(0)
-            tmp1 = tmp1 + src(ind+l-1)*r(1, l-1, 0)
+            tmp1 = tmp1 + src(ind+l-1,:)*r(1, l-1, 0)
             ! n = 0
             u = ctheta * r_prev(1, 0, 0)
             v = -stheta * r_prev(1, 1, 0)
             w = u*scal_u_n(0) + v*scal_v_n(0)
             r(1, 0, 0) = w * scal_uvw_m(0)
-            tmp1 = tmp1 + src(ind)*r(1, 0, 0)
+            tmp1 = tmp1 + src(ind,:)*r(1, 0, 0)
             ! n = 1
             v = sqrt(2.0)*scal_v_n(1)*r_prev(1, 0, 0) + &
                 & scal_w_n(1)*r_prev(1, 2, 0)
             u = ctheta * r_prev(1, 1, 0)
             w = scal_u_n(1)*u - stheta*v
             r(1, 1, 0) = w * scal_uvw_m(0)
-            tmp1 = tmp1 + src(ind+1)*r(1, 1, 0)
+            tmp1 = tmp1 + src(ind+1,:)*r(1, 1, 0)
             ! n = 2..l-2
             !!GCC$ unroll 4
             do n = 2, l-2
@@ -823,9 +841,9 @@ end subroutine fmm_sph_rotate_oz_work
                 u = ctheta * r_prev(1, n, 0)
                 w = scal_u_n(n)*u - stheta*v
                 r(1, n, 0) = w * scal_uvw_m(0)
-                tmp1 = tmp1 + src(ind+n)*r(1, n, 0)
+                tmp1 = tmp1 + src(ind+n,:)*r(1, n, 0)
             end do
-            dst(ind) = alpha * tmp1
+            dst(ind,:) = alpha * tmp1
             ! Now deal with m=1..l-1 and m=1-l..-1
             !!GCC$ unroll 4
             do m = 1, l-1
@@ -833,34 +851,34 @@ end subroutine fmm_sph_rotate_oz_work
                 vv = -stheta * r_prev(:, l-1, m)
                 u = scal_v_n(l) * scal_uvw_m(m)
                 r(:, l, m) = vv * u
-                tmp1 = src(ind+l) * r(1, l, m)
-                tmp2 = src(ind-l) * r(2, l, m)
+                tmp1 = src(ind+l,:) * r(1, l, m)
+                tmp2 = src(ind-l,:) * r(2, l, m)
                 ! n = l-1 and n = 1-l
                 vu = ctheta * r_prev(:, l-1, m)
                 vv = -stheta * r_prev(:, l-2, m)
                 vw = vu*scal_u_n(l-1) + vv*scal_v_n(l-1)
                 r(:, l-1, m) = vw * scal_uvw_m(m)
-                tmp1 = tmp1 + src(ind+l-1)*r(1, l-1, m)
-                tmp2 = tmp2 + src(ind-l+1)*r(2, l-1, m)
+                tmp1 = tmp1 + src(ind+l-1,:)*r(1, l-1, m)
+                tmp2 = tmp2 + src(ind-l+1,:)*r(2, l-1, m)
                 ! n = 0
                 u = ctheta * r_prev(1, 0, m)
                 v = -stheta * r_prev(1, 1, m)
                 w = u*scal_u_n(0) + v*scal_v_n(0)
                 r(1, 0, m) = w * scal_uvw_m(m)
-                tmp1 = tmp1 + src(ind)*r(1, 0, m)
+                tmp1 = tmp1 + src(ind,:)*r(1, 0, m)
                 ! n = 1
                 v = sqrt(2.0)*scal_v_n(1)*r_prev(1, 0, m) + &
                     & scal_w_n(1)*r_prev(1, 2, m)
                 u = ctheta * r_prev(1, 1, m)
                 w = scal_u_n(1)*u - stheta*v
                 r(1, 1, m) = w * scal_uvw_m(m)
-                tmp1 = tmp1 + src(ind+1)*r(1, 1, m)
+                tmp1 = tmp1 + src(ind+1,:)*r(1, 1, m)
                 ! n = -1
                 u = ctheta * r_prev(2, 1, m)
                 w = -stheta * r_prev(2, 2, m)
                 v = u*scal_u_n(1) + w*scal_w_n(1)
                 r(2, 1, m) = v * scal_uvw_m(m)
-                tmp2 = tmp2 + src(ind-1)*r(2, 1, m)
+                tmp2 = tmp2 + src(ind-1,:)*r(2, 1, m)
                 ! n = 2..l-2 and n = 2-l..-2
                 !!GCC$ unroll 4
                 do n = 2, l-2
@@ -869,17 +887,153 @@ end subroutine fmm_sph_rotate_oz_work
                     vu = ctheta * r_prev(:, n, m)
                     vw = scal_u_n(n)*vu - stheta*vv
                     r(:, n, m) = vw * scal_uvw_m(m)
-                    tmp1 = tmp1 + src(ind+n)*r(1, n, m)
-                    tmp2 = tmp2 + src(ind-n)*r(2, n, m)
+                    tmp1 = tmp1 + src(ind+n,:)*r(1, n, m)
+                    tmp2 = tmp2 + src(ind-n,:)*r(2, n, m)
                 end do
-                dst(ind+m) = alpha * tmp1
-                dst(ind-m) = alpha * tmp2
+                dst(ind+m,:) = alpha * tmp1
+                dst(ind-m,:) = alpha * tmp2
             end do
+            if(present(rstack_out)) then
+                rssz = 2*(l+1)*(l+1)
+                rstack_out(rsoff+1:rsoff+rssz) = reshape(r(1:2,0:l,0:l), [rssz])
+                rsoff = rsoff + rssz
+            end if
         end do
     else
         stop "Not Implemented"
     end if
 end subroutine fmm_sph_rotate_oxz_work
+
+!> Number of real(rp) elements needed to store the full per-degree (l=2..p)
+!! rotation-matrix stack built as a side effect by fmm_sph_rotate_oxz_work
+!! (via its optional rstack_out argument) and consumed by
+!! fmm_sph_rotate_oxz_apply_cached.
+!!
+!! Rotations do not mix spherical harmonics of different degree l (Wigner-D
+!! matrices are block-diagonal in l), so the full operator for degrees 0..p
+!! is a stack of independent per-degree blocks of size 2*(l+1)**2 (degrees
+!! 0 and 1 are trivial and are not stored, see fmm_sph_rotate_oxz_work).
+!! This is unavoidably O(p**3) in total, unlike the O(p**2) needed for a
+!! single degree -- this is the number a caller must check against a memory
+!! budget before deciding to cache rotations across e.g. CG iterations.
+    pure function oxz_rot_cache_size(p) result(n)
+        integer, intent(in) :: p
+        integer :: n, l
+        n = 0
+        do l = 2, p
+            n = n + 2*(l+1)*(l+1)
+        end do
+    end function oxz_rot_cache_size
+
+!> Apply a previously-built (see fmm_sph_rotate_oxz_work's rstack_out
+!! argument) OXZ rotation-matrix stack to a new source vector, without
+!! rebuilding the O(p**3) rotation recursion. Reproduces exactly the same
+!! arithmetic, in the same order, as the alpha/=0, beta==0 branch of
+!! fmm_sph_rotate_oxz_work -- so results are bit-identical to a fresh call,
+!! as long as rstack was built with the same (p, ctheta, stheta) and this
+!! is called with the same alpha=1, beta=0 convention used by every
+!! existing caller of fmm_sph_rotate_oxz_work.
+!!
+!! @param[in] p: maximum order of spherical harmonics
+!! @param[in] ctheta, stheta: same direction the rstack was built for
+!! (only degrees 0,1 need them directly, see fmm_sph_rotate_oxz_work)
+!! @param[in] rstack: rotation-matrix stack, size oxz_rot_cache_size(p)
+    subroutine fmm_sph_rotate_oxz_apply_cached(p, nrhs, ctheta, stheta, rstack, &
+        & alpha, src, beta, dst)
+        integer, intent(in) :: p, nrhs
+        real(rp), intent(in) :: ctheta, stheta, alpha, src((p+1)**2, nrhs), beta
+        real(rp), intent(in), target :: rstack(oxz_rot_cache_size(p))
+        real(rp), intent(out) :: dst((p+1)*(p+1), nrhs)
+
+        real(rp), pointer :: r(:,:,:)
+        real(rp) :: tmp1(nrhs), tmp2(nrhs)
+        integer :: l, m, n, ind, rsoff, rssz
+
+        if (abs(alpha) < eps_rp) then
+            if (abs(beta) < eps_rp) then
+                dst = 0.0
+            else
+                dst = beta * dst
+            end if
+            return
+        end if
+        if (abs(beta) >= eps_rp) then
+            stop "Not Implemented"
+        end if
+
+        dst(1,:) = alpha * src(1,:)
+        if (p .eq. 0) return
+        dst(2,:) = alpha * src(2,:)
+        dst(3,:) = alpha * (src(3,:)*ctheta - src(4,:)*stheta)
+        dst(4,:) = alpha * (src(3,:)*stheta + src(4,:)*ctheta)
+        if (p .eq. 1) return
+
+        rsoff = 0
+        ! l = 2, using the stashed block (same formulas as the l=2 special
+        ! case in fmm_sph_rotate_oxz_work)
+        r(1:2,0:2,0:2) => rstack(rsoff+1:rsoff+2*3*3)
+        dst(9,:) = alpha * (src(9,:)*r(1, 2, 2) + src(8,:)*r(1, 1, 2) + &
+            & src(7,:)*r(1, 0, 2))
+        dst(8,:) = alpha * (src(9,:)*r(1, 2, 1) + src(8,:)*r(1, 1, 1) + &
+            & src(7,:)*r(1, 0, 1))
+        dst(7,:) = alpha * (src(9,:)*r(1, 2, 0) + src(8,:)*r(1, 1, 0) + &
+            & src(7,:)*r(1, 0, 0))
+        dst(6,:) = alpha * (src(6,:)*r(2, 1, 1) + src(5,:)*r(2, 2, 1))
+        dst(5,:) = alpha * (src(6,:)*r(2, 1, 2) + src(5,:)*r(2, 2, 2))
+        rsoff = rsoff + 2*3*3
+        if (p .eq. 2) return
+
+        do l = 3, p
+            rssz = 2*(l+1)*(l+1)
+            r(1:2,0:l,0:l) => rstack(rsoff+1:rsoff+rssz)
+            ind = l*l + l + 1
+
+            ! m = l, n = l and m = -l, n = -l ... down to n = 2..l-2
+            ! (same accumulation order as fmm_sph_rotate_oxz_work)
+            tmp1 = src(ind+l,:) * r(1, l, l)
+            tmp2 = src(ind-l,:) * r(2, l, l)
+            tmp1 = tmp1 + src(ind+l-1,:)*r(1, l-1, l)
+            tmp2 = tmp2 + src(ind-l+1,:)*r(2, l-1, l)
+            tmp1 = tmp1 + src(ind+1,:)*r(1, 1, l)
+            tmp2 = tmp2 + src(ind-1,:)*r(2, 1, l)
+            tmp1 = tmp1 + src(ind,:)*r(1, 0, l)
+            do n = 2, l-2
+                tmp1 = tmp1 + src(ind+n,:)*r(1, n, l)
+                tmp2 = tmp2 + src(ind-n,:)*r(2, n, l)
+            end do
+            dst(ind+l,:) = alpha * tmp1
+            dst(ind-l,:) = alpha * tmp2
+
+            ! m = 0
+            tmp1 = src(ind+l,:) * r(1, l, 0)
+            tmp1 = tmp1 + src(ind+l-1,:)*r(1, l-1, 0)
+            tmp1 = tmp1 + src(ind,:)*r(1, 0, 0)
+            tmp1 = tmp1 + src(ind+1,:)*r(1, 1, 0)
+            do n = 2, l-2
+                tmp1 = tmp1 + src(ind+n,:)*r(1, n, 0)
+            end do
+            dst(ind,:) = alpha * tmp1
+
+            ! m = 1..l-1 and m = 1-l..-1
+            do m = 1, l-1
+                tmp1 = src(ind+l,:) * r(1, l, m)
+                tmp2 = src(ind-l,:) * r(2, l, m)
+                tmp1 = tmp1 + src(ind+l-1,:)*r(1, l-1, m)
+                tmp2 = tmp2 + src(ind-l+1,:)*r(2, l-1, m)
+                tmp1 = tmp1 + src(ind,:)*r(1, 0, m)
+                tmp1 = tmp1 + src(ind+1,:)*r(1, 1, m)
+                tmp2 = tmp2 + src(ind-1,:)*r(2, 1, m)
+                do n = 2, l-2
+                    tmp1 = tmp1 + src(ind+n,:)*r(1, n, m)
+                    tmp2 = tmp2 + src(ind-n,:)*r(2, n, m)
+                end do
+                dst(ind+m,:) = alpha * tmp1
+                dst(ind-m,:) = alpha * tmp2
+            end do
+
+            rsoff = rsoff + rssz
+        end do
+    end subroutine fmm_sph_rotate_oxz_apply_cached
 
 !> Rotate spherical harmonics around OZ axis in an opposite direction
 !!
@@ -902,15 +1056,16 @@ end subroutine fmm_sph_rotate_oxz_work
 !! @param[in] src: Coefficients of initial spherical harmonics
 !! @param[in] beta: Scalar multipler for `dst`
 !! @param[inout] dst: Coefficients of rotated spherical harmonics
-    subroutine fmm_sph_rotate_oz_adj_work(p, vcos, vsin, alpha, src, beta, dst)
+    subroutine fmm_sph_rotate_oz_adj_work(p, nrhs, vcos, vsin, alpha, src, beta, dst)
         ! Inputs
-        integer, intent(in) :: p
-        real(rp), intent(in) :: vcos(p+1), vsin(p+1), alpha, src((p+1)*(p+1)), beta
+        integer, intent(in) :: p, nrhs
+        real(rp), intent(in) :: vcos(p+1), vsin(p+1), alpha, src((p+1)*(p+1), nrhs), beta
         ! Output
-        real(rp), intent(inout) :: dst((p+1)*(p+1))
+        real(rp), intent(inout) :: dst((p+1)*(p+1), nrhs)
         ! Local variables
         integer :: l, m, ind
-        real(rp) :: v1, v2, v3, v4
+        real(rp) :: v3, v4
+        real(rp) :: v1(nrhs), v2(nrhs)
         ! In case alpha is 0.0 just scale output
         if (abs(alpha) < eps_rp) then
             ! Set output to 0.0 if beta is also 0.0
@@ -926,42 +1081,42 @@ end subroutine fmm_sph_rotate_oxz_work
         ! In case beta is 0.0 output is just overwritten without being read
         if (abs(beta) < eps_rp) then
             ! l = 0
-            dst(1) = alpha*src(1)
+            dst(1,:) = alpha*src(1,:)
             ! l > 0
             do l = 1, p
                 ind = l*l + l + 1
                 ! m = 0
-                dst(ind) = alpha*src(ind)
+                dst(ind,:) = alpha*src(ind,:)
                 ! m != 0
                 do m = 1, l
-                    v1 = src(ind+m)
-                    v2 = src(ind-m)
+                    v1 = src(ind+m,:)
+                    v2 = src(ind-m,:)
                     v3 = vcos(1+m)
                     v4 = vsin(1+m)
                     ! m > 0
-                    dst(ind+m) = alpha * (v1*v3+v2*v4)
+                    dst(ind+m,:) = alpha * (v1*v3+v2*v4)
                     ! m < 0
-                    dst(ind-m) = alpha * (v2*v3-v1*v4)
+                    dst(ind-m,:) = alpha * (v2*v3-v1*v4)
                 end do
             end do
         else
             ! l = 0
-            dst(1) = beta*dst(1) + alpha*src(1)
+            dst(1,:) = beta*dst(1,:) + alpha*src(1,:)
             ! l > 0
             do l = 1, p
                 ind = l*l + l + 1
                 ! m = 0
-                dst(ind) = beta*dst(ind) + alpha*src(ind)
+                dst(ind,:) = beta*dst(ind,:) + alpha*src(ind,:)
                 ! m != 0
                 do m = 1, l
-                    v1 = src(ind+m)
-                    v2 = src(ind-m)
+                    v1 = src(ind+m,:)
+                    v2 = src(ind-m,:)
                     v3 = vcos(1+m)
                     v4 = vsin(1+m)
                     ! m > 0
-                    dst(ind+m) = beta*dst(ind+m) + alpha*(v1*v3+v2*v4)
+                    dst(ind+m,:) = beta*dst(ind+m,:) + alpha*(v1*v3+v2*v4)
                     ! m < 0
-                    dst(ind-m) = beta*dst(ind-m) + alpha*(v2*v3-v1*v4)
+                    dst(ind-m,:) = beta*dst(ind-m,:) + alpha*(v2*v3-v1*v4)
                 end do
             end do
         end if
@@ -991,22 +1146,23 @@ end subroutine fmm_sph_rotate_oxz_work
 !! @param[in] beta: Scalar multipler for `dst_l`
 !! @param[inout] dst_l: Expansion in new (local) harmonics
 !! @param[out] work: Temporary workspace of a size (pm+2)*(pm+1)
-subroutine fmm_m2l_ztranslate_work(z, pm, pl, vscales, &
+subroutine fmm_m2l_ztranslate_work(z, pm, pl, nrhs, vscales, &
     & m2l_ztranslate_coef, alpha, src_m, beta, dst_l, work)
 ! Inputs
-integer, intent(in) :: pm, pl
+integer, intent(in) :: pm, pl, nrhs
 real(rp), intent(in) :: z, vscales((pm+pl+1)*(pm+pl+1)), &
-    & m2l_ztranslate_coef(pm+1, pl+1, pl+1), alpha, src_m((pm+1)*(pm+1)), &
+    & m2l_ztranslate_coef(pm+1, pl+1, pl+1), alpha, src_m((pm+1)*(pm+1), nrhs), &
     & beta
 ! Output
-real(rp), intent(inout) :: dst_l((pl+1)*(pl+1))
+real(rp), intent(inout) :: dst_l((pl+1)*(pl+1), nrhs)
 ! Temporary workspace
-real(rp), intent(out), target :: work((pm+2)*(pm+1))
+real(rp), intent(out), target :: work((pm+2)*(pm+1)*nrhs)
 ! Local variables
-real(rp) :: tmp1, r1, r2, res1, res2, pow_r2
+real(rp) :: tmp1, r1, r2, pow_r2
+real(rp) :: res1(nrhs), res2(nrhs)
 integer :: j, k, n, indj, indk1, indk2
 ! Pointers for temporary values of powers
-real(rp), pointer :: src_m2(:), pow_r1(:)
+real(rp), pointer :: src_m2(:,:), pow_r1(:)
 ! In case alpha is 0.0_rp just do a proper scaling of output
 if (abs(alpha) < eps_rp) then
     if (abs(beta) < eps_rp) then
@@ -1024,8 +1180,8 @@ if (abs(z) < eps_rp) then
 end if
 ! Prepare pointers
 n = (pm+1) ** 2
-src_m2(1:n) => work(1:n)
-pow_r1(1:pm+1) => work(n+1:n+pm+1)
+src_m2(1:n,1:nrhs) => work(1:n*nrhs)
+pow_r1(1:pm+1) => work(n*nrhs+1:n*nrhs+pm+1)
 ! Get powers of r1 and r2
 r1 = 1.0_rp / z
 r2 = 1.0_rp / z
@@ -1042,7 +1198,7 @@ pow_r2 = 1.0_rp
 ! 0.0_rp order k=0 at first
 do j = 0, pm
     indj = j*j + j + 1
-    src_m2(j+1) = pow_r1(j+1) * src_m(indj)
+    src_m2(j+1,:) = pow_r1(j+1) * src_m(indj,:)
 end do
 ! Non-0.0_rp orders next, a positive k followed by a negative -k
 indk1 = pm + 2
@@ -1052,8 +1208,8 @@ do k = 1, pm
     !!GCC$ unroll 4
     do j = k, pm
         indj = j*j + j + 1
-        src_m2(indk1+j-k) = pow_r1(j+1) * src_m(indj+k)
-        src_m2(indk2+j-k) = pow_r1(j+1) * src_m(indj-k)
+        src_m2(indk1+j-k,:) = pow_r1(j+1) * src_m(indj+k,:)
+        src_m2(indk2+j-k,:) = pow_r1(j+1) * src_m(indj-k,:)
     end do
     indk1 = indk2 + n
 end do
@@ -1069,9 +1225,9 @@ if (abs(beta) < eps_rp) then
         res1 = 0.0_rp
         !!GCC$ unroll 4
         do n = 0, pm
-            res1 = res1 + m2l_ztranslate_coef(n+1, 1, j+1)*src_m2(n+1)
+            res1 = res1 + m2l_ztranslate_coef(n+1, 1, j+1)*src_m2(n+1,:)
         end do
-        dst_l(indj) = tmp1 * res1
+        dst_l(indj,:) = tmp1 * res1
         ! k != 0
         !!GCC$ unroll 4
         do k = 1, j
@@ -1084,13 +1240,13 @@ if (abs(beta) < eps_rp) then
             do n = k, pm
                 res1 = res1 + &
                     & m2l_ztranslate_coef(n-k+1, k+1, j-k+1)* &
-                    & src_m2(indk1+n-k)
+                    & src_m2(indk1+n-k,:)
                 res2 = res2 + &
                     & m2l_ztranslate_coef(n-k+1, k+1, j-k+1)* &
-                    & src_m2(indk2+n-k)
+                    & src_m2(indk2+n-k,:)
             end do
-            dst_l(indj+k) = tmp1 * res1
-            dst_l(indj-k) = tmp1 * res2
+            dst_l(indj+k,:) = tmp1 * res1
+            dst_l(indj-k,:) = tmp1 * res2
         end do
     end do
 else
@@ -1102,9 +1258,9 @@ else
         pow_r2 = pow_r2 * r2
         res1 = 0.0_rp
         do n = 0, pm
-            res1 = res1 + m2l_ztranslate_coef(n+1, 1, j+1)*src_m2(n+1)
+            res1 = res1 + m2l_ztranslate_coef(n+1, 1, j+1)*src_m2(n+1,:)
         end do
-        dst_l(indj) = beta*dst_l(indj) + tmp1*res1
+        dst_l(indj,:) = beta*dst_l(indj,:) + tmp1*res1
         ! k != 0
         do k = 1, j
             ! Offsets for src_m2
@@ -1115,13 +1271,13 @@ else
             do n = k, pm
                 res1 = res1 + &
                     & m2l_ztranslate_coef(n-k+1, k+1, j-k+1)* &
-                    & src_m2(indk1+n-k)
+                    & src_m2(indk1+n-k,:)
                 res2 = res2 + &
                     & m2l_ztranslate_coef(n-k+1, k+1, j-k+1)* &
-                    & src_m2(indk2+n-k)
+                    & src_m2(indk2+n-k,:)
             end do
-            dst_l(indj+k) = beta*dst_l(indj+k) + tmp1*res1
-            dst_l(indj-k) = beta*dst_l(indj-k) + tmp1*res2
+            dst_l(indj+k,:) = beta*dst_l(indj+k,:) + tmp1*res1
+            dst_l(indj-k,:) = beta*dst_l(indj-k,:) + tmp1*res2
         end do
     end do
 end if
@@ -1150,14 +1306,14 @@ end subroutine fmm_m2l_ztranslate_work
 !! @param[in] beta: Scalar multipler for `dst_l`
 !! @param[inout] dst_l: Expansion in new harmonics
 !! @param[out] work: Temporary workspace of a size (2*(p+1))
-subroutine fmm_l2l_ztranslate_work(z, p, vscales, vfact, alpha, &
+subroutine fmm_l2l_ztranslate_work(z, p, nrhs, vscales, vfact, alpha, &
     & src_l, beta, dst_l, work)
     ! Inputs
-    integer, intent(in) :: p
+    integer, intent(in) :: p, nrhs
     real(rp), intent(in) :: z, vscales((p+1)*(p+1)), &
-        & vfact(2*p+1), alpha, src_l((p+1)*(p+1)), beta
+        & vfact(2*p+1), alpha, src_l((p+1)*(p+1), nrhs), beta
     ! Output
-    real(rp), intent(inout) :: dst_l((p+1)*(p+1))
+    real(rp), intent(inout) :: dst_l((p+1)*(p+1), nrhs)
     ! Temporary workspace
     real(rp), intent(out), target :: work(2*(p+1))
     ! Local variables
@@ -1200,10 +1356,10 @@ subroutine fmm_l2l_ztranslate_work(z, p, vscales, vfact, alpha, &
                         tmp2 = -tmp2
                     end if
                     if (k .eq. 0) then
-                        dst_l(indj) = dst_l(indj) + tmp2*src_l(indn)
+                        dst_l(indj,:) = dst_l(indj,:) + tmp2*src_l(indn,:)
                     else
-                        dst_l(indj+k) = dst_l(indj+k) + tmp2*src_l(indn+k)
-                        dst_l(indj-k) = dst_l(indj-k) + tmp2*src_l(indn-k)
+                        dst_l(indj+k,:) = dst_l(indj+k,:) + tmp2*src_l(indn+k,:)
+                        dst_l(indj-k,:) = dst_l(indj-k,:) + tmp2*src_l(indn-k,:)
                     end if
                 end do
             end do
@@ -1214,7 +1370,7 @@ subroutine fmm_l2l_ztranslate_work(z, p, vscales, vfact, alpha, &
         do j = 0, p
             indj = j*j + j + 1
             do k = indj-j, indj+j
-                dst_l(k) = dst_l(k) + src_l(k)*tmp1
+                dst_l(k,:) = dst_l(k,:) + src_l(k,:)*tmp1
             end do
             tmp1 = tmp1
         end do
@@ -1247,56 +1403,87 @@ end subroutine fmm_l2l_ztranslate_work
 !! @param[in] beta: Scalar multiplier for `dst_m`
 !! @param[inout] dst_m: Expansion in new harmonics
 !! @param[out] work: Temporary workspace of a size 6*p*p+19*p+8
-subroutine fmm_m2m_rotation_work(c, p, vscales, vcnk, alpha, &
-    & src_m, beta, dst_m, work)
+subroutine fmm_m2m_rotation_work(c, p, nrhs, vscales, vcnk, alpha, &
+    & src_m, beta, dst_m, work, rstack_fwd, rstack_bwd, cache_built)
     ! Inputs
-    integer, intent(in) :: p
+    integer, intent(in) :: p, nrhs
     real(rp), intent(in) :: c(3), vscales((p+1)*(p+1)), &
-        & vcnk((2*p+1)*(p+1)), alpha, src_m((p+1)*(p+1)), beta
+        & vcnk((2*p+1)*(p+1)), alpha, src_m((p+1)*(p+1), nrhs), beta
     ! Output
-    real(rp), intent(inout) :: dst_m((p+1)*(p+1))
+    real(rp), intent(inout) :: dst_m((p+1)*(p+1), nrhs)
     ! Temporary workspace
-    real(rp), intent(out), target :: work(6*p*p + 19*p + 8)
+    real(rp), intent(out), target :: work(4*p*p+13*p+4 + 2*(p+1)*(p+1)*nrhs + 2*(p+1))
+    ! Optional node-pair rotation-matrix cache (see fmm_sph_rotate_oxz_work's
+    ! rstack_out and fmm_sph_rotate_oxz_apply_cached): when all three are
+    ! present, the O(p**3) OXZ-rotation build is skipped in favor of a cheap
+    ! replay from rstack_fwd/rstack_bwd whenever cache_built is .true.; when
+    ! cache_built is .false. the normal build runs and additionally stashes
+    ! its result into rstack_fwd/rstack_bwd for later reuse. Geometry (c)
+    ! must not have changed since the cache was built.
+    real(rp), intent(inout), optional :: rstack_fwd(:), rstack_bwd(:)
+    logical, intent(in), optional :: cache_built
     ! Local variables
     real(rp) :: rho, ctheta, stheta, cphi, sphi
     integer :: m, n
+    logical :: use_cache
     ! Pointers for temporary values of harmonics
-    real(rp), pointer :: tmp_m(:), tmp_m2(:), vcos(:), vsin(:)
+    real(rp), pointer :: tmp_m(:,:), tmp_m2(:,:), vcos(:), vsin(:)
     ! Convert Cartesian coordinates into spherical
     call carttosph(c, rho, ctheta, stheta, cphi, sphi)
     ! If no need for rotations, just do translation along z
     if (abs(stheta) < eps_rp) then
         ! Workspace here is 2*(p+1)
-        call fmm_m2m_ztranslate_work(c(3), p, vscales, vcnk, &
+        call fmm_m2m_ztranslate_work(c(3), p, nrhs, vscales, vcnk, &
             & alpha, src_m, beta, dst_m, work)
         return
     end if
+    use_cache = present(rstack_fwd) .and. present(rstack_bwd) .and. present(cache_built)
     ! Prepare pointers
     m = (p+1)**2
     n = 4*m + 5*p ! 4*p*p + 13*p + 4
-    tmp_m(1:m) => work(n+1:n+m) ! 5*p*p + 15*p + 5
-    n = n + m
-    tmp_m2(1:m) => work(n+1:n+m) ! 6*p*p + 17*p + 6
-    n = n + m
+    tmp_m(1:m,1:nrhs) => work(n+1:n+m*nrhs)
+    n = n + m*nrhs
+    tmp_m2(1:m,1:nrhs) => work(n+1:n+m*nrhs)
+    n = n + m*nrhs
     m = p + 1
-    vcos => work(n+1:n+m) ! 6*p*p + 18*p + 7
+    vcos => work(n+1:n+m)
     n = n + m
-    vsin => work(n+1:n+m) ! 6*p*p + 19*p + 8
+    vsin => work(n+1:n+m)
     ! Compute arrays of cos and sin that are needed for rotations of harmonics
     call trgev(cphi, sphi, p, vcos, vsin)
     ! Rotate around OZ axis (work array might appear in the future)
-    call fmm_sph_rotate_oz_adj_work(p, vcos, vsin, alpha, src_m, 0.0_rp, tmp_m)
+    call fmm_sph_rotate_oz_adj_work(p, nrhs, vcos, vsin, alpha, src_m, 0.0_rp, tmp_m)
     ! Perform rotation in the OXZ plane, work size is 4*p*p+13*p+4
-    call fmm_sph_rotate_oxz_work(p, ctheta, -stheta, 1.0_rp, tmp_m, 0.0_rp, &
-        & tmp_m2, work)
+    if(use_cache) then
+        if(cache_built) then
+            call fmm_sph_rotate_oxz_apply_cached(p, nrhs, ctheta, -stheta, rstack_fwd, &
+                & 1.0_rp, tmp_m, 0.0_rp, tmp_m2)
+        else
+            call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, -stheta, 1.0_rp, tmp_m, 0.0_rp, &
+                & tmp_m2, work, rstack_out=rstack_fwd)
+        end if
+    else
+        call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, -stheta, 1.0_rp, tmp_m, 0.0_rp, &
+            & tmp_m2, work)
+    end if
     ! OZ translation, workspace here is 2*(p+1)
-    call fmm_m2m_ztranslate_work(rho, p, vscales, vcnk, 1.0_rp, &
+    call fmm_m2m_ztranslate_work(rho, p, nrhs, vscales, vcnk, 1.0_rp, &
         & tmp_m2, 0.0_rp, tmp_m, work)
     ! Backward rotation in the OXZ plane, work size is 4*p*p+13*p+4
-    call fmm_sph_rotate_oxz_work(p, ctheta, stheta, 1.0_rp, tmp_m, 0.0_rp, tmp_m2, &
-        & work)
+    if(use_cache) then
+        if(cache_built) then
+            call fmm_sph_rotate_oxz_apply_cached(p, nrhs, ctheta, stheta, rstack_bwd, &
+                & 1.0_rp, tmp_m, 0.0_rp, tmp_m2)
+        else
+            call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, stheta, 1.0_rp, tmp_m, 0.0_rp, &
+                & tmp_m2, work, rstack_out=rstack_bwd)
+        end if
+    else
+        call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, stheta, 1.0_rp, tmp_m, 0.0_rp, tmp_m2, &
+            & work)
+    end if
     ! Backward rotation around OZ axis (work array might appear in the future)
-    call fmm_sph_rotate_oz_work(p, vcos, vsin, 1.0_rp, tmp_m2, beta, dst_m)
+    call fmm_sph_rotate_oz_work(p, nrhs, vcos, vsin, 1.0_rp, tmp_m2, beta, dst_m)
 end subroutine fmm_m2m_rotation_work
 
 !> Direct M2L translation by 4 rotations and 1 translation
@@ -1327,59 +1514,99 @@ end subroutine fmm_m2m_rotation_work
 !! @param[inout] dst_l: Expansion in new harmonics
 !! @param[out] work: Temporary workspace of a size 6*p*p+19*p+8 where p is a
 !!      maximum of pm and pl
-subroutine fmm_m2l_rotation_work(c, pm, pl, vscales, &
-    & m2l_ztranslate_coef, alpha, src_m, beta, dst_l, work)
+subroutine fmm_m2l_rotation_work(c, pm, pl, nrhs, vscales, &
+    & m2l_ztranslate_coef, alpha, src_m, beta, dst_l, work, &
+    & rstack_fwd, rstack_bwd, cache_built)
     ! Inputs
-    integer, intent(in) :: pm, pl
+    integer, intent(in) :: pm, pl, nrhs
     real(rp), intent(in) :: c(3), vscales((pm+pl+1)**2), &
-        & m2l_ztranslate_coef(pm+1, pl+1, pl+1), alpha, src_m((pm+1)*(pm+1)), &
+        & m2l_ztranslate_coef(pm+1, pl+1, pl+1), alpha, src_m((pm+1)*(pm+1), nrhs), &
         & beta
     ! Output
-    real(rp), intent(inout) :: dst_l((pl+1)*(pl+1))
+    real(rp), intent(inout) :: dst_l((pl+1)*(pl+1), nrhs)
     ! Temporary workspace
     real(rp), intent(out), target :: &
-        & work(6*max(pm, pl)**2 + 19*max(pm, pl) + 8)
+        & work(4*max(pm,pl)**2 + 13*max(pm,pl) + 4 + &
+        & 2*(max(pm,pl)+1)**2*nrhs + 2*(max(pm,pl)+1))
+    ! Optional node-pair rotation-matrix cache, see fmm_m2m_rotation_work
+    ! for the full explanation -- same idea, rstack_fwd is sized for degree
+    ! pm, rstack_bwd for degree pl (may differ from pm in general, even
+    ! though every current caller has pm==pl).
+    real(rp), intent(inout), optional :: rstack_fwd(:), rstack_bwd(:)
+    logical, intent(in), optional :: cache_built
     ! Local variables
     real(rp) :: rho, ctheta, stheta, cphi, sphi
     integer :: m, n, p
+    logical :: use_cache
     ! Pointers for temporary values of harmonics
-    real(rp), pointer :: tmp_ml(:), tmp_ml2(:), vcos(:), vsin(:)
+    real(rp), pointer :: tmp_ml(:,:), tmp_ml2(:,:), vcos(:), vsin(:)
     ! Covert Cartesian coordinates into spherical
     call carttosph(c, rho, ctheta, stheta, cphi, sphi)
     ! If no need for rotations, just do translation along z
     if (abs(stheta) < eps_rp) then
-        ! Workspace here is (pm+2)*(pm+1)
-        call fmm_m2l_ztranslate_work(c(3), pm, pl, vscales, &
+        ! Workspace here is (pm+2)*(pm+1)*nrhs
+        call fmm_m2l_ztranslate_work(c(3), pm, pl, nrhs, vscales, &
             & m2l_ztranslate_coef, alpha, src_m, beta, dst_l, work)
         return
     end if
+    use_cache = present(rstack_fwd) .and. present(rstack_bwd) .and. present(cache_built)
     ! Prepare pointers
     p = max(pm, pl)
     m = (p+1)**2
     n = 4*m + 5*p ! 4*p*p + 13*p + 4
-    tmp_ml(1:m) => work(n+1:n+m) ! 5*p*p + 15*p + 5
-    n = n + m
-    tmp_ml2(1:m) => work(n+1:n+m) ! 6*p*p + 17*p + 6
-    n = n + m
+    tmp_ml(1:m,1:nrhs) => work(n+1:n+m*nrhs)
+    n = n + m*nrhs
+    tmp_ml2(1:m,1:nrhs) => work(n+1:n+m*nrhs)
+    n = n + m*nrhs
     m = p + 1
-    vcos => work(n+1:n+m) ! 6*p*p + 18*p + 7
+    vcos => work(n+1:n+m)
     n = n + m
-    vsin => work(n+1:n+m) ! 6*p*p + 19*p + 8
+    vsin => work(n+1:n+m)
     ! Compute arrays of cos and sin that are needed for rotations of harmonics
     call trgev(cphi, sphi, p, vcos, vsin)
     ! Rotate around OZ axis (work array might appear in the future)
-    call fmm_sph_rotate_oz_adj_work(pm, vcos, vsin, alpha, src_m, 0.0_rp, tmp_ml)
+    ! NOTE: tmp_ml/tmp_ml2 are allocated with leading dimension
+    ! (max(pm,pl)+1)**2, so whenever a callee below works at degree pm or pl
+    ! specifically (and that is not max(pm,pl)), it MUST be passed an
+    ! explicit array section of the matching leading dimension rather than
+    ! the bare pointer -- passing the full (possibly larger-strided) 2D
+    ! pointer would silently reinterpret the wrong elements as later nrhs
+    ! columns (this could not happen with the old 1D flat layout, where
+    ! plain sequence association was safe regardless of nominal size).
+    call fmm_sph_rotate_oz_adj_work(pm, nrhs, vcos, vsin, alpha, src_m, 0.0_rp, &
+        & tmp_ml(1:(pm+1)**2,:))
     ! Perform rotation in the OXZ plane, work size is 4*pm*pm+13*pm+4
-    call fmm_sph_rotate_oxz_work(pm, ctheta, -stheta, 1.0_rp, tmp_ml, 0.0_rp, &
-        & tmp_ml2, work)
-    ! OZ translation, workspace here is (pm+2)*(pm+1)
-    call fmm_m2l_ztranslate_work(rho, pm, pl, vscales, &
-        & m2l_ztranslate_coef, 1.0_rp, tmp_ml2, 0.0_rp, tmp_ml, work)
+    if(use_cache) then
+        if(cache_built) then
+            call fmm_sph_rotate_oxz_apply_cached(pm, nrhs, ctheta, -stheta, rstack_fwd, &
+                & 1.0_rp, tmp_ml(1:(pm+1)**2,:), 0.0_rp, tmp_ml2(1:(pm+1)**2,:))
+        else
+            call fmm_sph_rotate_oxz_work(pm, nrhs, ctheta, -stheta, 1.0_rp, tmp_ml(1:(pm+1)**2,:), &
+                & 0.0_rp, tmp_ml2(1:(pm+1)**2,:), work, rstack_out=rstack_fwd)
+        end if
+    else
+        call fmm_sph_rotate_oxz_work(pm, nrhs, ctheta, -stheta, 1.0_rp, tmp_ml(1:(pm+1)**2,:), 0.0_rp, &
+            & tmp_ml2(1:(pm+1)**2,:), work)
+    end if
+    ! OZ translation, workspace here is (pm+2)*(pm+1)*nrhs
+    call fmm_m2l_ztranslate_work(rho, pm, pl, nrhs, vscales, &
+        & m2l_ztranslate_coef, 1.0_rp, tmp_ml2(1:(pm+1)**2,:), 0.0_rp, &
+        & tmp_ml(1:(pl+1)**2,:), work)
     ! Backward rotation in the OXZ plane, work size is 4*pl*pl+13*pl+4
-    call fmm_sph_rotate_oxz_work(pl, ctheta, stheta, 1.0_rp, tmp_ml, 0.0_rp, &
-        & tmp_ml2, work)
+    if(use_cache) then
+        if(cache_built) then
+            call fmm_sph_rotate_oxz_apply_cached(pl, nrhs, ctheta, stheta, rstack_bwd, &
+                & 1.0_rp, tmp_ml(1:(pl+1)**2,:), 0.0_rp, tmp_ml2(1:(pl+1)**2,:))
+        else
+            call fmm_sph_rotate_oxz_work(pl, nrhs, ctheta, stheta, 1.0_rp, tmp_ml(1:(pl+1)**2,:), &
+                & 0.0_rp, tmp_ml2(1:(pl+1)**2,:), work, rstack_out=rstack_bwd)
+        end if
+    else
+        call fmm_sph_rotate_oxz_work(pl, nrhs, ctheta, stheta, 1.0_rp, tmp_ml(1:(pl+1)**2,:), 0.0_rp, &
+            & tmp_ml2(1:(pl+1)**2,:), work)
+    end if
     ! Backward rotation around OZ axis (work array might appear in the future)
-    call fmm_sph_rotate_oz_work(pl, vcos, vsin, 1.0_rp, tmp_ml2, beta, dst_l)
+    call fmm_sph_rotate_oz_work(pl, nrhs, vcos, vsin, 1.0_rp, tmp_ml2(1:(pl+1)**2,:), beta, dst_l)
 end subroutine fmm_m2l_rotation_work
 
 !> Direct L2L translation by 4 rotations and 1 translation
@@ -1408,108 +1635,150 @@ end subroutine fmm_m2l_rotation_work
 !! @param[in] beta: Scalar multiplier for `dst_l`
 !! @param[inout] dst_l: Expansion in new harmonics
 !! @param[out] work: Temporary workspace of a size 6*p*p+19*p+8
-subroutine fmm_l2l_rotation_work(c, p, vscales, vfact, alpha, &
-    & src_l, beta, dst_l, work)
+subroutine fmm_l2l_rotation_work(c, p, nrhs, vscales, vfact, alpha, &
+    & src_l, beta, dst_l, work, rstack_fwd, rstack_bwd, cache_built)
     ! Inputs
-    integer, intent(in) :: p
+    integer, intent(in) :: p, nrhs
     real(rp), intent(in) :: c(3), vscales((p+1)*(p+1)), &
-        & vfact(2*p+1), alpha, src_l((p+1)*(p+1)), beta
+        & vfact(2*p+1), alpha, src_l((p+1)*(p+1), nrhs), beta
     ! Output
-    real(rp), intent(inout) :: dst_l((p+1)*(p+1))
+    real(rp), intent(inout) :: dst_l((p+1)*(p+1), nrhs)
     ! Temporary workspace
-    real(rp), intent(out), target :: work(6*p*p + 19*p + 8)
+    real(rp), intent(out), target :: work(4*p*p+13*p+4 + 2*(p+1)*(p+1)*nrhs + 2*(p+1))
+    ! Optional node-pair rotation-matrix cache, see fmm_m2m_rotation_work
+    real(rp), intent(inout), optional :: rstack_fwd(:), rstack_bwd(:)
+    logical, intent(in), optional :: cache_built
     ! Local variables
     real(rp) :: rho, ctheta, stheta, cphi, sphi
     integer :: m, n
+    logical :: use_cache
     ! Pointers for temporary values of harmonics
-    real(rp), pointer :: tmp_l(:), tmp_l2(:), vcos(:), vsin(:)
+    real(rp), pointer :: tmp_l(:,:), tmp_l2(:,:), vcos(:), vsin(:)
     ! Covert Cartesian coordinates into spherical
     call carttosph(c, rho, ctheta, stheta, cphi, sphi)
     ! If no need for rotations, just do translation along z
     if (abs(stheta) < eps_rp) then
         ! Workspace here is 2*(p+1)
-        call fmm_l2l_ztranslate_work(c(3), p, vscales, vfact, &
+        call fmm_l2l_ztranslate_work(c(3), p, nrhs, vscales, vfact, &
             & alpha, src_l, beta, dst_l, work)
         return
     end if
+    use_cache = present(rstack_fwd) .and. present(rstack_bwd) .and. present(cache_built)
     ! Prepare pointers
     m = (p+1)**2
     n = 4*m + 5*p ! 4*p*p + 13*p + 4
-    tmp_l(1:m) => work(n+1:n+m) ! 5*p*p + 15*p + 5
-    n = n + m
-    tmp_l2(1:m) => work(n+1:n+m) ! 6*p*p + 17*p + 6
-    n = n + m
+    tmp_l(1:m,1:nrhs) => work(n+1:n+m*nrhs)
+    n = n + m*nrhs
+    tmp_l2(1:m,1:nrhs) => work(n+1:n+m*nrhs)
+    n = n + m*nrhs
     m = p + 1
-    vcos => work(n+1:n+m) ! 6*p*p + 18*p + 7
+    vcos => work(n+1:n+m)
     n = n + m
-    vsin => work(n+1:n+m) ! 6*p*p + 19*p + 8
+    vsin => work(n+1:n+m)
     ! Compute arrays of cos and sin that are needed for rotations of harmonics
     call trgev(cphi, sphi, p, vcos, vsin)
     ! Rotate around OZ axis (work array might appear in the future)
-    call fmm_sph_rotate_oz_adj_work(p, vcos, vsin, alpha, src_l, 0.0_rp, tmp_l)
+    call fmm_sph_rotate_oz_adj_work(p, nrhs, vcos, vsin, alpha, src_l, 0.0_rp, tmp_l)
     ! Perform rotation in the OXZ plane, work size is 4*p*p+13*p+4
-    call fmm_sph_rotate_oxz_work(p, ctheta, -stheta, 1.0_rp, tmp_l, 0.0_rp, &
-        & tmp_l2, work)
+    if(use_cache) then
+        if(cache_built) then
+            call fmm_sph_rotate_oxz_apply_cached(p, nrhs, ctheta, -stheta, rstack_fwd, &
+                & 1.0_rp, tmp_l, 0.0_rp, tmp_l2)
+        else
+            call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, -stheta, 1.0_rp, tmp_l, 0.0_rp, &
+                & tmp_l2, work, rstack_out=rstack_fwd)
+        end if
+    else
+        call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, -stheta, 1.0_rp, tmp_l, 0.0_rp, &
+            & tmp_l2, work)
+    end if
     ! OZ translation, workspace here is 2*(p+1)
-    call fmm_l2l_ztranslate_work(rho, p, vscales, vfact, 1.0_rp, &
+    call fmm_l2l_ztranslate_work(rho, p, nrhs, vscales, vfact, 1.0_rp, &
         & tmp_l2, 0.0_rp, tmp_l, work)
     ! Backward rotation in the OXZ plane, work size is 4*p*p+13*p+4
-    call fmm_sph_rotate_oxz_work(p, ctheta, stheta, 1.0_rp, tmp_l, 0.0_rp, tmp_l2, &
-        & work)
+    if(use_cache) then
+        if(cache_built) then
+            call fmm_sph_rotate_oxz_apply_cached(p, nrhs, ctheta, stheta, rstack_bwd, &
+                & 1.0_rp, tmp_l, 0.0_rp, tmp_l2)
+        else
+            call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, stheta, 1.0_rp, tmp_l, 0.0_rp, &
+                & tmp_l2, work, rstack_out=rstack_bwd)
+        end if
+    else
+        call fmm_sph_rotate_oxz_work(p, nrhs, ctheta, stheta, 1.0_rp, tmp_l, 0.0_rp, tmp_l2, &
+            & work)
+    end if
     ! Backward rotation around OZ axis (work array might appear in the future)
-    call fmm_sph_rotate_oz_work(p, vcos, vsin, 1.0_rp, tmp_l2, beta, dst_l)
+    call fmm_sph_rotate_oz_work(p, nrhs, vcos, vsin, 1.0_rp, tmp_l2, beta, dst_l)
 end subroutine fmm_l2l_rotation_work
 
 
-subroutine fmm_m2m(c_st, pm, s, t)
+subroutine fmm_m2m(c_st, pm, nrhs, s, t, rstack_fwd, rstack_bwd, cache_built)
     implicit none
 
     real(rp) :: c_st(3)
     !! Distance vector from source to target
     integer(ip) :: pm
     !! Maximum level of spherical harmonics expansion for multipoles
-    real(rp) :: s(:)
-    !! Source distribution expansion coefficients
-    real(rp) :: t(:)
-    !! Target distribution expansion coefficients
+    integer(ip) :: nrhs
+    !! Number of right-hand-sides (independent source coefficient sets)
+    real(rp) :: s(:,:)
+    !! Source distribution expansion coefficients, shape (ncoef, nrhs)
+    real(rp) :: t(:,:)
+    !! Target distribution expansion coefficients, shape (ncoef, nrhs)
+    real(rp), intent(inout), optional :: rstack_fwd(:), rstack_bwd(:)
+    !! Optional per-node-pair OXZ rotation-matrix cache, see
+    !! fmm_m2m_rotation_work
+    logical, intent(in), optional :: cache_built
+    !! Whether rstack_fwd/rstack_bwd already hold a valid build (.true.,
+    !! replay) or need to be (re)built this call (.false., build+stash)
 
     real(rp), allocatable :: work(:)
 
     ! Allocate local variables
-    allocate(work(6*pm**2 + 19*pm + 8))
+    allocate(work(4*pm*pm+13*pm+4 + 2*(pm+1)*(pm+1)*nrhs + 2*(pm+1)))
 
-    call fmm_m2m_rotation_work(c_st, pm, vscales, vcnk, 1.0_rp, s, 0.0_rp, t, work)
+    call fmm_m2m_rotation_work(c_st, pm, nrhs, vscales, vcnk, 1.0_rp, s, 0.0_rp, t, work, &
+                                rstack_fwd, rstack_bwd, cache_built)
 
     deallocate(work)
 end subroutine
 
-subroutine fmm_m2l(c_st, pm, pl, s, t)
+subroutine fmm_m2l(c_st, pm, pl, nrhs, s, t, rstack_fwd, rstack_bwd, cache_built)
     implicit none
-    
+
     real(rp) :: c_st(3)
     !! Distance vector from source to target
     integer(ip) :: pl
-    !! Maximum level of spherical harmonics expansion for local exp. 
+    !! Maximum level of spherical harmonics expansion for local exp.
     integer(ip) :: pm
     !! Maximum level of spherical harmonics expansion for multipoles
-    real(rp) :: s(:)
-    !! Source distribution expansion coefficients
-    real(rp) :: t(:)
-    !! Target distribution expansion coefficients
+    integer(ip) :: nrhs
+    !! Number of right-hand-sides (independent source coefficient sets)
+    real(rp) :: s(:,:)
+    !! Source distribution expansion coefficients, shape (ncoef, nrhs)
+    real(rp) :: t(:,:)
+    !! Target distribution expansion coefficients, shape (ncoef, nrhs)
+    real(rp), intent(inout), optional :: rstack_fwd(:), rstack_bwd(:)
+    !! Optional per-far-pair OXZ rotation-matrix cache, see
+    !! fmm_m2l_rotation_work
+    logical, intent(in), optional :: cache_built
 
     real(rp), allocatable :: work(:)
 
     ! Allocate local variables
-    allocate(work(6*max(pm, pl)**2 + 19*max(pm, pl) + 8))
+    allocate(work(4*max(pm,pl)**2 + 13*max(pm,pl) + 4 + &
+                 & 2*(max(pm,pl)+1)**2*nrhs + 2*(max(pm,pl)+1)))
 
-    call fmm_m2l_rotation_work(c_st, pm, pl, vscales, m2l_ztranslate_coef, 1.0_rp, s, 0.0_rp, t, work)
+    call fmm_m2l_rotation_work(c_st, pm, pl, nrhs, vscales, m2l_ztranslate_coef, 1.0_rp, s, 0.0_rp, t, work, &
+                                rstack_fwd, rstack_bwd, cache_built)
 
     deallocate(work)
 end subroutine
 
-subroutine fmm_l2l(c_st, r_s, r_t, pl, s, t)
+subroutine fmm_l2l(c_st, r_s, r_t, pl, nrhs, s, t, rstack_fwd, rstack_bwd, cache_built)
     implicit none
-    
+
     real(rp) :: c_st(3)
     !! Distance vector from source to target
     real(rp) :: r_s
@@ -1517,21 +1786,28 @@ subroutine fmm_l2l(c_st, r_s, r_t, pl, s, t)
     real(rp) :: r_t
     !! Size of target node
     integer(ip) :: pl
-    !! Maximum level of spherical harmonics expansion for local exp. 
-    real(rp) :: s(:)
-    !! Source distribution expansion coefficients
-    real(rp) :: t(:)
-    !! Target distribution expansion coefficients
+    !! Maximum level of spherical harmonics expansion for local exp.
+    integer(ip) :: nrhs
+    !! Number of right-hand-sides (independent source coefficient sets)
+    real(rp) :: s(:,:)
+    !! Source distribution expansion coefficients, shape (ncoef, nrhs)
+    real(rp) :: t(:,:)
+    !! Target distribution expansion coefficients, shape (ncoef, nrhs)
+    real(rp), intent(inout), optional :: rstack_fwd(:), rstack_bwd(:)
+    !! Optional per-node-pair OXZ rotation-matrix cache, see
+    !! fmm_l2l_rotation_work
+    logical, intent(in), optional :: cache_built
 
     real(rp), allocatable :: vfact(:), work(:)
 
     ! Allocate local variables
     allocate(vfact(2*pl+1))
-    allocate(work(6*pl**2 + 19*pl + 8))
+    allocate(work(4*pl*pl+13*pl+4 + 2*(pl+1)*(pl+1)*nrhs + 2*(pl+1)))
 
     call make_vfact(pl, vfact)
 
-    call fmm_l2l_rotation_work(c_st, pl, vscales, vfact, 1.0_rp, s, 0.0_rp, t, work)
+    call fmm_l2l_rotation_work(c_st, pl, nrhs, vscales, vfact, 1.0_rp, s, 0.0_rp, t, work, &
+                                rstack_fwd, rstack_bwd, cache_built)
 
     deallocate(vfact, work)
 end subroutine

@@ -36,18 +36,20 @@ module mod_polarization
     use mod_memory, only: ip, rp
     use mod_io, only: ommp_message, fatal_error
     use mod_mmpol, only: ommp_system 
-    use mod_electrostatics, only: ommp_electrostatics_type
+    use mod_electrostatics, only: ommp_electrostatics_type, fmm_cg_init, fmm_cg_finalize
 
     implicit none 
     private
     
 
     public :: polarization, polarization_terminate, create_TMat
+    public :: TMatVec_otf_block, PolVec_block
     
     contains
     
     subroutine polarization(sys_obj, e, &
-                            & arg_solver, arg_mvmethod, arg_ipd_mask, arg_tol, arg_use_guess)
+                            & arg_solver, arg_mvmethod, arg_ipd_mask, arg_tol, arg_use_guess, &
+                            & arg_use_block_cg)
         !! Main driver for the calculation of induced dipoles. 
         !! Takes electric field at induced dipole sites as input and -- if
         !! solver converges -- provides induced dipoles as output.
@@ -60,6 +62,7 @@ module mod_polarization
         !! polarization field/dipole are stored in e(:,:,2)/ipds(:,:,2).
 
         use mod_solvers, only: jacobi_diis_solver, conjugate_gradient_solver, &
+                               block_conjugate_gradient_solver, &
                                inversion_solver, OMMP_DEFAULT_SOLVER_TOL
         use mod_memory, only: ip, rp, mallocate, mfree
         use mod_io, only: print_matrix
@@ -102,11 +105,21 @@ module mod_polarization
         !! Optional flag to use the previous induced dipole as initial guess.
         !! If not provided, [[mod_electrostatics:ommp_electrostatics_type::def_use_guess]]
         !! is used (default: .true.).
-        
+        logical, intent(in), optional :: arg_use_block_cg
+        !! EXPERIMENTAL, default .false. (opt-in only, does not change
+        !! default behavior): when solver=OMMP_SOLVER_CG, amoeba, both D and
+        !! P sets are requested, and mvmethod=OMMP_MATV_DIRECT (FMM
+        !! on-the-fly matvec), solve the D and P linear systems together as
+        !! ONE nrhs=2 block-CG solve (see mod_solvers::
+        !! block_conjugate_gradient_solver) instead of two independent
+        !! plain-CG solves -- this lets the FMM far-field tree work be
+        !! shared across the D and P matvecs. Ignored (falls back to plain
+        !! CG) in any other combination of solver/mvmethod/amoeba/mask.
+
         real(rp), dimension(:, :), allocatable :: e_vec, ipd0
         real(rp), dimension(:), allocatable :: inv_diag
         integer(ip) :: i, n, solver, mvmethod
-        logical :: ipd_mask(sys_obj%eel%n_ipd), amoeba, use_guess
+        logical :: ipd_mask(sys_obj%eel%n_ipd), amoeba, use_guess, use_block_cg
         real(rp) :: tol
         !! Convergence threshold, from arg_tol or eel%def_conv_thr
         !! or the default from mod_solvers (1d-8) if def_conv_thr < 0.
@@ -123,7 +136,7 @@ module mod_polarization
             end subroutine mv
         end interface
         procedure(mv), pointer :: matvec
-        
+
         abstract interface
         subroutine pc(eel, x, y)
                 use mod_memory, only: rp, ip
@@ -134,7 +147,32 @@ module mod_polarization
             end subroutine pc
         end interface
         procedure(pc), pointer :: precond
-        
+
+        abstract interface
+        subroutine mv_block(eel, nrhs, x, y, dodiag)
+                use mod_memory, only: rp, ip
+                use mod_electrostatics, only : ommp_electrostatics_type
+                type(ommp_electrostatics_type), intent(in) :: eel
+                integer(ip), intent(in) :: nrhs
+                real(rp), dimension(3*eel%pol_atoms, nrhs), intent(in) :: x
+                real(rp), dimension(3*eel%pol_atoms, nrhs), intent(out) :: y
+                logical, intent(in) :: dodiag
+            end subroutine mv_block
+        end interface
+        procedure(mv_block), pointer :: matvec_block
+
+        abstract interface
+        subroutine pc_block(eel, nrhs, x, y)
+                use mod_memory, only: rp, ip
+                use mod_electrostatics, only : ommp_electrostatics_type
+                type(ommp_electrostatics_type), intent(in) :: eel
+                integer(ip), intent(in) :: nrhs
+                real(rp), dimension(3*eel%pol_atoms, nrhs), intent(in) :: x
+                real(rp), dimension(3*eel%pol_atoms, nrhs), intent(out) :: y
+            end subroutine pc_block
+        end interface
+        procedure(pc_block), pointer :: precond_block
+
         call time_push()
         ! Shortcuts
         eel => sys_obj%eel
@@ -174,6 +212,13 @@ module mod_polarization
             use_guess = arg_use_guess
         else
             use_guess = eel%def_use_guess
+        end if
+
+        ! Handle use_block_cg (EXPERIMENTAL, opt-in, default off)
+        if(present(arg_use_block_cg)) then
+            use_block_cg = arg_use_block_cg
+        else
+            use_block_cg = .false.
         end if
 
         if(present(arg_mvmethod)) then
@@ -253,12 +298,41 @@ module mod_polarization
                     call fatal_error("Unknown matrix-vector method requested")
             end select
         end if
+        ! When the FMM on-the-fly matvec is going to be used by the solver
+        ! below (CG or DIIS; INVERSION never calls matvec), give it a
+        ! persistent FMM scratch object for the whole solve: positions do
+        ! not change across iterations, so geometry-dependent FMM setup
+        ! (in particular the M2M rotation-matrix cache) can be built once
+        ! and reused, instead of being rebuilt on every single matvec call
+        ! as field_extD2D would otherwise do. nrhs matches whichever branch
+        ! below will actually run (block-CG solves D and P together).
+        if(eel%use_fmm .and. mvmethod == OMMP_MATV_DIRECT .and. &
+           (solver == OMMP_SOLVER_CG .or. solver == OMMP_SOLVER_DIIS)) then
+            if(solver == OMMP_SOLVER_CG .and. amoeba .and. use_block_cg .and. &
+               ipd_mask(_amoeba_D_) .and. ipd_mask(_amoeba_P_)) then
+                call fmm_cg_init(eel, eel%n_ipd)
+            else
+                call fmm_cg_init(eel, 1_ip)
+            end if
+        end if
+
         select case (solver)
             case(OMMP_SOLVER_CG)
                 ! For now we do not have any other option.
                 precond => PolVec
 
-                if(amoeba) then
+                if(amoeba .and. use_block_cg .and. mvmethod == OMMP_MATV_DIRECT &
+                   .and. ipd_mask(_amoeba_D_) .and. ipd_mask(_amoeba_P_)) then
+                    ! EXPERIMENTAL: solve D and P together as one nrhs=2
+                    ! block-CG system, sharing the FMM far-field tree work
+                    ! across both matvecs each iteration.
+                    matvec_block => TMatVec_otf_block
+                    precond_block => PolVec_block
+                    call block_conjugate_gradient_solver(n, eel%n_ipd, &
+                                                         e_vec, ipd0, &
+                                                         eel, matvec_block, precond_block, &
+                                                         tol)
+                else if(amoeba) then
                     if(ipd_mask(_amoeba_D_)) &
                         call conjugate_gradient_solver(n, &
                                                        e_vec(:,_amoeba_D_), &
@@ -331,10 +405,12 @@ module mod_polarization
                 end if
                 
             case default
-                call fatal_error("Unknown solver for calculation of the induced point dipoles") 
+                call fatal_error("Unknown solver for calculation of the induced point dipoles")
         end select
-        
-        ! Reshape dipole vector into the matrix 
+
+        call fmm_cg_finalize(eel)
+
+        ! Reshape dipole vector into the matrix
         eel%ipd = reshape(ipd0, (/3_ip, eel%pol_atoms, eel%n_ipd/)) 
         eel%ipd_done = .true. !! TODO Maybe check convergence...
         eel%ipd_use_guess = use_guess
@@ -492,12 +568,12 @@ module mod_polarization
     subroutine TMatVec_otf(eel, x, y, dodiag)
         !! Perform matrix vector multiplication y = TMat*x,
         !! where TMat is polarization matrix (precomputed and stored in memory)
-        !! and x and y are column vectors
-        use mod_electrostatics, only: field_extD2D
+        !! and x and y are column vectors. Thin nrhs=1 wrapper around
+        !! TMatVec_otf_block, kept for the single-rhs solvers (plain CG, DIIS).
         implicit none
-        
+
         type(ommp_electrostatics_type), intent(in) :: eel
-        !! The electostatic data structure 
+        !! The electostatic data structure
         real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
         real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
@@ -505,14 +581,64 @@ module mod_polarization
         logical, intent(in) :: dodiag
         !! Logical flag (.true. = diagonal is computed, .false. = diagonal is
         !! skipped)
-        
-        y = 0.0_rp
-        call field_extD2D(eel, x, y)
-        y = -1.0_rp * y ! Why? TODO
-        if(dodiag) call TMatVec_diag(eel, x, y)
-    
+
+        real(rp) :: x2(3*eel%pol_atoms,1), y2(3*eel%pol_atoms,1)
+
+        x2(:,1) = x
+        call TMatVec_otf_block(eel, 1_ip, x2, y2, dodiag)
+        y = y2(:,1)
+
     end subroutine TMatVec_otf
-       
+
+    subroutine TMatVec_otf_block(eel, nrhs, x, y, dodiag)
+        !! Perform matrix-vector multiplication y = TMat*x for nrhs
+        !! independent trial vectors x at once (columns), sharing the FMM
+        !! far-field work (P2M->M2M->M2L->L2L + one cart_propfar_at_ipart
+        !! call per atom) across all nrhs columns via field_extD2D. x and y
+        !! are (3*pol_atoms, nrhs) matrices.
+        !!
+        !! NOTE: x(:,irhs) is NOT reshape-compatible with field_extD2D's
+        !! (3, nrhs, pol_atoms) layout in one shot -- x's own leading
+        !! dimension (3*pol_atoms) packs (component, atom) with atom
+        !! slowest, so reshaping the whole (3*pol_atoms, nrhs) array would
+        !! silently interleave rhs columns and atoms for nrhs>1. Converting
+        !! between the two conventions needs an explicit per-atom copy
+        !! (cheap, O(pol_atoms*nrhs), not the bottleneck).
+        use mod_electrostatics, only: field_extD2D
+        implicit none
+
+        type(ommp_electrostatics_type), intent(in) :: eel
+        integer(ip), intent(in) :: nrhs
+        real(rp), dimension(3*eel%pol_atoms, nrhs), intent(in) :: x
+        real(rp), dimension(3*eel%pol_atoms, nrhs), intent(out) :: y
+        logical, intent(in) :: dodiag
+
+        real(rp) :: x2(3, nrhs, eel%pol_atoms), y2(3, nrhs, eel%pol_atoms)
+        integer(ip) :: irhs, ipol
+
+        do irhs = 1, nrhs
+            do ipol = 1, eel%pol_atoms
+                x2(:, irhs, ipol) = x(3*(ipol-1)+1:3*ipol, irhs)
+            end do
+        end do
+
+        y2 = 0.0_rp
+        call field_extD2D(eel, nrhs, x2, y2)
+
+        do irhs = 1, nrhs
+            do ipol = 1, eel%pol_atoms
+                y(3*(ipol-1)+1:3*ipol, irhs) = -1.0_rp * y2(:, irhs, ipol) ! Why? TODO
+            end do
+        end do
+
+        if(dodiag) then
+            do irhs=1, nrhs
+                call TMatVec_diag(eel, x(:,irhs), y(:,irhs))
+            end do
+        end if
+
+    end subroutine TMatVec_otf_block
+
     subroutine TMatVec_diag(eel, x, y)
         !! This routine compute the product between the diagonal of T matrix
         !! with x, and add it to y. The product is simply computed by 
@@ -567,26 +693,46 @@ module mod_polarization
 
     subroutine PolVec(eel, x, y)
         !! Perform matrix vector multiplication y = pol*x,
-        !! where pol is polarizability vector, x and y are 
+        !! where pol is polarizability vector, x and y are
         !! column vectors
-        
+
         implicit none
-        
+
         type(ommp_electrostatics_type), intent(in) :: eel
-        !! The electostatic data structure 
+        !! The electostatic data structure
         real(rp), dimension(3*eel%pol_atoms), intent(in) :: x
         !! Input vector
         real(rp), dimension(3*eel%pol_atoms), intent(out) :: y
         !! Output vector
-        
+
         integer(ip) :: i, indx
-        
+
         !$omp parallel do default(shared) private(indx,i)
         do i = 1, 3*eel%pol_atoms
             indx = (i+2)/3
-            y(i) = eel%pol(indx)*x(i)   
+            y(i) = eel%pol(indx)*x(i)
         enddo
-        
+
     end subroutine PolVec
+
+    subroutine PolVec_block(eel, nrhs, x, y)
+        !! Block version of PolVec (diagonal Jacobi preconditioner), used
+        !! by block_conjugate_gradient_solver. Purely diagonal, so this is
+        !! just PolVec applied to each of the nrhs columns -- there is no
+        !! shared work to batch here, unlike the matvec.
+        implicit none
+
+        type(ommp_electrostatics_type), intent(in) :: eel
+        integer(ip), intent(in) :: nrhs
+        real(rp), dimension(3*eel%pol_atoms, nrhs), intent(in) :: x
+        real(rp), dimension(3*eel%pol_atoms, nrhs), intent(out) :: y
+
+        integer(ip) :: irhs
+
+        do irhs = 1, nrhs
+            call PolVec(eel, x(:,irhs), y(:,irhs))
+        end do
+
+    end subroutine PolVec_block
 
 end module mod_polarization

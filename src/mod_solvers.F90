@@ -35,7 +35,8 @@ module mod_solvers
     !! Default maximum number of points in DIIS extrapolation
 
     public :: inversion_solver, conjugate_gradient_solver, jacobi_diis_solver, &
-              OMMP_DEFAULT_SOLVER_TOL, cp_inversion_solver
+              OMMP_DEFAULT_SOLVER_TOL, cp_inversion_solver, block_conjugate_gradient_solver, &
+              batched_block_cg_solver
 
     contains
     
@@ -262,6 +263,218 @@ module mod_solvers
         end if
 
     end subroutine conjugate_gradient_solver
+
+    subroutine block_conjugate_gradient_solver(n, nrhs, rhs, x, eel, matvec, precnd, &
+                                               arg_tol, arg_n_iter, arg_matvec_cols)
+        !! Block conjugate gradient solver: solves A X = RHS for X, where X
+        !! and RHS are (n, nrhs) matrices, simultaneously for all nrhs
+        !! columns. Standard block-CG recursion (e.g. O'Leary 1980): the
+        !! nrhs x nrhs "step size" and "conjugation" coefficients (alpha,
+        !! beta below) are found by solving small nrhs x nrhs linear systems
+        !! each iteration (via LAPACK dgesv -- nrhs is expected to stay
+        !! small, e.g. 2 for AMOEBA's D/P dipoles, so this is not a
+        !! bottleneck), rather than being scalars as in plain CG.
+        !!
+        !! The actual performance case for using this over nrhs independent
+        !! calls to conjugate_gradient_solver is that matvec/precnd are
+        !! themselves block routines that can share work (e.g. an FMM
+        !! far-field tree pass) across all nrhs columns of one matrix-vector
+        !! product -- if matvec/precnd are just naive per-column loops
+        !! around a single-vector routine, block CG mainly buys whatever
+        !! convergence benefit comes from the shared/larger Krylov subspace,
+        !! and pays a bit extra for the small linear solves each iteration.
+
+        use mod_constants, only: eps_rp
+        use mod_memory, only: mallocate, mfree
+
+        implicit none
+
+        integer(ip), intent(in) :: n
+        !! Size of each column of the (block) linear system
+        integer(ip), intent(in) :: nrhs
+        !! Number of right-hand-sides solved simultaneously
+        real(rp), intent(in), optional :: arg_tol
+        real(rp) :: tol
+        !! Convergence criterion: max over columns of RMS norm of residual < tol
+
+        integer(ip), intent(in), optional :: arg_n_iter
+        integer(ip) :: n_iter
+
+        real(rp), dimension(n, nrhs), intent(in) :: rhs
+        !! Right hand sides of the linear system, one per column
+        real(rp), dimension(n, nrhs), intent(inout) :: x
+        !! In input, initial guess for the solver (one column per rhs), in
+        !! output the solutions
+        type(ommp_electrostatics_type), intent(in) :: eel
+        !! Electrostatics data structure
+        external :: matvec
+        !! Block matrix-vector routine: matvec(eel, nrhs, x, y, dodiag),
+        !! x/y shape (n, nrhs)
+        external :: precnd
+        !! Block preconditioner routine: precnd(eel, nrhs, x, y), x/y shape
+        !! (n, nrhs)
+        integer(ip), intent(inout), optional :: arg_matvec_cols
+        !! If present, incremented by nrhs for every matvec call issued
+        !! (i.e. accumulates total column-matvecs) -- caller must
+        !! initialize to 0 before the first call to get a meaningful total
+        !! across repeated/batched invocations. Diagnostic only, used to
+        !! compare solver strategies.
+
+        integer(ip) :: it, i, info
+        real(rp) :: rms_norm
+        real(rp), allocatable :: r(:,:), p(:,:), q(:,:), z(:,:)
+        real(rp), allocatable :: gold(:,:), gnew(:,:), h(:,:), alpha(:,:), beta(:,:)
+        integer(ip), allocatable :: ipiv(:)
+        character(len=OMMP_STR_CHAR_MAX) :: msg
+
+        if(present(arg_tol)) then
+            tol = arg_tol
+        else
+            tol = OMMP_DEFAULT_SOLVER_TOL
+        end if
+
+        if(present(arg_n_iter)) then
+            n_iter = arg_n_iter
+        else
+            n_iter = OMMP_DEFAULT_SOLVER_ITER
+        end if
+
+        write(msg, "(A, I4, A, I4)") "Solving block linear system with CG solver, nrhs=", &
+                                     nrhs, ", max iter:", n_iter
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+        write(msg, "(A, E8.1)") "Tolerance: ", tol
+        call ommp_message(msg, OMMP_VERBOSE_LOW)
+
+        call mallocate('block_conjugate_gradient_solver [r]', n, nrhs, r)
+        call mallocate('block_conjugate_gradient_solver [p]', n, nrhs, p)
+        call mallocate('block_conjugate_gradient_solver [q]', n, nrhs, q)
+        call mallocate('block_conjugate_gradient_solver [z]', n, nrhs, z)
+        call mallocate('block_conjugate_gradient_solver [gold]', nrhs, nrhs, gold)
+        call mallocate('block_conjugate_gradient_solver [gnew]', nrhs, nrhs, gnew)
+        call mallocate('block_conjugate_gradient_solver [h]', nrhs, nrhs, h)
+        call mallocate('block_conjugate_gradient_solver [alpha]', nrhs, nrhs, alpha)
+        call mallocate('block_conjugate_gradient_solver [beta]', nrhs, nrhs, beta)
+        call mallocate('block_conjugate_gradient_solver [ipiv]', nrhs, ipiv)
+
+        ! compute the residual for the (given) initial guess:
+        call matvec(eel, nrhs, x, z, .true.)
+        if(present(arg_matvec_cols)) arg_matvec_cols = arg_matvec_cols + nrhs
+        r = rhs - z
+        ! apply the preconditioner and get the first direction:
+        call precnd(eel, nrhs, r, z)
+        p = z
+        gold = matmul(transpose(r), z)
+
+        rms_norm = huge(1.0_rp)
+        do it = 1, n_iter
+            ! compute the step:
+            call matvec(eel, nrhs, p, q, .true.)
+            if(present(arg_matvec_cols)) arg_matvec_cols = arg_matvec_cols + nrhs
+            h = matmul(transpose(p), q)
+
+            ! alpha solves h * alpha = gold
+            alpha = gold
+            call dgesv(nrhs, nrhs, h, nrhs, ipiv, alpha, nrhs, info)
+            if(info /= 0) then
+                call ommp_message("Block Gram matrix is singular, exiting &
+                                  &iterative solver.", OMMP_VERBOSE_HIGH)
+                exit
+            end if
+
+            x = x + matmul(p, alpha)
+            r = r - matmul(q, alpha)
+
+            ! apply the preconditioner:
+            call precnd(eel, nrhs, r, z)
+            gnew = matmul(transpose(r), z)
+
+            ! Convergence check: worst column RMS norm
+            rms_norm = 0.0_rp
+            do i = 1, nrhs
+                rms_norm = max(rms_norm, sqrt(sum(r(:,i)**2) / dble(n)))
+            end do
+
+            write(msg, "('iter=',i4,' worst-column residual rms norm: ', d14.4)") it, rms_norm
+            call ommp_message(msg, OMMP_VERBOSE_HIGH)
+
+            if(rms_norm < tol) then
+                call ommp_message("Required convergence threshold reached, &
+                                  &exiting iterative solver.", OMMP_VERBOSE_HIGH)
+                exit
+            end if
+
+            ! beta solves gold * beta = gnew (gold is the OLD gram matrix,
+            ! used here as the matrix to invert -- NOT h)
+            beta = gnew
+            call dgesv(nrhs, nrhs, gold, nrhs, ipiv, beta, nrhs, info)
+            if(info /= 0) then
+                call ommp_message("Block Gram matrix is singular, exiting &
+                                  &iterative solver.", OMMP_VERBOSE_HIGH)
+                exit
+            end if
+
+            p = z + matmul(p, beta)
+            gold = gnew
+        end do
+
+        call mfree('block_conjugate_gradient_solver [r]', r)
+        call mfree('block_conjugate_gradient_solver [p]', p)
+        call mfree('block_conjugate_gradient_solver [q]', q)
+        call mfree('block_conjugate_gradient_solver [z]', z)
+        call mfree('block_conjugate_gradient_solver [gold]', gold)
+        call mfree('block_conjugate_gradient_solver [gnew]', gnew)
+        call mfree('block_conjugate_gradient_solver [h]', h)
+        call mfree('block_conjugate_gradient_solver [alpha]', alpha)
+        call mfree('block_conjugate_gradient_solver [beta]', beta)
+        call mfree('block_conjugate_gradient_solver [ipiv]', ipiv)
+
+        if(rms_norm > tol) then
+            call fatal_error("Block iterative solver did not converge")
+        end if
+
+    end subroutine block_conjugate_gradient_solver
+
+    subroutine batched_block_cg_solver(n, nrhs, rhs, x, eel, matvec, precnd, &
+                                       arg_tol, arg_n_iter, arg_batch_size, arg_matvec_cols)
+        !! Thin wrapper around block_conjugate_gradient_solver that splits a
+        !! large RHS matrix into fixed-size column batches and solves each
+        !! batch independently. block_conjugate_gradient_solver's block Gram
+        !! matrix (nrhs x nrhs, see there) becomes numerically unsafe as
+        !! nrhs approaches n (near/exactly rank-deficient, undetected by
+        !! dgesv's exact-singularity check -- observed to blow up to NaN in
+        !! as few as ~85 iterations on a case with nrhs==n); batching keeps
+        !! each block width far below n regardless of how large the caller's
+        !! total nrhs is (e.g. CPID's nrhs=3*mm_atoms, which is always >=
+        !! n=3*pol_atoms).
+
+        implicit none
+
+        integer(ip), intent(in) :: n, nrhs
+        real(rp), intent(in), optional :: arg_tol
+        integer(ip), intent(in), optional :: arg_n_iter, arg_batch_size
+        real(rp), dimension(n, nrhs), intent(in) :: rhs
+        real(rp), dimension(n, nrhs), intent(inout) :: x
+        type(ommp_electrostatics_type), intent(in) :: eel
+        external :: matvec, precnd
+        integer(ip), intent(inout), optional :: arg_matvec_cols
+
+        integer(ip) :: batch_size, i0, i1
+
+        if(present(arg_batch_size)) then
+            batch_size = arg_batch_size
+        else
+            batch_size = max(1_ip, nint(0.05_rp*real(nrhs, rp)))
+        end if
+
+        i0 = 1
+        do while(i0 <= nrhs)
+            i1 = min(i0 + batch_size - 1, nrhs)
+            call block_conjugate_gradient_solver(n, i1-i0+1, rhs(:,i0:i1), x(:,i0:i1), &
+                                                 eel, matvec, precnd, arg_tol, arg_n_iter, &
+                                                 arg_matvec_cols)
+            i0 = i1 + 1
+        end do
+    end subroutine batched_block_cg_solver
 
     subroutine jacobi_diis_solver(n, rhs, x, eel, matvec, inv_diag, arg_tol, &
                                   arg_n_iter, arg_diis_max)

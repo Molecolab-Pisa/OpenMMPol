@@ -19,14 +19,29 @@ module mod_geomhess
             !! Solves the coupled-perturbed induced dipole (CPID) equations
             !! (eq. CPDD/CPDP): T*(dmu_d/dr) = RHSd, T*(dmu_p/dr) = RHSp,
             !! for every Cartesian perturbation of every mm_atom at once
-            !! (nrhs = 3*mm_atoms), factoring T only once. RHSd/RHSp must
-            !! have been computed beforehand by build_cpid_rhs (kept as a
-            !! separate input here, rather than built internally, since
-            !! polelec_geomhess also needs RHSd/RHSp themselves, not just
-            !! the solution, to assemble the mixed term of eq. HessPol).
+            !! (nrhs = 3*mm_atoms). RHSd/RHSp must have been computed
+            !! beforehand by build_cpid_rhs (kept as a separate input here,
+            !! rather than built internally, since polelec_geomhess also
+            !! needs RHSd/RHSp themselves, not just the solution, to
+            !! assemble the mixed term of eq. HessPol).
+            !!
+            !! Two solve paths: with FMM enabled, T is never formed
+            !! explicitly -- block_conjugate_gradient_solver runs directly
+            !! against the same on-the-fly matvec (TMatVec_otf_block)
+            !! already used for the D/P dipole solve, wrapped in
+            !! fmm_cg_init/fmm_cg_finalize so the (very large, nrhs here is
+            !! 3*mm_atoms) geometry-dependent FMM setup is built once and
+            !! reused across every CG iteration, exactly like the D/P
+            !! solve. Without FMM, the original dense path is unchanged:
+            !! factor T once (create_TMat + cp_inversion_solver), since
+            !! forming an explicit N x N tensor is the right call for
+            !! genuinely small/non-FMM systems and there's no reason to
+            !! replace it with an iterative solve there.
 
-            use mod_polarization, only: create_TMat
-            use mod_solvers, only: cp_inversion_solver
+            use mod_polarization, only: create_TMat, TMatVec_otf_block, PolVec_block
+            use mod_electrostatics, only: fmm_cg_init, fmm_cg_finalize
+            use mod_solvers, only: cp_inversion_solver, batched_block_cg_solver, &
+                                    OMMP_DEFAULT_SOLVER_TOL
             use mod_memory, only: mallocate
 
             implicit none
@@ -36,15 +51,31 @@ module mod_geomhess
             real(rp), dimension(3*s%eel%pol_atoms, 3*s%top%mm_atoms), intent(out) :: dmud, dmup
 
             integer(ip) :: n, nrhs
+            real(rp) :: tol
 
             n = 3*s%eel%pol_atoms
             nrhs = 3*s%top%mm_atoms
 
-            if(.not. allocated(s%eel%TMat)) call mallocate('solve_cpid [TMat]', n, n, s%eel%TMat)
-            call create_TMat(s%eel)
+            if(s%eel%use_fmm) then
+                tol = s%eel%def_conv_thr
+                if(tol < 0.0_rp) tol = OMMP_DEFAULT_SOLVER_TOL
 
-            call cp_inversion_solver(n, nrhs, RHSd, dmud, s%eel%TMat)
-            call cp_inversion_solver(n, nrhs, RHSp, dmup, s%eel%TMat)
+                dmud = 0.0_rp
+                dmup = 0.0_rp
+
+                call fmm_cg_init(s%eel, nrhs)
+                call batched_block_cg_solver(n, nrhs, RHSd, dmud, s%eel, &
+                                             TMatVec_otf_block, PolVec_block, tol)
+                call batched_block_cg_solver(n, nrhs, RHSp, dmup, s%eel, &
+                                             TMatVec_otf_block, PolVec_block, tol)
+                call fmm_cg_finalize(s%eel)
+            else
+                if(.not. allocated(s%eel%TMat)) call mallocate('solve_cpid [TMat]', n, n, s%eel%TMat)
+                call create_TMat(s%eel)
+
+                call cp_inversion_solver(n, nrhs, RHSd, dmud, s%eel%TMat)
+                call cp_inversion_solver(n, nrhs, RHSp, dmup, s%eel%TMat)
+            end if
 
         end subroutine solve_cpid
 
@@ -113,11 +144,13 @@ module mod_geomhess
             !!              - 0.5*mup_k.EHes_M2D(k,D)                    [b]
             !!              - 0.5*mup_k.EHes_D2D(k,D)                    [e, was wrongly -1.0]
             !! EHes_D2M/E3D_D2M are pre-averaged over D/P sources inside
-            !! prepare_polelec, so [c]+[d] are recomputed here from
-            !! scratch (un-averaged, D-sourced/P-screened and
-            !! P-sourced/D-screened separately) mirroring elec_prop_D2M's
-            !! own pairwise construction, rather than reusing the shared
-            !! (pre-averaged) eel%EHes_D2M/E3D_D2M state.
+            !! prepare_polelec, so [c]+[d] instead read
+            !! eel%EHes_D2M_kind/E3D_D2M_kind, which prepare_polelec fills
+            !! with the same two (un-averaged, D-sourced/P-screened and
+            !! P-sourced/D-screened) contributions via elec_prop_D2M
+            !! itself -- letting this term go through the same near/far
+            !! FMM split as everything else, rather than a dedicated
+            !! O(pol_atoms) pairwise loop per atom.
             !! EHes_M2D/EHes_D2D are already properly D/P-indexed (no
             !! averaging), so [a]/[b]/[new]/[e] reuse them directly --
             !! note EHes_D2D's D/P index labels the SOURCE dipole type
@@ -131,9 +164,7 @@ module mod_geomhess
             !! plain +accumulation of q/mu/quad_elec_prop outputs with
             !! dr=target-source, equals Phi^n = (-1)^n * X.
 
-            use mod_electrostatics, only: ommp_electrostatics_type, damped_coulomb_kernel, &
-                                          screening_rules, mu_elec_prop
-            use mod_constants, only: eps_rp
+            use mod_electrostatics, only: ommp_electrostatics_type
 
             implicit none
 
@@ -142,11 +173,8 @@ module mod_geomhess
             real(rp), intent(inout) :: hkk(3,3)
 
             type(ommp_electrostatics_type), pointer :: eel
-            integer(ip) :: kpol, jpol, j
+            integer(ip) :: kpol
             real(rp) :: mud_k(3), mup_k(3), qqk(6)
-            real(rp) :: EHesP(10), EHesD(10), E3DP(15), E3DD(15)
-            real(rp) :: dr(3), kernel(6), scr_p, scr_d
-            real(rp) :: tmpV, tmpE(3), tmpEgrd(6), tmpHE(10), tmpD3E(15)
 
             eel => s%eel
             kpol = eel%mm_polar(k)
@@ -171,40 +199,13 @@ module mod_geomhess
                 call add_dipole_ehes(hkk, -0.5_rp, mup_k, eel%EHes_D2D(:,kpol,_amoeba_D_))
             end if
 
-            ! --- (c),(d): fresh pairwise sums (un-averaged D2M direction) ---
-            EHesP = 0.0_rp; EHesD = 0.0_rp; E3DP = 0.0_rp; E3DD = 0.0_rp
-            do jpol = 1, eel%pol_atoms
-                j = eel%polar_mm(jpol)
-                if(j == k) cycle
-
-                scr_p = screening_rules(eel, jpol, 'P', k, 'S', 'P')
-                scr_d = screening_rules(eel, jpol, 'P', k, 'S', 'D')
-                if(abs(scr_p) < eps_rp .and. abs(scr_d) < eps_rp) cycle
-
-                call damped_coulomb_kernel(eel, j, k, 5_ip, kernel, dr)
-
-                if(abs(scr_p) > eps_rp) then
-                    ! mu_d source, P-screening -> feeds piece (c)
-                    tmpV=0.0_rp; tmpE=0.0_rp; tmpEgrd=0.0_rp; tmpHE=0.0_rp; tmpD3E=0.0_rp
-                    call mu_elec_prop(eel%ipd(:,jpol,_amoeba_D_), dr, kernel, &
-                                      .false.,tmpV,.false.,tmpE,.false.,tmpEgrd,.true.,tmpHE,.true.,tmpD3E)
-                    EHesP = EHesP + scr_p*tmpHE
-                    E3DP = E3DP + scr_p*tmpD3E
-                end if
-                if(abs(scr_d) > eps_rp) then
-                    ! mu_p source, D-screening -> feeds piece (d)
-                    tmpV=0.0_rp; tmpE=0.0_rp; tmpEgrd=0.0_rp; tmpHE=0.0_rp; tmpD3E=0.0_rp
-                    call mu_elec_prop(eel%ipd(:,jpol,_amoeba_P_), dr, kernel, &
-                                      .false.,tmpV,.false.,tmpE,.false.,tmpEgrd,.true.,tmpHE,.true.,tmpD3E)
-                    EHesD = EHesD + scr_d*tmpHE
-                    E3DD = E3DD + scr_d*tmpD3E
-                end if
-            end do
-
-            call add_dipole_ehes(hkk, -0.5_rp, eel%q(2:4,k), EHesP)
-            call add_quad_e3d(hkk, 0.5_rp, qqk, E3DP)
-            call add_dipole_ehes(hkk, -0.5_rp, eel%q(2:4,k), EHesD)
-            call add_quad_e3d(hkk, 0.5_rp, qqk, E3DD)
+            ! --- (c),(d): D-sourced/P-screened and P-sourced/D-screened
+            ! contributions, precomputed once for all atoms in
+            ! prepare_polelec (via elec_prop_D2M, FMM-capable) ---
+            call add_dipole_ehes(hkk, -0.5_rp, eel%q(2:4,k), eel%EHes_D2M_kind(:,k,_amoeba_D_))
+            call add_quad_e3d(hkk, 0.5_rp, qqk, eel%E3D_D2M_kind(:,k,_amoeba_D_))
+            call add_dipole_ehes(hkk, -0.5_rp, eel%q(2:4,k), eel%EHes_D2M_kind(:,k,_amoeba_P_))
+            call add_quad_e3d(hkk, 0.5_rp, qqk, eel%E3D_D2M_kind(:,k,_amoeba_P_))
 
             hkk(_y_,_x_) = hkk(_x_,_y_)
             hkk(_z_,_x_) = hkk(_x_,_z_)
@@ -505,7 +506,7 @@ module mod_geomhess
 
         end subroutine hess_pol_torque_pair
 
-        subroutine build_cpid_rhs(s, RHSd, RHSp)
+        subroutine build_cpid_rhs(s, RHSd, RHSp, arg_jat_lo, arg_jat_hi)
             !! Builds the right-hand-sides of the coupled-perturbed induced
             !! dipole (CPID) equations (eq. CPDD/CPDP in main.tex), one
             !! column per Cartesian perturbation of every mm_atom:
@@ -530,6 +531,22 @@ module mod_geomhess
             !!     multipoles of every j (d_k Theta_j), same rank as Ed_i
             !!     itself (E, not Egrd) since the frame-differentiated
             !!     multipole simply replaces Theta_j as a source.
+            !!
+            !! arg_jat_lo/arg_jat_hi: restrict the OUTPUT COLUMNS to
+            !! perturbed-atom indices in this (inclusive, 1-based, mandatory)
+            !! range, sizing RHSd/RHSp to (n, 3*(jat_hi-jat_lo+1)) -- pass
+            !! (1, mm_atoms) for the previous (full-width) behavior
+            !! instead of the full (n, 3*mm_atoms) -- for large systems where
+            !! the full-width dense RHS does not fit in memory (e.g. 1AO6,
+            !! n~55000, full RHSd alone ~24GB) but only a subset of columns
+            !! is actually needed (e.g. testing, or a QM-region-sized
+            !! Hessian). The ROW loop (over ipol, i.e. all pol_atoms) is
+            !! unchanged and still runs in full regardless -- row
+            !! completeness is required for correctness (Term A's
+            !! Egrd_M2D/Egrd_D2D already includes the whole system's FMM
+            !! far-field for that row) -- only which column WRITES survive
+            !! (and, for Term B, whether the inner k loop's expensive kernel
+            !! evaluation even runs) are restricted.
 
             use mod_electrostatics, only: ommp_electrostatics_type, &
                                           damped_coulomb_kernel, screening_rules, &
@@ -540,16 +557,22 @@ module mod_geomhess
             implicit none
 
             type(ommp_system), intent(inout), target :: s
-            real(rp), dimension(3*s%eel%pol_atoms, 3*s%top%mm_atoms), intent(out) :: RHSd, RHSp
+            integer(ip), intent(in) :: arg_jat_lo, arg_jat_hi
+            real(rp), dimension(3*s%eel%pol_atoms, 3*(arg_jat_hi-arg_jat_lo+1)), &
+                       intent(out) :: RHSd, RHSp
 
             type(ommp_electrostatics_type), pointer :: eel
             real(rp), allocatable :: ddip(:,:,:,:), dqua(:,:,:,:,:)
             integer(ip) :: ipol, i, j, k, kpol, jat, nact, dir
             integer(ip) :: atomj(4)
+            integer(ip) :: jat_lo, jat_hi, kc
             real(rp) :: gmat(3,3)
             real(rp) :: dr(3), kernel(5)
             real(rp) :: scalf_d, scalf_p, scalf_u
             real(rp) :: tmpV, tmpE(3), tmpEgrd(6), tmpHE(10), tmpD3E(15)
+
+            jat_lo = arg_jat_lo
+            jat_hi = arg_jat_hi
 
             eel => s%eel
             RHSd = 0.0_rp
@@ -572,7 +595,9 @@ module mod_geomhess
                 gmat(_z_,_x_) = gmat(_x_,_z_)
                 gmat(_z_,_y_) = gmat(_y_,_z_)
                 gmat(_z_,_z_) = eel%Egrd_M2D(_zz_,ipol,_amoeba_D_) + eel%Egrd_D2D(_zz_,ipol,_amoeba_D_)
-                RHSd(3*(ipol-1)+1:3*ipol, 3*(i-1)+1:3*i) = RHSd(3*(ipol-1)+1:3*ipol, 3*(i-1)+1:3*i) - gmat
+                if(i >= jat_lo .and. i <= jat_hi) &
+                    RHSd(3*(ipol-1)+1:3*ipol, 3*(i-jat_lo)+1:3*(i-jat_lo)+3) = &
+                        RHSd(3*(ipol-1)+1:3*ipol, 3*(i-jat_lo)+1:3*(i-jat_lo)+3) - gmat
 
                 gmat(_x_,_x_) = eel%Egrd_M2D(_xx_,ipol,_amoeba_P_) + eel%Egrd_D2D(_xx_,ipol,_amoeba_P_)
                 gmat(_x_,_y_) = eel%Egrd_M2D(_xy_,ipol,_amoeba_P_) + eel%Egrd_D2D(_xy_,ipol,_amoeba_P_)
@@ -583,11 +608,15 @@ module mod_geomhess
                 gmat(_z_,_x_) = gmat(_x_,_z_)
                 gmat(_z_,_y_) = gmat(_y_,_z_)
                 gmat(_z_,_z_) = eel%Egrd_M2D(_zz_,ipol,_amoeba_P_) + eel%Egrd_D2D(_zz_,ipol,_amoeba_P_)
-                RHSp(3*(ipol-1)+1:3*ipol, 3*(i-1)+1:3*i) = RHSp(3*(ipol-1)+1:3*ipol, 3*(i-1)+1:3*i) - gmat
+                if(i >= jat_lo .and. i <= jat_hi) &
+                    RHSp(3*(ipol-1)+1:3*ipol, 3*(i-jat_lo)+1:3*(i-jat_lo)+3) = &
+                        RHSp(3*(ipol-1)+1:3*ipol, 3*(i-jat_lo)+1:3*(i-jat_lo)+3) - gmat
 
                 ! --- Term B: k /= i, single-pair term ---
                 do k = 1, s%top%mm_atoms
                     if(k == i) cycle
+                    if(k < jat_lo .or. k > jat_hi) cycle
+                    kc = 3*(k-jat_lo)
 
                     scalf_d = screening_rules(eel, k, 'S', ipol, 'P', 'D')
                     scalf_p = screening_rules(eel, k, 'S', ipol, 'P', 'P')
@@ -615,10 +644,10 @@ module mod_geomhess
                     gmat(_y_,_x_) = tmpEgrd(_xy_); gmat(_y_,_y_) = tmpEgrd(_yy_); gmat(_y_,_z_) = tmpEgrd(_yz_)
                     gmat(_z_,_x_) = tmpEgrd(_xz_); gmat(_z_,_y_) = tmpEgrd(_yz_); gmat(_z_,_z_) = tmpEgrd(_zz_)
 
-                    RHSd(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) = RHSd(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) &
-                                                              + scalf_d * gmat
-                    RHSp(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) = RHSp(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) &
-                                                              + scalf_p * gmat
+                    RHSd(3*(ipol-1)+1:3*ipol, kc+1:kc+3) = RHSd(3*(ipol-1)+1:3*ipol, kc+1:kc+3) &
+                                                          + scalf_d * gmat
+                    RHSp(3*(ipol-1)+1:3*ipol, kc+1:kc+3) = RHSp(3*(ipol-1)+1:3*ipol, kc+1:kc+3) &
+                                                          + scalf_p * gmat
 
                     ! "u" part: +d_r_k[T_ik . mu_k]
                     if(kpol > 0 .and. abs(scalf_u) > eps_rp) then
@@ -629,8 +658,8 @@ module mod_geomhess
                         gmat(_x_,_x_) = tmpEgrd(_xx_); gmat(_x_,_y_) = tmpEgrd(_xy_); gmat(_x_,_z_) = tmpEgrd(_xz_)
                         gmat(_y_,_x_) = tmpEgrd(_xy_); gmat(_y_,_y_) = tmpEgrd(_yy_); gmat(_y_,_z_) = tmpEgrd(_yz_)
                         gmat(_z_,_x_) = tmpEgrd(_xz_); gmat(_z_,_y_) = tmpEgrd(_yz_); gmat(_z_,_z_) = tmpEgrd(_zz_)
-                        RHSd(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) = RHSd(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) &
-                                                                  + scalf_u * gmat
+                        RHSd(3*(ipol-1)+1:3*ipol, kc+1:kc+3) = RHSd(3*(ipol-1)+1:3*ipol, kc+1:kc+3) &
+                                                              + scalf_u * gmat
 
                         tmpV = 0.0_rp; tmpE = 0.0_rp; tmpEgrd = 0.0_rp; tmpHE = 0.0_rp; tmpD3E = 0.0_rp
                         call mu_elec_prop(eel%ipd(:,kpol,_amoeba_P_), dr, kernel, &
@@ -639,8 +668,8 @@ module mod_geomhess
                         gmat(_x_,_x_) = tmpEgrd(_xx_); gmat(_x_,_y_) = tmpEgrd(_xy_); gmat(_x_,_z_) = tmpEgrd(_xz_)
                         gmat(_y_,_x_) = tmpEgrd(_xy_); gmat(_y_,_y_) = tmpEgrd(_yy_); gmat(_y_,_z_) = tmpEgrd(_yz_)
                         gmat(_z_,_x_) = tmpEgrd(_xz_); gmat(_z_,_y_) = tmpEgrd(_yz_); gmat(_z_,_z_) = tmpEgrd(_zz_)
-                        RHSp(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) = RHSp(3*(ipol-1)+1:3*ipol, 3*(k-1)+1:3*k) &
-                                                                  + scalf_u * gmat
+                        RHSp(3*(ipol-1)+1:3*ipol, kc+1:kc+3) = RHSp(3*(ipol-1)+1:3*ipol, kc+1:kc+3) &
+                                                              + scalf_u * gmat
                     end if
                 end do
 
@@ -675,10 +704,12 @@ module mod_geomhess
                                 .false., tmpV, .true., tmpE, .false., tmpEgrd, &
                                 .false., tmpHE, .false., tmpD3E)
 
-                            RHSd(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-1)+dir) = &
-                                RHSd(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-1)+dir) + scalf_d * tmpE
-                            RHSp(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-1)+dir) = &
-                                RHSp(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-1)+dir) + scalf_p * tmpE
+                            if(atomj(jat) >= jat_lo .and. atomj(jat) <= jat_hi) then
+                                RHSd(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-jat_lo)+dir) = &
+                                    RHSd(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-jat_lo)+dir) + scalf_d * tmpE
+                                RHSp(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-jat_lo)+dir) = &
+                                    RHSp(3*(ipol-1)+1:3*ipol, 3*(atomj(jat)-jat_lo)+dir) + scalf_p * tmpE
+                            end if
                         end do
                     end do
                 end do
@@ -865,7 +896,7 @@ module mod_geomhess
             npol = 3*eel%pol_atoms
 
             allocate(RHSd(npol,n), RHSp(npol,n))
-            call build_cpid_rhs(s, RHSd, RHSp)
+            call build_cpid_rhs(s, RHSd, RHSp, 1_ip, s%top%mm_atoms)
 
             allocate(dmud(npol,n), dmup(npol,n))
             call solve_cpid(s, RHSd, RHSp, dmud, dmup)

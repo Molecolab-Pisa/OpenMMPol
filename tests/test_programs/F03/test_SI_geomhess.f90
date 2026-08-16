@@ -319,7 +319,7 @@ module test_geomhess
                 n = 3*natm
                 npol = 3*eel%pol_atoms
                 allocate(RHSd(npol,n), RHSp(npol,n))
-                call build_cpid_rhs(s, RHSd, RHSp)
+                call build_cpid_rhs(s, RHSd, RHSp, 1, natm)
                 allocate(dmud(npol,n), dmup(npol,n))
                 call solve_cpid(s, RHSd, RHSp, dmud, dmup)
 

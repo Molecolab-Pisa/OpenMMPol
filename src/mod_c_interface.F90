@@ -1888,7 +1888,30 @@ module mod_ommp_C_interface
             call c_f_pointer(sp, s)
             s%eel%fmm_maxl_static = l
         end subroutine
-        
+
+        subroutine C_ommp_set_fmm_cache_mode(sp, m) &
+                bind(c, name='ommp_set_fmm_cache_mode')
+            !! Controls the M2L/L2L/M2M/P2M/L2P rotation-matrix caching
+            !! used across CG iterations (see fmm_cg_init in
+            !! mod_electrostatics, fmm_rotcache_try_enable in mod_fmm):
+            !! 0 (default) = cache M2L+L2P if memory allows, silently fall
+            !! back to no caching otherwise; 1 = caching disabled; 2 =
+            !! force-cache all five terms, erroring out if memory doesn't
+            !! allow it. Just sets the field -- consulted lazily the next
+            !! time a CG/DIIS polarization solve starts, no immediate
+            !! side effect.
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+            integer(ommp_integer), intent(in), value :: m
+
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(sp, s)
+            s%eel%fmm_cache_mode = m
+        end subroutine
+
         subroutine C_ommp_set_fmm_distance(sp, d) &
                 bind(c, name='ommp_set_fmm_distance')
 
@@ -1920,6 +1943,35 @@ module mod_ommp_C_interface
             
             call c_f_pointer(sp, s)
             s%eel%fmm_min_cell_size = d
+            call fmm_coordinates_update(s%eel)
+        end subroutine
+
+        subroutine C_ommp_set_fmm_params(sp, distance, min_cell_size) &
+                bind(c, name='ommp_set_fmm_params')
+            !! Sets fmm_distance AND fmm_min_cell_size together, triggering
+            !! fmm_coordinates_update only ONCE after both are consistent.
+            !! Setting them one at a time via ommp_set_fmm_distance/
+            !! ommp_set_fmm_min_cell_size (each of which independently
+            !! triggers its own tree rebuild) exposes an intermediate state
+            !! where one of the two is still at its Fortran type-default of
+            !! 0.0 -- a degenerate value that has been observed to crash
+            !! free_tree for small systems (root-caused in the `hessian`
+            !! branch FMM-caching work, 2026-08-15). Use this instead of
+            !! the two individual setters when both values are being
+            !! configured together (e.g. from a fresh smart-input read).
+
+            use mod_electrostatics, only: fmm_coordinates_update
+
+            implicit none
+
+            type(c_ptr), value, intent(in) :: sp
+            real(ommp_real), intent(in), value :: distance, min_cell_size
+
+            type(ommp_system), pointer :: s
+
+            call c_f_pointer(sp, s)
+            s%eel%fmm_distance = distance
+            s%eel%fmm_min_cell_size = min_cell_size
             call fmm_coordinates_update(s%eel)
         end subroutine
         

@@ -197,6 +197,8 @@ extern "C"
     extern void ommp_set_fmm_lmax(OMMP_SYSTEM_PRT, int32_t);
     extern void ommp_set_fmm_distance(OMMP_SYSTEM_PRT, double);
     extern void ommp_set_fmm_min_cell_size(OMMP_SYSTEM_PRT, double);
+    extern void ommp_set_fmm_params(OMMP_SYSTEM_PRT, double, double);
+    extern void ommp_set_fmm_cache_mode(OMMP_SYSTEM_PRT, int32_t);
 
     extern void ommp_ignore_duplicated_angle_prm(void);
     extern void ommp_ignore_duplicated_opb_prm(void);

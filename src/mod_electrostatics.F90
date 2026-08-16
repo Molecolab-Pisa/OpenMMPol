@@ -146,6 +146,16 @@ module mod_electrostatics
         !! Minimum dimension for cell size used in FMM
         real(rp) :: fmm_distance = 0.0
         !! Threshold distance for considering two nodes in FMM tree as far
+        integer(ip) :: fmm_cache_mode = 0
+        !! Controls the M2M/M2L/L2L/P2M/L2P rotation-matrix caching used
+        !! across CG iterations (see fmm_cg_init/fmm_rotcache_try_enable):
+        !! 0 (default) = cache M2L+L2P only, if memory allows (silently
+        !! falls back to no caching if it doesn't -- these two terms alone
+        !! capture ~97% of the achievable speedup on a real 18k-atom
+        !! system, see the `hessian` branch FMM-caching work, 2026-08-15);
+        !! 1 = caching disabled entirely; 2 = force-cache all five terms,
+        !! erroring out (not silently falling back) if memory doesn't
+        !! allow it.
         type(fmm_type), allocatable :: fmm_static
         !! Fast multipoles object for static multipoles sources
         logical(lp) :: fmm_static_done = .false.
@@ -154,6 +164,19 @@ module mod_electrostatics
         !! Fast multipoles object for static multipoles sources
         logical(lp), allocatable :: fmm_ipd_done(:)
         !! Flag for a fresh solution of ipd fmm
+        type(fmm_type), pointer :: fmm_cg_scratch => null()
+        !! Persistent FMM scratch object, reused as-is across every
+        !! matrix-vector call within a SINGLE CG/DIIS polarization solve
+        !! (see fmm_cg_init/fmm_cg_finalize in this module, called from
+        !! mod_polarization's polarization()). Positions do not change
+        !! during a polarization solve, so this lets geometry-dependent FMM
+        !! setup -- in particular the M2M rotation-matrix cache (see
+        !! mod_fmm's fmm_rotcache_try_enable) -- be built once and
+        !! reused across iterations, instead of being rebuilt from scratch
+        !! on every single matvec call as field_extD2D otherwise would.
+        !! A POINTER (not allocatable): field_extD2D only needs to
+        !! dereference it, not reassign it, so it can stay usable even
+        !! where eel is intent(in).
         type(fmm_tree_type), allocatable :: tree
         !! Tree object
         type(yale_sparse) :: fmm_near_field_list
@@ -203,6 +226,14 @@ module mod_electrostatics
         real(rp), allocatable :: Egrd_D2M(:,:)
         real(rp), allocatable :: EHes_D2M(:,:)
         real(rp), allocatable :: E3D_D2M(:,:)
+        real(rp), allocatable :: EHes_D2M_kind(:,:,:)
+        !! EHes_D2M split by source-dipole kind (dim 3, indexed by
+        !! _amoeba_D_/_amoeba_P_), i.e. NOT averaged over D/P sources like
+        !! EHes_D2M itself -- needed by the polarization Hessian diagonal
+        !! (hess_pol_selfterm), which needs the two contributions kept
+        !! separate rather than their 0.5*(D+P) average.
+        real(rp), allocatable :: E3D_D2M_kind(:,:,:)
+        !! Same as EHes_D2M_kind, for E3D_D2M.
 
         logical(lp) :: D2Dgg_done = .false.
         logical(lp) :: D2Dhh_done = .false.
@@ -262,6 +293,7 @@ module mod_electrostatics
     public :: thole_init, remove_null_pol, set_screening_parameters
     public :: screening_rules, make_screening_lists
     public :: damped_coulomb_kernel, field_extD2D
+    public :: fmm_cg_init, fmm_cg_finalize
     public :: energy_MM_MM, energy_MM_pol
     public :: prepare_fixedelec, prepare_polelec
     public :: q_elec_prop, mu_elec_prop, quad_elec_prop, coulomb_kernel
@@ -410,6 +442,10 @@ module mod_electrostatics
             do i=1, eel_obj%n_ipd
                 call free_fmm(eel_obj%fmm_ipd(i))
             end do
+            if(associated(eel_obj%fmm_cg_scratch)) then
+                call free_fmm(eel_obj%fmm_cg_scratch)
+                deallocate(eel_obj%fmm_cg_scratch)
+            end if
             call free_tree(eel_obj%tree)
             deallocate(eel_obj%fmm_static, eel_obj%fmm_ipd, eel_obj%tree)
             call free_yale_sparse(eel_obj%fmm_near_field_list)
@@ -1908,8 +1944,6 @@ module mod_electrostatics
         ider = 0
         if (do_gg) ider = 1
         if (do_hh) ider = 2
-!
-        write(6,*) 'in prepare_fixedelec, do_gg, do_hh=', do_gg, do_hh, ider
 
         if (ider.eq.0 .and. eel%M2M_done) return
         if (ider.eq.1 .and. eel%M2M_done .and. eel%M2Mgg_done) return
@@ -2133,8 +2167,16 @@ module mod_electrostatics
                                eel%n_ipd, eel%EHes_D2D)
             end if
             if(.not. allocated(eel%E3D_D2M) .and. eel%amoeba) then
-                call mallocate('prepare_polelec [E3D_D2M]', 10_ip, eel%top%mm_atoms, &
+                call mallocate('prepare_polelec [E3D_D2M]', 15_ip, eel%top%mm_atoms, &
                                eel%E3D_D2M)
+            end if
+            if(.not. allocated(eel%EHes_D2M_kind) .and. eel%amoeba) then
+                call mallocate('prepare_polelec [EHes_D2M_kind]', 10_ip, eel%top%mm_atoms, &
+                               2_ip, eel%EHes_D2M_kind)
+            end if
+            if(.not. allocated(eel%E3D_D2M_kind) .and. eel%amoeba) then
+                call mallocate('prepare_polelec [E3D_D2M_kind]', 15_ip, eel%top%mm_atoms, &
+                               2_ip, eel%E3D_D2M_kind)
             end if
         end if
         if(ider.eq.0) then
@@ -2176,19 +2218,29 @@ module mod_electrostatics
             
             if(eel%amoeba) then
                 eel%Egrd_D2M = 0.0_rp
+
+                ! EHes_D2M/E3D_D2M are needed both as the usual 0.5*(P+D)
+                ! average (used by the gradient and by the torque part of
+                ! the Hessian) and, unaveraged, split by source-dipole kind
+                ! (used by the polarization Hessian diagonal term, see
+                ! mod_geomhess::hess_pol_selfterm) -- so each call is
+                ! captured into eel%*_D2M_kind before being combined.
                 eel%EHes_D2M = 0.0_rp
                 eel%E3D_D2M = 0.0_rp
-                ! do_E3D is not requested here: nothing outside this
-                ! module reads eel%E3D_D2M, so it is left at zero rather
-                ! than spending an extra (now-possible) 5th-derivative
-                ! damped-kernel evaluation on it for nothing.
-                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true., .false.)
-                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true., .false.)
+                call elec_prop_D2M(eel, 'P', .false., .true., .true., .true., .true.)
+                eel%EHes_D2M_kind(:,:,_amoeba_P_) = eel%EHes_D2M
+                eel%E3D_D2M_kind(:,:,_amoeba_P_) = eel%E3D_D2M
+
+                eel%EHes_D2M = 0.0_rp
+                eel%E3D_D2M = 0.0_rp
+                call elec_prop_D2M(eel, 'D', .false., .true., .true., .true., .true.)
+                eel%EHes_D2M_kind(:,:,_amoeba_D_) = eel%EHes_D2M
+                eel%E3D_D2M_kind(:,:,_amoeba_D_) = eel%E3D_D2M
 
                 eel%E_D2M = eel%E_D2M * 0.5
                 eel%Egrd_D2M = eel%Egrd_D2M * 0.5
-                eel%EHes_D2M = eel%EHes_D2M * 0.5
-                eel%E3D_D2M = eel%E3D_D2M * 0.5
+                eel%EHes_D2M = 0.5_rp * (eel%EHes_D2M_kind(:,:,_amoeba_P_) + eel%EHes_D2M_kind(:,:,_amoeba_D_))
+                eel%E3D_D2M = 0.5_rp * (eel%E3D_D2M_kind(:,:,_amoeba_P_) + eel%E3D_D2M_kind(:,:,_amoeba_D_))
 
                 call elec_prop_D2D(eel, 'P', .false., .false., .true., .true.)
                 call elec_prop_D2D(eel, 'D', .false., .false., .true., .true.)
@@ -2209,19 +2261,19 @@ module mod_electrostatics
         
         type(ommp_electrostatics_type), intent(inout) :: eel
         !! Electrostatics data structure
-        real(rp), allocatable :: tmp_q(:), tmp_mu(:,:), tmp_quad(:,:)
-        
+        real(rp), allocatable :: tmp_q(:,:), tmp_mu(:,:,:), tmp_quad(:,:,:)
+
         if(.not. eel%fmm_static_done) then
-            call mallocate('prepare_fmm_static [tmp_q]', eel%top%mm_atoms, tmp_q)
-            tmp_q(:) = eel%q(1,:)
+            call mallocate('prepare_fmm_static [tmp_q]', 1_ip, eel%top%mm_atoms, tmp_q)
+            tmp_q(1,:) = eel%q(1,:)
             if(eel%amoeba) then
-                call mallocate('prepare_fmm_static [tmp_mu]', 3_ip, eel%top%mm_atoms, tmp_mu)
-                tmp_mu(:,:) = eel%q(2:4,:)
-                call mallocate('prepare_fmm_static [tmp_quad]', 6_ip, eel%top%mm_atoms, tmp_quad)
-                tmp_quad(:,:) = eel%q(5:10,:)
+                call mallocate('prepare_fmm_static [tmp_mu]', 3_ip, 1_ip, eel%top%mm_atoms, tmp_mu)
+                tmp_mu(:,1,:) = eel%q(2:4,:)
+                call mallocate('prepare_fmm_static [tmp_quad]', 6_ip, 1_ip, eel%top%mm_atoms, tmp_quad)
+                tmp_quad(:,1,:) = eel%q(5:10,:)
             else
-                call mallocate('prepare_fmm_static [tmp_mu]', 3_ip, 1_ip, tmp_mu)
-                call mallocate('prepare_fmm_static [tmp_quad]', 6_ip, 1_ip, tmp_quad)
+                call mallocate('prepare_fmm_static [tmp_mu]', 3_ip, 1_ip, 1_ip, tmp_mu)
+                call mallocate('prepare_fmm_static [tmp_quad]', 6_ip, 1_ip, 1_ip, tmp_quad)
             end if
 
             call fmm_solve_for_multipoles(eel%fmm_static, &
@@ -2229,7 +2281,7 @@ module mod_electrostatics
                                           tmp_mu, eel%amoeba, &
                                           tmp_quad, eel%amoeba)
             eel%fmm_static_done = .true.
-            
+
             call mfree('prepare_fmm_static [tmp_q]', tmp_q)
             call mfree('prepare_fmm_static [tmp_mu]', tmp_mu)
             call mfree('prepare_fmm_static [tmp_quad]', tmp_quad)
@@ -2239,24 +2291,24 @@ module mod_electrostatics
     subroutine prepare_fmm_ext_ipd(eel, fmm, ipd)
         use mod_memory, only: mallocate, mfree
         implicit none
-        
+
         type(ommp_electrostatics_type), intent(in) :: eel
         !! Electrostatics data structure
         type(fmm_type), intent(inout) :: fmm
         !! fmm object used to run the calculation
-        real(rp), intent(in) :: ipd(3, eel%pol_atoms)
-        !! External induced point dipoles at polarizable sites
+        real(rp), intent(in) :: ipd(3, fmm%nrhs, eel%pol_atoms)
+        !! External induced point dipoles at polarizable sites, one set per rhs
 
-        real(rp), allocatable :: tmp_mu(:,:)
-        real(rp) :: fake_q(1), fake_quad(6,1)
+        real(rp), allocatable :: tmp_mu(:,:,:)
+        real(rp) :: fake_q(fmm%nrhs,1), fake_quad(6,fmm%nrhs,1)
         integer(ip) :: i
-        
-        call mallocate('prepare_fmm_ext_ipd [tmp_mu]', 3_ip, eel%top%mm_atoms, tmp_mu)
+
+        call mallocate('prepare_fmm_ext_ipd [tmp_mu]', 3_ip, fmm%nrhs, eel%top%mm_atoms, tmp_mu)
         tmp_mu = 0.0
         do i=1, eel%pol_atoms
-            tmp_mu(:,eel%polar_mm(i)) = ipd(:,i)
+            tmp_mu(:,:,eel%polar_mm(i)) = ipd(:,:,i)
         end do
-        
+
         call fmm_solve_for_multipoles(fmm, &
                                       fake_q, logical(.false., lp), &
                                       tmp_mu, logical(.true., lp), &
@@ -2275,12 +2327,56 @@ module mod_electrostatics
 
         if(eel%ipd_done) then
             if(.not. eel%fmm_ipd_done(knd)) then
-                call prepare_fmm_ext_ipd(eel, eel%fmm_ipd(knd), eel%ipd(:, :, knd))
+                call prepare_fmm_ext_ipd(eel, eel%fmm_ipd(knd), &
+                                         reshape(eel%ipd(:,:,knd), [3_ip, eel%fmm_ipd(knd)%nrhs, eel%pol_atoms]))
                 eel%fmm_ipd_done(knd) = .true.
             end if
         else
             call fatal_error('Converged IPD are needed to call prepare_fmm_ipd.')
         end if
+    end subroutine
+
+    subroutine fmm_cg_init(eel, nrhs)
+        !! Allocate eel%fmm_cg_scratch, a persistent FMM object meant to be
+        !! reused by field_extD2D/TMatVec_otf_block for every
+        !! matrix-vector call within a SINGLE CG/DIIS polarization solve at
+        !! a fixed nrhs. Call once before entering the solver loop (see
+        !! mod_polarization's polarization()); pair with fmm_cg_finalize
+        !! once the solve is done. Positions must not change while the
+        !! scratch object is alive -- fmm_coordinates_update discards it
+        !! defensively if they do.
+        !!
+        !! No-op if FMM is not in use.
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+        integer(ip), intent(in) :: nrhs
+
+        if(.not. eel%use_fmm) return
+
+        if(associated(eel%fmm_cg_scratch)) then
+            ! Stale scratch from an earlier, improperly-closed solve --
+            ! should not normally happen (fmm_cg_finalize always closes
+            ! it), discard rather than risk reusing mismatched state.
+            call free_fmm(eel%fmm_cg_scratch)
+            deallocate(eel%fmm_cg_scratch)
+        end if
+
+        allocate(eel%fmm_cg_scratch)
+        call fmm_init(eel%fmm_cg_scratch, eel%fmm_maxl_pol, eel%tree, nrhs)
+        call fmm_rotcache_try_enable(eel%fmm_cg_scratch, eel%fmm_cache_mode)
+    end subroutine
+
+    subroutine fmm_cg_finalize(eel)
+        !! Release eel%fmm_cg_scratch allocated by fmm_cg_init. No-op if
+        !! FMM is not in use or fmm_cg_init was never called.
+        implicit none
+
+        type(ommp_electrostatics_type), intent(inout) :: eel
+
+        if(.not. associated(eel%fmm_cg_scratch)) return
+        call free_fmm(eel%fmm_cg_scratch)
+        deallocate(eel%fmm_cg_scratch)
     end subroutine
 
     subroutine elec_prop_M2M(eel, do_V, do_E, do_Egrd, do_EHes, do_E3D)
@@ -2296,6 +2392,7 @@ module mod_electrostatics
 
 
         real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
+        real(rp) :: tmpV1(1), tmpE1(3,1), tmpEgr1(6,1), tmpHE1(10,1), tmpD3E1(15,1)
         real(rp) :: scalf
         integer(ip) :: i, j, idx, sidx, ikernel
         logical :: to_do, to_scale
@@ -2320,43 +2417,36 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2
 
         if(eel%use_fmm) then
-!fl
-!           no fmm for second derivatives yet...
-!
-            if (do_E3D) call fatal_error("fmm NYI for analytical second derivatives.")
             call preapare_fmm_static(eel)
 
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,tmpV,tmpE,tmpEgr,tmpHE)
-            do i=1, top%mm_atoms 
-                !call cart_propfar_at_ipart(eel%fmm_static, i, &
-                !                        do_V, eel%V_M2M(i), &
-                !                        do_E, eel%E_M2M(:,i), &
-                !                        do_Egrd, eel%Egrd_M2M(:,i), &
-                !                        do_EHes, eel%EHes_M2M(:,i))
-                
-                if(do_V) tmpV = 0.0_rp
-                if(do_E) tmpE = 0.0_rp
-                if(do_Egrd) tmpEgr = 0.0_rp
-                if(do_EHes) tmpHE = 0.0_rp
-                if(do_E3D) tmpD3E = 0.0_rp
+            !$omp private(i,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E,tmpV1,tmpE1,tmpEgr1,tmpHE1,tmpD3E1)
+            do i=1, top%mm_atoms
+                if(do_V) tmpV1(1) = 0.0_rp
+                if(do_E) tmpE1(:,1) = 0.0_rp
+                if(do_Egrd) tmpEgr1(:,1) = 0.0_rp
+                if(do_EHes) tmpHE1(:,1) = 0.0_rp
+                if(do_E3D) tmpD3E1(:,1) = 0.0_rp
 
                 call cart_propfar_at_ipart(eel%fmm_static, i, &
-                                        do_V, tmpV, &
-                                        do_E, tmpE, &
-                                        do_Egrd, tmpEgr, &
-                                        do_EHes, tmpHE)
+                                        do_V, tmpV1, &
+                                        do_E, tmpE1, &
+                                        do_Egrd, tmpEgr1, &
+                                        do_EHes, tmpHE1, &
+                                        do_E3D, tmpD3E1)
+                tmpV = tmpV1(1); tmpE = tmpE1(:,1); tmpEgr = tmpEgr1(:,1)
+                tmpHE = tmpHE1(:,1); tmpD3E = tmpD3E1(:,1)
 
                 if(do_V) eel%V_M2M(i) = eel%V_M2M(i) + tmpV
                 if(do_E) eel%E_M2M(:,i) = eel%E_M2M(:,i) + tmpE
                 if(do_Egrd) eel%Egrd_M2M(:,i) = eel%Egrd_M2M(:,i) + tmpEgr
                 if(do_EHes) eel%EHes_M2M(:,i) = eel%EHes_M2M(:,i) + tmpHE
-                if(do_E3D) eel%E3D_M2M(:,i) = eel%E3D_M2M(:,i) + tmpD3E * scalf
+                if(do_E3D) eel%E3D_M2M(:,i) = eel%E3D_M2M(:,i) + tmpD3E
             end do
 
             if(allocated(eel%list_S_S_fmm_far)) then
                 !$omp parallel do default(shared) schedule(dynamic) &
-                !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+                !$omp private(i,j,idx,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E)
                 do i=1, top%mm_atoms
                     do idx=eel%list_S_S_fmm_far%ri(i), eel%list_S_S_fmm_far%ri(i+1)-1
                         j = eel%list_S_S_fmm_far%ci(idx)
@@ -2403,7 +2493,7 @@ module mod_electrostatics
             end if
             
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,idx,sidx,to_scale,to_do,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE)
+            !$omp private(i,j,idx,sidx,to_scale,to_do,scalf,dr,kernel,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E)
             do i=1, top%mm_atoms
 
                 if(do_V) tmpV = 0.0_rp
@@ -2611,55 +2701,91 @@ module mod_electrostatics
         end if
     end subroutine elec_prop_M2M
     
-    subroutine field_extD2D(eel, ext_ipd, E)
-        !! Computes the electric field of a trial set of induced point dipoles
-        !! at polarizable sites. This is intended to be used as matrix-vector
-        !! routine in the solution of the linear system.
-        
+    subroutine field_extD2D(eel, nrhs, ext_ipd, E)
+        !! Computes the electric field of nrhs independent trial sets of
+        !! induced point dipoles at polarizable sites. This is intended to be
+        !! used as matrix-vector routine in the solution of the linear
+        !! system -- for nrhs>1, the FMM far-field part is batched (one
+        !! P2M->M2M->M2L->L2L pass + one cart_propfar_at_ipart call per atom
+        !! for ALL nrhs columns), while the near-field pairwise corrections
+        !! (cheap, O(near-list size)) are simply looped over nrhs.
+
         implicit none
 
         type(ommp_electrostatics_type), intent(in) :: eel
         !! Data structure for electrostatic part of the system
-        real(rp), intent(in) :: ext_ipd(3, eel%pol_atoms)
+        integer(ip), intent(in) :: nrhs
+        !! Number of independent trial dipole sets
+        real(rp), intent(in) :: ext_ipd(3, nrhs, eel%pol_atoms)
         !! External induced point dipoles at polarizable sites
-        real(rp), intent(inout) :: E(3, eel%pol_atoms)
+        real(rp), intent(inout) :: E(3, nrhs, eel%pol_atoms)
         !! Electric field (results will be added)
 
-        integer(ip) :: i, j, ipol, jpol, ij, idx
-        logical :: to_scale, to_do
+        integer(ip) :: i, j, ipol, jpol, ij, idx, irhs
+        logical :: to_scale, to_do, owns_fmm_ipd
         real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
         real(rp) :: scalf
-        type(fmm_type), allocatable :: fmm_ipd
+        type(fmm_type), pointer :: fmm_ipd
+        real(rp), allocatable :: tmpV1(:), tmpE1(:,:), tmpEgr1(:,:), tmpHE1(:,:), tmpD3E1(:,:)
+
+        nullify(fmm_ipd)
+        if(associated(eel%fmm_cg_scratch)) then
+            ! Reuse the persistent scratch object set up by fmm_cg_init for
+            ! the whole CG/DIIS solve (if any, and if its nrhs matches) --
+            ! this is what lets tree_m2m's rotation-matrix cache survive
+            ! across matvec calls instead of being rebuilt every time.
+            if(eel%fmm_cg_scratch%nrhs == nrhs) fmm_ipd => eel%fmm_cg_scratch
+        end if
+        owns_fmm_ipd = .not. associated(fmm_ipd)
 
         if(eel%use_fmm) then
-            allocate(fmm_ipd)
-            call fmm_init(fmm_ipd, eel%fmm_maxl_pol, eel%tree)
-            call prepare_fmm_ext_ipd(eel, fmm_ipd, ext_ipd)
+            call time_push()
+            call time_push()
+            if(owns_fmm_ipd) then
+                allocate(fmm_ipd)
+                call fmm_init(fmm_ipd, eel%fmm_maxl_pol, eel%tree, nrhs)
+            end if
+            call time_pull('field_extD2D: fmm_init')
 
+            call time_push()
+            call prepare_fmm_ext_ipd(eel, fmm_ipd, ext_ipd)
+            call time_pull('field_extD2D: prepare_fmm_ext_ipd (p2m/m2m/m2l/l2l)')
+
+            call time_push()
+            allocate(tmpV1(nrhs), tmpE1(3,nrhs), tmpEgr1(6,nrhs), tmpHE1(10,nrhs), tmpD3E1(15,nrhs))
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-            do ipol=1, eel%pol_atoms 
+            !$omp private(i,ipol,tmpV1,tmpE1,tmpEgr1,tmpHE1,tmpD3E1)
+            do ipol=1, eel%pol_atoms
                 i = eel%polar_mm(ipol)
-                tmpE = 0.0
+                tmpE1 = 0.0
+                ! all nrhs trial dipole sets evaluated together in ONE call
                 call cart_propfar_at_ipart(fmm_ipd, i, &
-                                           .false., tmpV, &
-                                           .true. , tmpE, &
-                                           .false., tmpEgr, &
-                                           .false., tmpHE)
-                E(:, ipol) = tmpE
+                                           .false., tmpV1, &
+                                           .true. , tmpE1, &
+                                           .false., tmpEgr1, &
+                                           .false., tmpHE1, &
+                                           .false., tmpD3E1)
+                E(:,:, ipol) = tmpE1
             end do
-            
+            ! Every atom has now had a chance to build (or reuse) its own
+            ! L2P cache slot -- see cart_propfar_at_ipart, which cannot
+            ! flip this itself since it only sees one particle at a time.
+            if(fmm_ipd%l2p_rotcache_active) fmm_ipd%l2p_rotcache_built = .true.
+            deallocate(tmpV1, tmpE1, tmpEgr1, tmpHE1, tmpD3E1)
+            call time_pull('field_extD2D: far-field eval (L2P)')
+
+            call time_push()
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-            do ipol=1, eel%pol_atoms 
+            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E,irhs)
+            do ipol=1, eel%pol_atoms
                 i = eel%polar_mm(ipol)
-                 
+
                 ! Near field is computed internally because dumped kernel is required
                 do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
                     j = eel%fmm_near_field_list%ci(ij)
                     jpol = eel%mm_polar(j)
                     ! If the atom is not polarizable, skip
-                    if(jpol < 1) cycle 
+                    if(jpol < 1) cycle
 
                     !loop on target
                     to_do = .true.
@@ -2679,55 +2805,68 @@ module mod_electrostatics
                         to_do = eel%todo_P_P(idx)
                         scalf = eel%scalef_P_P(idx)
                     end if
-                    
-                    if(to_do) then
-                        call damped_coulomb_kernel(eel, j, i,& 
-                                                   2, kernel(1:3), dr)
-                        
-                        tmpE = 0.0_rp
 
-                        call mu_elec_prop(ext_ipd(:,jpol), dr, kernel, .false., tmpV, &
-                                        .true., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE, .false., tmpD3E)
-                        if(to_scale) then
-                            E(:, ipol) = E(:, ipol) + tmpE * scalf
-                        else
-                            E(:, ipol) = E(:, ipol) + tmpE
-                        end if
+                    if(to_do) then
+                        call damped_coulomb_kernel(eel, j, i,&
+                                                   2, kernel(1:3), dr)
+
+                        do irhs=1,nrhs
+                            tmpE = 0.0_rp
+                            call mu_elec_prop(ext_ipd(:,irhs,jpol), dr, kernel, .false., tmpV, &
+                                            .true., tmpE, .false., tmpEgr, &
+                                            .false., tmpHE, .false., tmpD3E)
+                            if(to_scale) then
+                                E(:,irhs, ipol) = E(:,irhs, ipol) + tmpE * scalf
+                            else
+                                E(:,irhs, ipol) = E(:,irhs, ipol) + tmpE
+                            end if
+                        end do
                     end if
                 end do
             end do
-            
+
+            call time_pull('field_extD2D: near-field pairwise')
+
+            call time_push()
             if(allocated(eel%list_P_P_fmm_far)) then
                 ! Now remove screened interactions from far-field
                 do ipol=1, eel%pol_atoms
                     i = eel%polar_mm(ipol)
-                    
+
                     do idx=eel%list_P_P_fmm_far%ri(ipol), eel%list_P_P_fmm_far%ri(ipol+1)-1
                         jpol = eel%list_P_P_fmm_far%ci(idx)
                         j = eel%polar_mm(jpol)
 
                         scalf = 1.0 - eel%scalef_P_P_fmm_far(idx)
-                        
-                        call damped_coulomb_kernel(eel, j, i,& 
+
+                        call damped_coulomb_kernel(eel, j, i,&
                                                     2, kernel(1:3), dr)
-                        
-                        tmpE = 0.0_rp
-                        call mu_elec_prop(ext_ipd(:,jpol), dr, kernel, .false., tmpV, &
-                                        .true., tmpE, .false., tmpEgr, & 
-                                        .false., tmpHE, .false., tmpD3E)
-                        
-                        E(:, ipol) = E(:, ipol) - tmpE * scalf
+
+                        do irhs=1,nrhs
+                            tmpE = 0.0_rp
+                            call mu_elec_prop(ext_ipd(:,irhs,jpol), dr, kernel, .false., tmpV, &
+                                            .true., tmpE, .false., tmpEgr, &
+                                            .false., tmpHE, .false., tmpD3E)
+
+                            E(:,irhs, ipol) = E(:,irhs, ipol) - tmpE * scalf
+                        end do
                     end do
                 end do
             end if
-            deallocate(fmm_ipd%multipoles)
-            deallocate(fmm_ipd%local_expansion)
-            deallocate(fmm_ipd)
+            call time_pull('field_extD2D: far-field screening correction')
+
+            call time_push()
+            if(owns_fmm_ipd) then
+                deallocate(fmm_ipd%multipoles)
+                deallocate(fmm_ipd%local_expansion)
+                deallocate(fmm_ipd)
+            end if
+            call time_pull('field_extD2D: fmm_ipd dealloc')
+            call time_pull('field_extD2D: TOTAL (fmm branch)')
         else
-        
+
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp private(i,j,to_do,to_scale,scalf,idx,tmpV,tmpE,tmpEgr,tmpHE,kernel,dr)
+        !$omp private(i,j,to_do,to_scale,scalf,idx,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E,kernel,dr,irhs)
         do j=1, eel%pol_atoms
             do i=1, eel%pol_atoms
                 if(j == i) cycle
@@ -2749,22 +2888,23 @@ module mod_electrostatics
                     to_do = eel%todo_P_P(idx)
                     scalf = eel%scalef_P_P(idx)
                 end if
-                
+
                 if(to_do) then
                     call damped_coulomb_kernel(eel, eel%polar_mm(i), &
-                                               eel%polar_mm(j),& 
+                                               eel%polar_mm(j),&
                                                2, kernel(1:3), dr)
-                    
-                    tmpE = 0.0_rp
 
-                    call mu_elec_prop(ext_ipd(:,i), dr, kernel, .false., tmpV, &
-                                      .true., tmpE, .false., tmpEgr, & 
-                                      .false., tmpHE, .false., tmpD3E)
-                    if(to_scale) then
-                        E(:, j) = E(:, j) + tmpE * scalf
-                    else
-                        E(:, j) = E(:, j) + tmpE
-                    end if
+                    do irhs=1,nrhs
+                        tmpE = 0.0_rp
+                        call mu_elec_prop(ext_ipd(:,irhs,i), dr, kernel, .false., tmpV, &
+                                          .true., tmpE, .false., tmpEgr, &
+                                          .false., tmpHE, .false., tmpD3E)
+                        if(to_scale) then
+                            E(:,irhs, j) = E(:,irhs, j) + tmpE * scalf
+                        else
+                            E(:,irhs, j) = E(:,irhs, j) + tmpE
+                        end if
+                    end do
                 end if
             end do
         end do
@@ -2786,12 +2926,13 @@ module mod_electrostatics
         integer(ip) :: i, j, jpol, ipol, ij, idx, ikernel, knd
         logical :: to_scale, to_do, do_E3D
         real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15)
+        real(rp) :: tmpV1(1), tmpE1(3,1), tmpEgr1(6,1), tmpHE1(10,1), tmpD3E1(15,1)
         real(rp) :: scalf
 
         knd = 1 ! Default
         if(in_kind == 'P') then
             knd = _amoeba_P_
-        elseif(in_kind == 'D') then 
+        elseif(in_kind == 'D') then
             knd = _amoeba_D_
         elseif(eel%amoeba) then
             call fatal_error("Unrecognized interaction '"//in_kind//"' in elec&
@@ -2816,29 +2957,28 @@ module mod_electrostatics
 
         if(eel%use_fmm) then
             call prepare_fmm_ipd(eel, knd)
-            if (do_E3D) call fatal_error("FMM for analytical second derivatives NYI.")
 
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
-            do ipol=1, eel%pol_atoms 
-                if(do_V) tmpV = 0.0_rp
-                if(do_E) tmpE = 0.0_rp
-                if(do_Egrd) tmpEgr = 0.0_rp
-                if(do_EHes) tmpHE = 0.0_rp
-                if(do_E3D) tmpD3E = 0.0_rp
-                
+            !$omp private(i,j,ij,ipol,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE, &
+            !$omp         tmpV1,tmpE1,tmpEgr1,tmpHE1,tmpD3E1)
+            do ipol=1, eel%pol_atoms
+                if(do_V) tmpV1(1) = 0.0_rp
+                if(do_E) tmpE1(:,1) = 0.0_rp
+                if(do_Egrd) tmpEgr1(:,1) = 0.0_rp
+                if(do_EHes) tmpHE1(:,1) = 0.0_rp
+                tmpD3E1(:,1) = 0.0_rp
+
                 i = eel%polar_mm(ipol)
-               
+
                 call cart_propfar_at_ipart(eel%fmm_ipd(knd), i, &
-                                           !do_V, eel%V_D2D(ipol,knd), &
-                                           !do_E, eel%E_D2D(:,ipol,knd), &
-                                           !do_Egrd, eel%Egrd_D2D(:,ipol,knd), &
-                                           !do_EHes, eel%EHes_D2D(:,ipol,knd))
-                                           do_V, tmpV, &
-                                           do_E, tmpE, &
-                                           do_Egrd, tmpEgr, &
-                                           do_EHes, tmpHE)
-                
+                                           do_V, tmpV1, &
+                                           do_E, tmpE1, &
+                                           do_Egrd, tmpEgr1, &
+                                           do_EHes, tmpHE1, &
+                                           .false., tmpD3E1)
+                tmpV = tmpV1(1); tmpE = tmpE1(:,1); tmpEgr = tmpEgr1(:,1)
+                tmpHE = tmpHE1(:,1); tmpD3E = tmpD3E1(:,1)
+
                 if(do_V) eel%V_D2D(ipol,knd) = eel%V_D2D(ipol,knd) + tmpV
                 if(do_E) eel%E_D2D(:,ipol,knd) = eel%E_D2D(:,ipol,knd) + tmpE
                 if(do_Egrd) eel%Egrd_D2D(:,ipol,knd) = eel%Egrd_D2D(:,ipol,knd) + tmpEgr
@@ -3014,8 +3154,9 @@ module mod_electrostatics
                    amoeba, do_E3D
         real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15), &
                     scalf_p, scalf_d, scalf
+        real(rp) :: tmpV1(1), tmpE1(3,1), tmpEgr1(6,1), tmpHE1(10,1), tmpD3E1(15,1)
         type(ommp_topology_type), pointer :: top
-      
+
         ! Shortcuts
         top => eel%top
         amoeba = eel%amoeba
@@ -3038,24 +3179,27 @@ module mod_electrostatics
         if(eel%amoeba) ikernel = ikernel + 2_ip
         
         if(eel%use_fmm) then
-            if(do_E3D) call fatal_error("FMM and analytical second derivatives NYI.")
             call preapare_fmm_static(eel)
 
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE) 
-            do ipol=1, eel%pol_atoms 
-                if(do_V) tmpV = 0.0_rp
-                if(do_E) tmpE = 0.0_rp
-                if(do_Egrd) tmpEgr = 0.0_rp
-                if(do_EHes) tmpHE = 0.0_rp
-                if(do_E3D) tmpD3E = 0.0_rp
-                
+            !$omp private(i,j,ij,ipol,idx,dr,kernel,to_do_p,to_do_d,to_scale_p,to_scale_d,scalf_p,scalf_d,tmpV,tmpE,tmpEgr,tmpHE, &
+            !$omp         tmpV1,tmpE1,tmpEgr1,tmpHE1,tmpD3E1)
+            do ipol=1, eel%pol_atoms
+                if(do_V) tmpV1(1) = 0.0_rp
+                if(do_E) tmpE1(:,1) = 0.0_rp
+                if(do_Egrd) tmpEgr1(:,1) = 0.0_rp
+                if(do_EHes) tmpHE1(:,1) = 0.0_rp
+                tmpD3E1(:,1) = 0.0_rp
+
                 i = eel%polar_mm(ipol)
                 call cart_propfar_at_ipart(eel%fmm_static, i, &
-                                           do_V, tmpV, &
-                                           do_E, tmpE, &
-                                           do_Egrd, tmpEgr, &
-                                           do_EHes, tmpHE)
+                                           do_V, tmpV1, &
+                                           do_E, tmpE1, &
+                                           do_Egrd, tmpEgr1, &
+                                           do_EHes, tmpHE1, &
+                                           .false., tmpD3E1)
+                tmpV = tmpV1(1); tmpE = tmpE1(:,1); tmpEgr = tmpEgr1(:,1)
+                tmpHE = tmpHE1(:,1); tmpD3E = tmpD3E1(:,1)
 
                 if(do_V) eel%V_M2D(ipol, _amoeba_D_) = eel%V_M2D(ipol, _amoeba_D_) + tmpV
                 if(do_E) eel%E_M2D(:, ipol, _amoeba_D_) = eel%E_M2D(:, ipol, _amoeba_D_) + tmpE
@@ -3199,7 +3343,8 @@ module mod_electrostatics
                         ipol = eel%list_S_P_P_fmm_far%ci(idx)
                         i = eel%polar_mm(ipol)
                         to_scale_p = .true.
-                    
+                        scalf_p = 1.0 - eel%scalef_S_P_P_fmm_far(idx)
+
                         ! The interaction should be corrected
                         call damped_coulomb_kernel(eel, j, i, &
                                                 ikernel, kernel, dr)
@@ -3249,7 +3394,8 @@ module mod_electrostatics
                         ipol = eel%list_S_P_D_fmm_far%ci(idx)
                         i = eel%polar_mm(ipol)
                         to_scale_d = .true.
-                    
+                        scalf_d = 1.0 - eel%scalef_S_P_D_fmm_far(idx)
+
                         ! The interaction should be corrected
                         call damped_coulomb_kernel(eel, j, i, &
                                                 ikernel, kernel, dr)
@@ -3467,6 +3613,7 @@ module mod_electrostatics
         logical :: to_do, to_scale, amoeba
         real(rp) :: kernel(7), dr(3), tmpV, tmpE(3), tmpEgr(6), tmpHE(10), tmpD3E(15), &
                     scalf
+        real(rp) :: tmpV1(1), tmpE1(3,1), tmpEgr1(6,1), tmpHE1(10,1), tmpD3E1(15,1)
         type(ommp_topology_type), pointer :: top
         character :: screening_type
         
@@ -3505,35 +3652,35 @@ module mod_electrostatics
         end if
         
         if(eel%use_fmm) then
-            
-            if(do_E3D) call fatal_error("FMM and analytical second derivatives NYI.")
+
             call prepare_fmm_ipd(eel, knd)
 
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,ij,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,ij,jpol,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E, &
+            !$omp         tmpV1,tmpE1,tmpEgr1,tmpHE1,tmpD3E1)
             do i=1, top%mm_atoms
 
-                if(do_V) tmpV = 0.0_rp
-                if(do_E) tmpE = 0.0_rp
-                if(do_Egrd) tmpEgr = 0.0_rp
-                if(do_EHes) tmpHE = 0.0_rp
-                if(do_E3D) tmpD3E = 0.0_rp
+                if(do_V) tmpV1(1) = 0.0_rp
+                if(do_E) tmpE1(:,1) = 0.0_rp
+                if(do_Egrd) tmpEgr1(:,1) = 0.0_rp
+                if(do_EHes) tmpHE1(:,1) = 0.0_rp
+                if(do_E3D) tmpD3E1(:,1) = 0.0_rp
 
                 call cart_propfar_at_ipart(eel%fmm_ipd(knd), i, &
-                !                           do_V, eel%V_D2M(i), &
-                !                           do_E, eel%E_D2M(:,i), &
-                !                           do_Egrd, eel%Egrd_D2M(:,i), &
-                !                           do_EHes, eel%EHes_D2M(:,i))
-                                           do_V, tmpV, &
-                                           do_E, tmpE, &
-                                           do_Egrd, tmpEgr, &
-                                           do_EHes, tmpHE)
-                
+                                           do_V, tmpV1, &
+                                           do_E, tmpE1, &
+                                           do_Egrd, tmpEgr1, &
+                                           do_EHes, tmpHE1, &
+                                           do_E3D, tmpD3E1)
+                tmpV = tmpV1(1); tmpE = tmpE1(:,1); tmpEgr = tmpEgr1(:,1)
+                tmpHE = tmpHE1(:,1); tmpD3E = tmpD3E1(:,1)
+
                 if(do_V) eel%V_D2M(i) = eel%V_D2M(i) + tmpV
                 if(do_E) eel%E_D2M(:,i) = eel%E_D2M(:,i) + tmpE
                 if(do_Egrd) eel%Egrd_D2M(:,i) = eel%Egrd_D2M(:,i) + tmpEgr
                 if(do_EHes) eel%EHes_D2M(:,i) = eel%EHes_D2M(:,i) + tmpHE
-                
+                if(do_E3D) eel%E3D_D2M(:,i) = eel%E3D_D2M(:,i) + tmpD3E
+
                 ! Near field is computed internally because dumped kernel is required
                 do ij=eel%fmm_near_field_list%ri(i), eel%fmm_near_field_list%ri(i+1)-1
                     j = eel%fmm_near_field_list%ci(ij)
@@ -3589,7 +3736,7 @@ module mod_electrostatics
                         if(do_EHes) tmpHE = 0.0_rp
                         if(do_E3D) tmpD3E = 0.0_rp
                         
-                        call mu_elec_prop(eel%ipd(:,jpol, knd), dr, kernel, & 
+                        call mu_elec_prop(eel%ipd(:,jpol, knd), dr, kernel, &
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
@@ -3678,7 +3825,7 @@ module mod_electrostatics
         else
         if(amoeba) then
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E)
             do j=1, top%mm_atoms
                 ! loop on sources
                 do i=1, eel%pol_atoms
@@ -3731,8 +3878,9 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
-                        
-                        call mu_elec_prop(eel%ipd(:,i, knd), dr, kernel, & 
+                        if(do_E3D) tmpD3E = 0.0_rp
+
+                        call mu_elec_prop(eel%ipd(:,i, knd), dr, kernel, &
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
@@ -3756,7 +3904,7 @@ module mod_electrostatics
             end do
         else
             !$omp parallel do default(shared) schedule(dynamic) &
-            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE) 
+            !$omp private(i,j,idx,dr,kernel,to_do,to_scale,scalf,tmpV,tmpE,tmpEgr,tmpHE,tmpD3E)
             do j=1, top%mm_atoms
                 ! loop on sources
                 do i=1, eel%pol_atoms
@@ -3788,8 +3936,9 @@ module mod_electrostatics
                         if(do_E) tmpE = 0.0_rp
                         if(do_Egrd) tmpEgr = 0.0_rp
                         if(do_EHes) tmpHE = 0.0_rp
-                        
-                        call mu_elec_prop(eel%ipd(:,i, knd), dr, kernel, & 
+                        if(do_E3D) tmpD3E = 0.0_rp
+
+                        call mu_elec_prop(eel%ipd(:,i, knd), dr, kernel, &
                                          do_V, tmpV, &
                                          do_E, tmpE, &
                                          do_Egrd, tmpEgr, &
@@ -4251,6 +4400,23 @@ module mod_electrostatics
             return
         end if
 
+        if(.not. allocated(eel%tree)) then
+            ! Systems with mm_atoms <= OMMP_FMM_ENABLE_THR don't get their
+            ! FMM data structures allocated automatically at construction
+            ! time (see electrostatics_init) -- if use_fmm was forced on
+            ! anyway (e.g. explicit "use_fmm": "true" in a smart-input JSON
+            ! on a small system), allocate them here, lazily, the first
+            ! time they're actually needed, rather than crashing on
+            ! free_tree below with an unallocated tree. Root-caused during
+            ! the `hessian` branch FMM-caching work, 2026-08-15.
+            allocate(eel%tree)
+            allocate(eel%fmm_static)
+            eel%fmm_static_done = .false.
+            allocate(eel%fmm_ipd(eel%n_ipd))
+            allocate(eel%fmm_ipd_done(eel%n_ipd))
+            eel%fmm_ipd_done = .false.
+        end if
+
         call time_push()
         write(msg, *) "FMM Lmax (static): ", eel%fmm_maxl_static
         call ommp_message(msg, OMMP_VERBOSE_HIGH)
@@ -4282,6 +4448,15 @@ module mod_electrostatics
             call free_fmm(eel%fmm_ipd(i))
             call fmm_init(eel%fmm_ipd(i), eel%fmm_maxl_pol, eel%tree)
         end do
+        if(associated(eel%fmm_cg_scratch)) then
+            ! Geometry changed: any open CG-solve scratch object (and its
+            ! rotation cache) refers to stale positions, discard it. This
+            ! should not normally trigger (fmm_cg_finalize already closes
+            ! it at the end of every solve), it is here purely as a safety
+            ! net against leaving a solve open across a geometry update.
+            call free_fmm(eel%fmm_cg_scratch)
+            deallocate(eel%fmm_cg_scratch)
+        end if
         eel%fmm_static_done = .false.
         eel%fmm_ipd_done = .false.
         call time_pull("FMM initialization")
@@ -4364,17 +4539,20 @@ module mod_electrostatics
 
         type(fmm_type), intent(inout) :: fmm_obj
         !! FMM object, it should be already initialized
-        real(rp), intent(in) :: q(:)
+        real(rp), intent(in) :: q(:,:)
+        !! Shape (nrhs, n_particles)
         logical(lp), intent(in) :: use_q
-        
-        real(rp), intent(in) :: mu(:, :)
+
+        real(rp), intent(in) :: mu(:,:,:)
+        !! Shape (3, nrhs, n_particles)
         logical(lp), intent(in) :: use_mu
-        
-        real(rp), intent(in) :: quad(:, :)
+
+        real(rp), intent(in) :: quad(:,:,:)
+        !! Shape (6, nrhs, n_particles)
         logical(lp), intent(in) :: use_quad
 
-        real(rp), allocatable :: multipoles_sphe(:, :)
-        integer(ip) :: i
+        real(rp), allocatable :: multipoles_sphe(:,:,:)
+        integer(ip) :: i, nrhs
 
         call time_push
 
@@ -4382,38 +4560,39 @@ module mod_electrostatics
         if(.not. use_q .and. .not. use_mu .and. .not. use_quad) then
             call fatal_error("fmm_solve_for_multipoles called without any input source.")
         end if
+        nrhs = fmm_obj%nrhs
 
-        allocate(multipoles_sphe(9_ip, fmm_obj%tree%n_particles))
-        
+        allocate(multipoles_sphe(9_ip, nrhs, fmm_obj%tree%n_particles))
+
         multipoles_sphe = 0.0
-        
+
         if(use_q) then
-            if(size(q,1) /= fmm_obj%tree%n_particles) then
+            if(size(q,1) /= nrhs .or. size(q,2) /= fmm_obj%tree%n_particles) then
                 call fatal_error("charges array has wrong size in fmm_solve_for_multipoles")
             end if
-            multipoles_sphe(1,:) = q / sqrt(4.0 * pi)
+            multipoles_sphe(1,:,:) = q / sqrt(4.0 * pi)
         end if
-        
+
         if(use_mu) then
-            if(size(mu,1) /= 3 .or. size(mu,2) /= fmm_obj%tree%n_particles) then
+            if(size(mu,1) /= 3 .or. size(mu,2) /= nrhs .or. size(mu,3) /= fmm_obj%tree%n_particles) then
                 call fatal_error("dipoles array has wrong size in fmm_solve_for_multipoles")
             end if
-            multipoles_sphe(2,:) = mu(2,:) / sqrt(4.0 * pi / 3.0)
-            multipoles_sphe(3,:) = mu(3,:) / sqrt(4.0 * pi / 3.0)
-            multipoles_sphe(4,:) = mu(1,:) / sqrt(4.0 * pi / 3.0)
+            multipoles_sphe(2,:,:) = mu(2,:,:) / sqrt(4.0 * pi / 3.0)
+            multipoles_sphe(3,:,:) = mu(3,:,:) / sqrt(4.0 * pi / 3.0)
+            multipoles_sphe(4,:,:) = mu(1,:,:) / sqrt(4.0 * pi / 3.0)
         end if
-        
+
         if(use_quad) then
-            if(size(quad,1) /= 6 .or. size(quad,2) /= fmm_obj%tree%n_particles) then
+            if(size(quad,1) /= 6 .or. size(quad,2) /= nrhs .or. size(quad,3) /= fmm_obj%tree%n_particles) then
                 call fatal_error("dipoles array has wrong size in fmm_solve_for_multipoles")
             end if
-            multipoles_sphe(5,:) = 2.0 * quad(_xy_,:) * sqrt(15.0 / (4.0 * pi))
-            multipoles_sphe(6,:) = 2.0 *quad(_yz_,:) * sqrt(15.0 / (4.0 * pi))
-            multipoles_sphe(7,:) = 6.0 / 2.0 * quad(_zz_,:) * sqrt(5.0/(4.0*pi))
-            multipoles_sphe(8,:) = 2.0 * quad(_xz_,:) * sqrt(15.0 / (4.0 * pi))
-            multipoles_sphe(9,:) = (quad(_xx_,:) - quad(_yy_,:)) * sqrt(15.0/(4.0*pi))
+            multipoles_sphe(5,:,:) = 2.0 * quad(_xy_,:,:) * sqrt(15.0 / (4.0 * pi))
+            multipoles_sphe(6,:,:) = 2.0 *quad(_yz_,:,:) * sqrt(15.0 / (4.0 * pi))
+            multipoles_sphe(7,:,:) = 6.0 / 2.0 * quad(_zz_,:,:) * sqrt(5.0/(4.0*pi))
+            multipoles_sphe(8,:,:) = 2.0 * quad(_xz_,:,:) * sqrt(15.0 / (4.0 * pi))
+            multipoles_sphe(9,:,:) = (quad(_xx_,:,:) - quad(_yy_,:,:)) * sqrt(15.0/(4.0*pi))
         end if
-        
+
         ! Load FMM
         call tree_p2m(fmm_obj, multipoles_sphe, 2)
         call tree_m2m(fmm_obj)

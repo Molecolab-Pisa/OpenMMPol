@@ -640,6 +640,7 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     double fmm_min_cell_size=OMMP_FMM_MIN_CELLSIZE;
     double fmm_distance_thr=OMMP_FMM_FAR_THR;
     int32_t fmm_maxl_pol=OMMP_FMM_DEFAULT_MAXL_POL, fmm_maxl=OMMP_FMM_DEFAULT_MAXL;
+    int32_t fmm_cache_mode=0;
 
     while(cur != NULL){
         sprintf(msg, "Parsing JSON element \"%s\".", cur->string);
@@ -900,6 +901,12 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
             if(!cJSON_IsNumber(cur) && cur->valuedouble > 0.0)
                 ommp_fatal("FMM threshold distance should be a positive number.");
             fmm_distance_thr = cur->valuedouble * OMMP_ANG2AU;
+        }
+        else if(strcmp(cur->string, "fmm_cache") == 0){
+            if(!cJSON_IsNumber(cur))
+                ommp_fatal("fmm_cache should be an integer: 0 (default, cache M2L+L2P if "
+                           "memory allows), 1 (no caching), 2 (force-cache everything).");
+            fmm_cache_mode = (int32_t) cur->valuedouble;
         }
         else if(strcmp(cur->string, "ignore_duplicated_angle_prm") == 0){
             ignore_duplicated_angle_prm = true;
@@ -1181,8 +1188,14 @@ void c_smartinput(const char *json_file, OMMP_SYSTEM_PRT *ommp_sys, OMMP_QM_HELP
     if(ommp_use_fmm(*ommp_sys)){
       ommp_set_fmm_lmax_pol(*ommp_sys, fmm_maxl_pol);
       ommp_set_fmm_lmax(*ommp_sys, fmm_maxl);
-      ommp_set_fmm_distance(*ommp_sys, fmm_distance_thr);
-      ommp_set_fmm_min_cell_size(*ommp_sys, fmm_min_cell_size);
+      ommp_set_fmm_cache_mode(*ommp_sys, fmm_cache_mode);
+      /* Set distance and min_cell_size together (ommp_set_fmm_params), not
+       * via the two individual setters -- each of those independently
+       * triggers a full tree rebuild, so calling them one at a time
+       * exposes an intermediate state where one of the two is still at
+       * its Fortran type-default of 0.0, which has been observed to crash
+       * for small systems. */
+      ommp_set_fmm_params(*ommp_sys, fmm_distance_thr, fmm_min_cell_size);
     }
 
     // Handle link atoms
